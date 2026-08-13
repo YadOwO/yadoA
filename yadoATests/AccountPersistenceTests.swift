@@ -26,6 +26,76 @@ struct AccountPersistenceTests {
         #expect(try repository.accounts().map(\.id) == [id])
     }
 
+    @Test("编辑账户仅更新资料并保留余额、类型和创建时间")
+    func updatesProfileWithoutChangingFinancialIdentity() throws {
+        let dataContainer = try AccountDataContainer.inMemory()
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let id = UUID()
+        let createdAt = Date(timeIntervalSince1970: 100)
+        let updatedAt = Date(timeIntervalSince1970: 200)
+        try repository.save(
+            AccountDraft(
+                id: id,
+                accountType: .cash,
+                name: "现金",
+                note: "旧备注",
+                amountText: "40"
+            ),
+            now: createdAt
+        )
+
+        let original = try #require(try repository.account(id: id))
+        var edit = AccountEditDraft(account: original)
+        edit.name = "  旅行现金  "
+        edit.note = "  备用  "
+        edit.lastFourDigits = " 8x765 "
+
+        try repository.update(edit, now: updatedAt)
+
+        let account = try #require(try repository.account(id: id))
+        #expect(account.name == "旅行现金")
+        #expect(account.note == "备用")
+        #expect(account.lastFourDigits == "8765")
+        #expect(account.balance == 40)
+        #expect(account.typeRawValue == AccountType.cash.rawValue)
+        #expect(account.createdAt == createdAt)
+        #expect(account.updatedAt == updatedAt)
+    }
+
+    @Test("编辑保存失败会回滚资料并支持同一草稿重试")
+    func failedUpdateRollsBackAndRetrySucceeds() throws {
+        let dataContainer = try AccountDataContainer.inMemory()
+        let seedRepository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let id = UUID()
+        try seedRepository.save(
+            AccountDraft(
+                id: id,
+                accountType: .cash,
+                name: "现金",
+                amountText: "40"
+            )
+        )
+
+        var shouldFail = true
+        let repository = LocalAccountRepository(
+            container: dataContainer.modelContainer,
+            beforeSave: {
+                if shouldFail { throw InjectedSaveFailure() }
+            }
+        )
+        var edit = AccountEditDraft(account: try #require(try repository.account(id: id)))
+        edit.name = "旅行现金"
+
+        #expect(throws: InjectedSaveFailure.self) {
+            try repository.update(edit)
+        }
+        #expect(try repository.account(id: id)?.name == "现金")
+
+        shouldFail = false
+        try repository.update(edit)
+        #expect(try repository.account(id: id)?.name == "旅行现金")
+    }
+
     @Test("保存失败会回滚，使用同一草稿重试只生成一条记录")
     func failedSaveRollsBackAndRetryDoesNotDuplicate() throws {
         let dataContainer = try AccountDataContainer.inMemory()

@@ -128,6 +128,27 @@ final class Account {
     }
 }
 
+extension Account {
+    /// 将资料编辑草稿应用到现有账户，保留余额、类型、模板和创建时间。
+    ///
+    /// - Parameters:
+    ///   - draft: 已有账户资料编辑草稿。
+    ///   - now: 注入的资料更新时间，便于确定性测试。
+    /// - Throws: 名称清理后为空时抛出 `AccountValidationError.emptyName`。
+    func applying(
+        _ draft: AccountEditDraft,
+        now: Date = .now
+    ) throws {
+        let name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { throw AccountValidationError.emptyName }
+
+        self.name = name
+        note = Self.sanitizedOptionalText(draft.note)
+        lastFourDigits = Self.sanitizedLastFourDigits(draft.lastFourDigits)
+        updatedAt = now
+    }
+}
+
 /// 账户列表与仓库共享的确定性排序规则。
 enum AccountOrdering {
     /// 最新更新时间优先；时间相同时按 UUID 字符串升序。

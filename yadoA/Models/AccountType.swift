@@ -373,3 +373,35 @@ struct AccountDraft: Identifiable, Equatable, Sendable {
             && AccountAmountParser.amount(from: amountText, locale: locale) != nil
     }
 }
+
+/// 已有账户资料编辑期间持有的表单草稿。
+struct AccountEditDraft: Identifiable, Equatable, Sendable {
+    /// 被编辑账户的稳定标识。
+    let id: UUID
+
+    /// 当前账户类型；类型未知时编辑页仍允许修改名称和备注。
+    let accountType: AccountType?
+
+    /// 用户编辑后的账户名称。
+    var name: String
+
+    /// 用户编辑后的可选备注。
+    var note: String
+
+    /// 用户编辑后的银行卡号后四位。
+    var lastFourDigits: String
+
+    /// 从已持久化账户创建资料草稿，不包含余额，避免绕过余额流水。
+    init(account: Account) {
+        id = account.id
+        accountType = account.accountType
+        name = account.name
+        note = account.note ?? ""
+        lastFourDigits = account.lastFourDigits ?? ""
+    }
+
+    /// 名称非空时允许提交；其他字段由持久化边界负责清理。
+    var isFormValid: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}

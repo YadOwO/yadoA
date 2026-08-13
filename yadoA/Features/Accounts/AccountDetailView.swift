@@ -72,6 +72,7 @@ struct AccountDetailView: View {
     @Environment(\.locale) private var locale
     @Environment(\.modelContext) private var modelContext
     @State private var adjustmentSeed: BalanceAdjustmentSheetSeed?
+    @State private var editSeed: AccountEditSheetSeed?
     @State private var queryRefreshToken = UUID()
 
     /// 导航栈传入的稳定账户标识。
@@ -85,6 +86,9 @@ struct AccountDetailView: View {
                     accountID: accountID,
                     currentBalance: currentBalance
                 )
+            },
+            onEditAccount: { account in
+                editSeed = AccountEditSheetSeed(account: account)
             }
         )
         .id(queryRefreshToken)
@@ -110,6 +114,25 @@ struct AccountDetailView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
+        .sheet(item: $editSeed) { seed in
+            NavigationStack {
+                AccountEditView(
+                    account: seed.account,
+                    save: { draft in
+                        let repository = LocalAccountRepository(
+                            container: modelContext.container
+                        )
+                        try repository.update(draft)
+                    },
+                    onSaved: {
+                        editSeed = nil
+                        queryRefreshToken = UUID()
+                    }
+                )
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
     }
 }
 
@@ -125,14 +148,19 @@ private struct AccountDetailQueryContent: View {
     /// 点击余额整行时回传原始账户余额，不从格式化文本反解析。
     let onAdjustBalance: (UUID, Decimal) -> Void
 
+    /// 点击详情页编辑入口时回传当前账户模型。
+    let onEditAccount: (Account) -> Void
+
     /// 创建仅查询目标 UUID 的详情内容。
     init(
         accountID: UUID,
-        onAdjustBalance: @escaping (UUID, Decimal) -> Void
+        onAdjustBalance: @escaping (UUID, Decimal) -> Void,
+        onEditAccount: @escaping (Account) -> Void
     ) {
         let targetAccountID = accountID
         self.accountID = targetAccountID
         self.onAdjustBalance = onAdjustBalance
+        self.onEditAccount = onEditAccount
         _accounts = Query(
             filter: #Predicate<Account> { account in
                 account.id == targetAccountID
@@ -275,6 +303,19 @@ private struct AccountDetailQueryContent: View {
                 )
             }
         }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    onEditAccount(account)
+                } label: {
+                    Label(
+                        AccountLocalization.string("account.detail.edit", locale: locale),
+                        systemImage: "pencil"
+                    )
+                }
+                .accessibilityIdentifier("account-detail-edit")
+            }
+        }
     }
 
     /// 过期或已不存在 UUID 的安全空状态。
@@ -301,6 +342,15 @@ private struct BalanceAdjustmentSheetSeed: Identifiable {
 
     /// 打开 Sheet 时用于预填的账户总余额。
     let currentBalance: Decimal
+}
+
+/// 每次打开账户资料编辑页时固定使用的账户 UUID 快照。
+private struct AccountEditSheetSeed: Identifiable {
+    /// 被编辑账户的当前模型对象。
+    let account: Account
+
+    /// `sheet(item:)` 所需的稳定标识。
+    var id: UUID { account.id }
 }
 
 /// 账户详情中的单条类型化流水，支持大字体下自动切换为纵向金额布局。

@@ -294,18 +294,11 @@ private struct AccountFormView: View {
                 }
 
                 if flow.draft.accountType.showsLastFourDigits {
-                    TextField(
-                        AccountLocalization.string("account.creation.field.last_four_digits", locale: locale),
-                        text: $flow.draft.lastFourDigits
+                    AccountLastFourDigitsField(
+                        locale: locale,
+                        text: $flow.draft.lastFourDigits,
+                        accessibilityIdentifier: "account-creation-last-four-digits"
                     )
-                        .keyboardType(.numberPad)
-                        .onChange(of: flow.draft.lastFourDigits) { _, newValue in
-                            let cleanedValue = String(newValue.filter(\.isNumber).prefix(4))
-                            if cleanedValue != newValue {
-                                flow.draft.lastFourDigits = cleanedValue
-                            }
-                        }
-                        .accessibilityIdentifier("account-creation-last-four-digits")
                 }
 
                 TextField(
@@ -373,5 +366,32 @@ private struct AccountFormView: View {
             )
         )
         .navigationBarBackButtonHidden(flow.isSaving)
+    }
+}
+
+/// 账户创建和编辑共用的银行卡号后四位输入项。
+struct AccountLastFourDigitsField: View {
+    /// 输入项使用的显式语言环境。
+    let locale: Locale
+
+    /// 用户输入的银行卡号后四位。
+    @Binding var text: String
+
+    /// 自动化与无障碍定位使用的稳定标识。
+    let accessibilityIdentifier: String
+
+    var body: some View {
+        TextField(
+            AccountLocalization.string("account.creation.field.last_four_digits", locale: locale),
+            text: $text
+        )
+        .keyboardType(.numberPad)
+        .onChange(of: text) { _, newValue in
+            let cleanedValue = String(newValue.filter(\.isNumber).prefix(4))
+            if cleanedValue != newValue {
+                text = cleanedValue
+            }
+        }
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }

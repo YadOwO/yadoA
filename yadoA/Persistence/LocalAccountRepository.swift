@@ -5,6 +5,9 @@ import SwiftData
 enum AccountRepositoryError: Error, Equatable {
     /// 相同草稿 UUID 已成功保存，拒绝再次插入。
     case duplicateID(UUID)
+
+    /// 编辑请求对应的账户已不存在。
+    case accountNotFound(UUID)
 }
 
 /// 在主 actor 上串行管理单一 ModelContext 的本地账户仓库。
@@ -54,8 +57,31 @@ final class LocalAccountRepository {
             throw AccountRepositoryError.duplicateID(draft.id)
         }
 
-        modelContext.insert(account)
+        try persistChanges {
+            modelContext.insert(account)
+        }
+    }
+
+    /// 校验并原子更新已有账户资料，不改变余额或账户流水。
+    ///
+    /// 保存阶段任一错误都会回滚 context，确保编辑失败时原资料仍可重试。
+    func update(
+        _ draft: AccountEditDraft,
+        now: Date = .now
+    ) throws {
+        guard let account = try account(id: draft.id) else {
+            throw AccountRepositoryError.accountNotFound(draft.id)
+        }
+
+        try persistChanges {
+            try account.applying(draft, now: now)
+        }
+    }
+
+    /// 在同一 context 中执行变更、显式保存并统一处理失败回滚。
+    private func persistChanges(_ changes: () throws -> Void) throws {
         do {
+            try changes()
             try beforeSave()
             try modelContext.save()
         } catch {

@@ -749,6 +749,23 @@
         }
       }
     },
+    "common.close": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        }
+      }
+    },
     "common.done": {
       "extractionState": "manual",
       "localizations": {
@@ -1264,6 +1281,34 @@
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Account Details" } },
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "账户详情" } }
+      }
+    },
+    "account.detail.edit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Edit" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "编辑" } }
+      }
+    },
+    "account.edit.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Edit Account" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "编辑账户" } }
+      }
+    },
+    "account.edit.immutable_message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Account type and balance are managed separately." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "账户类型和余额需在各自入口中管理。" } }
+      }
+    },
+    "account.edit.save_error.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Unable to save the account. Your entries are preserved. Please try again." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法保存账户，已保留填写内容，请重试。" } }
       }
     },
     "account.detail.type": {
