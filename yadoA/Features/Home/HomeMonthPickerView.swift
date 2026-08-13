@@ -4,14 +4,14 @@ import SwiftUI
 struct HomeMonthPickerView: View {
     @Environment(\.locale) private var locale
 
-    /// 用于把年月转换为日期的日历。
-    private let calendar: Calendar
+    /// 月份选择器覆盖的公历年份范围，避免一次加载过大的滚轮数据集。
+    private static let yearRange = 1900...2100
 
-    /// 打开 Sheet 时已提交的月份。
-    private let initialMonth: HomeMonth
+    /// 当前 Sheet 内临时选择的年份。
+    @State private var selectedYear: Int
 
-    /// 当前 Sheet 内的临时日期值。
-    @State private var selectedDate: Date
+    /// 当前 Sheet 内临时选择的月份。
+    @State private var selectedMonth: Int
 
     /// 取消按钮行为；不提交临时月份。
     let onCancel: () -> Void
@@ -21,29 +21,33 @@ struct HomeMonthPickerView: View {
 
     init(
         initialMonth: HomeMonth,
-        calendar sourceCalendar: Calendar = .current,
         onCancel: @escaping () -> Void,
         onConfirm: @escaping (HomeMonth) -> Void
     ) {
-        self.initialMonth = initialMonth
-        self.calendar = TransactionDay.gregorianCalendar(basedOn: sourceCalendar)
         self.onCancel = onCancel
         self.onConfirm = onConfirm
-        _selectedDate = State(
-            initialValue: initialMonth.firstDate(calendar: sourceCalendar) ?? .now
-        )
+        _selectedYear = State(initialValue: initialMonth.year)
+        _selectedMonth = State(initialValue: initialMonth.month)
     }
 
     var body: some View {
-        DatePicker(
-            AccountLocalization.string("home.month.picker.title", locale: locale),
-            selection: $selectedDate,
-            displayedComponents: .date
-        )
-        .datePickerStyle(.wheel)
+        HStack(spacing: 0) {
+            Picker("", selection: $selectedYear) {
+                ForEach(Self.yearRange, id: \.self) { year in
+                    Text(year.formatted(.number.locale(locale)))
+                        .tag(year)
+                }
+            }
+
+            Picker("", selection: $selectedMonth) {
+                ForEach(1...12, id: \.self) { month in
+                    Text(month.formatted(.number.locale(locale)))
+                        .tag(month)
+                }
+            }
+        }
+        .pickerStyle(.wheel)
         .labelsHidden()
-        .environment(\.calendar, calendar)
-        .environment(\.locale, locale)
         .accessibilityIdentifier("home-month-picker")
         .navigationTitle(AccountLocalization.string("home.month.picker.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
@@ -57,12 +61,7 @@ struct HomeMonthPickerView: View {
 
             ToolbarItem(placement: .confirmationAction) {
                 Button(AccountLocalization.string("common.done", locale: locale)) {
-                    guard let month = HomeMonth.from(
-                        date: selectedDate,
-                        calendar: calendar,
-                        locale: locale
-                    ) else {
-                        onCancel()
+                    guard let month = HomeMonth(year: selectedYear, month: selectedMonth) else {
                         return
                     }
                     onConfirm(month)
@@ -72,9 +71,5 @@ struct HomeMonthPickerView: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-        .onAppear {
-            // 让系统辅助功能始终能读到当前 draft 的月份，而不是读取旧的日期列。
-            selectedDate = initialMonth.firstDate(calendar: calendar) ?? selectedDate
-        }
     }
 }

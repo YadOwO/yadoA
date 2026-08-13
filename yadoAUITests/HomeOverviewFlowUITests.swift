@@ -13,6 +13,7 @@ final class HomeOverviewFlowUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Home"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["home-month-selector"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["home-summary-visibility"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.otherElements["home-details-empty"].exists)
 
         app.buttons["home-month-selector"].tap()

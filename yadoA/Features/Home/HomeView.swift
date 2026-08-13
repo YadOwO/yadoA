@@ -44,6 +44,7 @@ struct HomeView: View {
 private struct HomeQueryContent: View {
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var environmentCalendar
+    @Environment(\.modelContext) private var modelContext
     @Binding private var areAmountsVisible: Bool
     @Query private var transactions: [AccountTransaction]
 
@@ -86,6 +87,33 @@ private struct HomeQueryContent: View {
             )
         }
         .background(Color(uiColor: .systemBackground))
+        .overlay(alignment: .bottomTrailing) {
+            NavigationLink {
+                DiningExpenseEntryView { draft in
+                    let repository = LocalExpenseRepository(
+                        container: modelContext.container
+                    )
+                    try repository.save(draft)
+                }
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .frame(width: 58, height: 58)
+                    .background(Circle().fill(Color.yellow))
+                    .overlay {
+                        Circle()
+                            .stroke(.white.opacity(0.8), lineWidth: 1)
+                    }
+                    .shadow(color: .black.opacity(0.16), radius: 8, y: 4)
+            }
+            .accessibilityLabel(
+                Text(AccountLocalization.string("expense.entry.action", locale: locale))
+            )
+            .accessibilityIdentifier("home-add-expense")
+            .padding(.trailing, 18)
+            .padding(.bottom, 18)
+        }
         .onAppear {
             if selectedMonth == nil {
                 selectedMonth = presentation.initialMonth
@@ -95,7 +123,6 @@ private struct HomeQueryContent: View {
             NavigationStack {
                 HomeMonthPickerView(
                     initialMonth: activeMonth,
-                    calendar: environmentCalendar,
                     onCancel: {
                         isMonthPickerPresented = false
                     },
@@ -124,23 +151,12 @@ private struct HomeOverviewHeader: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            HStack(alignment: .bottom, spacing: 16) {
+            HStack(alignment: .center, spacing: 16) {
                 Button(action: onSelectMonth) {
-                    HStack(alignment: .bottom, spacing: 6) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(monthPresentation.formattedMonth)
-                                .font(.headline)
-                                .lineLimit(1)
-                            Text(
-                                AccountLocalization.string(
-                                    "home.month.selector.prompt",
-                                    locale: locale
-                                )
-                            )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        }
-
+                    HStack(spacing: 6) {
+                        Text(monthPresentation.formattedMonth)
+                            .font(.headline)
+                            .lineLimit(1)
                         Image(systemName: "chevron.down")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
@@ -159,23 +175,7 @@ private struct HomeOverviewHeader: View {
                 )
                 .accessibilityIdentifier("home-month-selector")
 
-                Spacer(minLength: 4)
-
-                HomeSummaryColumn(
-                    title: AccountLocalization.string("home.summary.income", locale: locale),
-                    amount: monthPresentation.incomeTotal,
-                    isVisible: areAmountsVisible,
-                    isIncome: true,
-                    locale: locale
-                )
-
-                HomeSummaryColumn(
-                    title: AccountLocalization.string("home.summary.expense", locale: locale),
-                    amount: monthPresentation.expenseTotal,
-                    isVisible: areAmountsVisible,
-                    isIncome: false,
-                    locale: locale
-                )
+                Spacer()
 
                 Button {
                     areAmountsVisible.toggle()
@@ -206,6 +206,27 @@ private struct HomeOverviewHeader: View {
                     )
                 )
                 .accessibilityIdentifier("home-summary-visibility")
+            }
+            .padding(.horizontal, 20)
+
+            HStack(spacing: 24) {
+                HomeSummaryColumn(
+                    title: AccountLocalization.string("home.summary.income", locale: locale),
+                    amount: monthPresentation.incomeTotal,
+                    isVisible: areAmountsVisible,
+                    isIncome: true,
+                    locale: locale
+                )
+
+                HomeSummaryColumn(
+                    title: AccountLocalization.string("home.summary.expense", locale: locale),
+                    amount: monthPresentation.expenseTotal,
+                    isVisible: areAmountsVisible,
+                    isIncome: false,
+                    locale: locale
+                )
+
+                Spacer()
             }
             .padding(.horizontal, 20)
 
@@ -283,6 +304,7 @@ private struct HomeSummaryColumn: View {
 /// 当前月份的独立明细滚动区域。
 private struct HomeOverviewList: View {
     @State private var boundaryLatch = false
+    @State private var scrollPhase: ScrollPhase = .idle
 
     /// 当前月份的按日展示数据。
     let monthPresentation: HomeOverviewMonthPresentation
@@ -299,33 +321,45 @@ private struct HomeOverviewList: View {
     var body: some View {
         GeometryReader { containerGeometry in
             ScrollViewReader { scrollProxy in
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        Color.clear
-                            .frame(height: 1)
-                            .id(HomeOverviewScrollAnchor.top)
+                List {
+                    Color.clear
+                        .frame(height: 1)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .id(HomeOverviewScrollAnchor.top)
 
-                        if monthPresentation.isEmpty {
-                            HomeEmptyState()
-                                .frame(minHeight: max(220, containerGeometry.size.height - 2))
-                                .frame(maxWidth: .infinity)
-                        } else {
-                            ForEach(monthPresentation.dayGroups) { day in
-                                HomeOverviewDaySection(day: day)
-                                    .id(day.id)
+                    if monthPresentation.isEmpty {
+                        HomeEmptyState()
+                            .frame(
+                                maxWidth: .infinity,
+                                minHeight: max(220, containerGeometry.size.height - 2)
+                            )
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                    } else {
+                        ForEach(monthPresentation.dayGroups) { day in
+                            Section {
+                                ForEach(day.rows) { row in
+                                    HomeOverviewRow(row: row)
+                                        .listRowInsets(
+                                            EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20)
+                                        )
+                                }
+                            } header: {
+                                HomeOverviewDayHeader(day: day)
                             }
                         }
-
-                        Color.clear
-                            .frame(height: 1)
-                            .id(HomeOverviewScrollAnchor.bottom)
                     }
-                    .frame(
-                        minHeight: max(0, containerGeometry.size.height - 2),
-                        alignment: .top
-                    )
-                    .padding(.bottom, 24)
+
+                    Color.clear
+                        .frame(height: 1)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .id(HomeOverviewScrollAnchor.bottom)
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(Color(uiColor: .systemBackground))
                 .scrollBounceBehavior(.always)
                 .accessibilityIdentifier("home-details-scroll")
                 .onScrollGeometryChange(for: HomeScrollMetrics.self) { geometry in
@@ -337,7 +371,7 @@ private struct HomeOverviewList: View {
                         bottomInset: geometry.contentInsets.bottom
                     )
                 } action: { _, metrics in
-                    guard !boundaryLatch else { return }
+                    guard !boundaryLatch, scrollPhase != .idle else { return }
                     let navigator = HomeMonthNavigator(
                         availableMonths: presentation.availableMonths
                     )
@@ -355,6 +389,7 @@ private struct HomeOverviewList: View {
                     }
                 }
                 .onScrollPhaseChange { _, phase in
+                    scrollPhase = phase
                     if phase == .idle {
                         boundaryLatch = false
                     }
@@ -376,40 +411,25 @@ private struct HomeOverviewList: View {
     }
 }
 
-/// 首页按日分组的日期头和只读明细行。
-private struct HomeOverviewDaySection: View {
+/// 首页原生列表中的日期分组标题。
+private struct HomeOverviewDayHeader: View {
     @Environment(\.locale) private var locale
 
     /// 当前日期组数据。
     let day: HomeOverviewDayPresentation
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(day.formattedDate)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text(day.formattedWeekday)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 8)
-                Text(daySummary)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 14)
-            .padding(.bottom, 4)
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("home-day-\(day.transactionDay)")
-
-            ForEach(day.rows) { row in
-                HomeOverviewRow(row: row)
-            }
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(day.formattedDate)
+            Text(day.formattedWeekday)
+            Spacer(minLength: 8)
+            Text(daySummary)
         }
-        .overlay(alignment: .bottom) {
-            Divider()
-        }
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+        .textCase(nil)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("home-day-\(day.transactionDay)")
     }
 
     /// 当前日期组的收入和支出摘要。
@@ -455,9 +475,7 @@ private struct HomeOverviewRow: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
-        .frame(minHeight: 64)
+        .frame(minHeight: 44)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(row.accessibilityLabel)
         .accessibilityIdentifier("home-transaction-\(row.id.uuidString)")
