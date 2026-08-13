@@ -44,7 +44,7 @@ final class yadoAUITests: XCTestCase {
         let app = launchIsolatedAppInEnglish()
 
         XCTAssertTrue(app.navigationBars["Home"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Financial Overview"].exists)
+        XCTAssertTrue(app.otherElements["home-details-empty"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["account-list-empty-add"].exists)
 
         openAccountsTab(in: app)

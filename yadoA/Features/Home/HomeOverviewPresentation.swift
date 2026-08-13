@@ -114,9 +114,6 @@ struct HomeOverviewRowPresentation: Identifiable, Equatable {
     /// 使用负向金额表示支出的本地化金额。
     let formattedAmount: String
 
-    /// 当前语言环境下的公历业务日期。
-    let formattedDate: String
-
     /// 已清理的可选备注。
     let note: String?
 
@@ -197,21 +194,6 @@ struct HomeMonthNavigator: Equatable {
         availableMonths.first(where: { $0 > month })
     }
 
-    /// `earlierMonth(from:)` 的语义别名，便于边界事件调用。
-    ///
-    /// - Parameter month: 当前选中的自然月。
-    /// - Returns: 更早方向最近的有数据月份或 `nil`。
-    func nearestEarlierMonth(from month: HomeMonth) -> HomeMonth? {
-        earlierMonth(from: month)
-    }
-
-    /// `laterMonth(from:)` 的语义别名，便于边界事件调用。
-    ///
-    /// - Parameter month: 当前选中的自然月。
-    /// - Returns: 更晚方向最近的有数据月份或 `nil`。
-    func nearestLaterMonth(from month: HomeMonth) -> HomeMonth? {
-        laterMonth(from: month)
-    }
 }
 
 /// 首页跨账户流水的纯展示投影与月份浏览边界。
@@ -283,7 +265,9 @@ struct HomeOverviewPresentation {
             )
         }
         self.validTransactions = validTransactions
-        self.availableMonths = Array(Set(validTransactions.map(\.month))).sorted()
+        self.availableMonths = HomeMonthNavigator(
+            availableMonths: validTransactions.map(\.month)
+        ).availableMonths
         self.initialMonth = Self.initialMonth(
             now: now,
             calendar: calendar,
@@ -300,7 +284,8 @@ struct HomeOverviewPresentation {
     func presentation(for month: HomeMonth) -> HomeOverviewMonthPresentation {
         let monthTransactions = validTransactions.filter { $0.month == month }
         let groupedTransactions = Dictionary(grouping: monthTransactions, by: \.transaction.transactionDay)
-        let dayGroups = groupedTransactions.keys.sorted(by: >).compactMap { transactionDay in
+        let dayGroups = groupedTransactions.keys.sorted(by: >).compactMap {
+            transactionDay -> HomeOverviewDayPresentation? in
             guard let date = TransactionDay.date(
                 from: transactionDay,
                 calendar: calendar,
@@ -354,11 +339,11 @@ struct HomeOverviewPresentation {
     ) -> HomeOverviewRowPresentation? {
         guard let payload = try? transaction.validatedPayload(),
               case .diningExpense = payload,
-              let date = TransactionDay.date(
+              TransactionDay.date(
                   from: transaction.transactionDay,
                   calendar: sourceCalendar,
                   locale: locale
-              ),
+              ) != nil,
               let historyRow = AccountTransactionHistoryPresentation.row(
                   for: transaction,
                   locale: locale,
@@ -372,7 +357,6 @@ struct HomeOverviewPresentation {
             id: historyRow.id,
             title: historyRow.title,
             formattedAmount: historyRow.formattedAmount,
-            formattedDate: Self.formattedDate(date, locale: locale, calendar: sourceCalendar),
             note: historyRow.note,
             accessibilityLabel: historyRow.accessibilityLabel
         )
@@ -396,7 +380,7 @@ struct HomeOverviewPresentation {
         let calendar = TransactionDay.gregorianCalendar(basedOn: sourceCalendar)
         let currentMonth = HomeMonth.from(date: now, calendar: calendar)
             ?? HomeMonth(year: 1970, month: 1)!
-        let months = Array(Set(availableMonths)).sorted()
+        let months = HomeMonthNavigator(availableMonths: availableMonths).availableMonths
         guard !months.contains(currentMonth) else { return currentMonth }
         if let previousMonth = months.last(where: { $0 < currentMonth }) {
             return previousMonth
@@ -405,7 +389,7 @@ struct HomeOverviewPresentation {
     }
 
     /// 供 SwiftData 查询结果和纯数组投影共用的稳定流水排序。
-    private static func isOrderedBefore(
+    private nonisolated static func isOrderedBefore(
         _ lhs: AccountTransaction,
         _ rhs: AccountTransaction
     ) -> Bool {

@@ -8,6 +8,22 @@ extension XCTestCase {
         app.launchArguments += [
             "--ui-testing-in-memory",
             "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US",
+            "-home.summary.amountsVisible", "NO"
+        ]
+        app.launch()
+        return app
+    }
+
+    /// 使用隔离 Home 夹具和固定英文环境启动应用。
+    @MainActor
+    func launchHomeFixtureInEnglish() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "--ui-testing-in-memory",
+            "--ui-testing-home-fixture",
+            "--ui-testing-reset-home-summary-visibility",
+            "-AppleLanguages", "(en)",
             "-AppleLocale", "en_US"
         ]
         app.launch()

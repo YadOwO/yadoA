@@ -17,7 +17,14 @@ struct yadoAApp: App {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing-in-memory") {
             do {
-                uiTestingDataContainer = try AccountDataContainer.inMemory()
+                let container = try AccountDataContainer.inMemory()
+                if ProcessInfo.processInfo.arguments.contains("--ui-testing-home-fixture") {
+                    if ProcessInfo.processInfo.arguments.contains("--ui-testing-reset-home-summary-visibility") {
+                        UserDefaults.standard.set(false, forKey: "home.summary.amountsVisible")
+                    }
+                    try HomeUITestFixture.seed(in: container.modelContainer)
+                }
+                uiTestingDataContainer = container
             } catch {
                 // UI 自动化绝不能因隔离容器失败而转入生产文件存储。
                 fatalError("Unable to create isolated UI testing store: \(error)")
