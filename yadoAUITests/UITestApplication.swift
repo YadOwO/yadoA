@@ -13,4 +13,13 @@ extension XCTestCase {
         app.launch()
         return app
     }
+
+    /// 从默认首页切换到账户 Tab，并等待账户页完成展示。
+    @MainActor
+    func openAccountsTab(in app: XCUIApplication) {
+        let accountsTab = app.tabBars.buttons["Accounts"]
+        XCTAssertTrue(accountsTab.waitForExistence(timeout: 3))
+        accountsTab.tap()
+        XCTAssertTrue(app.navigationBars["Accounts"].waitForExistence(timeout: 3))
+    }
 }

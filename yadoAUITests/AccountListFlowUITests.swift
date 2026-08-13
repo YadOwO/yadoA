@@ -8,6 +8,7 @@ final class AccountListFlowUITests: XCTestCase {
     @MainActor
     func testEmptyStateCreatesFirstAccountAndMovesAddActionToToolbar() throws {
         let app = launchIsolatedAppInEnglish()
+        openAccountsTab(in: app)
 
         let emptyAdd = app.buttons["account-list-empty-add"]
         XCTAssertTrue(emptyAdd.waitForExistence(timeout: 3))

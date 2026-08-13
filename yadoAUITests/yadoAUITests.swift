@@ -15,6 +15,7 @@ final class yadoAUITests: XCTestCase {
     @MainActor
     func testInvalidFormCannotSaveAndBackKeepsCreationOpen() throws {
         let app = launchIsolatedAppInEnglish()
+        openAccountsTab(in: app)
         let addAccountButton = app.buttons["account-list-empty-add"]
         XCTAssertTrue(addAccountButton.waitForExistence(timeout: 3))
         addAccountButton.tap()
@@ -36,6 +37,19 @@ final class yadoAUITests: XCTestCase {
         app.navigationBars.buttons["Add Account"].tap()
         XCTAssertTrue(cashType.waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["account-creation-cancel"].exists)
+    }
+
+    @MainActor
+    func testAppStartsOnHomeAndCanSwitchToAccounts() throws {
+        let app = launchIsolatedAppInEnglish()
+
+        XCTAssertTrue(app.navigationBars["Home"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Financial Overview"].exists)
+        XCTAssertFalse(app.buttons["account-list-empty-add"].exists)
+
+        openAccountsTab(in: app)
+
+        XCTAssertTrue(app.buttons["account-list-empty-add"].waitForExistence(timeout: 3))
     }
 
     @MainActor
