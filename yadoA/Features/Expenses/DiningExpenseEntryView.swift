@@ -62,22 +62,7 @@ struct DiningExpenseEntryView: View {
         }
         .interactiveDismissDisabled(flow.isSaving)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if focusedField != .note {
-                SimplifiedAmountKeypad(
-                    isDoneEnabled: canSubmit,
-                    isSaving: flow.isSaving,
-                    onDigit: flow.appendDigit,
-                    onDecimalPoint: flow.appendDecimalPoint,
-                    onDelete: flow.deleteBackward
-                ) {
-                    Task {
-                        await flow.submit {
-                            provideSuccessFeedback()
-                            dismiss()
-                        }
-                    }
-                }
-            }
+            submitButton
         }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -86,6 +71,9 @@ struct DiningExpenseEntryView: View {
                     focusedField = nil
                 }
             }
+        }
+        .task {
+            focusedField = .amount
         }
     }
 
@@ -99,21 +87,69 @@ struct DiningExpenseEntryView: View {
             .font(.headline)
             .foregroundStyle(.tint)
 
-            Text(flow.displayedAmount)
+            TextField(
+                AccountLocalization.string("expense.entry.amount", locale: locale),
+                text: Binding(
+                    get: { flow.draft.amountText },
+                    set: {
+                        flow.updateAmountText(
+                            $0,
+                            decimalSeparator: locale.decimalSeparator ?? "."
+                        )
+                    }
+                ),
+                prompt: Text(verbatim: "0")
+            )
                 .font(.system(.largeTitle, design: .rounded, weight: .semibold))
                 .monospacedDigit()
+                .keyboardType(.decimalPad)
+                .focused($focusedField, equals: .amount)
+                .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.55)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, minHeight: 72)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    focusedField = nil
-                }
                 .accessibilityLabel(
                     Text(AccountLocalization.string("expense.entry.amount", locale: locale))
                 )
                 .accessibilityValue(Text(verbatim: flow.displayedAmount))
+                .accessibilityIdentifier("expense-entry-amount")
         }
+    }
+
+    /// 页面底部始终可见的保存动作；系统键盘出现时会自动位于键盘上方。
+    private var submitButton: some View {
+        Button {
+            focusedField = nil
+            Task {
+                await flow.submit {
+                    provideSuccessFeedback()
+                    dismiss()
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                if flow.isSaving {
+                    ProgressView()
+                        .accessibilityHidden(true)
+                }
+                Text(
+                    AccountLocalization.string(
+                        flow.hasSaveError ? "common.retry" : "common.save",
+                        locale: locale
+                    )
+                )
+                .fontWeight(.semibold)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(!canSubmit)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .frame(maxWidth: 620)
+        .frame(maxWidth: .infinity)
+        .background(.regularMaterial)
+        .accessibilityIdentifier("expense-entry-save")
     }
 
     /// 当前账户摘要；点击后直接弹出账户选择框。
@@ -293,8 +329,9 @@ struct DiningExpenseEntryView: View {
         )
     }
 
-    /// 当前仅备注输入使用系统键盘。
+    /// 页面内可唤起系统键盘的输入区域。
     private enum FocusedField: Hashable {
+        case amount
         case note
     }
 }

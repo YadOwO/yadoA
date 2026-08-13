@@ -32,7 +32,7 @@ final class Account {
     /// 最多四位数字组成的可选卡号后缀。
     var lastFourDigits: String?
 
-    /// 账户创建时为非负精确十进制数；支出联动后资产或价值账户允许为负。
+    /// 账户创建时为非负精确十进制数；支出或手动调整后允许为负。
     var balance: Decimal
 
     /// 决定金额格式的 ISO 4217 货币代码；当前仅支持 `CNY`。

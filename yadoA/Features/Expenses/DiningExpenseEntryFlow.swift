@@ -39,11 +39,11 @@ final class DiningExpenseEntryFlow: ObservableObject {
         calendar: Calendar = .current,
         saveAction: @escaping DiningExpenseSaveAction
     ) {
-        let gregorianCalendar = Self.gregorianCalendar(basedOn: calendar)
+        let gregorianCalendar = TransactionDay.gregorianCalendar(basedOn: calendar)
         self.calendar = gregorianCalendar
         self.saveAction = saveAction
         self.draft = draft ?? DiningExpenseDraft(
-            transactionDay: Self.transactionDay(for: now, calendar: gregorianCalendar)
+            transactionDay: TransactionDay.encode(now, calendar: gregorianCalendar)
         )
     }
 
@@ -69,44 +69,25 @@ final class DiningExpenseEntryFlow: ObservableObject {
 
     /// 当前 `YYYYMMDD` 草稿值对应的公历日期。
     var transactionDate: Date {
-        let year = draft.transactionDay / 10_000
-        let month = draft.transactionDay / 100 % 100
-        let day = draft.transactionDay % 100
-        let components = DateComponents(year: year, month: month, day: day)
-        return calendar.date(from: components) ?? calendar.startOfDay(for: .now)
+        TransactionDay.date(from: draft.transactionDay, calendar: calendar)
+            ?? calendar.startOfDay(for: .now)
     }
 
-    /// 追加一位数字，且小数点后最多保留两位。
-    func appendDigit(_ digit: Int) {
-        guard !isSaving, (0...9).contains(digit) else { return }
+    /// 接收系统数字键盘输入，统一小数点格式并限制最多两位小数。
+    ///
+    /// - Parameters:
+    ///   - amountText: 文本框当前尝试写入的金额字符。
+    ///   - decimalSeparator: 当前系统区域使用的小数分隔符。
+    func updateAmountText(_ amountText: String, decimalSeparator: String) {
+        guard !isSaving,
+              let normalizedAmountText = AccountAmountParser.normalizedCNYAmountText(
+                  amountText,
+                  decimalSeparator: decimalSeparator
+              )
+        else { return }
 
-        var amountText = draft.amountText
-        if let decimalPoint = amountText.firstIndex(of: ".") {
-            let fractionalDigits = amountText.distance(from: amountText.index(after: decimalPoint), to: amountText.endIndex)
-            guard fractionalDigits < 2 else { return }
-        }
-
-        if amountText == "0" {
-            guard digit != 0 else { return }
-            amountText = String(digit)
-        } else {
-            amountText.append(String(digit))
-        }
-        updateAmountText(amountText)
-    }
-
-    /// 追加唯一的小数点；空金额会先补零。
-    func appendDecimalPoint() {
-        guard !isSaving, !draft.amountText.contains(".") else { return }
-        updateAmountText(draft.amountText.isEmpty ? "0." : draft.amountText + ".")
-    }
-
-    /// 删除金额缓冲区中的最后一个字符。
-    func deleteBackward() {
-        guard !isSaving, !draft.amountText.isEmpty else { return }
-        var amountText = draft.amountText
-        amountText.removeLast()
-        updateAmountText(amountText)
+        draft.amountText = normalizedAmountText
+        markAsEditing()
     }
 
     /// 更新可选备注，并在编辑后清除上一次失败提示。
@@ -119,7 +100,7 @@ final class DiningExpenseEntryFlow: ObservableObject {
     /// 更新记账日期，仅把公历年月日写回草稿。
     func updateTransactionDate(_ date: Date) {
         guard !isSaving else { return }
-        draft.transactionDay = Self.transactionDay(for: date, calendar: calendar)
+        draft.transactionDay = TransactionDay.encode(date, calendar: calendar)
         markAsEditing()
     }
 
@@ -147,12 +128,6 @@ final class DiningExpenseEntryFlow: ObservableObject {
         }
     }
 
-    /// 替换金额字符并清除上一次失败提示。
-    private func updateAmountText(_ amountText: String) {
-        draft.amountText = amountText
-        markAsEditing()
-    }
-
     /// 用户修改草稿后回到可提交状态。
     private func markAsEditing() {
         if submissionState == .failed {
@@ -160,19 +135,4 @@ final class DiningExpenseEntryFlow: ObservableObject {
         }
     }
 
-    /// 复用调用方时区并把日历标识统一为公历。
-    private static func gregorianCalendar(basedOn source: Calendar) -> Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.locale = source.locale
-        calendar.timeZone = source.timeZone
-        return calendar
-    }
-
-    /// 把公历日期转换为不含时区语义的 `YYYYMMDD` 整数。
-    private static func transactionDay(for date: Date, calendar: Calendar) -> Int {
-        let components = calendar.dateComponents([.year, .month, .day], from: date)
-        return (components.year ?? 1970) * 10_000
-            + (components.month ?? 1) * 100
-            + (components.day ?? 1)
-    }
 }

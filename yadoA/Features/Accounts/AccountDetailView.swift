@@ -67,26 +67,79 @@ enum AccountDetailPresentationFactory {
     }
 }
 
-/// 从当前 SwiftData 状态解析稳定 UUID 并展示基础账户详情。
+/// 账户详情外层负责余额调整 Sheet 与查询刷新生命周期。
 struct AccountDetailView: View {
     @Environment(\.locale) private var locale
-    @Query private var accounts: [Account]
-    @Query private var transactions: [ExpenseTransaction]
+    @Environment(\.modelContext) private var modelContext
+    @State private var adjustmentSeed: BalanceAdjustmentSheetSeed?
+    @State private var queryRefreshToken = UUID()
 
     /// 导航栈传入的稳定账户标识。
     let accountID: UUID
 
-    /// 创建仅查询目标 UUID 的详情页，避免持有导航发生时的模型快照。
-    init(accountID: UUID) {
+    var body: some View {
+        AccountDetailQueryContent(
+            accountID: accountID,
+            onAdjustBalance: { accountID, currentBalance in
+                adjustmentSeed = BalanceAdjustmentSheetSeed(
+                    accountID: accountID,
+                    currentBalance: currentBalance
+                )
+            }
+        )
+        .id(queryRefreshToken)
+        .navigationTitle(AccountLocalization.string("account.detail.title", locale: locale))
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $adjustmentSeed) { seed in
+            NavigationStack {
+                BalanceAdjustmentView(
+                    accountID: seed.accountID,
+                    currentBalance: seed.currentBalance,
+                    save: { draft in
+                        let repository = LocalBalanceAdjustmentRepository(
+                            container: modelContext.container
+                        )
+                        return try repository.save(draft)
+                    },
+                    onSaved: {
+                        adjustmentSeed = nil
+                        queryRefreshToken = UUID()
+                    }
+                )
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+    }
+}
+
+/// 通过独立查询子视图始终从 SwiftData 重新解析账户与其流水。
+private struct AccountDetailQueryContent: View {
+    @Environment(\.locale) private var locale
+    @Query private var accounts: [Account]
+    @Query private var transactions: [AccountTransaction]
+
+    /// 当前详情页对应的稳定账户 UUID。
+    let accountID: UUID
+
+    /// 点击余额整行时回传原始账户余额，不从格式化文本反解析。
+    let onAdjustBalance: (UUID, Decimal) -> Void
+
+    /// 创建仅查询目标 UUID 的详情内容。
+    init(
+        accountID: UUID,
+        onAdjustBalance: @escaping (UUID, Decimal) -> Void
+    ) {
         let targetAccountID = accountID
         self.accountID = targetAccountID
+        self.onAdjustBalance = onAdjustBalance
         _accounts = Query(
             filter: #Predicate<Account> { account in
                 account.id == targetAccountID
             }
         )
         _transactions = Query(
-            ExpenseHistoryPresentation.descriptor(accountID: targetAccountID)
+            AccountTransactionHistoryPresentation.descriptor(accountID: targetAccountID)
         )
     }
 
@@ -94,19 +147,31 @@ struct AccountDetailView: View {
         Group {
             if let account = AccountDetailPresentationFactory.account(id: accountID, in: accounts) {
                 detailContent(
-                    AccountDetailPresentationFactory.detail(for: account, locale: locale)
+                    account: account,
+                    presentation: AccountDetailPresentationFactory.detail(
+                        for: account,
+                        locale: locale
+                    )
                 )
             } else {
                 unavailableContent
             }
         }
-        .navigationTitle(AccountLocalization.string("account.detail.title", locale: locale))
-        .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// 当前账户的只读基础信息与账户范围内流水，不提供新增操作入口。
-    private func detailContent(_ presentation: AccountDetailPresentation) -> some View {
-        List {
+    /// 当前账户的基础信息、可调整余额入口与账户范围内流水。
+    private func detailContent(
+        account: Account,
+        presentation: AccountDetailPresentation
+    ) -> some View {
+        let historyRows = transactions.compactMap { transaction in
+            AccountTransactionHistoryPresentation.row(
+                for: transaction,
+                locale: locale
+            )
+        }
+
+        return List {
             Section {
                 HStack(spacing: 12) {
                     AccountIconView(presentation: presentation.icon)
@@ -157,17 +222,36 @@ struct AccountDetailView: View {
             }
 
             Section {
-                LabeledContent(presentation.amountLabel) {
-                    Text(presentation.formattedAmount)
-                        .font(.body.monospacedDigit())
-                        .accessibilityIdentifier("account-detail-amount")
+                Button {
+                    onAdjustBalance(account.id, account.balance)
+                } label: {
+                    HStack(spacing: 12) {
+                        Text(presentation.amountLabel)
+                        Spacer(minLength: 8)
+                        Text(presentation.formattedAmount)
+                            .font(.body.monospacedDigit())
+                            .accessibilityIdentifier("account-detail-amount")
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                            .accessibilityHidden(true)
+                    }
+                    .frame(minHeight: 44)
                 }
+                .buttonStyle(.plain)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(presentation.amountAccessibilityLabel)
+                .accessibilityHint(
+                    AccountLocalization.string(
+                        "account.detail.balance.adjust_action",
+                        locale: locale
+                    )
+                )
+                .accessibilityIdentifier("account-detail-adjust-balance")
             }
 
             Section {
-                if transactions.isEmpty {
+                if historyRows.isEmpty {
                     Text(
                         AccountLocalization.string(
                             "account.detail.history.empty",
@@ -176,15 +260,10 @@ struct AccountDetailView: View {
                     )
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("account-detail-expense-history-empty")
+                    .accessibilityIdentifier("account-detail-transaction-history-empty")
                 } else {
-                    ForEach(transactions, id: \.id) { transaction in
-                        ExpenseHistoryRow(
-                            presentation: ExpenseHistoryPresentation.row(
-                                for: transaction,
-                                locale: locale
-                            )
-                        )
+                    ForEach(historyRows) { presentation in
+                        AccountTransactionHistoryRow(presentation: presentation)
                     }
                 }
             } header: {
@@ -212,24 +291,42 @@ struct AccountDetailView: View {
     }
 }
 
-/// 账户详情中的单条餐饮支出，支持大字体下自动切换为纵向金额布局。
-private struct ExpenseHistoryRow: View {
-    /// 已完成本地化与负向金额格式化的流水展示数据。
-    let presentation: ExpenseHistoryRowPresentation
+/// 每次打开余额调整 Sheet 时固定使用的账户与余额快照。
+private struct BalanceAdjustmentSheetSeed: Identifiable {
+    /// Sheet 实例标识，确保重新打开时创建新草稿 UUID。
+    let id = UUID()
+
+    /// 被调整账户的稳定 UUID。
+    let accountID: UUID
+
+    /// 打开 Sheet 时用于预填的账户总余额。
+    let currentBalance: Decimal
+}
+
+/// 账户详情中的单条类型化流水，支持大字体下自动切换为纵向金额布局。
+private struct AccountTransactionHistoryRow: View {
+    /// 已完成类型分流、本地化和金额格式化的流水展示数据。
+    let presentation: AccountTransactionHistoryRowPresentation
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    category
+                    title
                     Spacer(minLength: 8)
                     amount
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    category
+                    title
                     amount
                 }
+            }
+
+            if let balanceTransition = presentation.balanceTransition {
+                Text(balanceTransition)
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.secondary)
             }
 
             Text(presentation.formattedDate)
@@ -242,17 +339,18 @@ private struct ExpenseHistoryRow: View {
             }
         }
         .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("account-detail-expense-\(presentation.id.uuidString)")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(presentation.accessibilityLabel)
+        .accessibilityIdentifier("account-detail-transaction-\(presentation.id.uuidString)")
     }
 
-    /// 固定餐饮分类，不依赖颜色表达支出类型。
-    private var category: some View {
-        Text(presentation.categoryTitle)
+    /// 餐饮或余额调整标题，不依赖颜色表达流水类型。
+    private var title: some View {
+        Text(presentation.title)
             .font(.headline)
     }
 
-    /// 已带负号的本地化 CNY 支出金额。
+    /// 已带明确正负方向的本地化 CNY 金额。
     private var amount: some View {
         Text(presentation.formattedAmount)
             .font(.body.monospacedDigit())
@@ -264,7 +362,7 @@ private struct ExpenseHistoryRow: View {
         AccountDetailView(accountID: UUID())
     }
     .modelContainer(
-        for: [Account.self, ExpenseTransaction.self],
+        for: [Account.self, AccountTransaction.self],
         inMemory: true
     )
 }

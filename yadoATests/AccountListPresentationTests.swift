@@ -209,6 +209,53 @@ struct AccountListPresentationTests {
         #expect(second.balance == Decimal(90))
     }
 
+    @Test("余额调整不更新时间戳或改变账户相对顺序")
+    func balanceAdjustmentDoesNotReorderAccounts() throws {
+        let dataContainer = try AccountDataContainer.inMemory()
+        let accountRepository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let firstID = UUID()
+        let secondID = UUID()
+        let firstUpdatedAt = Date(timeIntervalSince1970: 200)
+        let secondUpdatedAt = Date(timeIntervalSince1970: 100)
+        try accountRepository.save(
+            AccountDraft(
+                id: firstID,
+                accountType: .cash,
+                name: "账户 A",
+                amountText: "100"
+            ),
+            locale: Locale(identifier: "en_US"),
+            now: firstUpdatedAt
+        )
+        try accountRepository.save(
+            AccountDraft(
+                id: secondID,
+                accountType: .cash,
+                name: "账户 B",
+                amountText: "100"
+            ),
+            locale: Locale(identifier: "en_US"),
+            now: secondUpdatedAt
+        )
+
+        _ = try LocalBalanceAdjustmentRepository(
+            container: dataContainer.modelContainer
+        ).save(
+            BalanceAdjustmentDraft(accountID: secondID, amountText: "120")
+        )
+
+        let accounts = try ModelContext(dataContainer.modelContainer).fetch(
+            FetchDescriptor<Account>()
+        )
+        let sortedAccounts = AccountListPresentation.sorted(accounts)
+        let first = try #require(accounts.first { $0.id == firstID })
+        let second = try #require(accounts.first { $0.id == secondID })
+        #expect(sortedAccounts.map(\.id) == [firstID, secondID])
+        #expect(first.updatedAt == firstUpdatedAt)
+        #expect(second.updatedAt == secondUpdatedAt)
+        #expect(second.balance == Decimal(120))
+    }
+
     /// 构造已持久化形态的账户，用于隔离展示层边界。
     private func makeAccount(
         id: UUID = UUID(),

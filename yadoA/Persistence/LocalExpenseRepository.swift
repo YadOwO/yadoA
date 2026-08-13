@@ -71,7 +71,7 @@ final class LocalExpenseRepository {
             throw ExpenseRepositoryError.duplicateID(draft.id)
         }
 
-        let transaction = try ExpenseTransaction.validating(
+        let transaction = try AccountTransaction.validating(
             draft: draft,
             savedAt: savedAt
         )
@@ -84,10 +84,13 @@ final class LocalExpenseRepository {
         guard let accountType = account.accountType else {
             throw ExpenseRepositoryError.unsupportedAccountType(account.typeRawValue)
         }
+        guard case let .diningExpense(expenseAmount) = try transaction.validatedPayload() else {
+            throw AccountTransactionValidationError.invalidPayload
+        }
 
         let updatedBalance = try Self.updatedBalance(
             account.balance,
-            by: transaction.amount,
+            by: expenseAmount,
             effect: accountType.expenseBalanceEffect
         )
 
@@ -117,8 +120,8 @@ final class LocalExpenseRepository {
     /// 判断指定 UUID 的流水是否已经存在，避免实例化无须读取的完整模型。
     private func containsTransaction(id: UUID) throws -> Bool {
         let transactionID = id
-        let descriptor = FetchDescriptor<ExpenseTransaction>(
-            predicate: #Predicate<ExpenseTransaction> { transaction in
+        let descriptor = FetchDescriptor<AccountTransaction>(
+            predicate: #Predicate<AccountTransaction> { transaction in
                 transaction.id == transactionID
             }
         )

@@ -1089,40 +1089,6 @@
         }
       }
     },
-    "expense.keypad.decimal": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Decimal point"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "小数点"
-          }
-        }
-      }
-    },
-    "expense.keypad.delete": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "删除"
-          }
-        }
-      }
-    },
     "local_data.loading": {
       "extractionState": "manual",
       "localizations": {
@@ -1216,6 +1182,83 @@
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$@：%2$@" } }
       }
     },
+    "account.balance_adjustment.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Adjust Balance" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "调整余额" } }
+      }
+    },
+    "account.balance_adjustment.current": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Current balance" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前余额" } }
+      }
+    },
+    "account.balance_adjustment.target": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "New total balance" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "新的总余额" } }
+      }
+    },
+    "account.balance_adjustment.target_explanation": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Set the account's total balance, not the amount to add or subtract." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这里设置账户的总余额，不是输入增加或减少的金额。" } }
+      }
+    },
+    "account.balance_adjustment.sign": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Balance sign" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "余额正负" } }
+      }
+    },
+    "account.balance_adjustment.sign.positive": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Positive or zero" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正数或零" } }
+      }
+    },
+    "account.balance_adjustment.sign.negative": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Negative" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "负数" } }
+      }
+    },
+    "account.balance_adjustment.note": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Reason" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "调整原因" } }
+      }
+    },
+    "account.balance_adjustment.note.placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Reason (optional)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "调整原因（选填）" } }
+      }
+    },
+    "account.balance_adjustment.save_failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Unable to adjust the balance. Your entries are preserved. Please try again." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "余额调整失败，已保留填写内容，请重试。" } }
+      }
+    },
+    "account.balance_adjustment.save_succeeded": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Balance adjusted." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "余额已调整。" } }
+      }
+    },
     "account.detail.title": {
       "extractionState": "manual",
       "localizations": {
@@ -1258,6 +1301,13 @@
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "备注" } }
       }
     },
+    "account.detail.balance.adjust_action": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Double tap to set the total balance." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "轻点两下可设置账户总余额。" } }
+      }
+    },
     "account.detail.history.title": {
       "extractionState": "manual",
       "localizations": {
@@ -1268,8 +1318,29 @@
     "account.detail.history.empty": {
       "extractionState": "manual",
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "No dining expenses yet." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "暂无餐饮支出" } }
+        "en": { "stringUnit": { "state": "translated", "value": "No transactions yet." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "暂无流水" } }
+      }
+    },
+    "account.detail.history.balance_adjustment": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Balance Adjustment" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "余额调整" } }
+      }
+    },
+    "account.detail.history.balance_change_format": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%1$@ → %2$@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$@ → %2$@" } }
+      }
+    },
+    "account.detail.history.balance_change_accessibility_format": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Balance changed from %1$@ to %2$@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "余额从 %1$@ 调整为 %2$@" } }
       }
     },
     "account.detail.unavailable.title": {

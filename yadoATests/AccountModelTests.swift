@@ -3,6 +3,7 @@ import Testing
 @testable import yadoA
 
 @Suite("Account 模型转换")
+@MainActor
 struct AccountModelTests {
     @Test("账户类型明确区分资产扣减与债务增加")
     func accountTypesDefineExpenseBalanceEffect() {

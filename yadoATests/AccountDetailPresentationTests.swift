@@ -171,7 +171,7 @@ struct AccountDetailPresentationTests {
         )
         let account = try #require(try queryContext.fetch(accountDescriptor).first)
         let transactions = try queryContext.fetch(
-            ExpenseHistoryPresentation.descriptor(accountID: accountID)
+            AccountTransactionHistoryPresentation.descriptor(accountID: accountID)
         )
         let detail = AccountDetailPresentationFactory.detail(
             for: account,
@@ -183,19 +183,19 @@ struct AccountDetailPresentationTests {
         #expect(transactions.map(\.id) == [transactionID])
     }
 
-    @Test("无流水状态提供中英文餐饮支出说明")
-    func emptyExpenseHistoryIsLocalized() {
+    @Test("无流水状态提供中英文通用说明")
+    func emptyTransactionHistoryIsLocalized() {
         #expect(
             AccountLocalization.string(
                 "account.detail.history.empty",
                 locale: Locale(identifier: "en")
-            ) == "No dining expenses yet."
+            ) == "No transactions yet."
         )
         #expect(
             AccountLocalization.string(
                 "account.detail.history.empty",
                 locale: Locale(identifier: "zh-Hans")
-            ) == "暂无餐饮支出"
+            ) == "暂无流水"
         )
     }
 

@@ -104,7 +104,7 @@ struct AccountCreationFlowTests {
 
     @Test("第一次保存挂起时连续提交只执行一次")
     func rapidSubmissionsOnlyStartOneSave() async {
-        let gate = SaveGate()
+        let gate = AsyncSaveGate()
         var saveAttempts = 0
         var dismissals = 0
         let flow = AccountCreationFlow(
@@ -154,12 +154,12 @@ struct AccountCreationFlowTests {
             lastFourDigits: "9876",
             amountText: "2800"
         )
-        var shouldFail = true
+        let failureState = AccountCreationFailureState()
         var attempts: [AccountDraft] = []
         var dismissals = 0
         let flow = AccountCreationFlow(draft: originalDraft) { draft in
             attempts.append(draft)
-            if shouldFail {
+            if failureState.shouldFail {
                 throw InjectedCreationFailure()
             }
         }
@@ -171,7 +171,7 @@ struct AccountCreationFlowTests {
         #expect(flow.draft == originalDraft)
         #expect(dismissals == 0)
 
-        shouldFail = false
+        failureState.shouldFail = false
         await flow.submit { dismissals += 1 }
 
         #expect(attempts.count == 2)
@@ -210,27 +210,10 @@ struct AccountCreationFlowTests {
     }
 }
 
-@MainActor
-private final class SaveGate {
-    /// 第一次保存是否已进入挂起点。
-    private(set) var hasStarted = false
-
-    /// 恢复挂起保存的 continuation。
-    private var continuation: CheckedContinuation<Void, Never>?
-
-    /// 标记保存已开始并保持挂起，直到测试显式恢复。
-    func wait() async {
-        hasStarted = true
-        await withCheckedContinuation { continuation in
-            self.continuation = continuation
-        }
-    }
-
-    /// 恢复第一次保存。
-    func resume() {
-        continuation?.resume()
-        continuation = nil
-    }
-}
-
 private struct InjectedCreationFailure: Error {}
+
+@MainActor
+private final class AccountCreationFailureState {
+    /// 下一次保存是否注入失败。
+    var shouldFail = true
+}

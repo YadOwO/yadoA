@@ -14,7 +14,7 @@ struct DiningExpenseDraft: Equatable, Sendable {
     /// 当前选择的账户 UUID；未选择时为 `nil`。
     var accountID: UUID?
 
-    /// 内置金额键盘维护的原始字符缓冲区。
+    /// 系统数字键盘维护的金额字符缓冲区。
     var amountText: String
 
     /// 用户选择的公历记账日，使用 `YYYYMMDD` 整数表达。
@@ -28,7 +28,7 @@ struct DiningExpenseDraft: Equatable, Sendable {
     /// - Parameters:
     ///   - id: 页面生命周期内稳定的流水 UUID。
     ///   - accountID: 可选的绑定账户 UUID。
-    ///   - amountText: 内置键盘生成的金额字符。
+    ///   - amountText: 系统数字键盘生成的金额字符。
     ///   - transactionDay: `YYYYMMDD` 公历记账日。
     ///   - note: 允许为空的备注。
     init(
@@ -45,31 +45,16 @@ struct DiningExpenseDraft: Equatable, Sendable {
         self.note = note
     }
 
-    /// 按内置键盘的固定英文句点格式解析精确金额。
+    /// 按页面统一后的英文句点格式解析精确金额。
     var amount: Decimal? {
-        let value = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let parts = value.split(separator: ".", omittingEmptySubsequences: false)
-        guard !value.isEmpty,
-              parts.count <= 2,
-              !parts[0].isEmpty,
-              parts.allSatisfy({ part in
-                  !part.isEmpty && part.allSatisfy { character in
-                      character >= "0" && character <= "9"
-                  }
-              }),
-              parts.count == 1 || parts[1].count <= 2,
-              let amount = Decimal(
-                  string: value,
-                  locale: Locale(identifier: "en_US_POSIX")
-              ),
+        guard let amount = AccountAmountParser.cnyAmount(fromNormalized: amountText),
               amount > 0
         else { return nil }
-
         return amount
     }
 }
 
-extension ExpenseTransaction {
+extension AccountTransaction {
     /// 校验记账草稿并生成尚未插入 context 的餐饮支出流水。
     ///
     /// - Parameters:
@@ -80,15 +65,15 @@ extension ExpenseTransaction {
     static func validating(
         draft: DiningExpenseDraft,
         savedAt: Date = .now
-    ) throws -> ExpenseTransaction {
+    ) throws -> AccountTransaction {
         guard let accountID = draft.accountID else {
             throw DiningExpenseDraftValidationError.accountRequired
         }
         guard let amount = draft.amount else {
-            throw ExpenseTransactionValidationError.invalidAmount
+            throw AccountTransactionValidationError.invalidAmount
         }
 
-        return try validating(
+        return try validatingDiningExpense(
             id: draft.id,
             accountID: accountID,
             amount: amount,

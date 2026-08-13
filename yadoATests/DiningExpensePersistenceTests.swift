@@ -108,7 +108,7 @@ struct DiningExpensePersistenceTests {
                 DiningExpenseDraft(amountText: "10", transactionDay: 20260813)
             )
         }
-        #expect(throws: ExpenseTransactionValidationError.invalidAmount) {
+        #expect(throws: AccountTransactionValidationError.invalidAmount) {
             try repository.save(
                 DiningExpenseDraft(
                     accountID: accountID,
@@ -314,7 +314,6 @@ struct DiningExpensePersistenceTests {
         }
 
         let reopened = try AccountDataContainer.fileBacked(storeURL: storeURL)
-        let repository = LocalExpenseRepository(container: reopened.modelContainer)
         let transaction = try #require(
             try transaction(id: transactionID, in: reopened.modelContainer)
         )
@@ -389,7 +388,7 @@ struct DiningExpensePersistenceTests {
             }
         )
         let account = try #require(try context.fetch(accountDescriptor).first)
-        let transactions = try context.fetchCount(FetchDescriptor<ExpenseTransaction>())
+        let transactions = try context.fetchCount(FetchDescriptor<AccountTransaction>())
 
         #expect(account.balance == balance)
         #expect(transactions == transactionCount)
@@ -397,7 +396,7 @@ struct DiningExpensePersistenceTests {
 
     /// 使用独立 context 统计当前已提交的流水数量。
     private func transactionCount(in container: ModelContainer) throws -> Int {
-        try ModelContext(container).fetchCount(FetchDescriptor<ExpenseTransaction>())
+        try ModelContext(container).fetchCount(FetchDescriptor<AccountTransaction>())
     }
 
     /// 使用独立 context 获取指定 UUID 的已提交账户。
@@ -419,10 +418,10 @@ struct DiningExpensePersistenceTests {
     private func transaction(
         id: UUID,
         in container: ModelContainer
-    ) throws -> ExpenseTransaction? {
+    ) throws -> AccountTransaction? {
         let transactionID = id
-        var descriptor = FetchDescriptor<ExpenseTransaction>(
-            predicate: #Predicate<ExpenseTransaction> { transaction in
+        var descriptor = FetchDescriptor<AccountTransaction>(
+            predicate: #Predicate<AccountTransaction> { transaction in
                 transaction.id == transactionID
             }
         )

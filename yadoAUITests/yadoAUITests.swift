@@ -55,7 +55,7 @@ final class yadoAUITests: XCTestCase {
     @MainActor
     func testLaunchPerformance() throws {
         measure(metrics: [XCTApplicationLaunchMetric()]) {
-            launchIsolatedAppInEnglish()
+            _ = launchIsolatedAppInEnglish()
         }
     }
 }

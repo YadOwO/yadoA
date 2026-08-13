@@ -42,7 +42,7 @@ struct HomeView: View {
 #Preview {
     HomeView()
         .modelContainer(
-            for: [Account.self, ExpenseTransaction.self],
+            for: [Account.self, AccountTransaction.self],
             inMemory: true
         )
 }
