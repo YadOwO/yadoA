@@ -1,0 +1,23 @@
+# macOS Finder metadata
+.DS_Store
+
+# Xcode per-user settings and UI state
+**/xcuserdata/
+*.xcuserstate
+
+# Xcode build products and derived data
+DerivedData/
+build/
+*.build/
+
+# Swift Package Manager generated files
+.build/
+.swiftpm/
+
+# Legacy Xcode per-user files
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcscmblueprint
+*.moved-aside
