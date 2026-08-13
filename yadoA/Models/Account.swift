@@ -11,7 +11,7 @@ enum AccountValidationError: Error, Equatable {
     case invalidTemplate
 }
 
-/// SwiftData schema V1 中的本地账户实体。
+/// SwiftData 本地财务 schema 中的账户实体。
 @Model
 final class Account {
     /// 跨启动、列表和详情导航保持稳定的账户标识。
@@ -32,16 +32,16 @@ final class Account {
     /// 最多四位数字组成的可选卡号后缀。
     var lastFourDigits: String?
 
-    /// 始终以非负精确十进制数保存的余额或金额。
+    /// 账户创建时为非负精确十进制数；支出联动后资产或价值账户允许为负。
     var balance: Decimal
 
-    /// 决定金额格式的 ISO 4217 货币代码；V1 固定为 `CNY`。
+    /// 决定金额格式的 ISO 4217 货币代码；当前仅支持 `CNY`。
     var currencyCode: String
 
     /// 账户首次成功保存的时间。
     var createdAt: Date
 
-    /// 账户最近一次成功更新的时间。
+    /// 账户资料最近一次成功更新的时间；余额流水活动不会修改该字段。
     var updatedAt: Date
 
     /// 已知持久化类型对应的账户类型；未来或损坏的值返回 `nil`。

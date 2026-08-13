@@ -1,6 +1,15 @@
 import Foundation
 import SwiftUI
 
+/// 餐饮支出对账户金额的业务影响方向。
+enum ExpenseBalanceEffect: Equatable, Sendable {
+    /// 资产、余额或价值随支出减少。
+    case decreaseValue
+
+    /// 信用卡或负债记录的正数债务随支出增加。
+    case increaseDebt
+}
+
 /// 账户功能使用的本地化查询边界。
 enum AccountLocalization {
     /// 已解析语言资源包缓存，避免列表重绘时重复查找 `.lproj`。
@@ -66,6 +75,16 @@ enum AccountType: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     /// 用作列表和持久化引用的稳定类型标识。
     var id: String { rawValue }
+
+    /// 餐饮支出写入时唯一允许使用的金额影响方向。
+    var expenseBalanceEffect: ExpenseBalanceEffect {
+        switch self {
+        case .creditCard, .liability:
+            .increaseDebt
+        case .cash, .debitCard, .virtualAccount, .investment, .receivable, .customAsset:
+            .decreaseValue
+        }
+    }
 
     /// 账户类型标题对应的稳定本地化键。
     var titleLocalizationKey: String {

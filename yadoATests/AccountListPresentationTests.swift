@@ -160,6 +160,55 @@ struct AccountListPresentationTests {
         #expect(rows.first?.formattedAmount.contains("40") == true)
     }
 
+    @Test("记账不更新时间戳或改变账户相对顺序")
+    func expenseSaveDoesNotReorderAccounts() throws {
+        let dataContainer = try AccountDataContainer.inMemory()
+        let accountRepository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let firstID = UUID()
+        let secondID = UUID()
+        let firstUpdatedAt = Date(timeIntervalSince1970: 200)
+        let secondUpdatedAt = Date(timeIntervalSince1970: 100)
+        try accountRepository.save(
+            AccountDraft(
+                id: firstID,
+                accountType: .cash,
+                name: "账户 A",
+                amountText: "100"
+            ),
+            locale: Locale(identifier: "en_US"),
+            now: firstUpdatedAt
+        )
+        try accountRepository.save(
+            AccountDraft(
+                id: secondID,
+                accountType: .cash,
+                name: "账户 B",
+                amountText: "100"
+            ),
+            locale: Locale(identifier: "en_US"),
+            now: secondUpdatedAt
+        )
+        let expenseRepository = LocalExpenseRepository(container: dataContainer.modelContainer)
+
+        try expenseRepository.save(
+            DiningExpenseDraft(
+                accountID: secondID,
+                amountText: "10",
+                transactionDay: 20260813
+            )
+        )
+
+        let queryContext = ModelContext(dataContainer.modelContainer)
+        let accounts = try queryContext.fetch(FetchDescriptor<Account>())
+        let sortedAccounts = AccountListPresentation.sorted(accounts)
+        let first = try #require(accounts.first { $0.id == firstID })
+        let second = try #require(accounts.first { $0.id == secondID })
+        #expect(sortedAccounts.map(\.id) == [firstID, secondID])
+        #expect(first.updatedAt == firstUpdatedAt)
+        #expect(second.updatedAt == secondUpdatedAt)
+        #expect(second.balance == Decimal(90))
+    }
+
     /// 构造已持久化形态的账户，用于隔离展示层边界。
     private func makeAccount(
         id: UUID = UUID(),

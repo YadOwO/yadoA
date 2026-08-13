@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import yadoA
 
@@ -134,6 +135,68 @@ struct AccountDetailPresentationTests {
         #expect(detail.note == "备用")
         #expect(detail.formattedAmount.contains("88.50"))
         #expect(detail.amountLabel == "Balance")
+    }
+
+    @Test("真实支出保存后详情读取最新金额和当前账户流水")
+    func expenseSaveFeedsCurrentDetailAmountAndHistory() throws {
+        let dataContainer = try AccountDataContainer.inMemory()
+        let accountID = UUID()
+        let transactionID = UUID()
+        let accountRepository = LocalAccountRepository(container: dataContainer.modelContainer)
+        try accountRepository.save(
+            AccountDraft(
+                id: accountID,
+                accountType: .cash,
+                name: "日常现金",
+                amountText: "100"
+            ),
+            locale: Locale(identifier: "en_US")
+        )
+        let expenseRepository = LocalExpenseRepository(container: dataContainer.modelContainer)
+        try expenseRepository.save(
+            DiningExpenseDraft(
+                id: transactionID,
+                accountID: accountID,
+                amountText: "10.25",
+                transactionDay: 20260813
+            )
+        )
+
+        let queryContext = ModelContext(dataContainer.modelContainer)
+        let targetAccountID = accountID
+        let accountDescriptor = FetchDescriptor<Account>(
+            predicate: #Predicate<Account> { account in
+                account.id == targetAccountID
+            }
+        )
+        let account = try #require(try queryContext.fetch(accountDescriptor).first)
+        let transactions = try queryContext.fetch(
+            ExpenseHistoryPresentation.descriptor(accountID: accountID)
+        )
+        let detail = AccountDetailPresentationFactory.detail(
+            for: account,
+            locale: Locale(identifier: "en_US")
+        )
+
+        #expect(account.balance == Decimal(string: "89.75"))
+        #expect(detail.formattedAmount.contains("89.75"))
+        #expect(transactions.map(\.id) == [transactionID])
+    }
+
+    @Test("无流水状态提供中英文餐饮支出说明")
+    func emptyExpenseHistoryIsLocalized() {
+        #expect(
+            AccountLocalization.string(
+                "account.detail.history.empty",
+                locale: Locale(identifier: "en")
+            ) == "No dining expenses yet."
+        )
+        #expect(
+            AccountLocalization.string(
+                "account.detail.history.empty",
+                locale: Locale(identifier: "zh-Hans")
+            ) == "暂无餐饮支出"
+        )
     }
 
     /// 构造持久账户，隔离验证详情解析与展示契约。

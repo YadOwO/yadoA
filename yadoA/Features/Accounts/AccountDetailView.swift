@@ -71,17 +71,22 @@ enum AccountDetailPresentationFactory {
 struct AccountDetailView: View {
     @Environment(\.locale) private var locale
     @Query private var accounts: [Account]
+    @Query private var transactions: [ExpenseTransaction]
 
     /// 导航栈传入的稳定账户标识。
     let accountID: UUID
 
     /// 创建仅查询目标 UUID 的详情页，避免持有导航发生时的模型快照。
     init(accountID: UUID) {
-        self.accountID = accountID
+        let targetAccountID = accountID
+        self.accountID = targetAccountID
         _accounts = Query(
             filter: #Predicate<Account> { account in
-                account.id == accountID
+                account.id == targetAccountID
             }
+        )
+        _transactions = Query(
+            ExpenseHistoryPresentation.descriptor(accountID: targetAccountID)
         )
     }
 
@@ -99,7 +104,7 @@ struct AccountDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// 当前账户的只读基础信息，不提供尚未实现的操作入口。
+    /// 当前账户的只读基础信息与账户范围内流水，不提供新增操作入口。
     private func detailContent(_ presentation: AccountDetailPresentation) -> some View {
         List {
             Section {
@@ -160,6 +165,36 @@ struct AccountDetailView: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(presentation.amountAccessibilityLabel)
             }
+
+            Section {
+                if transactions.isEmpty {
+                    Text(
+                        AccountLocalization.string(
+                            "account.detail.history.empty",
+                            locale: locale
+                        )
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("account-detail-expense-history-empty")
+                } else {
+                    ForEach(transactions, id: \.id) { transaction in
+                        ExpenseHistoryRow(
+                            presentation: ExpenseHistoryPresentation.row(
+                                for: transaction,
+                                locale: locale
+                            )
+                        )
+                    }
+                }
+            } header: {
+                Text(
+                    AccountLocalization.string(
+                        "account.detail.history.title",
+                        locale: locale
+                    )
+                )
+            }
         }
     }
 
@@ -177,9 +212,59 @@ struct AccountDetailView: View {
     }
 }
 
+/// 账户详情中的单条餐饮支出，支持大字体下自动切换为纵向金额布局。
+private struct ExpenseHistoryRow: View {
+    /// 已完成本地化与负向金额格式化的流水展示数据。
+    let presentation: ExpenseHistoryRowPresentation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    category
+                    Spacer(minLength: 8)
+                    amount
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    category
+                    amount
+                }
+            }
+
+            Text(presentation.formattedDate)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if let note = presentation.note {
+                Text(note)
+                    .font(.subheadline)
+            }
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("account-detail-expense-\(presentation.id.uuidString)")
+    }
+
+    /// 固定餐饮分类，不依赖颜色表达支出类型。
+    private var category: some View {
+        Text(presentation.categoryTitle)
+            .font(.headline)
+    }
+
+    /// 已带负号的本地化 CNY 支出金额。
+    private var amount: some View {
+        Text(presentation.formattedAmount)
+            .font(.body.monospacedDigit())
+    }
+}
+
 #Preview("Account unavailable") {
     NavigationStack {
         AccountDetailView(accountID: UUID())
     }
-    .modelContainer(for: Account.self, inMemory: true)
+    .modelContainer(
+        for: [Account.self, ExpenseTransaction.self],
+        inMemory: true
+    )
 }

@@ -186,8 +186,8 @@ struct AccountListView: View {
     }
 }
 
-/// 支持动态字体换行、且不依赖颜色表达金额语义的账户行。
-private struct AccountListRow: View {
+/// 支持动态字体换行、且不依赖颜色表达金额语义的共享账户行。
+struct AccountListRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let presentation: AccountRowPresentation
 
@@ -241,5 +241,8 @@ private struct AccountListRow: View {
 
 #Preview {
     AccountListView()
-        .modelContainer(for: Account.self, inMemory: true)
+        .modelContainer(
+            for: [Account.self, ExpenseTransaction.self],
+            inMemory: true
+        )
 }

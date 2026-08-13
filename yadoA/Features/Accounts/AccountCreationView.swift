@@ -4,6 +4,18 @@ import SwiftUI
 /// 账户创建流程注入的显式保存动作。
 typealias AccountCreationSaveAction = @MainActor (AccountDraft) async throws -> Void
 
+/// 上下文账户创建关闭前回传给发起页面的结果。
+enum ContextualAccountCreationResult: Equatable {
+    /// 账户已成功持久化，并携带新账户的稳定标识。
+    case saved(UUID)
+
+    /// 账户保存失败；发起页面应保留原有业务草稿。
+    case failed
+}
+
+/// 上下文账户创建完成后的结果回调。
+typealias ContextualAccountCreationResultAction = @MainActor (ContextualAccountCreationResult) -> Void
+
 /// 表单提交期间的状态，用于控制防重与可重试错误展示。
 enum AccountCreationSubmissionState: Equatable {
     case editing
@@ -44,6 +56,7 @@ final class AccountCreationFlow: ObservableObject {
     /// - Parameter onSaved: 仅在注入的显式保存成功后调用的关闭回调。
     func submit(
         locale: Locale = .current,
+        onFailure: @escaping @MainActor () -> Void = {},
         onSaved: @escaping @MainActor () -> Void
     ) async {
         guard draft.isFormValid(locale: locale), !isSaving else { return }
@@ -55,6 +68,7 @@ final class AccountCreationFlow: ObservableObject {
             onSaved()
         } catch {
             submissionState = .failed
+            onFailure()
         }
     }
 }
@@ -68,9 +82,22 @@ struct AccountCreationView: View {
     /// 由账户列表注入的显式保存动作。
     private let saveAction: AccountCreationSaveAction
 
+    /// 仅上下文创建使用的成功或失败结果回调。
+    private let onContextResult: ContextualAccountCreationResultAction?
+
     /// 创建账户 sheet；生产调用方应注入真实本地仓库保存动作。
     init(save: @escaping AccountCreationSaveAction) {
         saveAction = save
+        onContextResult = nil
+    }
+
+    /// 创建由其他业务流程发起的账户 sheet；失败也会关闭并回传结果。
+    init(
+        save: @escaping AccountCreationSaveAction,
+        onContextResult: @escaping ContextualAccountCreationResultAction
+    ) {
+        saveAction = save
+        self.onContextResult = onContextResult
     }
 
     var body: some View {
@@ -109,10 +136,17 @@ struct AccountCreationView: View {
                 template: template,
                 locale: locale,
                 isSheetSaving: $isSaving,
-                saveAction: saveAction
-            ) {
-                dismiss()
-            }
+                saveAction: saveAction,
+                onSaved: { accountID in
+                    onContextResult?(.saved(accountID))
+                    dismiss()
+                },
+                onFailure: {
+                    guard let onContextResult else { return }
+                    onContextResult(.failed)
+                    dismiss()
+                }
+            )
         }
     }
 }
@@ -211,7 +245,10 @@ private struct AccountFormView: View {
     let locale: Locale
 
     /// 显式保存成功后由 sheet 执行的关闭动作。
-    let onSaved: @MainActor () -> Void
+    let onSaved: @MainActor (UUID) -> Void
+
+    /// 显式保存失败后的上下文处理；账户列表模式默认为空操作。
+    let onFailure: @MainActor () -> Void
 
     init(
         accountType: AccountType,
@@ -219,7 +256,8 @@ private struct AccountFormView: View {
         locale: Locale,
         isSheetSaving: Binding<Bool>,
         saveAction: @escaping AccountCreationSaveAction,
-        onSaved: @escaping @MainActor () -> Void
+        onSaved: @escaping @MainActor (UUID) -> Void,
+        onFailure: @escaping @MainActor () -> Void
     ) {
         _flow = StateObject(
             wrappedValue: AccountCreationFlow(
@@ -234,6 +272,7 @@ private struct AccountFormView: View {
         _isSheetSaving = isSheetSaving
         self.locale = locale
         self.onSaved = onSaved
+        self.onFailure = onFailure
     }
 
     var body: some View {
@@ -298,7 +337,12 @@ private struct AccountFormView: View {
                 Button {
                     isSheetSaving = true
                     Task {
-                        await flow.submit(locale: locale, onSaved: onSaved)
+                        await flow.submit(
+                            locale: locale,
+                            onFailure: onFailure
+                        ) {
+                            onSaved(flow.draft.id)
+                        }
                         isSheetSaving = false
                     }
                 } label: {

@@ -63,5 +63,8 @@ struct AppTabView: View {
 
 #Preview {
     AppTabView()
-        .modelContainer(for: Account.self, inMemory: true)
+        .modelContainer(
+            for: [Account.self, ExpenseTransaction.self],
+            inMemory: true
+        )
 }

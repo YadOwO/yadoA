@@ -4,6 +4,24 @@ import Testing
 
 @Suite("Account 模型转换")
 struct AccountModelTests {
+    @Test("账户类型明确区分资产扣减与债务增加")
+    func accountTypesDefineExpenseBalanceEffect() {
+        let valueTypes: [AccountType] = [
+            .cash,
+            .debitCard,
+            .virtualAccount,
+            .investment,
+            .receivable,
+            .customAsset
+        ]
+
+        for accountType in valueTypes {
+            #expect(accountType.expenseBalanceEffect == .decreaseValue)
+        }
+        #expect(AccountType.creditCard.expenseBalanceEffect == .increaseDebt)
+        #expect(AccountType.liability.expenseBalanceEffect == .increaseDebt)
+    }
+
     @Test("信用卡金额保持正数与精确值")
     func creditCardKeepsPositiveExactBalance() throws {
         let id = UUID()

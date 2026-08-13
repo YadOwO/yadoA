@@ -17,8 +17,11 @@ struct AccountDataContainer {
     /// 创建容器时明确选择的存储介质。
     let storage: Storage
 
-    /// 账户 schema V1；后续升级必须通过迁移保留已有记录。
-    static let schema = Schema([Account.self], version: .init(1, 0, 0))
+    /// 当前本地财务 schema，包含账户与餐饮支出流水。
+    static let schema = Schema(
+        [Account.self, ExpenseTransaction.self],
+        version: .init(2, 0, 0)
+    )
 
     /// 创建生产环境文件存储，不会在失败时删除、替换或降级现有文件。
     ///
@@ -36,7 +39,7 @@ struct AccountDataContainer {
             withIntermediateDirectories: true
         )
         let configuration = ModelConfiguration(
-            "AccountSchemaV1",
+            "FinanceSchemaV2",
             schema: schema,
             url: storeURL,
             cloudKitDatabase: .none
@@ -48,7 +51,7 @@ struct AccountDataContainer {
     /// 创建显式隔离的内存容器；生产初始化逻辑不会调用该方法作为降级。
     static func inMemory() throws -> AccountDataContainer {
         let configuration = ModelConfiguration(
-            "AccountSchemaV1Preview",
+            "FinanceSchemaV2Preview",
             schema: schema,
             isStoredInMemoryOnly: true,
             cloudKitDatabase: .none
