@@ -26,6 +26,89 @@ struct AccountRowPresentation: Identifiable, Equatable {
     let icon: AccountIconPresentation
 }
 
+/// 账户列表顶部资产汇总卡片的展示数据。
+struct AccountSummaryPresentation: Equatable {
+    /// 所有资产账户余额减去所有负债账户余额后的净资产。
+    let netAssets: Decimal
+
+    /// 非负债类型账户的余额总和。
+    let assets: Decimal
+
+    /// 信用卡和负债类型账户的债务总和。
+    let liabilities: Decimal
+
+    /// 当前语言环境下格式化后的净资产。
+    let formattedNetAssets: String
+
+    /// 当前语言环境下格式化后的资产总额。
+    let formattedAssets: String
+
+    /// 当前语言环境下格式化后的负债总额。
+    let formattedLiabilities: String
+
+    /// 包含三项汇总和金额的完整播报文本。
+    let accessibilityLabel: String
+
+    /// 从账户列表生成资产、负债和净资产汇总。
+    ///
+    /// 未知账户类型按资产处理，以避免损坏或未来类型的余额从总览中无提示消失。
+    static func summary(
+        for accounts: [Account],
+        locale: Locale = .current
+    ) -> AccountSummaryPresentation {
+        var assets = Decimal.zero
+        var liabilities = Decimal.zero
+
+        for account in accounts {
+            if account.accountType?.expenseBalanceEffect == .increaseDebt {
+                liabilities += account.balance
+            } else {
+                assets += account.balance
+            }
+        }
+
+        let netAssets = assets - liabilities
+        let formattedNetAssets = AccountListPresentation.currencyAmount(
+            netAssets,
+            currencyCode: "CNY",
+            locale: locale
+        )
+        let formattedAssets = AccountListPresentation.currencyAmount(
+            assets,
+            currencyCode: "CNY",
+            locale: locale
+        )
+        let formattedLiabilities = AccountListPresentation.currencyAmount(
+            liabilities,
+            currencyCode: "CNY",
+            locale: locale
+        )
+        let accessibilityLabel = String(
+            format: AccountLocalization.string(
+                "account.summary.accessibility_format",
+                locale: locale
+            ),
+            locale: locale,
+            AccountLocalization.string("account.summary.net_assets", locale: locale),
+            formattedNetAssets,
+            AccountLocalization.string("account.summary.assets", locale: locale),
+            formattedAssets,
+            AccountLocalization.string("account.summary.liabilities", locale: locale),
+            formattedLiabilities
+        )
+
+        return AccountSummaryPresentation(
+            netAssets: netAssets,
+            assets: assets,
+            liabilities: liabilities,
+            formattedNetAssets: formattedNetAssets,
+            formattedAssets: formattedAssets,
+            formattedLiabilities: formattedLiabilities,
+            accessibilityLabel: accessibilityLabel
+        )
+    }
+}
+
 /// 账户列表查询结果的确定性排序与展示转换边界。
 enum AccountListPresentation {
     /// 最新更新时间优先；时间相同时按 UUID 字符串升序稳定排列。
@@ -86,7 +169,7 @@ enum AccountListPresentation {
     }
 
     /// 使用持久化 ISO 货币代码与当前语言环境格式化精确金额。
-    private static func currencyAmount(
+    fileprivate static func currencyAmount(
         _ amount: Decimal,
         currencyCode: String,
         locale: Locale
@@ -158,15 +241,32 @@ struct AccountListView: View {
         }
     }
 
-    /// 非空状态下的系统列表；添加入口只保留在导航栏尾部。
+    /// 非空状态下的独立汇总卡片和账户列表；添加入口只保留在导航栏尾部。
     private func accountList(_ accounts: [Account]) -> some View {
-        List(accounts) { account in
-            let presentation = AccountListPresentation.row(for: account, locale: locale)
-            NavigationLink(value: account.id) {
-                AccountListRow(presentation: presentation)
+        let summary = AccountSummaryPresentation.summary(for: accounts, locale: locale)
+
+        return ScrollView {
+            LazyVStack(spacing: 0) {
+                AccountSummaryCard(presentation: summary)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
+
+                ForEach(accounts) { account in
+                    let presentation = AccountListPresentation.row(for: account, locale: locale)
+                    NavigationLink(value: account.id) {
+                        AccountListRow(presentation: presentation)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("account-list-row-\(account.id.uuidString)")
+
+                    Divider()
+                        .padding(.leading, 16)
+                }
             }
-                .accessibilityIdentifier("account-list-row-\(account.id.uuidString)")
         }
+        .background(Color(uiColor: .systemBackground))
         .navigationDestination(for: UUID.self) { accountID in
             AccountDetailView(accountID: accountID)
         }
@@ -183,6 +283,82 @@ struct AccountListView: View {
             )
         }
         .accessibilityIdentifier(identifier)
+    }
+}
+
+/// 账户列表顶部的资产汇总卡片，突出净资产并并列展示资产和负债。
+private struct AccountSummaryCard: View {
+    @Environment(\.locale) private var locale
+
+    let presentation: AccountSummaryPresentation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(
+                    AccountLocalization.string(
+                        "account.summary.net_assets",
+                        locale: locale
+                    )
+                )
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+
+                Text(presentation.formattedNetAssets)
+                    .font(.largeTitle.weight(.bold))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+            }
+
+            HStack(alignment: .top, spacing: 16) {
+                AccountSummaryMetric(
+                    title: AccountLocalization.string("account.summary.assets", locale: locale),
+                    amount: presentation.formattedAssets
+                )
+
+                Divider()
+                    .frame(height: 34)
+
+                AccountSummaryMetric(
+                    title: AccountLocalization.string(
+                        "account.summary.liabilities",
+                        locale: locale
+                    ),
+                    amount: presentation.formattedLiabilities
+                )
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(presentation.accessibilityLabel)
+        .accessibilityIdentifier("account-list-summary-card")
+    }
+}
+
+/// 汇总卡片中资产或负债的次级金额指标。
+private struct AccountSummaryMetric: View {
+    let title: String
+    let amount: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(amount)
+                .font(.body.weight(.semibold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

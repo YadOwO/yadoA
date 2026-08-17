@@ -1454,6 +1454,34 @@
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$@：%2$@" } }
       }
     },
+    "account.summary.net_assets": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Net assets" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "净资产" } }
+      }
+    },
+    "account.summary.assets": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Assets" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "资产" } }
+      }
+    },
+    "account.summary.liabilities": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Liabilities" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "负债" } }
+      }
+    },
+    "account.summary.accessibility_format": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%1$@: %2$@, %3$@: %4$@, %5$@: %6$@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$@：%2$@，%3$@：%4$@，%5$@：%6$@" } }
+      }
+    },
     "account.balance_adjustment.title": {
       "extractionState": "manual",
       "localizations": {

@@ -32,6 +32,11 @@ final class AccountListFlowUITests: XCTestCase {
         XCTAssertFalse(emptyAdd.exists)
         XCTAssertTrue(app.buttons["account-list-toolbar-add"].waitForExistence(timeout: 2))
 
+        let summaryCard = app.descendants(matching: .any)["account-list-summary-card"]
+        XCTAssertTrue(summaryCard.waitForExistence(timeout: 2))
+        XCTAssertFalse(summaryCard.label.isEmpty)
+        XCTAssertTrue(summaryCard.label.contains("40"))
+
         app.staticTexts["Cash"].firstMatch.tap()
 
         XCTAssertTrue(app.navigationBars["Account Details"].waitForExistence(timeout: 3))

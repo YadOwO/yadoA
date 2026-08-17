@@ -35,6 +35,46 @@ struct AccountListPresentationTests {
                 locale: Locale(identifier: "en")
             ) == "account.list.missing-key"
         )
+        #expect(
+            AccountLocalization.string(
+                "account.summary.net_assets",
+                locale: Locale(identifier: "zh-Hans")
+            ) == "净资产"
+        )
+    }
+
+    @Test("账户列表汇总资产、负债并突出计算净资产")
+    func summaryAggregatesAssetsLiabilitiesAndNetAssets() {
+        let summary = AccountSummaryPresentation.summary(
+            for: [
+                makeAccount(typeRawValue: AccountType.cash.rawValue, balance: 100),
+                makeAccount(typeRawValue: AccountType.investment.rawValue, balance: 50),
+                makeAccount(typeRawValue: AccountType.creditCard.rawValue, balance: 30),
+                makeAccount(typeRawValue: AccountType.liability.rawValue, balance: 20)
+            ],
+            locale: Locale(identifier: "en_US")
+        )
+
+        #expect(summary.assets == 150)
+        #expect(summary.liabilities == 50)
+        #expect(summary.netAssets == 100)
+        #expect(summary.formattedNetAssets.contains("100"))
+        #expect(summary.formattedAssets.contains("150"))
+        #expect(summary.formattedLiabilities.contains("50"))
+        #expect(summary.accessibilityLabel.contains("Net assets"))
+        #expect(summary.accessibilityLabel.contains("Liabilities"))
+    }
+
+    @Test("未知账户类型的余额不会从资产汇总中丢失")
+    func unknownAccountTypeFallsBackToAssets() {
+        let summary = AccountSummaryPresentation.summary(
+            for: [makeAccount(typeRawValue: "futureType", balance: 40)],
+            locale: Locale(identifier: "en_US")
+        )
+
+        #expect(summary.assets == 40)
+        #expect(summary.liabilities == 0)
+        #expect(summary.netAssets == 40)
     }
 
     @Test("账户按最新时间和 UUID 并列键稳定排序")
