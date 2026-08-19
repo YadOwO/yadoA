@@ -6,6 +6,9 @@ enum AppTab: String, CaseIterable, Hashable {
     /// 首页财务总览入口。
     case home
 
+    /// 周、月、年支出图表入口。
+    case charts
+
     /// 本地账户管理入口。
     case accounts
 
@@ -17,6 +20,8 @@ enum AppTab: String, CaseIterable, Hashable {
         switch self {
         case .home:
             "app.tab.home"
+        case .charts:
+            "app.tab.charts"
         case .accounts:
             "account.list.title"
         }
@@ -27,6 +32,8 @@ enum AppTab: String, CaseIterable, Hashable {
         switch self {
         case .home:
             "house"
+        case .charts:
+            "chart.bar.xaxis"
         case .accounts:
             "creditcard"
         }
@@ -49,6 +56,12 @@ struct AppTabView: View {
                 HomeView()
             } label: {
                 Label(AppTab.home.title(locale: locale), systemImage: AppTab.home.symbolName)
+            }
+
+            Tab(value: AppTab.charts) {
+                ChartView()
+            } label: {
+                Label(AppTab.charts.title(locale: locale), systemImage: AppTab.charts.symbolName)
             }
 
             Tab(value: AppTab.accounts) {
