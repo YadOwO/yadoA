@@ -44,7 +44,7 @@ struct ChartOverviewPresentationTests {
         )
     }
 
-    @Test("月视图只绘制有支出的自然日")
+    @Test("月视图生成整月自然日并将无支出日期补零")
     func projectsCalendarMonthByDay() throws {
         let chart = ChartOverviewPresentation(
             period: .month,
@@ -61,8 +61,31 @@ struct ChartOverviewPresentationTests {
         #expect(chart.period == .month)
         #expect(chart.totalExpense == Decimal(string: "4.00")!)
         #expect(chart.transactionCount == 2)
-        #expect(chart.points.map(\.bucketValue) == [20260801, 20260819])
+        #expect(chart.points.count == 31)
+        #expect(chart.points.first?.bucketValue == 20260801)
+        #expect(chart.points.last?.bucketValue == 20260831)
+        #expect(
+            chart.points.first(where: { $0.bucketValue == 20260802 })?.expenseTotal
+                == .zero
+        )
+        #expect(
+            chart.points.first(where: { $0.bucketValue == 20260819 })?.expenseTotal
+                == Decimal(string: "2.50")!
+        )
         #expect(chart.formattedPeriod.contains("August"))
+        #expect(chart.monthlyXAxisLabelValues == [
+            "1", "6", "11", "16", "21", "26", "31"
+        ])
+    }
+
+    @Test("月份滚轮年份不使用数字分组符")
+    func formatsMonthPickerYearWithoutGroupingSeparator() {
+        #expect(
+            HomeMonthPickerPresentation.wheelTitle(
+                for: 2026,
+                locale: Locale(identifier: "en_US")
+            ) == "2026"
+        )
     }
 
     @Test("年视图生成十二个月并聚合同月支出")
@@ -171,8 +194,8 @@ struct ChartOverviewPresentationTests {
         #expect(TransactionDay.encode(nextYear, calendar: utcCalendar) == 20270819)
     }
 
-    @Test("没有有效支出时保留当前周期空状态")
-    func keepsEmptyState() throws {
+    @Test("没有有效支出时当前周期全部补零")
+    func fillsEmptyPeriodWithZeroes() throws {
         let chart = ChartOverviewPresentation(
             period: .week,
             anchorDate: try #require(date(year: 2026, month: 8, day: 19)),
@@ -181,7 +204,6 @@ struct ChartOverviewPresentationTests {
             locale: Locale(identifier: "zh-Hans")
         )
 
-        #expect(chart.isEmpty)
         #expect(chart.transactionCount == 0)
         #expect(chart.points.count == 7)
         #expect(chart.points.allSatisfy { $0.expenseTotal == .zero })

@@ -1089,40 +1089,6 @@
         }
       }
     },
-    "chart.empty.title": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No chart data"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "暂无图表数据"
-          }
-        }
-      }
-    },
-    "chart.empty.message": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add an expense to see spending trends here."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "记录一笔支出后，这里会显示支出趋势。"
-          }
-        }
-      }
-    },
     "home.overview.title": {
       "extractionState": "manual",
       "localizations": {

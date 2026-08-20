@@ -263,7 +263,7 @@ private struct ChartSummaryCard: View {
     }
 }
 
-/// 图表页当前周期的支出柱状图和无数据状态。
+/// 图表页当前周期的支出折线图；没有支出的时间桶按零展示。
 private struct ChartExpenseCard: View {
     @Environment(\.locale) private var locale
 
@@ -280,47 +280,56 @@ private struct ChartExpenseCard: View {
             )
             .font(.headline)
 
-            if chart.isEmpty {
-                ContentUnavailableView {
-                    Label(
-                        AccountLocalization.string("chart.empty.title", locale: locale),
-                        systemImage: "chart.bar.xaxis"
+            Chart(chart.points) { point in
+                LineMark(
+                    x: .value(
+                        AccountLocalization.string("chart.axis.period", locale: locale),
+                        point.formattedLabel
+                    ),
+                    y: .value(
+                        AccountLocalization.string("chart.axis.expense", locale: locale),
+                        point.expenseTotal.doubleValue
                     )
-                } description: {
-                    Text(AccountLocalization.string("chart.empty.message", locale: locale))
-                }
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: 220)
-                .accessibilityIdentifier("chart-empty")
-            } else {
-                Chart(chart.points) { point in
-                    BarMark(
-                        x: .value(
-                            AccountLocalization.string("chart.axis.period", locale: locale),
-                            point.formattedLabel
-                        ),
-                        y: .value(
-                            AccountLocalization.string("chart.axis.expense", locale: locale),
-                            point.expenseTotal.doubleValue
-                        )
+                )
+                .foregroundStyle(Color.accentColor)
+                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                .interpolationMethod(.linear)
+
+                PointMark(
+                    x: .value(
+                        AccountLocalization.string("chart.axis.period", locale: locale),
+                        point.formattedLabel
+                    ),
+                    y: .value(
+                        AccountLocalization.string("chart.axis.expense", locale: locale),
+                        point.expenseTotal.doubleValue
                     )
-                    .foregroundStyle(Color.accentColor.gradient)
-                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                )
+                .foregroundStyle(Color.accentColor)
+                .symbolSize(24)
+                .accessibilityLabel(point.formattedLabel)
+                .accessibilityValue(point.formattedExpense)
+            }
+            .chartYScale(domain: .automatic(includesZero: true))
+            .chartYAxis {
+                AxisMarks(position: .leading) { _ in
+                    AxisGridLine()
+                    AxisValueLabel()
                 }
-                .chartYAxis {
-                    AxisMarks(position: .leading) { _ in
-                        AxisGridLine()
+            }
+            .chartXAxis {
+                if chart.period == .month {
+                    AxisMarks(values: chart.monthlyXAxisLabelValues) { _ in
                         AxisValueLabel()
                     }
-                }
-                .chartXAxis {
+                } else {
                     AxisMarks { _ in
                         AxisValueLabel()
                     }
                 }
-                .frame(height: 240)
-                .accessibilityIdentifier("chart-expense-\(chart.period.rawValue)")
             }
+            .frame(height: 240)
+            .accessibilityIdentifier("chart-expense-\(chart.period.rawValue)")
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)

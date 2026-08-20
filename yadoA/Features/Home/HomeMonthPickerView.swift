@@ -1,6 +1,18 @@
 import SwiftUI
 import UIKit
 
+/// 月份滚轮中年、月数字的展示规则。
+enum HomeMonthPickerPresentation {
+    /// 使用当前语言环境的数字，但禁用年份分组，避免显示为 `2,026`。
+    static func wheelTitle(for value: Int, locale: Locale) -> String {
+        value.formatted(
+            .number
+                .grouping(.never)
+                .locale(locale)
+        )
+    }
+}
+
 /// 首页月份选择 Sheet，允许选择任意可表达的自然月。
 struct HomeMonthPickerView: View {
     @Environment(\.locale) private var locale
@@ -117,7 +129,10 @@ private struct HomeMonthWheelPicker: UIViewRepresentable {
             titleForRow row: Int,
             forComponent _: Int
         ) -> String? {
-            (row + 1).formatted(.number.locale(parent.locale))
+            HomeMonthPickerPresentation.wheelTitle(
+                for: row + 1,
+                locale: parent.locale
+            )
         }
 
         func pickerView(

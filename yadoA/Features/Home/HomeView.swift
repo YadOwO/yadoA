@@ -325,6 +325,7 @@ private struct HomeOverviewList: View {
                     Color.clear
                         .frame(height: 1)
                         .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                         .id(HomeOverviewScrollAnchor.top)
 
@@ -335,15 +336,13 @@ private struct HomeOverviewList: View {
                                 minHeight: max(220, containerGeometry.size.height - 2)
                             )
                             .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                     } else {
                         ForEach(monthPresentation.dayGroups) { day in
                             Section {
                                 ForEach(day.rows) { row in
                                     HomeOverviewRow(row: row)
-                                        .listRowInsets(
-                                            EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20)
-                                        )
                                 }
                             } header: {
                                 HomeOverviewDayHeader(day: day)
@@ -354,12 +353,11 @@ private struct HomeOverviewList: View {
                     Color.clear
                         .frame(height: 1)
                         .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                         .id(HomeOverviewScrollAnchor.bottom)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .background(Color(uiColor: .systemBackground))
+                .listStyle(.insetGrouped)
                 .scrollBounceBehavior(.always)
                 .accessibilityIdentifier("home-details-scroll")
                 .onScrollGeometryChange(for: HomeScrollMetrics.self) { geometry in

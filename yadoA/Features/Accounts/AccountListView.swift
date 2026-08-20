@@ -241,32 +241,29 @@ struct AccountListView: View {
         }
     }
 
-    /// 非空状态下的独立汇总卡片和账户列表；添加入口只保留在导航栏尾部。
+    /// 非空状态下使用原生 SwiftUI List 展示账户；汇总仍保持独立卡片外观。
     private func accountList(_ accounts: [Account]) -> some View {
         let summary = AccountSummaryPresentation.summary(for: accounts, locale: locale)
 
-        return ScrollView {
-            LazyVStack(spacing: 0) {
-                AccountSummaryCard(presentation: summary)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .padding(.bottom, 8)
+        return List {
+            AccountSummaryCard(presentation: summary)
+                .listRowInsets(
+                    EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16)
+                )
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
 
+            Section {
                 ForEach(accounts) { account in
                     let presentation = AccountListPresentation.row(for: account, locale: locale)
                     NavigationLink(value: account.id) {
                         AccountListRow(presentation: presentation)
                     }
-                    .buttonStyle(.plain)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier("account-list-row-\(account.id.uuidString)")
-
-                    Divider()
-                        .padding(.leading, 16)
                 }
             }
         }
-        .background(Color(uiColor: .systemBackground))
+        .listStyle(.insetGrouped)
         .navigationDestination(for: UUID.self) { accountID in
             AccountDetailView(accountID: accountID)
         }

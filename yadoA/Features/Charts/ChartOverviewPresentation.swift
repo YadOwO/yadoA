@@ -62,7 +62,7 @@ struct ChartPointPresentation: Identifiable, Equatable {
     /// 当前语言环境下的货币金额，用于辅助功能播报。
     let formattedExpense: String
 
-    /// 图表柱子使用的稳定标识。
+    /// 图表点使用的稳定标识。
     var id: Int { bucketValue }
 }
 
@@ -96,8 +96,26 @@ struct ChartOverviewPresentation: Equatable {
     /// 按时间正序排列的图表点。
     let points: [ChartPointPresentation]
 
-    /// 当前周期是否没有可绘制的有效支出。
-    var isEmpty: Bool { transactionCount == 0 }
+    /// 月视图横轴只展示首日、从首日起每隔五天和末日，避免整月标签相互重叠。
+    var monthlyXAxisLabelValues: [String] {
+        guard period == .month,
+              let firstPoint = points.first,
+              let lastPoint = points.last
+        else {
+            return []
+        }
+
+        let firstDay = firstPoint.bucketValue % 100
+        return points.compactMap { point in
+            let day = point.bucketValue % 100
+            guard point.id == lastPoint.id
+                    || (day - firstDay).isMultiple(of: 5)
+            else {
+                return nil
+            }
+            return point.formattedLabel
+        }
+    }
 
     /// 从原始账户流水生成周、月或年的支出展示数据。
     ///
@@ -145,7 +163,6 @@ struct ChartOverviewPresentation: Equatable {
         let bucketDates = Self.bucketDates(
             for: period,
             interval: interval,
-            groupedDates: Array(groupedExpenses.keys),
             calendar: calendar
         )
 
@@ -317,14 +334,11 @@ struct ChartOverviewPresentation: Equatable {
     private static func bucketDates(
         for period: ChartPeriod,
         interval: DateInterval,
-        groupedDates: [Date],
         calendar: Calendar
     ) -> [Date] {
         switch period {
-        case .week:
+        case .week, .month:
             dates(in: interval, advancing: .day, calendar: calendar)
-        case .month:
-            groupedDates.sorted()
         case .year:
             dates(in: interval, advancing: .month, calendar: calendar)
         }
