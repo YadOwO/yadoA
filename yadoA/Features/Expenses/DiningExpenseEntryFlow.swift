@@ -26,6 +26,9 @@ final class DiningExpenseEntryFlow: ObservableObject {
     /// 由上层注入的本地持久化动作。
     private let saveAction: DiningExpenseSaveAction
 
+    /// 防止 SwiftUI 查询刷新或页面重新出现时重复覆盖用户选择。
+    private var hasInitializedDefault = false
+
     /// 创建一条带稳定 UUID 的餐饮支出流程。
     ///
     /// - Parameters:
@@ -35,6 +38,7 @@ final class DiningExpenseEntryFlow: ObservableObject {
     ///   - saveAction: 显式保存餐饮流水与账户金额的动作。
     init(
         draft: DiningExpenseDraft? = nil,
+        initialAccountID: UUID? = nil,
         now: Date = .now,
         calendar: Calendar = .current,
         saveAction: @escaping DiningExpenseSaveAction
@@ -43,8 +47,10 @@ final class DiningExpenseEntryFlow: ObservableObject {
         self.calendar = gregorianCalendar
         self.saveAction = saveAction
         self.draft = draft ?? DiningExpenseDraft(
+            accountID: initialAccountID,
             transactionDay: TransactionDay.encode(now, calendar: gregorianCalendar)
         )
+        self.hasInitializedDefault = draft != nil || initialAccountID != nil
     }
 
     /// 当前是否正在保存，用于忽略重复完成操作。
@@ -107,8 +113,16 @@ final class DiningExpenseEntryFlow: ObservableObject {
     /// 回填唯一账户 UUID，不重建金额、日期或备注等其他草稿字段。
     func selectAccount(id: UUID?) {
         guard !isSaving else { return }
+        hasInitializedDefault = true
         draft.accountID = id
         markAsEditing()
+    }
+
+    /// 只为尚未初始化且没有显式选择的新草稿注入一次默认账户。
+    func applyInitialDefault(_ accountID: UUID?) {
+        guard !hasInitializedDefault, draft.accountID == nil else { return }
+        hasInitializedDefault = true
+        draft.accountID = accountID
     }
 
     /// 复制当前草稿并执行一次显式保存；失败时原草稿保持不变。

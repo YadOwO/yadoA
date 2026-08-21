@@ -266,6 +266,6 @@ struct AccountTransactionModelTests {
 
         let savedTransactions = try context.fetch(FetchDescriptor<AccountTransaction>())
         #expect(Set(savedTransactions.map(\.id)) == Set([dining.id, adjustment.id]))
-        #expect(dataContainer.modelContainer.schema.version == .init(3, 0, 0))
+        #expect(dataContainer.modelContainer.schema.version == .init(4, 0, 0))
     }
 }

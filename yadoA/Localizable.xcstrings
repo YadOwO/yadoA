@@ -1947,6 +1947,202 @@
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "未知账户" } }
       }
     },
+    "account.deactivated.empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No deactivated accounts." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "暂无已停用账户。" } }
+      }
+    },
+    "account.deactivated.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Deactivated accounts" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已停用账户" } }
+      }
+    },
+    "account.default.badge": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Default" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "默认" } }
+      }
+    },
+    "account.default.save_error": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The default account could not be changed. Please refresh and try again." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "默认账户未能切换，请刷新后重试。" } }
+      }
+    },
+    "account.default.set": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Set as default" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "设为默认" } }
+      }
+    },
+    "account.detail.current_balance": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Current balance" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前余额" } }
+      }
+    },
+    "account.detail.deactivated_message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Deactivated · History is read-only" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已停用 · 历史仅可查看" } }
+      }
+    },
+    "account.lifecycle.account": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Account" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "账户" } }
+      }
+    },
+    "account.lifecycle.choose_replacement": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Choose a replacement default" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "选择接替默认账户" } }
+      }
+    },
+    "account.lifecycle.confirm_no_default": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Continue with no default account" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "确认继续且不设置默认账户" } }
+      }
+    },
+    "account.lifecycle.current_balance": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Current balance" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前余额" } }
+      }
+    },
+    "account.lifecycle.deactivate": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Deactivate account" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "停用账户" } }
+      }
+    },
+    "account.lifecycle.deactivate_blocked": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Adjust the balance to exactly zero before deactivating this account." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "请先通过余额调整将账户余额精确归零，再停用账户。" } }
+      }
+    },
+    "account.lifecycle.deactivate_warning": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The account will stay available for history, but it must have a zero balance." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "账户及历史会保留，但停用前余额必须为零。" } }
+      }
+    },
+    "account.lifecycle.delete": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Delete permanently" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "永久删除" } }
+      }
+    },
+    "account.lifecycle.delete_warning": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This permanently deletes the account. Existing transaction history must be empty." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "此操作会永久删除账户；账户必须没有任何历史流水。" } }
+      }
+    },
+    "account.lifecycle.restore": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Restore account" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "恢复账户" } }
+      }
+    },
+    "account.lifecycle.restore_error": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The account could not be restored. Please refresh and try again." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "账户未能恢复，请刷新后重试。" } }
+      }
+    },
+    "account.lifecycle.restore_from_management": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "View and restore" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "查看并恢复" } }
+      }
+    },
+    "account.lifecycle.save_error": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The account action could not be completed. Your current data is unchanged." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "账户操作未完成，当前数据保持不变。" } }
+      }
+    },
+    "account.lifecycle.state_changed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The account state changed. Close this confirmation and review it again." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "账户状态已变化，请关闭当前确认并重新查看。" } }
+      }
+    },
+    "account.management.choose_default": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Choose default account" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "选择默认账户" } }
+      }
+    },
+    "account.management.default.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "New bookkeeping entries use this account once. A single entry can still use another active account." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "新记账流程会一次性预选此账户；单笔记账仍可选择其他启用账户。" } }
+      }
+    },
+    "account.management.default.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Default bookkeeping account" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "默认记账账户" } }
+      }
+    },
+    "account.management.no_candidate": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No active cash, debit card, credit card, or virtual account is available." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前没有启用的现金、借记卡、信用卡或虚拟账户可作为默认账户。" } }
+      }
+    },
+    "account.management.no_default": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No valid default account" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前没有有效默认账户" } }
+      }
+    },
+    "account.management.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Account Management" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "账户管理" } }
+      }
+    },
+    "common.confirm": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Confirm" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "确认" } }
+      }
+    },
     "local_data.error.protection_message": {
       "extractionState": "manual",
       "localizations": {

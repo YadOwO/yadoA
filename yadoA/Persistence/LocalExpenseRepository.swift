@@ -9,6 +9,9 @@ enum ExpenseRepositoryError: Error, Equatable {
     /// 草稿绑定的账户不存在。
     case accountNotFound(UUID)
 
+    /// 停用账户不能再写入新的餐饮流水。
+    case accountDeactivated(UUID)
+
     /// 持久化账户类型未知，无法安全判断金额影响方向。
     case unsupportedAccountType(String)
 
@@ -22,8 +25,8 @@ enum ExpenseRepositoryError: Error, Equatable {
 /// 在主 actor 上原子保存餐饮流水和账户金额变化的本地仓库。
 @MainActor
 final class LocalExpenseRepository {
-    /// 唯一写入 context；关闭自动保存后仅显式保存成功才算完成记账。
-    private let modelContext: ModelContext
+    /// 应用或测试持有的完整本地财务容器；每次保存命令创建新鲜 context。
+    private let container: ModelContainer
 
     /// 测试可注入的保存前故障点；生产环境默认为空操作。
     private let beforeSave: () throws -> Void
@@ -33,27 +36,11 @@ final class LocalExpenseRepository {
     /// - Parameters:
     ///   - container: 应用或测试持有的完整本地财务容器。
     ///   - beforeSave: 流水与金额均完成内存修改后、显式保存前执行的故障点。
-    convenience init(
+    init(
         container: ModelContainer,
         beforeSave: @escaping () throws -> Void = {}
     ) {
-        self.init(
-            modelContext: ModelContext(container),
-            beforeSave: beforeSave
-        )
-    }
-
-    /// 使用仓库独占的 context 创建本地支出写入边界。
-    ///
-    /// - Parameters:
-    ///   - modelContext: 同时管理账户与支出流水的 context。
-    ///   - beforeSave: 显式保存前执行的可注入操作。
-    private init(
-        modelContext: ModelContext,
-        beforeSave: @escaping () throws -> Void
-    ) {
-        modelContext.autosaveEnabled = false
-        self.modelContext = modelContext
+        self.container = container
         self.beforeSave = beforeSave
     }
 
@@ -67,7 +54,8 @@ final class LocalExpenseRepository {
         _ draft: DiningExpenseDraft,
         savedAt: Date = .now
     ) throws {
-        guard try !containsTransaction(id: draft.id) else {
+        let modelContext = makeContext()
+        guard try !containsTransaction(id: draft.id, in: modelContext) else {
             throw ExpenseRepositoryError.duplicateID(draft.id)
         }
 
@@ -75,13 +63,16 @@ final class LocalExpenseRepository {
             draft: draft,
             savedAt: savedAt
         )
-        guard let account = try account(id: transaction.accountID) else {
+        guard let account = try account(id: transaction.accountID, in: modelContext) else {
             throw ExpenseRepositoryError.accountNotFound(transaction.accountID)
+        }
+        guard account.isActive else {
+            throw ExpenseRepositoryError.accountDeactivated(transaction.accountID)
         }
         guard account.currencyCode == transaction.currencyCode else {
             throw ExpenseRepositoryError.unsupportedCurrency(account.currencyCode)
         }
-        guard let accountType = account.accountType else {
+        guard account.supportsBookkeeping, let accountType = account.accountType else {
             throw ExpenseRepositoryError.unsupportedAccountType(account.typeRawValue)
         }
         guard case let .diningExpense(expenseAmount) = try transaction.validatedPayload() else {
@@ -106,7 +97,7 @@ final class LocalExpenseRepository {
     }
 
     /// 获取指定 UUID 的账户。
-    private func account(id: UUID) throws -> Account? {
+    private func account(id: UUID, in modelContext: ModelContext) throws -> Account? {
         let accountID = id
         var descriptor = FetchDescriptor<Account>(
             predicate: #Predicate<Account> { account in
@@ -118,7 +109,7 @@ final class LocalExpenseRepository {
     }
 
     /// 判断指定 UUID 的流水是否已经存在，避免实例化无须读取的完整模型。
-    private func containsTransaction(id: UUID) throws -> Bool {
+    private func containsTransaction(id: UUID, in modelContext: ModelContext) throws -> Bool {
         let transactionID = id
         let descriptor = FetchDescriptor<AccountTransaction>(
             predicate: #Predicate<AccountTransaction> { transaction in
@@ -158,5 +149,12 @@ final class LocalExpenseRepository {
             throw ExpenseRepositoryError.balanceCalculationFailed
         }
         return result
+    }
+
+    /// 创建一个关闭自动保存的新鲜 context。
+    private func makeContext() -> ModelContext {
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        return context
     }
 }

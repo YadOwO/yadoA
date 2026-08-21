@@ -9,6 +9,12 @@ enum BalanceAdjustmentRepositoryError: Error, Equatable {
     /// 草稿绑定的账户不存在。
     case accountNotFound(UUID)
 
+    /// 停用账户不能再新增余额调整流水。
+    case accountDeactivated(UUID)
+
+    /// 未知账户类型不能安全执行余额调整。
+    case unsupportedAccountType(String)
+
     /// 当前版本仅允许 CNY 账户调整余额。
     case unsupportedCurrency(String)
 
@@ -65,6 +71,12 @@ final class LocalBalanceAdjustmentRepository {
         }
         guard let account = try account(id: draft.accountID, in: modelContext) else {
             throw BalanceAdjustmentRepositoryError.accountNotFound(draft.accountID)
+        }
+        guard account.isActive else {
+            throw BalanceAdjustmentRepositoryError.accountDeactivated(draft.accountID)
+        }
+        guard account.supportsBookkeeping else {
+            throw BalanceAdjustmentRepositoryError.unsupportedAccountType(account.typeRawValue)
         }
         guard account.currencyCode == "CNY" else {
             throw BalanceAdjustmentRepositoryError.unsupportedCurrency(account.currencyCode)

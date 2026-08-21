@@ -33,6 +33,12 @@ struct AccountDetailPresentation: Equatable {
 
     /// 与列表一致的品牌图片或类型降级图标。
     let icon: AccountIconPresentation
+
+    /// 账户是否仍处于启用状态。
+    let isActive: Bool
+
+    /// 是否是当前唯一默认记账账户。
+    let isDefault: Bool
 }
 
 /// 账户详情的稳定 UUID 解析与展示转换边界。
@@ -43,8 +49,16 @@ enum AccountDetailPresentationFactory {
     }
 
     /// 复用列表展示结果，确保名称、图标和金额语义保持一致。
-    static func detail(for account: Account, locale: Locale = .current) -> AccountDetailPresentation {
-        let row = AccountListPresentation.row(for: account, locale: locale)
+    static func detail(
+        for account: Account,
+        locale: Locale = .current,
+        defaultAccountID: UUID? = nil
+    ) -> AccountDetailPresentation {
+        let row = AccountListPresentation.row(
+            for: account,
+            locale: locale,
+            isDefault: account.id == defaultAccountID
+        )
         let accountType = account.accountType
         let template = AccountListPresentation.template(
             id: account.templateID,
@@ -62,7 +76,9 @@ enum AccountDetailPresentationFactory {
             formattedAmount: row.formattedAmount,
             amountLabel: row.amountLabel,
             amountAccessibilityLabel: row.amountAccessibilityLabel,
-            icon: row.icon
+            icon: row.icon,
+            isActive: account.isActive,
+            isDefault: row.isDefault
         )
     }
 }
@@ -74,6 +90,10 @@ struct AccountDetailView: View {
     @State private var adjustmentSeed: BalanceAdjustmentSheetSeed?
     @State private var editSeed: AccountEditSheetSeed?
     @State private var queryRefreshToken = UUID()
+    @State private var isDefaultActionFailed = false
+    @State private var isRestoreActionFailed = false
+    @State private var isLifecycleStateChanged = false
+    @State private var lifecyclePlan: AccountDisposalPlan?
 
     /// 导航栈传入的稳定账户标识。
     let accountID: UUID
@@ -88,12 +108,56 @@ struct AccountDetailView: View {
                 )
             },
             onEditAccount: { account in
-                editSeed = AccountEditSheetSeed(account: account)
+                editSeed = AccountEditSheetSeed(draft: AccountEditDraft(account: account))
+            },
+            onSetDefault: { accountID in
+                do {
+                    try LocalAccountRepository(container: modelContext.container)
+                        .setDefaultAccount(id: accountID)
+                    queryRefreshToken = UUID()
+                } catch {
+                    isDefaultActionFailed = true
+                }
+            },
+            onRestore: { accountID in
+                do {
+                    try LocalAccountRepository(container: modelContext.container)
+                        .restore(id: accountID)
+                    queryRefreshToken = UUID()
+                } catch {
+                    isRestoreActionFailed = true
+                }
+            },
+            onManageLifecycle: { accountID in
+                do {
+                    lifecyclePlan = try LocalAccountRepository(container: modelContext.container)
+                        .disposalPlan(for: accountID)
+                } catch {
+                    lifecyclePlan = nil
+                }
             }
         )
         .id(queryRefreshToken)
         .navigationTitle(AccountLocalization.string("account.detail.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
+        .alert(
+            AccountLocalization.string("account.default.save_error", locale: locale),
+            isPresented: $isDefaultActionFailed
+        ) {
+            Button(AccountLocalization.string("common.close", locale: locale), role: .cancel) {}
+        }
+        .alert(
+            AccountLocalization.string("account.lifecycle.restore_error", locale: locale),
+            isPresented: $isRestoreActionFailed
+        ) {
+            Button(AccountLocalization.string("common.close", locale: locale), role: .cancel) {}
+        }
+        .alert(
+            AccountLocalization.string("account.lifecycle.state_changed", locale: locale),
+            isPresented: $isLifecycleStateChanged
+        ) {
+            Button(AccountLocalization.string("common.close", locale: locale), role: .cancel) {}
+        }
         .sheet(item: $adjustmentSeed) { seed in
             NavigationStack {
                 BalanceAdjustmentView(
@@ -117,7 +181,7 @@ struct AccountDetailView: View {
         .sheet(item: $editSeed) { seed in
             NavigationStack {
                 AccountEditView(
-                    account: seed.account,
+                    draft: seed.draft,
                     save: { draft in
                         let repository = LocalAccountRepository(
                             container: modelContext.container
@@ -133,6 +197,28 @@ struct AccountDetailView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
+        .sheet(item: $lifecyclePlan) { plan in
+            NavigationStack {
+                AccountLifecycleSheet(
+                    plan: plan,
+                    save: { expectation in
+                        try LocalAccountRepository(container: modelContext.container)
+                            .dispose(expectation)
+                    },
+                    onSaved: {
+                        lifecyclePlan = nil
+                        queryRefreshToken = UUID()
+                    },
+                    onNeedsRefresh: {
+                        lifecyclePlan = nil
+                        queryRefreshToken = UUID()
+                        isLifecycleStateChanged = true
+                    }
+                )
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
     }
 }
 
@@ -140,6 +226,7 @@ struct AccountDetailView: View {
 private struct AccountDetailQueryContent: View {
     @Environment(\.locale) private var locale
     @Query private var accounts: [Account]
+    @Query private var preferences: [BookkeepingPreference]
     @Query private var transactions: [AccountTransaction]
 
     /// 当前详情页对应的稳定账户 UUID。
@@ -151,16 +238,32 @@ private struct AccountDetailQueryContent: View {
     /// 点击详情页编辑入口时回传当前账户模型。
     let onEditAccount: (Account) -> Void
 
+    /// 合格账户点击默认操作后的回调。
+    let onSetDefault: (UUID) -> Void
+
+    /// 停用账户点击恢复后的回调。
+    let onRestore: (UUID) -> Void
+
+    /// 启用账户打开删除/停用确认流程的回调。
+    let onManageLifecycle: (UUID) -> Void
+
     /// 创建仅查询目标 UUID 的详情内容。
     init(
         accountID: UUID,
         onAdjustBalance: @escaping (UUID, Decimal) -> Void,
-        onEditAccount: @escaping (Account) -> Void
+        onEditAccount: @escaping (Account) -> Void,
+        onSetDefault: @escaping (UUID) -> Void,
+        onRestore: @escaping (UUID) -> Void,
+        onManageLifecycle: @escaping (UUID) -> Void
     ) {
         let targetAccountID = accountID
         self.accountID = targetAccountID
         self.onAdjustBalance = onAdjustBalance
         self.onEditAccount = onEditAccount
+        self.onSetDefault = onSetDefault
+        self.onRestore = onRestore
+        self.onManageLifecycle = onManageLifecycle
+        _preferences = Query()
         _accounts = Query(
             filter: #Predicate<Account> { account in
                 account.id == targetAccountID
@@ -172,13 +275,18 @@ private struct AccountDetailQueryContent: View {
     }
 
     var body: some View {
+        let defaultAccountID = BookkeepingPreference.resolvedAccountID(
+            preference: preferences.first { $0.id == BookkeepingPreference.singletonID },
+            accounts: accounts
+        )
         Group {
             if let account = AccountDetailPresentationFactory.account(id: accountID, in: accounts) {
                 detailContent(
                     account: account,
                     presentation: AccountDetailPresentationFactory.detail(
                         for: account,
-                        locale: locale
+                        locale: locale,
+                        defaultAccountID: defaultAccountID
                     )
                 )
             } else {
@@ -203,9 +311,22 @@ private struct AccountDetailQueryContent: View {
             Section {
                 HStack(spacing: 12) {
                     AccountIconView(presentation: presentation.icon)
-                    Text(presentation.name)
-                        .font(.headline)
-                        .accessibilityIdentifier("account-detail-name")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(presentation.name)
+                            .font(.headline)
+                        if presentation.isDefault {
+                            Text(AccountLocalization.string("account.default.badge", locale: locale))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tint)
+                                .accessibilityIdentifier("account-default-badge-\(presentation.id.uuidString)")
+                        }
+                        if !presentation.isActive {
+                            Text(AccountLocalization.string("account.detail.deactivated_message", locale: locale))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .accessibilityIdentifier("account-detail-name")
                 }
                 .padding(.vertical, 4)
             }
@@ -250,32 +371,53 @@ private struct AccountDetailQueryContent: View {
             }
 
             Section {
-                Button {
-                    onAdjustBalance(account.id, account.balance)
-                } label: {
-                    HStack(spacing: 12) {
-                        Text(presentation.amountLabel)
-                        Spacer(minLength: 8)
-                        Text(presentation.formattedAmount)
-                            .font(.body.monospacedDigit())
-                            .accessibilityIdentifier("account-detail-amount")
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                            .accessibilityHidden(true)
+                if presentation.isActive && account.supportsBookkeeping {
+                    Button {
+                        onAdjustBalance(account.id, account.balance)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text(presentation.amountLabel)
+                            Spacer(minLength: 8)
+                            Text(presentation.formattedAmount)
+                                .font(.body.monospacedDigit())
+                                .accessibilityIdentifier("account-detail-amount")
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
+                        }
+                        .frame(minHeight: 44)
                     }
-                    .frame(minHeight: 44)
-                }
-                .buttonStyle(.plain)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(presentation.amountAccessibilityLabel)
-                .accessibilityHint(
-                    AccountLocalization.string(
-                        "account.detail.balance.adjust_action",
-                        locale: locale
+                    .buttonStyle(.plain)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(presentation.amountAccessibilityLabel)
+                    .accessibilityHint(
+                        AccountLocalization.string(
+                            "account.detail.balance.adjust_action",
+                            locale: locale
+                        )
                     )
-                )
-                .accessibilityIdentifier("account-detail-adjust-balance")
+                    .accessibilityIdentifier("account-detail-adjust-balance")
+                } else {
+                    LabeledContent(
+                        AccountLocalization.string("account.detail.current_balance", locale: locale),
+                        value: presentation.formattedAmount
+                    )
+                }
+            }
+
+            if !presentation.isActive {
+                Section {
+                    Button {
+                        onRestore(account.id)
+                    } label: {
+                        Label(
+                            AccountLocalization.string("account.lifecycle.restore", locale: locale),
+                            systemImage: "arrow.uturn.backward"
+                        )
+                    }
+                    .accessibilityIdentifier("account-detail-restore")
+                }
             }
 
             Section {
@@ -304,16 +446,47 @@ private struct AccountDetailQueryContent: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    onEditAccount(account)
-                } label: {
-                    Label(
-                        AccountLocalization.string("account.detail.edit", locale: locale),
-                        systemImage: "pencil"
-                    )
+            if presentation.isActive {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        onEditAccount(account)
+                    } label: {
+                        Label(
+                            AccountLocalization.string("account.detail.edit", locale: locale),
+                            systemImage: "pencil"
+                        )
+                    }
+                    .accessibilityIdentifier("account-detail-edit")
                 }
-                .accessibilityIdentifier("account-detail-edit")
+            }
+            if presentation.isActive,
+               account.isEligibleForDefault,
+               !presentation.isDefault
+            {
+                ToolbarItem(placement: .secondaryAction) {
+                    Button {
+                        onSetDefault(account.id)
+                    } label: {
+                        Label(
+                            AccountLocalization.string("account.default.set", locale: locale),
+                            systemImage: "star"
+                        )
+                    }
+                    .accessibilityIdentifier("account-detail-set-default")
+                }
+            }
+            if presentation.isActive {
+                ToolbarItem(placement: .secondaryAction) {
+                    Button {
+                        onManageLifecycle(account.id)
+                    } label: {
+                        Label(
+                            AccountLocalization.string("account.management.title", locale: locale),
+                            systemImage: "archivebox"
+                        )
+                    }
+                    .accessibilityIdentifier("account-detail-lifecycle")
+                }
             }
         }
     }
@@ -346,11 +519,11 @@ private struct BalanceAdjustmentSheetSeed: Identifiable {
 
 /// 每次打开账户资料编辑页时固定使用的账户 UUID 快照。
 private struct AccountEditSheetSeed: Identifiable {
-    /// 被编辑账户的当前模型对象。
-    let account: Account
+    /// 被编辑账户的资料值类型快照。
+    let draft: AccountEditDraft
 
     /// `sheet(item:)` 所需的稳定标识。
-    var id: UUID { account.id }
+    var id: UUID { draft.id }
 }
 
 /// 账户详情中的单条类型化流水，支持大字体下自动切换为纵向金额布局。
@@ -412,7 +585,7 @@ private struct AccountTransactionHistoryRow: View {
         AccountDetailView(accountID: UUID())
     }
     .modelContainer(
-        for: [Account.self, AccountTransaction.self],
+        for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
         inMemory: true
     )
 }

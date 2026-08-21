@@ -37,6 +37,13 @@ final class AccountListFlowUITests: XCTestCase {
         XCTAssertFalse(summaryCard.label.isEmpty)
         XCTAssertTrue(summaryCard.label.contains("40"))
 
+        let management = app.buttons["account-list-management"]
+        XCTAssertTrue(management.waitForExistence(timeout: 2))
+        management.tap()
+        XCTAssertTrue(app.buttons["account-management-choose-default"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["account-management-deactivated"].exists)
+        app.buttons["account-management-close"].tap()
+
         app.staticTexts["Cash"].firstMatch.tap()
 
         XCTAssertTrue(app.navigationBars["Account Details"].waitForExistence(timeout: 3))

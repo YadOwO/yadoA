@@ -15,9 +15,23 @@ enum HomeUITestFixture {
             return
         }
 
+        let accountID = UUID()
         let context = ModelContext(container)
         context.autosaveEnabled = false
-        let accountID = UUID()
+        context.insert(
+            Account(
+                id: accountID,
+                typeRawValue: AccountType.cash.rawValue,
+                templateID: nil,
+                name: "Home fixture account",
+                note: nil,
+                lastFourDigits: nil,
+                balance: 0,
+                currencyCode: "CNY",
+                createdAt: now,
+                updatedAt: now
+            )
+        )
         let monthOffsetsAndAmounts: [(Int, String)] = [
             (-4, "18.50"),
             (-2, "32.10"),

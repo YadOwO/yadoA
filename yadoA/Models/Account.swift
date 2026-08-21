@@ -44,9 +44,25 @@ final class Account {
     /// 账户资料最近一次成功更新的时间；余额流水活动不会修改该字段。
     var updatedAt: Date
 
+    /// 账户停用时间；为空表示账户仍处于启用状态。
+    var deactivatedAt: Date?
+
     /// 已知持久化类型对应的账户类型；未来或损坏的值返回 `nil`。
     var accountType: AccountType? {
         AccountType(rawValue: typeRawValue)
+    }
+
+    /// 账户当前是否可用于日常账户列表和记账入口。
+    var isActive: Bool { deactivatedAt == nil }
+
+    /// 账户当前是否具备默认记账账户资格。
+    var isEligibleForDefault: Bool {
+        isActive && accountType?.isEligibleForDefault == true
+    }
+
+    /// 账户当前是否可以被已知的财务写入流程选中。
+    var supportsBookkeeping: Bool {
+        isActive && accountType?.supportsBookkeeping == true
     }
 
     /// 直接构造已完成校验的持久化账户。
@@ -60,7 +76,8 @@ final class Account {
         balance: Decimal,
         currencyCode: String,
         createdAt: Date,
-        updatedAt: Date
+        updatedAt: Date,
+        deactivatedAt: Date? = nil
     ) {
         self.id = id
         self.typeRawValue = typeRawValue
@@ -72,6 +89,7 @@ final class Account {
         self.currencyCode = currencyCode
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.deactivatedAt = deactivatedAt
     }
 
     /// 校验并清理表单草稿，生成尚未插入 context 的账户。
@@ -111,7 +129,8 @@ final class Account {
             balance: balance,
             currencyCode: "CNY",
             createdAt: now,
-            updatedAt: now
+            updatedAt: now,
+            deactivatedAt: nil
         )
     }
 

@@ -7,6 +7,7 @@ struct DiningExpenseEntryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
     @Query private var accounts: [Account]
+    @Query private var preferences: [BookkeepingPreference]
     @FocusState private var focusedField: FocusedField?
     @StateObject private var flow: DiningExpenseEntryFlow
     @State private var isPresentingAccountSelection = false
@@ -73,6 +74,7 @@ struct DiningExpenseEntryView: View {
             }
         }
         .task {
+            applyInitialDefaultIfNeeded()
             focusedField = .amount
         }
     }
@@ -292,7 +294,17 @@ struct DiningExpenseEntryView: View {
     /// 草稿账户 UUID 当前解析出的持久账户。
     private var selectedAccount: Account? {
         guard let accountID = flow.draft.accountID else { return nil }
-        return accounts.first { $0.id == accountID }
+        return accounts.first { $0.id == accountID && $0.supportsBookkeeping }
+    }
+
+    /// 从当前查询快照解析一次 canonical 默认，不将偏好变化绑定到现有草稿。
+    private func applyInitialDefaultIfNeeded() {
+        let preference = preferences.first { $0.id == BookkeepingPreference.singletonID }
+        let defaultAccountID = BookkeepingPreference.resolvedAccountID(
+            preference: preference,
+            accounts: accounts
+        )
+        flow.applyInitialDefault(defaultAccountID)
     }
 
     /// 未选择和已失效选择使用不同的本地化提示。

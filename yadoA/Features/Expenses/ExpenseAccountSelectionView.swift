@@ -99,7 +99,7 @@ struct ExpenseAccountSelectionView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(account.accountType == nil)
+            .disabled(!account.supportsBookkeeping)
             .accessibilityIdentifier("expense-account-selection-row-\(account.id.uuidString)")
         }
     }

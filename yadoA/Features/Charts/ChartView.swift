@@ -348,8 +348,8 @@ private extension Decimal {
 
 #Preview {
     ChartView()
-        .modelContainer(
-            for: [Account.self, AccountTransaction.self],
-            inMemory: true
-        )
+    .modelContainer(
+        for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
+        inMemory: true
+    )
 }

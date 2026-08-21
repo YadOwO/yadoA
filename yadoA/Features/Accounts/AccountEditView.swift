@@ -71,8 +71,8 @@ final class AccountEditFlow: ObservableObject {
 struct AccountEditView: View {
     @Environment(\.locale) private var locale
 
-    /// 当前编辑的持久化账户。
-    let account: Account
+    /// 当前编辑账户的值类型资料快照。
+    let draft: AccountEditDraft
 
     /// 编辑页面注入的显式保存动作。
     private let saveAction: AccountEditSaveAction
@@ -82,18 +82,27 @@ struct AccountEditView: View {
 
     /// 创建账户资料编辑页面。
     init(
-        account: Account,
+        draft: AccountEditDraft,
         save: @escaping AccountEditSaveAction,
         onSaved: @escaping @MainActor () -> Void = {}
     ) {
-        self.account = account
+        self.draft = draft
         saveAction = save
         self.onSaved = onSaved
     }
 
+    /// 兼容预览和既有调用方，将模型立即转换为值类型草稿。
+    init(
+        account: Account,
+        save: @escaping AccountEditSaveAction,
+        onSaved: @escaping @MainActor () -> Void = {}
+    ) {
+        self.init(draft: AccountEditDraft(account: account), save: save, onSaved: onSaved)
+    }
+
     var body: some View {
         AccountEditFormView(
-            account: account,
+            draft: draft,
             locale: locale,
             saveAction: saveAction,
             onSaved: onSaved
@@ -118,22 +127,22 @@ private struct AccountEditFormView: View {
     let onSaved: @MainActor () -> Void
 
     init(
-        account: Account,
+        draft: AccountEditDraft,
         locale: Locale,
         saveAction: @escaping AccountEditSaveAction,
         onSaved: @escaping @MainActor () -> Void
     ) {
         _flow = StateObject(
             wrappedValue: AccountEditFlow(
-                draft: AccountEditDraft(account: account),
+                draft: draft,
                 saveAction: saveAction
             )
         )
         self.locale = locale
-        institution = account.accountType.flatMap { accountType in
+        institution = draft.accountType.flatMap { accountType in
             guard accountType.showsInstitution else { return nil }
             return AccountListPresentation.template(
-                id: account.templateID,
+                id: draft.templateID,
                 accountType: accountType
             )?.name(locale: locale)
         }
@@ -252,5 +261,8 @@ private struct AccountEditFormView: View {
             save: { _ in }
         )
     }
-    .modelContainer(for: [Account.self, AccountTransaction.self], inMemory: true)
+    .modelContainer(
+        for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
+        inMemory: true
+    )
 }

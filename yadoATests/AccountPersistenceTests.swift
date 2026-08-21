@@ -192,6 +192,57 @@ struct AccountPersistenceTests {
         #expect(account.updatedAt == timestamp)
     }
 
+    @Test("V4 文件容器重开后保留默认、停用状态和历史流水")
+    func fileContainerPersistsBookkeepingLifecycleAfterReopen() throws {
+        let storeURL = temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
+        let accountID = UUID()
+        let deactivatedAt = Date(timeIntervalSince1970: 1_786_435_500)
+
+        do {
+            let dataContainer = try AccountDataContainer.fileBacked(storeURL: storeURL)
+            let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+            try repository.save(
+                AccountDraft(
+                    id: accountID,
+                    accountType: .cash,
+                    name: "历史现金",
+                    amountText: "10"
+                )
+            )
+            try LocalExpenseRepository(container: dataContainer.modelContainer).save(
+                DiningExpenseDraft(
+                    id: UUID(),
+                    accountID: accountID,
+                    amountText: "10",
+                    transactionDay: 20260821
+                )
+            )
+            try repository.dispose(
+                AccountDisposalExpectation(
+                    accountID: accountID,
+                    action: .deactivate,
+                    expectedDefaultAccountID: accountID,
+                    replacementAccountID: nil,
+                    allowsNoDefault: true
+                ),
+                now: deactivatedAt
+            )
+        }
+
+        let reopened = try AccountDataContainer.fileBacked(storeURL: storeURL)
+        let repository = LocalAccountRepository(container: reopened.modelContainer)
+        let account = try #require(try repository.account(id: accountID))
+
+        #expect(account.deactivatedAt == deactivatedAt)
+        #expect(account.balance == .zero)
+        #expect(try repository.defaultResolution() == .none)
+        #expect(
+            try ModelContext(reopened.modelContainer)
+                .fetchCount(FetchDescriptor<AccountTransaction>()) == 1
+        )
+    }
+
     @Test("生产存储与内存存储必须显式区分")
     func storageKindsAreExplicit() throws {
         let storeURL = temporaryStoreURL()

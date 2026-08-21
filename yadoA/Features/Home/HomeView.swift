@@ -537,8 +537,8 @@ private struct HomeScrollMetrics: Equatable {
 
 #Preview("Home empty") {
     HomeView()
-        .modelContainer(
-            for: [Account.self, AccountTransaction.self],
-            inMemory: true
-        )
+    .modelContainer(
+        for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
+        inMemory: true
+    )
 }

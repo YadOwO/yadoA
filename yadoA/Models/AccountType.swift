@@ -73,6 +73,19 @@ enum AccountType: String, CaseIterable, Identifiable, Hashable, Sendable {
     case receivable
     case customAsset
 
+    /// 是否可以作为全局默认记账账户。
+    var isEligibleForDefault: Bool {
+        switch self {
+        case .cash, .debitCard, .creditCard, .virtualAccount:
+            true
+        case .investment, .liability, .receivable, .customAsset:
+            false
+        }
+    }
+
+    /// 是否允许作为单笔记账或余额调整的已知账户。
+    var supportsBookkeeping: Bool { true }
+
     /// 用作列表和持久化引用的稳定类型标识。
     var id: String { rawValue }
 
@@ -382,6 +395,9 @@ struct AccountEditDraft: Identifiable, Equatable, Sendable {
     /// 当前账户类型；类型未知时编辑页仍允许修改名称和备注。
     let accountType: AccountType?
 
+    /// 当前模板稳定标识，仅用于编辑页展示所属机构。
+    let templateID: String?
+
     /// 用户编辑后的账户名称。
     var name: String
 
@@ -395,6 +411,7 @@ struct AccountEditDraft: Identifiable, Equatable, Sendable {
     init(account: Account) {
         id = account.id
         accountType = account.accountType
+        templateID = account.templateID
         name = account.name
         note = account.note ?? ""
         lastFourDigits = account.lastFourDigits ?? ""

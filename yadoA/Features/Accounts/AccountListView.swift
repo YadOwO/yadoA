@@ -22,6 +22,9 @@ struct AccountRowPresentation: Identifiable, Equatable {
     /// 同时包含金融语义与金额的无障碍播报文本。
     let amountAccessibilityLabel: String
 
+    /// 是否是当前唯一默认记账账户。
+    let isDefault: Bool
+
     /// 品牌图片或类型降级图标。
     let icon: AccountIconPresentation
 }
@@ -59,7 +62,7 @@ struct AccountSummaryPresentation: Equatable {
         var assets = Decimal.zero
         var liabilities = Decimal.zero
 
-        for account in accounts {
+        for account in accounts where account.isActive {
             if account.accountType?.expenseBalanceEffect == .increaseDebt {
                 liabilities += account.balance
             } else {
@@ -113,11 +116,15 @@ struct AccountSummaryPresentation: Equatable {
 enum AccountListPresentation {
     /// 最新更新时间优先；时间相同时按 UUID 字符串升序稳定排列。
     static func sorted(_ accounts: [Account]) -> [Account] {
-        accounts.sorted(by: AccountOrdering.newestFirst)
+        accounts.filter { $0.isActive }.sorted(by: AccountOrdering.newestFirst)
     }
 
     /// 将持久模型安全转换为当前语言环境的行展示数据。
-    static func row(for account: Account, locale: Locale = .current) -> AccountRowPresentation {
+    static func row(
+        for account: Account,
+        locale: Locale = .current,
+        isDefault: Bool = false
+    ) -> AccountRowPresentation {
         let accountType = account.accountType
         let template = template(id: account.templateID, accountType: accountType)
         let typeTitle = accountType?.title(locale: locale)
@@ -154,6 +161,7 @@ enum AccountListPresentation {
             formattedAmount: formattedAmount,
             amountLabel: amountLabel,
             amountAccessibilityLabel: accessibilityLabel,
+            isDefault: isDefault,
             icon: AccountIconPresentation(
                 brandImageName: template?.brandImageName,
                 symbolName: template?.symbolName ?? accountType?.symbolName ?? "questionmark.circle.fill",
@@ -196,7 +204,10 @@ struct AccountListView: View {
     @Environment(\.locale) private var locale
     @Environment(\.modelContext) private var modelContext
     @Query private var queriedAccounts: [Account]
+    @Query private var preferences: [BookkeepingPreference]
     @State private var isPresentingCreation = false
+    @State private var isPresentingManagement = false
+    @State private var isPresentingDeactivated = false
 
     var body: some View {
         let accounts = AccountListPresentation.sorted(queriedAccounts)
@@ -216,6 +227,17 @@ struct AccountListView: View {
                         addButton(identifier: "account-list-toolbar-add")
                     }
                 }
+                ToolbarItem(placement: .secondaryAction) {
+                    Button {
+                        isPresentingManagement = true
+                    } label: {
+                        Label(
+                            AccountLocalization.string("account.management.title", locale: locale),
+                            systemImage: "gearshape"
+                        )
+                    }
+                    .accessibilityIdentifier("account-list-management")
+                }
             }
         }
         .sheet(isPresented: $isPresentingCreation) {
@@ -223,6 +245,16 @@ struct AccountListView: View {
                 // 独占写入 context 的失败回滚不会影响 SwiftUI 环境中的其他修改。
                 let repository = LocalAccountRepository(container: modelContext.container)
                 try repository.save(draft, locale: locale)
+            }
+        }
+        .sheet(isPresented: $isPresentingManagement) {
+            NavigationStack {
+                AccountManagementView()
+            }
+        }
+        .sheet(isPresented: $isPresentingDeactivated) {
+            NavigationStack {
+                DeactivatedAccountListView()
             }
         }
     }
@@ -237,13 +269,30 @@ struct AccountListView: View {
         } description: {
             Text(AccountLocalization.string("account.list.empty.message", locale: locale))
         } actions: {
-            addButton(identifier: "account-list-empty-add")
+            VStack(spacing: 12) {
+                addButton(identifier: "account-list-empty-add")
+                if queriedAccounts.contains(where: { !$0.isActive }) {
+                    Button {
+                        isPresentingDeactivated = true
+                    } label: {
+                        Label(
+                            AccountLocalization.string("account.deactivated.title", locale: locale),
+                            systemImage: "archivebox"
+                        )
+                    }
+                    .accessibilityIdentifier("account-list-empty-deactivated")
+                }
+            }
         }
     }
 
     /// 非空状态下使用原生 SwiftUI List 展示账户；汇总仍保持独立卡片外观。
     private func accountList(_ accounts: [Account]) -> some View {
         let summary = AccountSummaryPresentation.summary(for: accounts, locale: locale)
+        let defaultAccountID = BookkeepingPreference.resolvedAccountID(
+            preference: preferences.first { $0.id == BookkeepingPreference.singletonID },
+            accounts: accounts
+        )
 
         return List {
             AccountSummaryCard(presentation: summary)
@@ -255,7 +304,11 @@ struct AccountListView: View {
 
             Section {
                 ForEach(accounts) { account in
-                    let presentation = AccountListPresentation.row(for: account, locale: locale)
+                    let presentation = AccountListPresentation.row(
+                        for: account,
+                        locale: locale,
+                        isDefault: account.id == defaultAccountID
+                    )
                     NavigationLink(value: account.id) {
                         AccountListRow(presentation: presentation)
                     }
@@ -362,6 +415,7 @@ private struct AccountSummaryMetric: View {
 /// 支持动态字体换行、且不依赖颜色表达金额语义的共享账户行。
 struct AccountListRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.locale) private var locale
     let presentation: AccountRowPresentation
 
     var body: some View {
@@ -387,8 +441,19 @@ struct AccountListRow: View {
             AccountIconView(presentation: presentation.icon)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(presentation.name)
-                    .font(.headline)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(presentation.name)
+                        .font(.headline)
+                    if presentation.isDefault {
+                        Text(AccountLocalization.string("account.default.badge", locale: locale))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tint)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.tint.opacity(0.12), in: Capsule())
+                            .accessibilityIdentifier("account-default-badge-\(presentation.id.uuidString)")
+                    }
+                }
                 Text(presentation.detail)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -407,7 +472,11 @@ struct AccountListRow: View {
         }
         .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(presentation.amountAccessibilityLabel)
+        .accessibilityLabel(
+            presentation.isDefault
+                ? "\(presentation.name), \(AccountLocalization.string("account.default.badge", locale: locale)), \(presentation.amountAccessibilityLabel)"
+                : "\(presentation.name), \(presentation.amountAccessibilityLabel)"
+        )
         .accessibilityIdentifier("account-list-amount-\(presentation.id.uuidString)")
     }
 }
@@ -415,7 +484,7 @@ struct AccountListRow: View {
 #Preview {
     AccountListView()
         .modelContainer(
-            for: [Account.self, AccountTransaction.self],
+            for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
             inMemory: true
         )
 }
