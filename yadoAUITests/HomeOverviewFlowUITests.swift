@@ -45,4 +45,20 @@ final class HomeOverviewFlowUITests: XCTestCase {
         wait(for: [visibleExpectation], timeout: 3)
         XCTAssertTrue(app.buttons["home-month-selector"].exists)
     }
+
+    @MainActor
+    func testTransactionTapOpensQuickEditForTitleAndAmount() throws {
+        let app = launchHomeFixtureInEnglish()
+        let transaction = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'home-transaction-'")
+        ).firstMatch
+
+        XCTAssertTrue(transaction.waitForExistence(timeout: 3))
+        transaction.tap()
+
+        XCTAssertTrue(app.navigationBars["Edit Expense"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.textFields["expense-edit-title"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.textFields["expense-edit-amount"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["expense-edit-save"].exists)
+    }
 }

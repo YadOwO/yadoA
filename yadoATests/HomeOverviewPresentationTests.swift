@@ -227,12 +227,33 @@ struct HomeOverviewPresentationTests {
         #expect(chinese.dayGroups[0].rows[0].accessibilityLabel.contains("餐饮"))
     }
 
+    @Test("首页优先展示用户自定义标题")
+    func prefersCustomTitleForRow() throws {
+        let transaction = try dining(
+            id: UUID(),
+            accountID: UUID(),
+            amount: "12.34",
+            transactionDay: 20260813,
+            title: "工作午餐"
+        )
+        let month = try #require(HomeMonth(year: 2026, month: 8))
+        let presentation = HomeOverviewPresentation(
+            transactions: [transaction],
+            now: try #require(date(year: 2026, month: 8, day: 20)),
+            calendar: utcCalendar,
+            locale: Locale(identifier: "zh-Hans")
+        ).presentation(for: month)
+
+        #expect(presentation.dayGroups[0].rows[0].title == "工作午餐")
+    }
+
     /// 构造使用固定排序键的餐饮流水。
     private func dining(
         id: UUID,
         accountID: UUID,
         amount: String,
         transactionDay: Int,
+        title: String? = nil,
         note: String = "",
         savedAt: Date = Date(timeIntervalSince1970: 1_786_608_000)
     ) throws -> AccountTransaction {
@@ -241,6 +262,7 @@ struct HomeOverviewPresentationTests {
             accountID: accountID,
             amount: try #require(Decimal(string: amount)),
             transactionDay: transactionDay,
+            title: title,
             note: note,
             savedAt: savedAt
         )

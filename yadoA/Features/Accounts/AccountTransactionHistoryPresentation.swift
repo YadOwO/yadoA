@@ -65,7 +65,8 @@ enum AccountTransactionHistoryPresentation {
 
         switch payload {
         case let .diningExpense(amount):
-            title = AccountLocalization.string("expense.category.dining", locale: locale)
+            title = transaction.title
+                ?? AccountLocalization.string("expense.category.dining", locale: locale)
             formattedAmount = formattedCurrency(-amount, code: transaction.currencyCode, locale: locale)
             balanceTransition = nil
             spokenBalanceTransition = nil

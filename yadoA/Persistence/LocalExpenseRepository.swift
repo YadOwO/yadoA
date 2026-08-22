@@ -6,10 +6,16 @@ enum ExpenseRepositoryError: Error, Equatable {
     /// 相同流水 UUID 已经存在，拒绝覆盖或再次联动账户金额。
     case duplicateID(UUID)
 
+    /// 快速修改对应的流水不存在。
+    case transactionNotFound(UUID)
+
+    /// 当前版本只允许修改餐饮支出流水。
+    case transactionNotEditable(UUID)
+
     /// 草稿绑定的账户不存在。
     case accountNotFound(UUID)
 
-    /// 停用账户不能再写入新的餐饮流水。
+    /// 停用账户不能继续修改或写入餐饮流水。
     case accountDeactivated(UUID)
 
     /// 持久化账户类型未知，无法安全判断金额影响方向。
@@ -96,6 +102,63 @@ final class LocalExpenseRepository {
         }
     }
 
+    /// 校验并原子更新一笔已有餐饮流水，同时修正绑定账户的金额。
+    ///
+    /// 标题只更新流水自身；金额更新会先抵消旧支出，再按账户类型应用新支出，
+    /// 因此重复提交、金额变大或变小都不会累积错误余额。
+    ///
+    /// - Parameter draft: 首页快速修改页面提交的值类型草稿。
+    /// - Throws: 流水、账户、金额、标题或保存边界不符合约束时抛出对应错误。
+    func update(_ draft: DiningExpenseEditDraft) throws {
+        let modelContext = makeContext()
+        guard let transaction = try transaction(id: draft.id, in: modelContext) else {
+            throw ExpenseRepositoryError.transactionNotFound(draft.id)
+        }
+        guard let payload = try? transaction.validatedPayload(),
+              case let .diningExpense(oldAmount) = payload
+        else {
+            throw ExpenseRepositoryError.transactionNotEditable(draft.id)
+        }
+        guard let newAmount = draft.amount else {
+            throw AccountTransactionValidationError.invalidAmount
+        }
+        let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else {
+            throw DiningExpenseEditDraftValidationError.titleRequired
+        }
+
+        guard let account = try account(id: transaction.accountID, in: modelContext) else {
+            throw ExpenseRepositoryError.accountNotFound(transaction.accountID)
+        }
+        guard account.isActive else {
+            throw ExpenseRepositoryError.accountDeactivated(transaction.accountID)
+        }
+        guard account.currencyCode == transaction.currencyCode else {
+            throw ExpenseRepositoryError.unsupportedCurrency(account.currencyCode)
+        }
+        guard account.supportsBookkeeping, let accountType = account.accountType else {
+            throw ExpenseRepositoryError.unsupportedAccountType(account.typeRawValue)
+        }
+
+        let updatedBalance = try Self.updatedBalance(
+            account.balance,
+            from: oldAmount,
+            to: newAmount,
+            effect: accountType.expenseBalanceEffect
+        )
+
+        transaction.title = title
+        transaction.amount = newAmount
+        account.balance = updatedBalance
+        do {
+            try beforeSave()
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
+    }
+
     /// 获取指定 UUID 的账户。
     private func account(id: UUID, in modelContext: ModelContext) throws -> Account? {
         let accountID = id
@@ -117,6 +180,21 @@ final class LocalExpenseRepository {
             }
         )
         return try modelContext.fetchCount(descriptor) > 0
+    }
+
+    /// 获取指定 UUID 的流水。
+    private func transaction(
+        id: UUID,
+        in modelContext: ModelContext
+    ) throws -> AccountTransaction? {
+        let transactionID = id
+        var descriptor = FetchDescriptor<AccountTransaction>(
+            predicate: #Predicate<AccountTransaction> { transaction in
+                transaction.id == transactionID
+            }
+        )
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
     }
 
     /// 根据账户语义计算支出后的精确金额，并拒绝溢出或精度损失。
@@ -142,6 +220,50 @@ final class LocalExpenseRepository {
                 &result,
                 &currentBalance,
                 &amount,
+                .plain
+            )
+        }
+        guard calculationError == .noError else {
+            throw ExpenseRepositoryError.balanceCalculationFailed
+        }
+        return result
+    }
+
+    /// 根据旧、新支出金额的差值修正账户余额。
+    private static func updatedBalance(
+        _ balance: Decimal,
+        from oldAmount: Decimal,
+        to newAmount: Decimal,
+        effect: ExpenseBalanceEffect
+    ) throws -> Decimal {
+        var oldAmount = oldAmount
+        var newAmount = newAmount
+        var amountDelta = Decimal()
+        guard NSDecimalSubtract(
+            &amountDelta,
+            &newAmount,
+            &oldAmount,
+            .plain
+        ) == .noError else {
+            throw ExpenseRepositoryError.balanceCalculationFailed
+        }
+
+        var currentBalance = balance
+        var result = Decimal()
+        let calculationError: Decimal.CalculationError
+        switch effect {
+        case .decreaseValue:
+            calculationError = NSDecimalSubtract(
+                &result,
+                &currentBalance,
+                &amountDelta,
+                .plain
+            )
+        case .increaseDebt:
+            calculationError = NSDecimalAdd(
+                &result,
+                &currentBalance,
+                &amountDelta,
                 .plain
             )
         }

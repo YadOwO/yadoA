@@ -49,6 +49,7 @@ enum HomeUITestFixture {
                 accountID: accountID,
                 amount: Decimal(string: item.1) ?? 0,
                 transactionDay: transactionDay(for: month, day: index.isMultiple(of: 2) ? 8 : 13),
+                title: index == 2 ? "Home fixture entry" : nil,
                 note: index == 2 ? "Home fixture" : ""
             )
             context.insert(transaction)

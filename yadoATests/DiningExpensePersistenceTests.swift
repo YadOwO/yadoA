@@ -287,6 +287,122 @@ struct DiningExpensePersistenceTests {
         )
     }
 
+    @Test("快速修改标题和金额会同步修正资产账户余额")
+    func updateExpenseTitleAndAmountAdjustsAssetBalance() throws {
+        let dataContainer = try AccountDataContainer.inMemory()
+        let accountID = UUID()
+        let transactionID = UUID()
+        try saveAccount(id: accountID, amountText: "100", in: dataContainer.modelContainer)
+        let repository = LocalExpenseRepository(container: dataContainer.modelContainer)
+        try repository.save(
+            DiningExpenseDraft(
+                id: transactionID,
+                accountID: accountID,
+                amountText: "12.34",
+                transactionDay: 20260813
+            )
+        )
+
+        try repository.update(
+            DiningExpenseEditDraft(
+                id: transactionID,
+                title: "午餐",
+                amountText: "20.00"
+            )
+        )
+
+        let updatedTransaction = try #require(
+            try transaction(id: transactionID, in: dataContainer.modelContainer)
+        )
+        #expect(updatedTransaction.title == "午餐")
+        #expect(updatedTransaction.amount == Decimal(20))
+        #expect(
+            try account(id: accountID, in: dataContainer.modelContainer)?.balance
+                == Decimal(80)
+        )
+    }
+
+    @Test("快速修改负债账户金额按差值增加债务")
+    func updateExpenseAmountAdjustsDebtBalanceByDifference() throws {
+        let dataContainer = try AccountDataContainer.inMemory()
+        let accountID = UUID()
+        let transactionID = UUID()
+        try saveAccount(
+            id: accountID,
+            accountType: .creditCard,
+            amountText: "100",
+            in: dataContainer.modelContainer
+        )
+        let repository = LocalExpenseRepository(container: dataContainer.modelContainer)
+        try repository.save(
+            DiningExpenseDraft(
+                id: transactionID,
+                accountID: accountID,
+                amountText: "20",
+                transactionDay: 20260813
+            )
+        )
+
+        try repository.update(
+            DiningExpenseEditDraft(
+                id: transactionID,
+                title: "晚餐",
+                amountText: "12.50"
+            )
+        )
+
+        #expect(
+            try account(id: accountID, in: dataContainer.modelContainer)?.balance
+                == Decimal(string: "112.50")
+        )
+    }
+
+    @Test("快速修改保存失败会同时回滚标题、金额和账户余额")
+    func failedUpdateRollsBackAllChanges() throws {
+        let dataContainer = try AccountDataContainer.inMemory()
+        let accountID = UUID()
+        let transactionID = UUID()
+        try saveAccount(id: accountID, amountText: "100", in: dataContainer.modelContainer)
+        let saveRepository = LocalExpenseRepository(container: dataContainer.modelContainer)
+        try saveRepository.save(
+            DiningExpenseDraft(
+                id: transactionID,
+                accountID: accountID,
+                amountText: "12.34",
+                transactionDay: 20260813
+            )
+        )
+        var shouldFail = true
+        let updateRepository = LocalExpenseRepository(
+            container: dataContainer.modelContainer,
+            beforeSave: {
+                if shouldFail { throw InjectedExpenseSaveFailure() }
+            }
+        )
+        let draft = DiningExpenseEditDraft(
+            id: transactionID,
+            title: "不应保存",
+            amountText: "20"
+        )
+
+        #expect(throws: InjectedExpenseSaveFailure.self) {
+            try updateRepository.update(draft)
+        }
+        #expect(try transaction(id: transactionID, in: dataContainer.modelContainer)?.title == nil)
+        #expect(
+            try transaction(id: transactionID, in: dataContainer.modelContainer)?.amount
+                == Decimal(string: "12.34")
+        )
+        #expect(
+            try account(id: accountID, in: dataContainer.modelContainer)?.balance
+                == Decimal(string: "87.66")
+        )
+
+        shouldFail = false
+        try updateRepository.update(draft)
+        #expect(try transaction(id: transactionID, in: dataContainer.modelContainer)?.title == "不应保存")
+    }
+
     @Test("文件容器重开后保留流水与更新后的账户金额")
     func fileContainerPersistsTransactionAndBalanceAfterReopen() throws {
         let storeURL = temporaryStoreURL()

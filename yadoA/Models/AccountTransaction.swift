@@ -64,6 +64,9 @@ final class AccountTransaction {
     /// 餐饮支出以正数保存的精确金额；其他类型必须为 `nil`。
     var amount: Decimal?
 
+    /// 用户可选的流水标题；旧数据为空时由展示层回退到分类标题。
+    var title: String?
+
     /// 余额调整保存时从账户重新读取的调整前余额。
     var balanceBefore: Decimal?
 
@@ -102,6 +105,7 @@ final class AccountTransaction {
             typeRawValue: typeRawValue,
             categoryRawValue: categoryRawValue,
             amount: amount,
+            title: title.flatMap { Self.sanitizedOptionalText($0) },
             balanceBefore: balanceBefore,
             balanceAfter: balanceAfter,
             balanceDelta: balanceDelta
@@ -115,6 +119,7 @@ final class AccountTransaction {
         typeRawValue: String,
         categoryRawValue: String?,
         amount: Decimal?,
+        title: String?,
         balanceBefore: Decimal?,
         balanceAfter: Decimal?,
         balanceDelta: Decimal?,
@@ -128,6 +133,7 @@ final class AccountTransaction {
         self.typeRawValue = typeRawValue
         self.categoryRawValue = categoryRawValue
         self.amount = amount
+        self.title = title
         self.balanceBefore = balanceBefore
         self.balanceAfter = balanceAfter
         self.balanceDelta = balanceDelta
@@ -144,6 +150,7 @@ final class AccountTransaction {
     ///   - accountID: 流水绑定账户的稳定 UUID。
     ///   - amount: 大于零且最多两位小数的 CNY 支出金额。
     ///   - transactionDay: 用户选择的 `YYYYMMDD` 公历记账日。
+    ///   - title: 用户可选的流水标题。
     ///   - note: 允许为空的备注原始值。
     ///   - savedAt: 注入的保存时间，便于同日排序与确定性测试。
     /// - Returns: 已完成餐饮专属字段校验和清理的账户流水。
@@ -153,6 +160,7 @@ final class AccountTransaction {
         accountID: UUID,
         amount: Decimal,
         transactionDay: Int,
+        title: String? = nil,
         note: String = "",
         savedAt: Date = .now
     ) throws -> AccountTransaction {
@@ -167,7 +175,8 @@ final class AccountTransaction {
             balanceDelta: nil,
             transactionDay: transactionDay,
             note: note,
-            savedAt: savedAt
+            savedAt: savedAt,
+            title: title
         )
     }
 
@@ -226,15 +235,18 @@ final class AccountTransaction {
         balanceDelta: Decimal?,
         transactionDay: Int,
         note: String = "",
-        savedAt: Date = .now
+        savedAt: Date = .now,
+        title: String? = nil
     ) throws -> AccountTransaction {
         guard TransactionDay.isValid(transactionDay) else {
             throw AccountTransactionValidationError.invalidTransactionDay
         }
+        let sanitizedTitle = title.flatMap { sanitizedOptionalText($0) }
         _ = try validatedPayload(
             typeRawValue: typeRawValue,
             categoryRawValue: categoryRawValue,
             amount: amount,
+            title: sanitizedTitle,
             balanceBefore: balanceBefore,
             balanceAfter: balanceAfter,
             balanceDelta: balanceDelta
@@ -246,6 +258,7 @@ final class AccountTransaction {
             typeRawValue: typeRawValue,
             categoryRawValue: categoryRawValue,
             amount: amount,
+            title: sanitizedTitle,
             balanceBefore: balanceBefore,
             balanceAfter: balanceAfter,
             balanceDelta: balanceDelta,
@@ -261,6 +274,7 @@ final class AccountTransaction {
         typeRawValue: String,
         categoryRawValue: String?,
         amount: Decimal?,
+        title: String?,
         balanceBefore: Decimal?,
         balanceAfter: Decimal?,
         balanceDelta: Decimal?
@@ -287,6 +301,7 @@ final class AccountTransaction {
         case .balanceAdjustment:
             guard categoryRawValue == nil,
                   amount == nil,
+                  title == nil,
                   let balanceBefore,
                   let balanceAfter,
                   let balanceDelta
