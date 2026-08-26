@@ -124,7 +124,7 @@ struct AccountLifecycleSheet: View {
             if let error = flow.lastError {
                 Section {
                     Label(
-                        error == .expectedStateChanged
+                        error.isStateChanged
                             ? AccountLocalization.string("account.lifecycle.state_changed", locale: locale)
                             : AccountLocalization.string("account.lifecycle.save_error", locale: locale),
                         systemImage: "exclamationmark.triangle.fill"

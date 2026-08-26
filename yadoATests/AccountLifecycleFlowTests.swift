@@ -25,7 +25,7 @@ struct AccountLifecycleFlowTests {
 
         flow.submit()
         #expect(flow.submissionState == .editing)
-        #expect(flow.lastError == .nonZeroBalance(expectation.accountID))
+        #expect(flow.lastError == .repository(.nonZeroBalance(expectation.accountID)))
         state.shouldFail = false
         flow.submit()
         #expect(savedCount == 1)
@@ -50,7 +50,26 @@ struct AccountLifecycleFlowTests {
 
         #expect(flow.submissionState == .needsRefresh)
         #expect(needsRefresh)
-        #expect(flow.lastError == .expectedStateChanged)
+        #expect(flow.lastError == .repository(.expectedStateChanged))
+    }
+
+    @Test("未知保存错误会保留可见错误状态")
+    func unexpectedFailureIsExposed() {
+        let expectation = AccountDisposalExpectation(
+            accountID: UUID(),
+            action: .deactivate,
+            expectedDefaultAccountID: nil,
+            replacementAccountID: nil,
+            allowsNoDefault: true
+        )
+        let flow = AccountLifecycleFlow(expectation: expectation) { _ in
+            throw UnexpectedLifecycleError()
+        }
+
+        flow.submit()
+
+        #expect(flow.submissionState == .editing)
+        #expect(flow.lastError == .unexpected)
     }
 }
 
@@ -58,3 +77,5 @@ struct AccountLifecycleFlowTests {
 private final class FailureState {
     var shouldFail = true
 }
+
+private struct UnexpectedLifecycleError: Error {}

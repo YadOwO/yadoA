@@ -50,7 +50,7 @@ final class DiningExpenseEntryFlow: ObservableObject {
             accountID: initialAccountID,
             transactionDay: TransactionDay.encode(now, calendar: gregorianCalendar)
         )
-        self.hasInitializedDefault = draft != nil || initialAccountID != nil
+        self.hasInitializedDefault = self.draft.accountID != nil
     }
 
     /// 当前是否正在保存，用于忽略重复完成操作。

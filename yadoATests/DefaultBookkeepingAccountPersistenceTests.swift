@@ -95,6 +95,44 @@ struct DefaultBookkeepingAccountPersistenceTests {
         #expect(try transactionCount(in: container.modelContainer) == 1)
     }
 
+    @Test("处置确认期间出现新候选时要求刷新确认")
+    func disposalRejectsStaleNoDefaultConfirmation() throws {
+        let container = try AccountDataContainer.inMemory()
+        let repository = LocalAccountRepository(container: container.modelContainer)
+        let accountID = UUID()
+
+        try repository.save(
+            AccountDraft(id: accountID, accountType: .cash, name: "现金", amountText: "0"),
+            locale: Locale(identifier: "en_US")
+        )
+        let plan = try repository.disposalPlan(for: accountID)
+        #expect(plan.replacementCandidates.isEmpty)
+
+        try repository.save(
+            AccountDraft(
+                accountType: .debitCard,
+                template: AccountTemplate.banks(for: .debitCard)[0],
+                name: "银行卡",
+                amountText: "0"
+            ),
+            locale: Locale(identifier: "en_US")
+        )
+
+        #expect(throws: AccountRepositoryError.expectedStateChanged) {
+            try repository.dispose(
+                AccountDisposalExpectation(
+                    accountID: plan.accountID,
+                    action: .delete,
+                    expectedDefaultAccountID: plan.defaultAccountID,
+                    replacementAccountID: nil,
+                    allowsNoDefault: true
+                )
+            )
+        }
+        #expect(try repository.account(id: accountID)?.isActive == true)
+        #expect(try repository.defaultResolution() == .valid(accountID))
+    }
+
     @Test("有流水账户不能永久删除，非零余额不能停用")
     func lifecycleGuardsHistoryAndBalance() throws {
         let container = try AccountDataContainer.inMemory()

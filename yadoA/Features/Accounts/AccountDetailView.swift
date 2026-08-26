@@ -92,6 +92,7 @@ struct AccountDetailView: View {
     @State private var queryRefreshToken = UUID()
     @State private var isDefaultActionFailed = false
     @State private var isRestoreActionFailed = false
+    @State private var isLifecyclePlanLoadFailed = false
     @State private var isLifecycleStateChanged = false
     @State private var lifecyclePlan: AccountDisposalPlan?
 
@@ -134,6 +135,7 @@ struct AccountDetailView: View {
                         .disposalPlan(for: accountID)
                 } catch {
                     lifecyclePlan = nil
+                    isLifecyclePlanLoadFailed = true
                 }
             }
         )
@@ -155,6 +157,12 @@ struct AccountDetailView: View {
         .alert(
             AccountLocalization.string("account.lifecycle.state_changed", locale: locale),
             isPresented: $isLifecycleStateChanged
+        ) {
+            Button(AccountLocalization.string("common.close", locale: locale), role: .cancel) {}
+        }
+        .alert(
+            AccountLocalization.string("account.lifecycle.plan_error", locale: locale),
+            isPresented: $isLifecyclePlanLoadFailed
         ) {
             Button(AccountLocalization.string("common.close", locale: locale), role: .cancel) {}
         }
@@ -314,6 +322,7 @@ private struct AccountDetailQueryContent: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(presentation.name)
                             .font(.headline)
+                            .accessibilityIdentifier("account-detail-name")
                         if presentation.isDefault {
                             Text(AccountLocalization.string("account.default.badge", locale: locale))
                                 .font(.caption.weight(.semibold))
@@ -326,7 +335,6 @@ private struct AccountDetailQueryContent: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .accessibilityIdentifier("account-detail-name")
                 }
                 .padding(.vertical, 4)
             }

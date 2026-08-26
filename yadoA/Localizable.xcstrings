@@ -956,6 +956,23 @@
         }
       }
     },
+    "account.lifecycle.plan_error" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The account action could not be opened. Please refresh and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开账户操作，请刷新后重试。"
+          }
+        }
+      }
+    },
     "account.lifecycle.restore" : {
       "extractionState" : "manual",
       "localizations" : {

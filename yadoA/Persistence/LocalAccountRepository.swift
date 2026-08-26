@@ -420,6 +420,9 @@ final class LocalAccountRepository {
             }
             return nil
         }
+        if allowsNoDefault {
+            throw AccountRepositoryError.expectedStateChanged
+        }
         throw AccountRepositoryError.replacementRequired(accountID)
     }
 

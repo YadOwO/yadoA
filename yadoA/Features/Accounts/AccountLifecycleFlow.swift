@@ -16,6 +16,20 @@ enum AccountLifecycleSubmissionState: Equatable {
 /// 账户生命周期页面注入的同步保存动作。
 typealias AccountLifecycleSaveAction = @MainActor (AccountDisposalExpectation) throws -> Void
 
+/// 账户处置流程可向界面展示的错误类型。
+enum AccountLifecycleFlowError: Equatable {
+    /// 仓库返回的可分类领域错误。
+    case repository(AccountRepositoryError)
+
+    /// 非仓库错误，例如 SwiftData I/O 或注入的保存故障。
+    case unexpected
+
+    /// 是否需要关闭旧确认并重新读取处置计划。
+    var isStateChanged: Bool {
+        self == .repository(.expectedStateChanged)
+    }
+}
+
 /// 管理账户删除/停用确认内容并防止重复提交。
 @MainActor
 final class AccountLifecycleFlow: ObservableObject {
@@ -26,7 +40,7 @@ final class AccountLifecycleFlow: ObservableObject {
     @Published private(set) var submissionState: AccountLifecycleSubmissionState = .editing
 
     /// 最近一次提交错误；失败时保留确认内容供重试。
-    @Published private(set) var lastError: AccountRepositoryError?
+    @Published private(set) var lastError: AccountLifecycleFlowError?
 
     /// 注入的账户生命周期保存动作。
     private let saveAction: AccountLifecycleSaveAction
@@ -72,12 +86,13 @@ final class AccountLifecycleFlow: ObservableObject {
             submissionState = .editing
             onSaved()
         } catch let error as AccountRepositoryError {
-            lastError = error
+            lastError = .repository(error)
             submissionState = error == .expectedStateChanged ? .needsRefresh : .editing
             if error == .expectedStateChanged {
                 onNeedsRefresh()
             }
         } catch {
+            lastError = .unexpected
             submissionState = .editing
         }
     }
