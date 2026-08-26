@@ -21,19 +21,26 @@ struct HomeView: View {
 
                     ToolbarItem(placement: .topBarTrailing) {
                         HStack(spacing: 18) {
-                            Image(systemName: "magnifyingglass")
-                            Image(systemName: "calendar")
-                        }
-                        .foregroundStyle(.primary)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(
-                            Text(
-                                AccountLocalization.string(
-                                    "home.decorative.actions",
-                                    locale: locale
+                            NavigationLink {
+                                BookkeepingSearchView()
+                            } label: {
+                                Image(systemName: "magnifyingglass")
+                                    .frame(width: 44, height: 44)
+                            }
+                            .accessibilityLabel(
+                                Text(
+                                    AccountLocalization.string(
+                                        "bookkeeping.search.action",
+                                        locale: locale
+                                    )
                                 )
                             )
-                        )
+                            .accessibilityIdentifier("home-search")
+
+                            Image(systemName: "calendar")
+                                .accessibilityHidden(true)
+                        }
+                        .foregroundStyle(.primary)
                     }
                 }
         }

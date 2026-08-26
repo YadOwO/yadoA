@@ -30,6 +30,22 @@ extension XCTestCase {
         return app
     }
 
+    /// 使用记账搜索专用夹具和固定英文环境启动应用。
+    @MainActor
+    func launchBookkeepingSearchFixtureInEnglish() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "--ui-testing-in-memory",
+            "--ui-testing-home-fixture",
+            "--ui-testing-bookkeeping-search-fixture",
+            "--ui-testing-reset-home-summary-visibility",
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US"
+        ]
+        app.launch()
+        return app
+    }
+
     /// 从默认首页切换到账户 Tab，并等待账户页完成展示。
     @MainActor
     func openAccountsTab(in app: XCUIApplication) {
