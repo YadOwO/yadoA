@@ -20,27 +20,9 @@ struct HomeView: View {
                     }
 
                     ToolbarItem(placement: .topBarTrailing) {
-                        HStack(spacing: 18) {
-                            NavigationLink {
-                                BookkeepingSearchView()
-                            } label: {
-                                Image(systemName: "magnifyingglass")
-                                    .frame(width: 44, height: 44)
-                            }
-                            .accessibilityLabel(
-                                Text(
-                                    AccountLocalization.string(
-                                        "bookkeeping.search.action",
-                                        locale: locale
-                                    )
-                                )
-                            )
-                            .accessibilityIdentifier("home-search")
-
-                            Image(systemName: "calendar")
-                                .accessibilityHidden(true)
-                        }
-                        .foregroundStyle(.primary)
+                        Image(systemName: "calendar")
+                            .accessibilityHidden(true)
+                            .foregroundStyle(.primary)
                     }
                 }
         }

@@ -1,16 +1,16 @@
 import XCTest
 
-/// 首页入口、实时搜索、时间筛选和只读详情的 UI 自动化覆盖。
+/// 根级搜索入口、实时搜索、时间筛选和只读详情的 UI 自动化覆盖。
 final class BookkeepingSearchFlowUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
 
     @MainActor
-    func testHomeSearchEntryOpensSecondLevelPageWithoutChangingTabs() throws {
+    func testSearchTabOpensSearchPage() throws {
         let app = launchBookkeepingSearchFixtureInEnglish()
 
-        XCTAssertEqual(app.tabBars.buttons.count, 3)
+        XCTAssertEqual(app.tabBars.buttons.count, 4)
         openSearch(in: app)
         XCTAssertTrue(app.staticTexts["Search your bookkeeping"].waitForExistence(timeout: 3))
     }
@@ -118,9 +118,9 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
 
     @MainActor
     private func openSearch(in app: XCUIApplication) {
-        let searchButton = app.buttons["home-search"]
-        XCTAssertTrue(searchButton.waitForExistence(timeout: 3))
-        searchButton.tap()
+        let searchTab = app.tabBars.buttons["Search"]
+        XCTAssertTrue(searchTab.waitForExistence(timeout: 3))
+        searchTab.tap()
         XCTAssertTrue(app.navigationBars["Search"].waitForExistence(timeout: 3))
     }
 }

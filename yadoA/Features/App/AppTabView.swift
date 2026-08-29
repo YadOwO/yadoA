@@ -12,6 +12,9 @@ enum AppTab: String, CaseIterable, Hashable {
     /// 本地账户管理入口。
     case accounts
 
+    /// 跨账户记账搜索入口；iOS 26 会以系统分割 Search Tab 展示。
+    case search
+
     /// 应用启动时默认展示首页。
     static let initial: AppTab = .home
 
@@ -24,6 +27,8 @@ enum AppTab: String, CaseIterable, Hashable {
             "app.tab.charts"
         case .accounts:
             "account.list.title"
+        case .search:
+            "bookkeeping.search.title"
         }
     }
 
@@ -36,6 +41,8 @@ enum AppTab: String, CaseIterable, Hashable {
             "chart.bar.xaxis"
         case .accounts:
             "creditcard"
+        case .search:
+            "magnifyingglass"
         }
     }
 
@@ -45,7 +52,7 @@ enum AppTab: String, CaseIterable, Hashable {
     }
 }
 
-/// 应用根级双 Tab 导航；iOS 26 使用原生液态玻璃 Tab Bar，iOS 18 保持普通系统样式。
+/// 应用根级导航；iOS 26 将搜索分割展示，iOS 18 保持普通系统 Tab 样式。
 struct AppTabView: View {
     @Environment(\.locale) private var locale
     @State private var selectedTab: AppTab = .initial
@@ -68,6 +75,14 @@ struct AppTabView: View {
                 AccountListView()
             } label: {
                 Label(AppTab.accounts.title(locale: locale), systemImage: AppTab.accounts.symbolName)
+            }
+
+            Tab(value: AppTab.search, role: .search) {
+                NavigationStack {
+                    BookkeepingSearchView()
+                }
+            } label: {
+                Label(AppTab.search.title(locale: locale), systemImage: AppTab.search.symbolName)
             }
         }
         .tabBarMinimizeOnScrollDownIfAvailable()

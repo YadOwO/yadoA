@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// 首页导航栈中的本地记账搜索页。
+/// 根级搜索 Tab 中的本地记账搜索页。
 struct BookkeepingSearchView: View {
     @Environment(\.calendar) private var environmentCalendar
     @Environment(\.locale) private var locale
