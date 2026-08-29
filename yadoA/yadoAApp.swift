@@ -24,6 +24,9 @@ struct yadoAApp: App {
                     }
                     try HomeUITestFixture.seed(in: container.modelContainer)
                 }
+                if ProcessInfo.processInfo.arguments.contains("--ui-testing-bookkeeping-search-fixture") {
+                    try HomeUITestFixture.seedBookkeepingSearch(in: container.modelContainer)
+                }
                 uiTestingDataContainer = container
             } catch {
                 // UI 自动化绝不能因隔离容器失败而转入生产文件存储。
