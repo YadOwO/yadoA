@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 import UIKit
 
-/// 金额优先的固定餐饮支出录入页。
+/// 支持分类选择且金额优先的支出录入页。
 struct DiningExpenseEntryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
@@ -10,10 +10,11 @@ struct DiningExpenseEntryView: View {
     @Query private var preferences: [BookkeepingPreference]
     @FocusState private var focusedField: FocusedField?
     @StateObject private var flow: DiningExpenseEntryFlow
+    @State private var isPresentingCategorySelection = false
     @State private var isPresentingAccountSelection = false
     @State private var hasAccountCreationError = false
 
-    /// 创建餐饮支出录入页。
+    /// 创建支出录入页。
     ///
     /// - Parameters:
     ///   - draft: 可选的既有草稿，默认创建以今天为日期的新草稿。
@@ -46,6 +47,17 @@ struct DiningExpenseEntryView: View {
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle(AccountLocalization.string("expense.entry.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $isPresentingCategorySelection) {
+            ExpenseCategorySelectionView(
+                selectedCategory: flow.draft.category,
+                onSelect: { category in
+                    flow.selectCategory(category)
+                    isPresentingCategorySelection = false
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
         .sheet(isPresented: $isPresentingAccountSelection) {
             NavigationStack {
                 ExpenseAccountSelectionView(
@@ -79,15 +91,27 @@ struct DiningExpenseEntryView: View {
         }
     }
 
-    /// 固定分类和主视觉金额。
+    /// 当前分类入口和主视觉金额。
     private var categoryAndAmount: some View {
         VStack(spacing: 14) {
-            Label(
-                AccountLocalization.string("expense.category.dining", locale: locale),
-                systemImage: "fork.knife"
-            )
-            .font(.headline)
-            .foregroundStyle(.tint)
+            Button {
+                focusedField = nil
+                isPresentingCategorySelection = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: flow.draft.category.symbolName)
+                    Text(flow.draft.category.localizedTitle(locale: locale))
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .accessibilityHidden(true)
+                }
+                .font(.headline)
+                .foregroundStyle(.tint)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 44)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("expense-entry-category")
 
             TextField(
                 AccountLocalization.string("expense.entry.amount", locale: locale),
@@ -345,5 +369,79 @@ struct DiningExpenseEntryView: View {
     private enum FocusedField: Hashable {
         case amount
         case note
+    }
+}
+
+/// 记账页使用的支出分类选择面板。
+private struct ExpenseCategorySelectionView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
+
+    /// 打开面板时已经选中的分类。
+    let selectedCategory: ExpenseCategory
+
+    /// 用户点击分类后的回调。
+    let onSelect: (ExpenseCategory) -> Void
+
+    /// 根据可用宽度自动调整列数，兼顾普通字号和辅助功能字号。
+    private let columns = [
+        GridItem(.adaptive(minimum: 76, maximum: 112), spacing: 16)
+    ]
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 22) {
+                    ForEach(ExpenseCategory.allCases) { category in
+                        categoryButton(category)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 24)
+            }
+            .navigationTitle(
+                AccountLocalization.string("expense.category.selection.title", locale: locale)
+            )
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(AccountLocalization.string("common.cancel", locale: locale)) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    /// 单个分类使用系统图标、动态颜色和本地化名称。
+    private func categoryButton(_ category: ExpenseCategory) -> some View {
+        Button {
+            onSelect(category)
+        } label: {
+            VStack(spacing: 8) {
+                Image(systemName: category.symbolName)
+                    .font(.title2.weight(.medium))
+                    .foregroundStyle(
+                        category == selectedCategory ? Color.accentColor : Color.primary
+                    )
+                    .frame(width: 56, height: 56)
+                    .background(
+                        category == selectedCategory
+                            ? Color.accentColor.opacity(0.16)
+                            : Color.secondary.opacity(0.12),
+                        in: Circle()
+                    )
+
+                Text(category.localizedTitle(locale: locale))
+                    .font(.footnote)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity, minHeight: 88, alignment: .top)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(category == selectedCategory ? .isSelected : [])
+        .accessibilityIdentifier("expense-category-\(category.rawValue)")
     }
 }

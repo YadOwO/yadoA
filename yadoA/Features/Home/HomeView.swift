@@ -495,7 +495,7 @@ private struct HomeOverviewRow: View {
     var body: some View {
         Button(action: onEdit) {
             HStack(spacing: 14) {
-                Image(systemName: "fork.knife")
+                Image(systemName: row.symbolName)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.yellow)
                     .frame(width: 42, height: 42)

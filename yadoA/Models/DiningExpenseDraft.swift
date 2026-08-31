@@ -1,6 +1,6 @@
 import Foundation
 
-/// 餐饮支出草稿无法转换为待保存流水时的校验错误。
+/// 支出草稿无法转换为待保存流水时的校验错误。
 enum DiningExpenseDraftValidationError: Error, Equatable {
     /// 当前草稿尚未选择绑定账户。
     case accountRequired
@@ -14,6 +14,9 @@ struct DiningExpenseDraft: Equatable, Sendable {
     /// 当前选择的账户 UUID；未选择时为 `nil`。
     var accountID: UUID?
 
+    /// 用户选择的支出分类，新草稿默认使用餐饮。
+    var category: ExpenseCategory
+
     /// 系统数字键盘维护的金额字符缓冲区。
     var amountText: String
 
@@ -23,23 +26,26 @@ struct DiningExpenseDraft: Equatable, Sendable {
     /// 允许为空的备注原始值。
     var note: String
 
-    /// 创建餐饮支出草稿。
+    /// 创建支出草稿。
     ///
     /// - Parameters:
     ///   - id: 页面生命周期内稳定的流水 UUID。
     ///   - accountID: 可选的绑定账户 UUID。
+    ///   - category: 用户选择的支出分类，默认餐饮。
     ///   - amountText: 系统数字键盘生成的金额字符。
     ///   - transactionDay: `YYYYMMDD` 公历记账日。
     ///   - note: 允许为空的备注。
     init(
         id: UUID = UUID(),
         accountID: UUID? = nil,
+        category: ExpenseCategory = .dining,
         amountText: String = "",
         transactionDay: Int,
         note: String = ""
     ) {
         self.id = id
         self.accountID = accountID
+        self.category = category
         self.amountText = amountText
         self.transactionDay = transactionDay
         self.note = note
@@ -55,10 +61,10 @@ struct DiningExpenseDraft: Equatable, Sendable {
 }
 
 extension AccountTransaction {
-    /// 校验记账草稿并生成尚未插入 context 的餐饮支出流水。
+    /// 校验记账草稿并生成尚未插入 context 的支出流水。
     ///
     /// - Parameters:
-    ///   - draft: 页面提交时复制的餐饮支出草稿。
+    ///   - draft: 页面提交时复制的支出草稿。
     ///   - savedAt: 注入的真实保存时间。
     /// - Returns: 已校验账户选择、金额、日期和备注的流水。
     /// - Throws: 账户未选择或流水字段无效时抛出对应校验错误。
@@ -73,9 +79,10 @@ extension AccountTransaction {
             throw AccountTransactionValidationError.invalidAmount
         }
 
-        return try validatingDiningExpense(
+        return try validatingExpense(
             id: draft.id,
             accountID: accountID,
+            category: draft.category,
             amount: amount,
             transactionDay: draft.transactionDay,
             note: draft.note,

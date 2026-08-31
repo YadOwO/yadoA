@@ -67,6 +67,40 @@ struct BookkeepingSearchPresentationTests {
         #expect(english.dayGroups[0].rows[0].categoryTitle == "Dining")
     }
 
+    @Test("新增分类按中英文名称搜索并进入详情")
+    func selectedCategoryMatchesSearchAndDetail() throws {
+        let transaction = try AccountTransaction.validatingExpense(
+            id: UUID(),
+            accountID: UUID(),
+            category: .medical,
+            amount: 50,
+            transactionDay: 20260831
+        )
+        let account = account(id: transaction.accountID, name: "Cash")
+
+        let chinese = BookkeepingSearchPresentation(
+            transactions: [transaction],
+            accounts: [account],
+            query: "医疗",
+            locale: chineseLocale
+        )
+        let english = BookkeepingSearchPresentation(
+            transactions: [transaction],
+            accounts: [account],
+            query: "Medical",
+            locale: englishLocale
+        )
+        let detail = BookkeepingSearchPresentation.detail(
+            for: transaction,
+            account: account,
+            locale: chineseLocale
+        )
+
+        #expect(chinese.dayGroups[0].rows[0].categoryTitle == "医疗")
+        #expect(english.dayGroups[0].rows[0].categoryTitle == "Medical")
+        #expect(detail?.categoryTitle == "医疗")
+    }
+
     @Test("金额查询使用完整 Decimal 精确相等")
     func amountMatchesExactly() throws {
         let accountID = UUID()

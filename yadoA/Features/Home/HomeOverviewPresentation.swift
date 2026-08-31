@@ -111,6 +111,9 @@ struct HomeOverviewRowPresentation: Identifiable, Equatable {
     /// 当前语言环境下的流水分类标题。
     let title: String
 
+    /// 流水分类使用的 SF Symbol 名称。
+    let symbolName: String
+
     /// 使用负向金额表示支出的本地化金额。
     let formattedAmount: String
 
@@ -222,7 +225,7 @@ struct HomeOverviewPresentation {
 
     /// 创建跨账户首页投影。
     ///
-    /// 只有 `validatedPayload()` 成功解码出的餐饮支出才会进入首页；余额调整、
+    /// 只有 `validatedPayload()` 成功解码出的支出才会进入首页；余额调整、
     /// 未知类型、损坏字段和无效业务日都会被安全排除。
     ///
     /// - Parameters:
@@ -257,7 +260,7 @@ struct HomeOverviewPresentation {
                 return nil
             }
 
-            guard case let .diningExpense(amount) = payload else { return nil }
+            guard case let .expense(_, amount) = payload else { return nil }
             return ValidatedTransaction(
                 transaction: transaction,
                 month: month,
@@ -325,7 +328,7 @@ struct HomeOverviewPresentation {
         )
     }
 
-    /// 将一笔有效餐饮流水转换为首页本地化明细行。
+    /// 将一笔有效支出流水转换为首页本地化明细行。
     ///
     /// - Parameters:
     ///   - transaction: 需要转换的原始流水。
@@ -338,7 +341,7 @@ struct HomeOverviewPresentation {
         calendar sourceCalendar: Calendar = .current
     ) -> HomeOverviewRowPresentation? {
         guard let payload = try? transaction.validatedPayload(),
-              case .diningExpense = payload,
+              case let .expense(category, _) = payload,
               TransactionDay.date(
                   from: transaction.transactionDay,
                   calendar: sourceCalendar,
@@ -356,6 +359,7 @@ struct HomeOverviewPresentation {
         return HomeOverviewRowPresentation(
             id: historyRow.id,
             title: historyRow.title,
+            symbolName: category.symbolName,
             formattedAmount: historyRow.formattedAmount,
             note: historyRow.note,
             accessibilityLabel: historyRow.accessibilityLabel
@@ -402,7 +406,7 @@ struct HomeOverviewPresentation {
         return lhs.id.uuidString < rhs.id.uuidString
     }
 
-    /// 已完成有效日期、载荷和自然月份解码的餐饮流水。
+    /// 已完成有效日期、载荷和自然月份解码的支出流水。
     private struct ValidatedTransaction {
         /// 原始流水，供本地化行展示使用。
         let transaction: AccountTransaction

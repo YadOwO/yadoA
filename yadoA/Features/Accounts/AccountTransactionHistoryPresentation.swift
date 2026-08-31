@@ -9,10 +9,10 @@ struct AccountTransactionHistoryRowPresentation: Identifiable, Equatable {
     /// 当前语言环境下的流水类型标题。
     let title: String
 
-    /// 餐饮使用负向金额，余额调整使用显式带符号差额。
+    /// 支出使用负向金额，余额调整使用显式带符号差额。
     let formattedAmount: String
 
-    /// 余额调整的“调整前 → 调整后”关系；餐饮流水为 `nil`。
+    /// 余额调整的“调整前 → 调整后”关系；支出流水为 `nil`。
     let balanceTransition: String?
 
     /// 当前语言环境下的公历业务日期。
@@ -64,9 +64,9 @@ enum AccountTransactionHistoryPresentation {
         guard let payload = try? transaction.validatedPayload() else { return nil }
 
         switch payload {
-        case let .diningExpense(amount):
+        case let .expense(category, amount):
             title = transaction.title
-                ?? AccountLocalization.string("expense.category.dining", locale: locale)
+                ?? category.localizedTitle(locale: locale)
             formattedAmount = formattedCurrency(-amount, code: transaction.currencyCode, locale: locale)
             balanceTransition = nil
             spokenBalanceTransition = nil

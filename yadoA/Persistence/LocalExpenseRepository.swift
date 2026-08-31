@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-/// 本地餐饮支出写入边界产生的错误。
+/// 本地支出写入边界产生的错误。
 enum ExpenseRepositoryError: Error, Equatable {
     /// 相同流水 UUID 已经存在，拒绝覆盖或再次联动账户金额。
     case duplicateID(UUID)
@@ -9,26 +9,26 @@ enum ExpenseRepositoryError: Error, Equatable {
     /// 快速修改对应的流水不存在。
     case transactionNotFound(UUID)
 
-    /// 当前版本只允许修改餐饮支出流水。
+    /// 当前版本只允许修改支出流水。
     case transactionNotEditable(UUID)
 
     /// 草稿绑定的账户不存在。
     case accountNotFound(UUID)
 
-    /// 停用账户不能继续修改或写入餐饮流水。
+    /// 停用账户不能继续修改或写入支出流水。
     case accountDeactivated(UUID)
 
     /// 持久化账户类型未知，无法安全判断金额影响方向。
     case unsupportedAccountType(String)
 
-    /// 当前版本仅允许 CNY 账户记录餐饮支出。
+    /// 当前版本仅允许 CNY 账户记录支出。
     case unsupportedCurrency(String)
 
     /// 精确十进制金额计算失败。
     case balanceCalculationFailed
 }
 
-/// 在主 actor 上原子保存餐饮流水和账户金额变化的本地仓库。
+/// 在主 actor 上原子保存支出流水和账户金额变化的本地仓库。
 @MainActor
 final class LocalExpenseRepository {
     /// 应用或测试持有的完整本地财务容器；每次保存命令创建新鲜 context。
@@ -81,7 +81,7 @@ final class LocalExpenseRepository {
         guard account.supportsBookkeeping, let accountType = account.accountType else {
             throw ExpenseRepositoryError.unsupportedAccountType(account.typeRawValue)
         }
-        guard case let .diningExpense(expenseAmount) = try transaction.validatedPayload() else {
+        guard case let .expense(_, expenseAmount) = try transaction.validatedPayload() else {
             throw AccountTransactionValidationError.invalidPayload
         }
 
@@ -102,7 +102,7 @@ final class LocalExpenseRepository {
         }
     }
 
-    /// 校验并原子更新一笔已有餐饮流水，同时修正绑定账户的金额。
+    /// 校验并原子更新一笔已有支出流水，同时修正绑定账户的金额。
     ///
     /// 标题只更新流水自身；金额更新会先抵消旧支出，再按账户类型应用新支出，
     /// 因此重复提交、金额变大或变小都不会累积错误余额。
@@ -115,7 +115,7 @@ final class LocalExpenseRepository {
             throw ExpenseRepositoryError.transactionNotFound(draft.id)
         }
         guard let payload = try? transaction.validatedPayload(),
-              case let .diningExpense(oldAmount) = payload
+              case let .expense(_, oldAmount) = payload
         else {
             throw ExpenseRepositoryError.transactionNotEditable(draft.id)
         }

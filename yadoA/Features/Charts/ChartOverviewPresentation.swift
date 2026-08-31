@@ -56,7 +56,7 @@ struct ChartPointPresentation: Identifiable, Equatable {
     /// 当前语言环境下的横轴标题。
     let formattedLabel: String
 
-    /// 当前时间桶内有效餐饮支出的精确金额。
+    /// 当前时间桶内有效支出的精确金额。
     let expenseTotal: Decimal
 
     /// 当前语言环境下的货币金额，用于辅助功能播报。
@@ -68,12 +68,12 @@ struct ChartPointPresentation: Identifiable, Equatable {
 
 /// 图表页当前周期的纯展示投影。
 struct ChartOverviewPresentation: Equatable {
-    /// 只读取图表需要的餐饮支出；聚合不依赖持久化排序。
+    /// 只读取图表需要的支出；聚合不依赖持久化排序。
     static func descriptor() -> FetchDescriptor<AccountTransaction> {
-        let diningExpenseType = AccountTransactionType.diningExpense.rawValue
+        let expenseType = AccountTransactionType.expense.rawValue
         return FetchDescriptor(
             predicate: #Predicate<AccountTransaction> { transaction in
-                transaction.typeRawValue == diningExpenseType
+                transaction.typeRawValue == expenseType
             }
         )
     }
@@ -119,7 +119,7 @@ struct ChartOverviewPresentation: Equatable {
 
     /// 从原始账户流水生成周、月或年的支出展示数据。
     ///
-    /// 只有通过 `validatedPayload()` 校验的餐饮支出会进入图表；余额调整、
+    /// 只有通过 `validatedPayload()` 校验的支出会进入图表；余额调整、
     /// 未知类型、损坏字段和无效业务日都会被安全排除。
     ///
     /// - Parameters:
@@ -260,7 +260,7 @@ struct ChartOverviewPresentation: Equatable {
         )
     }
 
-    /// 已完成有效日期和载荷解码的餐饮支出。
+    /// 已完成有效日期和载荷解码的支出。
     private struct ValidExpense {
         /// 当前时区下的业务日日期。
         let date: Date
@@ -283,7 +283,7 @@ struct ChartOverviewPresentation: Equatable {
         return calendar
     }
 
-    /// 严格解码单笔真实餐饮支出。
+    /// 严格解码单笔真实支出。
     private static func validExpense(
         for transaction: AccountTransaction,
         calendar: Calendar,
@@ -295,7 +295,7 @@ struct ChartOverviewPresentation: Equatable {
             locale: locale
         ),
         let payload = try? transaction.validatedPayload(),
-        case let .diningExpense(amount) = payload
+        case let .expense(_, amount) = payload
         else {
             return nil
         }

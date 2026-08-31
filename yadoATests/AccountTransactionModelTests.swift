@@ -5,6 +5,27 @@ import Testing
 
 @Suite("AccountTransaction 模型转换")
 struct AccountTransactionModelTests {
+    @Test("全部支出分类都能通过统一载荷往返", arguments: ExpenseCategory.allCases)
+    func everyExpenseCategoryRoundTrips(category: ExpenseCategory) throws {
+        let amount = try #require(Decimal(string: "12.34"))
+        let transaction = try AccountTransaction.validatingExpense(
+            id: UUID(),
+            accountID: UUID(),
+            category: category,
+            amount: amount,
+            transactionDay: 20260831
+        )
+
+        #expect(ExpenseCategory.allCases.count == 16)
+        #expect(transaction.typeRawValue == "diningExpense")
+        #expect(transaction.transactionType == .expense)
+        #expect(transaction.category == category)
+        #expect(
+            try transaction.validatedPayload()
+                == .expense(category: category, amount: amount)
+        )
+    }
+
     @Test("有效餐饮流水精确保留字段并清理备注")
     func validDiningExpenseKeepsExactFields() throws {
         let id = UUID()
@@ -24,8 +45,8 @@ struct AccountTransactionModelTests {
 
         #expect(transaction.id == id)
         #expect(transaction.accountID == accountID)
-        #expect(transaction.typeRawValue == AccountTransactionType.diningExpense.rawValue)
-        #expect(transaction.transactionType == .diningExpense)
+        #expect(transaction.typeRawValue == AccountTransactionType.expense.rawValue)
+        #expect(transaction.transactionType == .expense)
         #expect(transaction.categoryRawValue == ExpenseCategory.dining.rawValue)
         #expect(transaction.category == .dining)
         #expect(transaction.amount == amount)
@@ -193,7 +214,7 @@ struct AccountTransactionModelTests {
             try AccountTransaction.validatingPersistedFields(
                 id: UUID(),
                 accountID: UUID(),
-                typeRawValue: AccountTransactionType.diningExpense.rawValue,
+                typeRawValue: AccountTransactionType.expense.rawValue,
                 categoryRawValue: ExpenseCategory.dining.rawValue,
                 amount: 10,
                 balanceBefore: 100,

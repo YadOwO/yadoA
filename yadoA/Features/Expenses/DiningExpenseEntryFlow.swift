@@ -4,14 +4,14 @@ import Foundation
 /// 记账页面注入的显式保存动作。
 typealias DiningExpenseSaveAction = @MainActor (DiningExpenseDraft) async throws -> Void
 
-/// 餐饮支出提交期间的页面状态。
+/// 支出提交期间的页面状态。
 enum DiningExpenseSubmissionState: Equatable {
     case editing
     case saving
     case failed
 }
 
-/// 持有单份餐饮支出草稿，并协调金额输入与防重复提交。
+/// 持有单份支出草稿，并协调分类、金额输入与防重复提交。
 @MainActor
 final class DiningExpenseEntryFlow: ObservableObject {
     /// 页面及其后续账户子流程共享的同一份草稿。
@@ -29,13 +29,13 @@ final class DiningExpenseEntryFlow: ObservableObject {
     /// 防止 SwiftUI 查询刷新或页面重新出现时重复覆盖用户选择。
     private var hasInitializedDefault = false
 
-    /// 创建一条带稳定 UUID 的餐饮支出流程。
+    /// 创建一条带稳定 UUID 的支出流程。
     ///
     /// - Parameters:
     ///   - draft: 需要恢复的既有草稿；为空时以今天创建新草稿。
     ///   - now: 新草稿的默认记账日期。
     ///   - calendar: 提供当前时区的日历，内部统一转换为公历。
-    ///   - saveAction: 显式保存餐饮流水与账户金额的动作。
+    ///   - saveAction: 显式保存支出流水与账户金额的动作。
     init(
         draft: DiningExpenseDraft? = nil,
         initialAccountID: UUID? = nil,
@@ -107,6 +107,13 @@ final class DiningExpenseEntryFlow: ObservableObject {
     func updateTransactionDate(_ date: Date) {
         guard !isSaving else { return }
         draft.transactionDay = TransactionDay.encode(date, calendar: calendar)
+        markAsEditing()
+    }
+
+    /// 更新支出分类，并在编辑后清除上一次失败提示。
+    func selectCategory(_ category: ExpenseCategory) {
+        guard !isSaving else { return }
+        draft.category = category
         markAsEditing()
     }
 

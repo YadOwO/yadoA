@@ -6,6 +6,28 @@ import Testing
 @Suite("首页跨账户投影与月份导航", .serialized)
 @MainActor
 struct HomeOverviewPresentationTests {
+    @Test("首页按真实分类展示本地化标题和图标")
+    func projectsSelectedCategoryTitleAndSymbol() throws {
+        let transaction = try AccountTransaction.validatingExpense(
+            id: UUID(),
+            accountID: UUID(),
+            category: .travel,
+            amount: 20,
+            transactionDay: 20260831
+        )
+        let row = try #require(
+            HomeOverviewPresentation.row(
+                for: transaction,
+                locale: Locale(identifier: "zh-Hans"),
+                calendar: utcCalendar
+            )
+        )
+
+        #expect(row.title == "旅行")
+        #expect(row.symbolName == "airplane")
+        #expect(row.accessibilityLabel.contains("旅行"))
+    }
+
     @Test("跨账户查询使用业务日、保存时间和 UUID 的稳定排序")
     func descriptorUsesCrossAccountStableOrdering() throws {
         let dataContainer = try AccountDataContainer.inMemory()

@@ -178,7 +178,7 @@ struct BookkeepingSearchPresentation {
 
     /// 将流水与账户快照转换为可搜索的本地化结果。
     ///
-    /// 该投影先校验业务日和餐饮载荷，再执行关键词与时间条件，最后才创建
+    /// 该投影先校验业务日和支出载荷，再执行关键词与时间条件，最后才创建
     /// 格式化结果行；余额调整、未知类型、损坏载荷和标题均不会进入搜索语义。
     ///
     /// - Parameters:
@@ -219,18 +219,14 @@ struct BookkeepingSearchPresentation {
         let parsedAmount = normalizedQuery.isEmpty
             ? nil
             : AccountAmountParser.amount(from: normalizedQuery, locale: locale)
-        let categoryTitle = AccountLocalization.string(
-            "expense.category.dining",
-            locale: locale
-        )
         let filteredTransactions = transactions
             .compactMap { transaction -> ValidatedTransaction? in
-                guard transaction.typeRawValue == AccountTransactionType.diningExpense.rawValue,
-                      transaction.categoryRawValue == ExpenseCategory.dining.rawValue,
-                      let amount = transaction.amount
+                guard let payload = try? transaction.validatedPayload(),
+                      case let .expense(category, amount) = payload
                 else {
                     return nil
                 }
+                let categoryTitle = category.localizedTitle(locale: locale)
 
                 let matchesDate = timeFilter.dateRange?.contains(transaction.transactionDay) ?? true
                 guard matchesDate else { return nil }
@@ -255,12 +251,6 @@ struct BookkeepingSearchPresentation {
                     return nil
                 }
 
-                guard let payload = try? transaction.validatedPayload(),
-                      case let .diningExpense(validatedAmount) = payload
-                else {
-                    return nil
-                }
-
                 let account = accountsByID[transaction.accountID]
                 let accountState: BookkeepingTransactionAccountState = switch account?.isActive {
                 case true: .active
@@ -271,7 +261,7 @@ struct BookkeepingSearchPresentation {
                 return ValidatedTransaction(
                     transaction: transaction,
                     date: date,
-                    amount: validatedAmount,
+                    amount: amount,
                     categoryTitle: categoryTitle,
                     accountName: account?.name,
                     accountState: accountState,
@@ -329,7 +319,7 @@ struct BookkeepingSearchPresentation {
         )
     }
 
-    /// 将一笔合法餐饮流水和当前账户快照转换为只读详情。
+    /// 将一笔合法支出流水和当前账户快照转换为只读详情。
     static func detail(
         for transaction: AccountTransaction,
         account: Account?,
@@ -346,7 +336,7 @@ struct BookkeepingSearchPresentation {
             locale: locale
         ),
         let payload = try? transaction.validatedPayload(),
-        case let .diningExpense(amount) = payload
+        case let .expense(category, amount) = payload
         else {
             return nil
         }
@@ -356,10 +346,7 @@ struct BookkeepingSearchPresentation {
         case false: .deactivated
         case nil: .unavailable
         }
-        let categoryTitle = AccountLocalization.string(
-            "expense.category.dining",
-            locale: locale
-        )
+        let categoryTitle = category.localizedTitle(locale: locale)
         let accountName = account?.name
         let formattedAmount = (-amount).formatted(
             .currency(code: transaction.currencyCode).locale(locale)
@@ -398,7 +385,7 @@ struct BookkeepingSearchPresentation {
         /// 解析后的公历业务日期。
         let date: Date
 
-        /// 已校验的精确餐饮金额。
+        /// 已校验的精确支出金额。
         let amount: Decimal
 
         /// 当前语言环境下的分类名称。

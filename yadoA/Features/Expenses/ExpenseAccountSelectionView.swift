@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// 餐饮支出流程中的账户选择框，负责选择现有账户或上下文创建首个账户。
+/// 支出流程中的账户选择框，负责选择现有账户或上下文创建首个账户。
 struct ExpenseAccountSelectionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale

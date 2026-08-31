@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-/// 餐饮支出对账户金额的业务影响方向。
+/// 支出对账户金额的业务影响方向。
 enum ExpenseBalanceEffect: Equatable, Sendable {
     /// 资产、余额或价值随支出减少。
     case decreaseValue
@@ -89,7 +89,7 @@ enum AccountType: String, CaseIterable, Identifiable, Hashable, Sendable {
     /// 用作列表和持久化引用的稳定类型标识。
     var id: String { rawValue }
 
-    /// 餐饮支出写入时唯一允许使用的金额影响方向。
+    /// 支出写入时唯一允许使用的金额影响方向。
     var expenseBalanceEffect: ExpenseBalanceEffect {
         switch self {
         case .creditCard, .liability:

@@ -6,10 +6,10 @@ enum AccountTransactionValidationError: Error, Equatable {
     /// 持久化类型不在当前版本支持的账户流水集合内。
     case unknownType(String)
 
-    /// 类型与餐饮、余额快照等专属字段组合不匹配。
+    /// 类型与支出、余额快照等专属字段组合不匹配。
     case invalidPayload
 
-    /// 餐饮支出金额必须大于零，且最多精确到 CNY 的两位小数。
+    /// 支出金额必须大于零，且最多精确到 CNY 的两位小数。
     case invalidAmount
 
     /// 余额调整的前后值、差额或 CNY 精度不自洽。
@@ -24,23 +24,71 @@ enum AccountTransactionValidationError: Error, Equatable {
 
 /// 账户范围内持久化流水的稳定类型。
 enum AccountTransactionType: String, Sendable {
-    /// 固定餐饮分类的支出流水。
-    case diningExpense
+    /// 支出流水；沿用首版餐饮流水的持久化值以兼容已有本地数据。
+    case expense = "diningExpense"
 
     /// 直接设置账户总余额产生的调整流水。
     case balanceAdjustment
 }
 
 /// 当前版本支持的支出分类。
-enum ExpenseCategory: String, Sendable {
-    /// 固定餐饮支出分类。
+enum ExpenseCategory: String, CaseIterable, Identifiable, Sendable {
+    /// 餐饮支出。
     case dining
+
+    /// 购物支出。
+    case shopping
+
+    /// 日常用品支出。
+    case dailyNecessities
+
+    /// 公共交通与通勤支出。
+    case transportation
+
+    /// 游戏、影音等娱乐支出。
+    case entertainment
+
+    /// 电话、网络等通讯支出。
+    case communication
+
+    /// 服装鞋帽支出。
+    case clothing
+
+    /// 房租、房贷等住房支出。
+    case housing
+
+    /// 家具、家电等居家支出。
+    case household
+
+    /// 医疗与健康服务支出。
+    case medical
+
+    /// 学习与教育支出。
+    case education
+
+    /// 宠物相关支出。
+    case pets
+
+    /// 出行与旅行支出。
+    case travel
+
+    /// 汽车相关支出。
+    case automotive
+
+    /// 人情往来与礼物支出。
+    case socialGifts
+
+    /// 无法归入其他分类的支出。
+    case other
+
+    /// SwiftUI 列表使用稳定持久化值作为标识。
+    var id: String { rawValue }
 }
 
 /// 从 SwiftData 可选字段中严格解码出的账户流水业务载荷。
 enum AccountTransactionPayload: Equatable, Sendable {
-    /// 固定餐饮支出金额。
-    case diningExpense(amount: Decimal)
+    /// 带明确分类的支出金额。
+    case expense(category: ExpenseCategory, amount: Decimal)
 
     /// 余额调整的完整前值、后值与带符号差额。
     case balanceAdjustment(before: Decimal, after: Decimal, delta: Decimal)
@@ -58,10 +106,10 @@ final class AccountTransaction {
     /// `AccountTransactionType.rawValue` 的持久化值。
     var typeRawValue: String
 
-    /// 餐饮支出使用的 `ExpenseCategory.rawValue`；其他类型必须为 `nil`。
+    /// 支出使用的 `ExpenseCategory.rawValue`；其他类型必须为 `nil`。
     var categoryRawValue: String?
 
-    /// 餐饮支出以正数保存的精确金额；其他类型必须为 `nil`。
+    /// 支出以正数保存的精确金额；其他类型必须为 `nil`。
     var amount: Decimal?
 
     /// 用户可选的流水标题；旧数据为空时由展示层回退到分类标题。
@@ -93,9 +141,9 @@ final class AccountTransaction {
         AccountTransactionType(rawValue: typeRawValue)
     }
 
-    /// 已知餐饮分类；非支出类型、未知或损坏值返回 `nil`。
+    /// 已知支出分类；非支出类型、未知或损坏值返回 `nil`。
     var category: ExpenseCategory? {
-        guard transactionType == .diningExpense, let categoryRawValue else { return nil }
+        guard transactionType == .expense, let categoryRawValue else { return nil }
         return ExpenseCategory(rawValue: categoryRawValue)
     }
 
@@ -143,21 +191,23 @@ final class AccountTransaction {
         self.savedAt = savedAt
     }
 
-    /// 校验并清理餐饮支出字段，生成尚未插入 context 的账户流水。
+    /// 校验并清理支出字段，生成尚未插入 context 的账户流水。
     ///
     /// - Parameters:
     ///   - id: 页面草稿生命周期内保持稳定的流水 UUID。
     ///   - accountID: 流水绑定账户的稳定 UUID。
+    ///   - category: 用户选择的支出分类。
     ///   - amount: 大于零且最多两位小数的 CNY 支出金额。
     ///   - transactionDay: 用户选择的 `YYYYMMDD` 公历记账日。
     ///   - title: 用户可选的流水标题。
     ///   - note: 允许为空的备注原始值。
     ///   - savedAt: 注入的保存时间，便于同日排序与确定性测试。
-    /// - Returns: 已完成餐饮专属字段校验和清理的账户流水。
+    /// - Returns: 已完成支出专属字段校验和清理的账户流水。
     /// - Throws: 金额、记账日或字段组合不符合持久化约束时抛出校验错误。
-    static func validatingDiningExpense(
+    static func validatingExpense(
         id: UUID,
         accountID: UUID,
+        category: ExpenseCategory,
         amount: Decimal,
         transactionDay: Int,
         title: String? = nil,
@@ -167,8 +217,8 @@ final class AccountTransaction {
         try validatingPersistedFields(
             id: id,
             accountID: accountID,
-            typeRawValue: AccountTransactionType.diningExpense.rawValue,
-            categoryRawValue: ExpenseCategory.dining.rawValue,
+            typeRawValue: AccountTransactionType.expense.rawValue,
+            categoryRawValue: category.rawValue,
             amount: amount,
             balanceBefore: nil,
             balanceAfter: nil,
@@ -177,6 +227,28 @@ final class AccountTransaction {
             note: note,
             savedAt: savedAt,
             title: title
+        )
+    }
+
+    /// 使用餐饮默认分类创建支出，兼容首版调用与测试夹具。
+    static func validatingDiningExpense(
+        id: UUID,
+        accountID: UUID,
+        amount: Decimal,
+        transactionDay: Int,
+        title: String? = nil,
+        note: String = "",
+        savedAt: Date = .now
+    ) throws -> AccountTransaction {
+        try validatingExpense(
+            id: id,
+            accountID: accountID,
+            category: .dining,
+            amount: amount,
+            transactionDay: transactionDay,
+            title: title,
+            note: note,
+            savedAt: savedAt
         )
     }
 
@@ -284,8 +356,9 @@ final class AccountTransaction {
         }
 
         switch transactionType {
-        case .diningExpense:
-            guard categoryRawValue == ExpenseCategory.dining.rawValue,
+        case .expense:
+            guard let categoryRawValue,
+                  let category = ExpenseCategory(rawValue: categoryRawValue),
                   let amount,
                   balanceBefore == nil,
                   balanceAfter == nil,
@@ -296,7 +369,7 @@ final class AccountTransaction {
             guard amount > 0, AccountAmountParser.hasCNYPrecision(amount) else {
                 throw AccountTransactionValidationError.invalidAmount
             }
-            return .diningExpense(amount: amount)
+            return .expense(category: category, amount: amount)
 
         case .balanceAdjustment:
             guard categoryRawValue == nil,

@@ -6,6 +6,35 @@ import Testing
 @Suite("餐饮支出持久化边界", .serialized)
 @MainActor
 struct DiningExpensePersistenceTests {
+    @Test("所选分类与金额一起原子保存并联动账户")
+    func selectedCategoryPersistsWithExpense() throws {
+        let dataContainer = try AccountDataContainer.inMemory()
+        let accountID = UUID()
+        try saveAccount(id: accountID, amountText: "100", in: dataContainer.modelContainer)
+        let repository = LocalExpenseRepository(container: dataContainer.modelContainer)
+        let draft = DiningExpenseDraft(
+            accountID: accountID,
+            category: .travel,
+            amountText: "20",
+            transactionDay: 20260831
+        )
+
+        try repository.save(draft)
+
+        let savedTransaction = try #require(
+            try transaction(id: draft.id, in: dataContainer.modelContainer)
+        )
+        #expect(savedTransaction.category == .travel)
+        #expect(
+            try savedTransaction.validatedPayload()
+                == .expense(category: .travel, amount: 20)
+        )
+        #expect(
+            try account(id: accountID, in: dataContainer.modelContainer)?.balance
+                == Decimal(80)
+        )
+    }
+
     @Test("资产与价值类账户允许由支出扣减为负数")
     func assetAndValueAccountsDecrease() throws {
         let accountTypes: [AccountType] = [

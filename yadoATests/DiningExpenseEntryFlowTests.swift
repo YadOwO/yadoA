@@ -5,6 +5,29 @@ import Testing
 @Suite("默认记账账户草稿流程")
 @MainActor
 struct DiningExpenseEntryFlowTests {
+    @Test("新草稿默认餐饮且切换分类不丢失其他输入")
+    func categorySelectionPreservesDraft() {
+        let accountID = UUID()
+        let flow = DiningExpenseEntryFlow(
+            draft: DiningExpenseDraft(
+                accountID: accountID,
+                amountText: "88.50",
+                transactionDay: 20260831,
+                note: "周末出行"
+            ),
+            saveAction: { _ in }
+        )
+
+        #expect(flow.draft.category == .dining)
+
+        flow.selectCategory(.travel)
+
+        #expect(flow.draft.category == .travel)
+        #expect(flow.draft.accountID == accountID)
+        #expect(flow.draft.amountText == "88.50")
+        #expect(flow.draft.note == "周末出行")
+    }
+
     @Test("默认只初始化一次，手动选择和后续默认变化不覆盖草稿")
     func defaultIsOneTimeOnly() {
         let originalID = UUID()
