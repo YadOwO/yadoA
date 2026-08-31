@@ -5,7 +5,26 @@ import Testing
 @Suite("默认记账账户草稿流程")
 @MainActor
 struct DiningExpenseEntryFlowTests {
-    @Test("新草稿默认餐饮且切换分类不丢失其他输入")
+    @Test("新建支出必须明确选择分类后才能提交")
+    func newExpenseRequiresCategorySelection() {
+        let flow = DiningExpenseEntryFlow(
+            initialAccountID: UUID(),
+            now: Date(timeIntervalSince1970: 0),
+            saveAction: { _ in }
+        )
+
+        flow.updateAmountText("12.50", decimalSeparator: ".")
+
+        #expect(flow.selectedCategory == nil)
+        #expect(!flow.canSubmit)
+
+        flow.selectCategory(.dining)
+
+        #expect(flow.selectedCategory == .dining)
+        #expect(flow.canSubmit)
+    }
+
+    @Test("恢复草稿保留原分类且切换分类不丢失其他输入")
     func categorySelectionPreservesDraft() {
         let accountID = UUID()
         let flow = DiningExpenseEntryFlow(
@@ -18,11 +37,12 @@ struct DiningExpenseEntryFlowTests {
             saveAction: { _ in }
         )
 
-        #expect(flow.draft.category == .dining)
+        #expect(flow.selectedCategory == .dining)
 
         flow.selectCategory(.travel)
 
         #expect(flow.draft.category == .travel)
+        #expect(flow.selectedCategory == .travel)
         #expect(flow.draft.accountID == accountID)
         #expect(flow.draft.amountText == "88.50")
         #expect(flow.draft.note == "周末出行")

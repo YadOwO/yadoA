@@ -11,6 +11,8 @@ struct DiningExpenseEntryView: View {
     @FocusState private var focusedField: FocusedField?
     @StateObject private var flow: DiningExpenseEntryFlow
     @State private var isPresentingCategorySelection = false
+    @State private var hasPresentedInitialCategorySelection = false
+    @State private var shouldFocusAmountAfterCategorySelection = false
     @State private var isPresentingAccountSelection = false
     @State private var hasAccountCreationError = false
 
@@ -47,11 +49,15 @@ struct DiningExpenseEntryView: View {
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle(AccountLocalization.string("expense.entry.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $isPresentingCategorySelection) {
+        .sheet(
+            isPresented: $isPresentingCategorySelection,
+            onDismiss: focusAmountAfterCategorySelection
+        ) {
             ExpenseCategorySelectionView(
-                selectedCategory: flow.draft.category,
+                selectedCategory: flow.selectedCategory,
                 onSelect: { category in
                     flow.selectCategory(category)
+                    shouldFocusAmountAfterCategorySelection = true
                     isPresentingCategorySelection = false
                 }
             )
@@ -87,7 +93,7 @@ struct DiningExpenseEntryView: View {
         }
         .task {
             applyInitialDefaultIfNeeded()
-            focusedField = .amount
+            presentInitialCategorySelectionIfNeeded()
         }
     }
 
@@ -96,11 +102,22 @@ struct DiningExpenseEntryView: View {
         VStack(spacing: 14) {
             Button {
                 focusedField = nil
+                shouldFocusAmountAfterCategorySelection = false
                 isPresentingCategorySelection = true
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: flow.draft.category.symbolName)
-                    Text(flow.draft.category.localizedTitle(locale: locale))
+                    if let selectedCategory = flow.selectedCategory {
+                        Image(systemName: selectedCategory.symbolName)
+                        Text(selectedCategory.localizedTitle(locale: locale))
+                    } else {
+                        Image(systemName: "square.grid.2x2")
+                        Text(
+                            AccountLocalization.string(
+                                "expense.category.selection.title",
+                                locale: locale
+                            )
+                        )
+                    }
                     Image(systemName: "chevron.down")
                         .font(.caption.weight(.semibold))
                         .accessibilityHidden(true)
@@ -331,6 +348,27 @@ struct DiningExpenseEntryView: View {
         flow.applyInitialDefault(defaultAccountID)
     }
 
+    /// 新建支出首次进入时立即要求选择分类；恢复草稿则直接编辑原分类。
+    private func presentInitialCategorySelectionIfNeeded() {
+        guard !hasPresentedInitialCategorySelection else { return }
+        hasPresentedInitialCategorySelection = true
+
+        if flow.selectedCategory == nil {
+            focusedField = nil
+            shouldFocusAmountAfterCategorySelection = false
+            isPresentingCategorySelection = true
+        } else {
+            focusedField = .amount
+        }
+    }
+
+    /// 只有本次面板完成分类选择后才自动聚焦金额，取消时保持键盘收起。
+    private func focusAmountAfterCategorySelection() {
+        guard shouldFocusAmountAfterCategorySelection else { return }
+        shouldFocusAmountAfterCategorySelection = false
+        focusedField = .amount
+    }
+
     /// 未选择和已失效选择使用不同的本地化提示。
     private var accountPlaceholderKey: String {
         flow.draft.accountID == nil
@@ -378,7 +416,7 @@ private struct ExpenseCategorySelectionView: View {
     @Environment(\.locale) private var locale
 
     /// 打开面板时已经选中的分类。
-    let selectedCategory: ExpenseCategory
+    let selectedCategory: ExpenseCategory?
 
     /// 用户点击分类后的回调。
     let onSelect: (ExpenseCategory) -> Void

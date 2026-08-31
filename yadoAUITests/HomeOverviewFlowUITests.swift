@@ -68,14 +68,13 @@ final class HomeOverviewFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 3))
         app.buttons["home-add-expense"].tap()
 
-        let category = app.buttons["expense-entry-category"]
-        XCTAssertTrue(category.waitForExistence(timeout: 3))
-        category.tap()
-        XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 3))
 
         let travel = app.buttons["expense-category-travel"]
         XCTAssertTrue(travel.waitForExistence(timeout: 2))
         travel.tap()
+
+        let category = app.buttons["expense-entry-category"]
         XCTAssertTrue(category.waitForExistence(timeout: 2))
 
         app.buttons["expense-entry-account"].tap()
@@ -95,5 +94,18 @@ final class HomeOverviewFlowUITests: XCTestCase {
         save.tap()
 
         XCTAssertTrue(app.staticTexts["Travel"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testAddExpenseCannotSaveAfterCancellingInitialCategorySelection() throws {
+        let app = launchHomeFixtureInEnglish()
+        XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 3))
+        app.buttons["home-add-expense"].tap()
+
+        XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 3))
+        app.buttons["Cancel"].tap()
+
+        XCTAssertTrue(app.buttons["expense-entry-category"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons["expense-entry-save"].isEnabled)
     }
 }

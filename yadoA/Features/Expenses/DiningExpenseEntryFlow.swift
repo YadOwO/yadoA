@@ -29,6 +29,9 @@ final class DiningExpenseEntryFlow: ObservableObject {
     /// 防止 SwiftUI 查询刷新或页面重新出现时重复覆盖用户选择。
     private var hasInitializedDefault = false
 
+    /// 区分新草稿的占位分类与用户已经明确确认的分类。
+    private var hasConfirmedCategory: Bool
+
     /// 创建一条带稳定 UUID 的支出流程。
     ///
     /// - Parameters:
@@ -46,10 +49,16 @@ final class DiningExpenseEntryFlow: ObservableObject {
         let gregorianCalendar = TransactionDay.gregorianCalendar(basedOn: calendar)
         self.calendar = gregorianCalendar
         self.saveAction = saveAction
-        self.draft = draft ?? DiningExpenseDraft(
-            accountID: initialAccountID,
-            transactionDay: TransactionDay.encode(now, calendar: gregorianCalendar)
-        )
+        if let draft {
+            self.draft = draft
+            self.hasConfirmedCategory = true
+        } else {
+            self.draft = DiningExpenseDraft(
+                accountID: initialAccountID,
+                transactionDay: TransactionDay.encode(now, calendar: gregorianCalendar)
+            )
+            self.hasConfirmedCategory = false
+        }
         self.hasInitializedDefault = self.draft.accountID != nil
     }
 
@@ -63,9 +72,14 @@ final class DiningExpenseEntryFlow: ObservableObject {
         submissionState == .failed
     }
 
-    /// 草稿是否已经具备有效金额和账户选择。
+    /// 供界面展示的已确认分类；新草稿在用户选择前返回 `nil`。
+    var selectedCategory: ExpenseCategory? {
+        hasConfirmedCategory ? draft.category : nil
+    }
+
+    /// 草稿是否已经具备明确分类、有效金额和账户选择。
     var canSubmit: Bool {
-        draft.amount != nil && draft.accountID != nil && !isSaving
+        hasConfirmedCategory && draft.amount != nil && draft.accountID != nil && !isSaving
     }
 
     /// 金额区域展示的字符；空草稿使用零作为视觉占位。
@@ -113,6 +127,7 @@ final class DiningExpenseEntryFlow: ObservableObject {
     /// 更新支出分类，并在编辑后清除上一次失败提示。
     func selectCategory(_ category: ExpenseCategory) {
         guard !isSaving else { return }
+        hasConfirmedCategory = true
         draft.category = category
         markAsEditing()
     }
