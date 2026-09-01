@@ -9,23 +9,21 @@ struct HomeView: View {
     @AppStorage("home.summary.amountsVisible") private var areAmountsVisible = false
 
     var body: some View {
-        NavigationStack {
-            HomeQueryContent(areAmountsVisible: $areAmountsVisible)
-                .navigationTitle(AppTab.home.title(locale: locale))
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Image(systemName: "person.circle")
-                            .accessibilityHidden(true)
-                    }
-
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Image(systemName: "calendar")
-                            .accessibilityHidden(true)
-                            .foregroundStyle(.primary)
-                    }
+        HomeQueryContent(areAmountsVisible: $areAmountsVisible)
+            .navigationTitle(AppTab.home.title(locale: locale))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Image(systemName: "person.circle")
+                        .accessibilityHidden(true)
                 }
-        }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Image(systemName: "calendar")
+                        .accessibilityHidden(true)
+                        .foregroundStyle(.primary)
+                }
+            }
     }
 }
 
@@ -83,14 +81,7 @@ private struct HomeQueryContent: View {
         }
         .background(Color(uiColor: .systemBackground))
         .overlay(alignment: .bottomTrailing) {
-            NavigationLink {
-                DiningExpenseEntryView { draft in
-                    let repository = LocalExpenseRepository(
-                        container: modelContext.container
-                    )
-                    try repository.save(draft)
-                }
-            } label: {
+            NavigationLink(value: HomeRoute.expenseEntry) {
                 Image(systemName: "plus")
                     .font(.title2.weight(.medium))
                     .foregroundStyle(.primary)
@@ -612,7 +603,9 @@ private struct HomeScrollMetrics: Equatable {
 }
 
 #Preview("Home empty") {
-    HomeView()
+    NavigationStack {
+        HomeView()
+    }
     .modelContainer(
         for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
         inMemory: true

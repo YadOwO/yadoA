@@ -66,9 +66,15 @@ final class HomeOverviewFlowUITests: XCTestCase {
     func testAddExpenseSelectsCategoryAndShowsItOnHome() throws {
         let app = launchHomeFixtureInEnglish()
         XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.tabBars.firstMatch.isHittable)
         app.buttons["home-add-expense"].tap()
 
         XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 3))
+        XCTAssertTrue(
+            app.tabBars.firstMatch.waitForNonExistence(timeout: 3),
+            "进入记账流程后不应继续展示 Tab Bar"
+        )
 
         let travel = app.buttons["expense-category-travel"]
         XCTAssertTrue(travel.waitForExistence(timeout: 2))
@@ -94,6 +100,8 @@ final class HomeOverviewFlowUITests: XCTestCase {
         save.tap()
 
         XCTAssertTrue(app.staticTexts["Travel"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
+        XCTAssertEqual(app.tabBars.buttons.count, 4)
     }
 
     @MainActor

@@ -20,11 +20,12 @@ struct BookkeepingSearchView: View {
     /// 是否展示时间筛选 Sheet。
     @State private var isTimeFilterPresented = false
 
-    /// 搜索界面结束后准备进入详情的流水标识。
-    @State private var selectedTransactionID: UUID?
+    /// 请求根级搜索导航栈打开指定流水详情。
+    let onOpenTransaction: (UUID) -> Void
 
     /// 初始化搜索页的跨账户流水和全量账户查询。
-    init() {
+    init(onOpenTransaction: @escaping (UUID) -> Void) {
+        self.onOpenTransaction = onOpenTransaction
         _transactions = Query(BookkeepingSearchPresentation.descriptor())
         _accounts = Query(BookkeepingSearchPresentation.accountDescriptor())
     }
@@ -93,9 +94,6 @@ struct BookkeepingSearchView: View {
                     }
                 )
             }
-        }
-        .navigationDestination(item: $selectedTransactionID) { transactionID in
-            BookkeepingTransactionDetailView(transactionID: transactionID)
         }
     }
 
@@ -170,7 +168,7 @@ struct BookkeepingSearchView: View {
 
     /// 记录目标流水并结束系统搜索界面，使详情直接成为当前导航页。
     private func openDetail(transactionID: UUID) {
-        selectedTransactionID = transactionID
+        onOpenTransaction(transactionID)
         isSearchPresented = false
     }
 

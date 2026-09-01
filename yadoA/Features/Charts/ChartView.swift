@@ -37,45 +37,43 @@ struct ChartView: View {
             locale: locale
         )
 
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    ChartPeriodPicker(selection: $selectedPeriod)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                ChartPeriodPicker(selection: $selectedPeriod)
 
-                    ChartTimeSelector(
-                        chart: chart,
-                        onSelectPrevious: {
-                            selectAnchorDate(ChartOverviewPresentation.shiftedAnchorDate(
-                                chart.anchorDate,
-                                period: selectedPeriod,
-                                by: -1,
-                                calendar: environmentCalendar
-                            ))
-                        },
-                        onSelectNext: {
-                            selectAnchorDate(ChartOverviewPresentation.shiftedAnchorDate(
-                                chart.anchorDate,
-                                period: selectedPeriod,
-                                by: 1,
-                                calendar: environmentCalendar
-                            ))
-                        },
-                        onSelectMonth: {
-                            isMonthPickerPresented = true
-                        }
-                    )
+                ChartTimeSelector(
+                    chart: chart,
+                    onSelectPrevious: {
+                        selectAnchorDate(ChartOverviewPresentation.shiftedAnchorDate(
+                            chart.anchorDate,
+                            period: selectedPeriod,
+                            by: -1,
+                            calendar: environmentCalendar
+                        ))
+                    },
+                    onSelectNext: {
+                        selectAnchorDate(ChartOverviewPresentation.shiftedAnchorDate(
+                            chart.anchorDate,
+                            period: selectedPeriod,
+                            by: 1,
+                            calendar: environmentCalendar
+                        ))
+                    },
+                    onSelectMonth: {
+                        isMonthPickerPresented = true
+                    }
+                )
 
-                    ChartSummaryCard(chart: chart)
+                ChartSummaryCard(chart: chart)
 
-                    ChartExpenseCard(chart: chart)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                ChartExpenseCard(chart: chart)
             }
-            .background(Color(uiColor: .systemGroupedBackground))
-            .navigationTitle(AppTab.charts.title(locale: locale))
-            .navigationBarTitleDisplayMode(.inline)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
+        .background(Color(uiColor: .systemGroupedBackground))
+        .navigationTitle(AppTab.charts.title(locale: locale))
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $isMonthPickerPresented) {
             NavigationStack {
                 HomeMonthPickerView(
@@ -347,7 +345,9 @@ private extension Decimal {
 }
 
 #Preview {
-    ChartView()
+    NavigationStack {
+        ChartView()
+    }
     .modelContainer(
         for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
         inMemory: true

@@ -75,9 +75,15 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
             NSPredicate(format: "identifier BEGINSWITH 'bookkeeping-search-result-'")
         ).firstMatch
         XCTAssertTrue(result.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.tabBars.firstMatch.isHittable)
         result.tap()
 
         XCTAssertTrue(app.navigationBars["Transaction Details"].waitForExistence(timeout: 3))
+        XCTAssertTrue(
+            app.tabBars.firstMatch.waitForNonExistence(timeout: 3),
+            "进入二级详情页后不应继续展示 Tab Bar"
+        )
         XCTAssertFalse(
             app.searchFields.firstMatch.exists,
             "进入详情后不应继续展示搜索界面"
@@ -86,6 +92,11 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
         XCTAssertTrue(edit.waitForExistence(timeout: 2))
         edit.tap()
         XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 2))
+        app.alerts.firstMatch.buttons["Close"].tap()
+
+        app.navigationBars["Transaction Details"].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
+        XCTAssertEqual(app.tabBars.buttons.count, 4)
     }
 
     @MainActor

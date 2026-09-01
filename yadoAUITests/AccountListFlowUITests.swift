@@ -44,9 +44,15 @@ final class AccountListFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["account-management-deactivated"].exists)
         app.buttons["account-management-close"].tap()
 
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.tabBars.firstMatch.isHittable)
         app.staticTexts["Cash"].firstMatch.tap()
 
         XCTAssertTrue(app.navigationBars["Account Details"].waitForExistence(timeout: 3))
+        XCTAssertTrue(
+            app.tabBars.firstMatch.waitForNonExistence(timeout: 3),
+            "进入账户详情后不应继续展示 Tab Bar"
+        )
         XCTAssertEqual(app.staticTexts["account-detail-name"].label, "Cash")
         XCTAssertEqual(app.staticTexts["account-detail-type"].label, "Type, Cash")
 
@@ -54,5 +60,9 @@ final class AccountListFlowUITests: XCTestCase {
         XCTAssertTrue(detailAmount.waitForExistence(timeout: 2))
         XCTAssertTrue(detailAmount.label.contains("40"))
         XCTAssertTrue(detailAmount.label.contains("¥"))
+
+        app.navigationBars["Account Details"].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
+        XCTAssertEqual(app.tabBars.buttons.count, 4)
     }
 }

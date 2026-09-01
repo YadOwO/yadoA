@@ -212,32 +212,30 @@ struct AccountListView: View {
     var body: some View {
         let accounts = AccountListPresentation.sorted(queriedAccounts)
 
-        NavigationStack {
-            Group {
-                if AccountListState.showsInlineAdd(accountCount: accounts.count) {
-                    emptyContent
-                } else {
-                    accountList(accounts)
+        Group {
+            if AccountListState.showsInlineAdd(accountCount: accounts.count) {
+                emptyContent
+            } else {
+                accountList(accounts)
+            }
+        }
+        .navigationTitle(AccountLocalization.string("account.list.title", locale: locale))
+        .toolbar {
+            if AccountListState.showsToolbarAdd(accountCount: accounts.count) {
+                ToolbarItem(placement: .primaryAction) {
+                    addButton(identifier: "account-list-toolbar-add")
                 }
             }
-            .navigationTitle(AccountLocalization.string("account.list.title", locale: locale))
-            .toolbar {
-                if AccountListState.showsToolbarAdd(accountCount: accounts.count) {
-                    ToolbarItem(placement: .primaryAction) {
-                        addButton(identifier: "account-list-toolbar-add")
-                    }
+            ToolbarItem(placement: .secondaryAction) {
+                Button {
+                    isPresentingManagement = true
+                } label: {
+                    Label(
+                        AccountLocalization.string("account.management.title", locale: locale),
+                        systemImage: "gearshape"
+                    )
                 }
-                ToolbarItem(placement: .secondaryAction) {
-                    Button {
-                        isPresentingManagement = true
-                    } label: {
-                        Label(
-                            AccountLocalization.string("account.management.title", locale: locale),
-                            systemImage: "gearshape"
-                        )
-                    }
-                    .accessibilityIdentifier("account-list-management")
-                }
+                .accessibilityIdentifier("account-list-management")
             }
         }
         .sheet(isPresented: $isPresentingCreation) {
@@ -309,7 +307,7 @@ struct AccountListView: View {
                         locale: locale,
                         isDefault: account.id == defaultAccountID
                     )
-                    NavigationLink(value: account.id) {
+                    NavigationLink(value: AccountsRoute.detail(account.id)) {
                         AccountListRow(presentation: presentation)
                     }
                     .accessibilityIdentifier("account-list-row-\(account.id.uuidString)")
@@ -317,9 +315,6 @@ struct AccountListView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationDestination(for: UUID.self) { accountID in
-            AccountDetailView(accountID: accountID)
-        }
     }
 
     /// 构造具有稳定自动化标识的主要添加按钮。
@@ -482,7 +477,9 @@ struct AccountListRow: View {
 }
 
 #Preview {
-    AccountListView()
+    NavigationStack {
+        AccountListView()
+    }
         .modelContainer(
             for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
             inMemory: true
