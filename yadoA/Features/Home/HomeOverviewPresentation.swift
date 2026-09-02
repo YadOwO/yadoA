@@ -103,7 +103,7 @@ struct HomeMonth: Comparable, Hashable, Sendable {
     }
 }
 
-/// 首页单条真实支出流水的本地化展示数据。
+/// 首页单条真实收支流水的本地化展示数据。
 struct HomeOverviewRowPresentation: Identifiable, Equatable {
     /// 流水稳定标识。
     let id: UUID
@@ -135,7 +135,7 @@ struct HomeOverviewDayPresentation: Identifiable, Equatable {
     /// 当前语言环境下的星期标题。
     let formattedWeekday: String
 
-    /// 当前分组的真实收入总额；当前数据模型固定为零。
+    /// 当前分组的真实收入总额。
     let incomeTotal: Decimal
 
     /// 当前分组的真实支出总额。
@@ -156,7 +156,7 @@ struct HomeOverviewMonthPresentation: Equatable {
     /// 当前语言环境下的月份标题。
     let formattedMonth: String
 
-    /// 当前月份的真实收入总额；当前数据模型固定为零。
+    /// 当前月份的真实收入总额。
     let incomeTotal: Decimal
 
     /// 当前月份的真实支出总额。
@@ -260,11 +260,23 @@ struct HomeOverviewPresentation {
                 return nil
             }
 
-            guard case let .expense(_, amount) = payload else { return nil }
+            let amount: Decimal
+            let entryType: BookkeepingEntryType
+            switch payload {
+            case let .expense(_, value):
+                amount = value
+                entryType = .expense
+            case let .income(_, value):
+                amount = value
+                entryType = .income
+            case .balanceAdjustment:
+                return nil
+            }
             return ValidatedTransaction(
                 transaction: transaction,
                 month: month,
-                amount: amount
+                amount: amount,
+                entryType: entryType
             )
         }
         self.validTransactions = validTransactions
@@ -303,14 +315,21 @@ struct HomeOverviewPresentation {
                 locale: locale,
                 calendar: calendar
             ) }
+            let incomeTotal = transactions.reduce(into: Decimal.zero) { total, transaction in
+                if transaction.entryType == .income {
+                    total += transaction.amount
+                }
+            }
             let expenseTotal = transactions.reduce(into: Decimal.zero) { total, transaction in
-                total += transaction.amount
+                if transaction.entryType == .expense {
+                    total += transaction.amount
+                }
             }
             return HomeOverviewDayPresentation(
                 transactionDay: transactionDay,
                 formattedDate: Self.formattedDate(date, locale: locale, calendar: calendar),
                 formattedWeekday: Self.formattedWeekday(date, locale: locale, calendar: calendar),
-                incomeTotal: .zero,
+                incomeTotal: incomeTotal,
                 expenseTotal: expenseTotal,
                 rows: rows
             )
@@ -319,16 +338,19 @@ struct HomeOverviewPresentation {
         let expenseTotal = dayGroups.reduce(into: Decimal.zero) { total, day in
             total += day.expenseTotal
         }
+        let incomeTotal = dayGroups.reduce(into: Decimal.zero) { total, day in
+            total += day.incomeTotal
+        }
         return HomeOverviewMonthPresentation(
             month: month,
             formattedMonth: month.formatted(locale: locale, calendar: calendar),
-            incomeTotal: .zero,
+            incomeTotal: incomeTotal,
             expenseTotal: expenseTotal,
             dayGroups: dayGroups
         )
     }
 
-    /// 将一笔有效支出流水转换为首页本地化明细行。
+    /// 将一笔有效收支流水转换为首页本地化明细行。
     ///
     /// - Parameters:
     ///   - transaction: 需要转换的原始流水。
@@ -341,7 +363,6 @@ struct HomeOverviewPresentation {
         calendar sourceCalendar: Calendar = .current
     ) -> HomeOverviewRowPresentation? {
         guard let payload = try? transaction.validatedPayload(),
-              case let .expense(category, _) = payload,
               TransactionDay.date(
                   from: transaction.transactionDay,
                   calendar: sourceCalendar,
@@ -356,10 +377,20 @@ struct HomeOverviewPresentation {
             return nil
         }
 
+        let symbolName: String
+        switch payload {
+        case let .expense(category, _):
+            symbolName = category.symbolName
+        case let .income(category, _):
+            symbolName = category.symbolName
+        case .balanceAdjustment:
+            return nil
+        }
+
         return HomeOverviewRowPresentation(
             id: historyRow.id,
             title: historyRow.title,
-            symbolName: category.symbolName,
+            symbolName: symbolName,
             formattedAmount: historyRow.formattedAmount,
             note: historyRow.note,
             accessibilityLabel: historyRow.accessibilityLabel
@@ -406,7 +437,7 @@ struct HomeOverviewPresentation {
         return lhs.id.uuidString < rhs.id.uuidString
     }
 
-    /// 已完成有效日期、载荷和自然月份解码的支出流水。
+    /// 已完成有效日期、载荷和自然月份解码的收支流水。
     private struct ValidatedTransaction {
         /// 原始流水，供本地化行展示使用。
         let transaction: AccountTransaction
@@ -414,8 +445,11 @@ struct HomeOverviewPresentation {
         /// 由业务日解析出的自然月份。
         let month: HomeMonth
 
-        /// 经 `validatedPayload()` 确认的精确餐饮金额。
+        /// 经 `validatedPayload()` 确认的精确记账金额。
         let amount: Decimal
+
+        /// 当前流水的收支方向。
+        let entryType: BookkeepingEntryType
     }
 
     /// 首页投影使用的固定语言环境。

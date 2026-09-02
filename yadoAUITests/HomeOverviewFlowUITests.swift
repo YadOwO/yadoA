@@ -56,7 +56,7 @@ final class HomeOverviewFlowUITests: XCTestCase {
         XCTAssertTrue(transaction.waitForExistence(timeout: 3))
         transaction.tap()
 
-        XCTAssertTrue(app.navigationBars["Edit Expense"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Edit Transaction"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.textFields["expense-edit-title"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.textFields["expense-edit-amount"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["expense-edit-save"].exists)
@@ -102,6 +102,42 @@ final class HomeOverviewFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Travel"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
         XCTAssertEqual(app.tabBars.buttons.count, 4)
+    }
+
+    @MainActor
+    func testAddIncomeSelectsCategoryAndShowsItOnHome() throws {
+        let app = launchHomeFixtureInEnglish()
+        XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 3))
+        app.buttons["home-add-expense"].tap()
+
+        XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 3))
+        let income = app.segmentedControls["bookkeeping-category-entry-type"].buttons["Income"]
+        XCTAssertTrue(income.waitForExistence(timeout: 2))
+        income.tap()
+
+        XCTAssertTrue(app.navigationBars["Select Income Category"].waitForExistence(timeout: 2))
+        let salary = app.buttons["income-category-salary"]
+        XCTAssertTrue(salary.waitForExistence(timeout: 2))
+        salary.tap()
+
+        app.buttons["expense-entry-account"].tap()
+        let account = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'expense-account-selection-row-'")
+        ).firstMatch
+        XCTAssertTrue(account.waitForExistence(timeout: 2))
+        account.tap()
+
+        let amount = app.textFields["expense-entry-amount"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 2))
+        amount.tap()
+        amount.typeText("500")
+
+        let save = app.buttons["expense-entry-save"]
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
+
+        XCTAssertTrue(app.staticTexts["Salary"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
     }
 
     @MainActor

@@ -6,6 +6,30 @@ import Testing
 @Suite("首页跨账户投影与月份导航", .serialized)
 @MainActor
 struct HomeOverviewPresentationTests {
+    @Test("首页把收入计入收入汇总并显示正向金额")
+    func projectsIncomeTotalsAndRow() throws {
+        let transaction = try AccountTransaction.validatingIncome(
+            id: UUID(),
+            accountID: UUID(),
+            category: .salary,
+            amount: 500,
+            transactionDay: 20260902
+        )
+        let month = try #require(HomeMonth(year: 2026, month: 9))
+        let presentation = HomeOverviewPresentation(
+            transactions: [transaction],
+            now: try #require(date(year: 2026, month: 9, day: 2)),
+            calendar: utcCalendar,
+            locale: Locale(identifier: "zh-Hans")
+        ).presentation(for: month)
+
+        #expect(presentation.incomeTotal == 500)
+        #expect(presentation.expenseTotal == 0)
+        #expect(presentation.dayGroups.first?.incomeTotal == 500)
+        #expect(presentation.dayGroups.first?.rows.first?.title == "工资")
+        #expect(presentation.dayGroups.first?.rows.first?.formattedAmount.contains("500") == true)
+    }
+
     @Test("首页按真实分类展示本地化标题和图标")
     func projectsSelectedCategoryTitleAndSymbol() throws {
         let transaction = try AccountTransaction.validatingExpense(

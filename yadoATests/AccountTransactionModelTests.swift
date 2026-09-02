@@ -4,7 +4,31 @@ import Testing
 @testable import yadoA
 
 @Suite("AccountTransaction 模型转换")
+@MainActor
 struct AccountTransactionModelTests {
+    @Test("全部收入分类都能通过统一载荷往返", arguments: IncomeCategory.allCases)
+    func everyIncomeCategoryRoundTrips(category: IncomeCategory) throws {
+        let transaction = try AccountTransaction.validatingIncome(
+            id: UUID(),
+            accountID: UUID(),
+            category: category,
+            amount: 88,
+            transactionDay: 20260902
+        )
+
+        #expect(IncomeCategory.allCases.count == 8)
+        #expect(transaction.transactionType == .income)
+        #expect(transaction.incomeCategory == category)
+        #expect(transaction.category == nil)
+        let payload = try transaction.validatedPayload()
+        guard case let .income(actualCategory, actualAmount) = payload else {
+            Issue.record("收入流水未解码为收入载荷")
+            return
+        }
+        #expect(actualCategory == category)
+        #expect(actualAmount == 88)
+    }
+
     @Test("全部支出分类都能通过统一载荷往返", arguments: ExpenseCategory.allCases)
     func everyExpenseCategoryRoundTrips(category: ExpenseCategory) throws {
         let amount = try #require(Decimal(string: "12.34"))
@@ -20,10 +44,13 @@ struct AccountTransactionModelTests {
         #expect(transaction.typeRawValue == "diningExpense")
         #expect(transaction.transactionType == .expense)
         #expect(transaction.category == category)
-        #expect(
-            try transaction.validatedPayload()
-                == .expense(category: category, amount: amount)
-        )
+        let payload = try transaction.validatedPayload()
+        guard case let .expense(actualCategory, actualAmount) = payload else {
+            Issue.record("支出流水未解码为支出载荷")
+            return
+        }
+        #expect(actualCategory == category)
+        #expect(actualAmount == amount)
     }
 
     @Test("有效餐饮流水精确保留字段并清理备注")

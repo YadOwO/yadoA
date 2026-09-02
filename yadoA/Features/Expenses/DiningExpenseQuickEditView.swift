@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// 首页单笔餐饮流水的快速修改页，只开放标题和金额两个字段。
+/// 首页单笔收支流水的快速修改页，只开放标题和金额两个字段。
 struct DiningExpenseQuickEditView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale

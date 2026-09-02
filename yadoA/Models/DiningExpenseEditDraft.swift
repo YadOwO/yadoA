@@ -1,13 +1,13 @@
 import Combine
 import Foundation
 
-/// 餐饮流水快速修改草稿的校验错误。
+/// 收支流水快速修改草稿的校验错误。
 enum DiningExpenseEditDraftValidationError: Error, Equatable {
     /// 快速修改必须保留非空标题。
     case titleRequired
 }
 
-/// 首页快速修改餐饮流水时使用的值类型草稿。
+/// 首页快速修改收支流水时使用的值类型草稿。
 struct DiningExpenseEditDraft: Equatable, Sendable {
     /// 需要更新的流水 UUID。
     let id: UUID
@@ -18,7 +18,7 @@ struct DiningExpenseEditDraft: Equatable, Sendable {
     /// 系统数字键盘维护的金额字符缓冲区。
     var amountText: String
 
-    /// 创建一份餐饮流水快速修改草稿。
+    /// 创建一份收支流水快速修改草稿。
     ///
     /// - Parameters:
     ///   - id: 需要更新的流水 UUID。
@@ -59,7 +59,7 @@ enum DiningExpenseEditSubmissionState: Equatable {
     case failed
 }
 
-/// 持有一笔餐饮流水的快速编辑草稿并协调防重复提交。
+/// 持有一笔收支流水的快速编辑草稿并协调防重复提交。
 @MainActor
 final class DiningExpenseEditFlow: ObservableObject {
     /// 当前快速编辑中的草稿。

@@ -5,6 +5,28 @@ import Testing
 @Suite("默认记账账户草稿流程")
 @MainActor
 struct DiningExpenseEntryFlowTests {
+    @Test("切换收入后必须重新选择收入分类才能提交")
+    func incomeRequiresItsOwnCategorySelection() {
+        let flow = DiningExpenseEntryFlow(
+            initialAccountID: UUID(),
+            now: Date(timeIntervalSince1970: 0),
+            saveAction: { _ in }
+        )
+        flow.updateAmountText("100", decimalSeparator: ".")
+        flow.selectCategory(.dining)
+
+        flow.selectEntryType(.income)
+
+        #expect(flow.selectedCategory == nil)
+        #expect(flow.selectedIncomeCategory == nil)
+        #expect(!flow.canSubmit)
+
+        flow.selectIncomeCategory(.salary)
+
+        #expect(flow.selectedIncomeCategory == .salary)
+        #expect(flow.canSubmit)
+    }
+
     @Test("新建支出必须明确选择分类后才能提交")
     func newExpenseRequiresCategorySelection() {
         let flow = DiningExpenseEntryFlow(

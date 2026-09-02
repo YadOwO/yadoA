@@ -27,6 +27,9 @@ enum AccountTransactionType: String, Sendable {
     /// 支出流水；沿用首版餐饮流水的持久化值以兼容已有本地数据。
     case expense = "diningExpense"
 
+    /// 收入流水。
+    case income
+
     /// 直接设置账户总余额产生的调整流水。
     case balanceAdjustment
 }
@@ -85,10 +88,43 @@ enum ExpenseCategory: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 }
 
+/// 当前版本支持的收入分类。
+enum IncomeCategory: String, CaseIterable, Identifiable, Sendable {
+    /// 工资与固定薪酬。
+    case salary
+
+    /// 奖金与绩效收入。
+    case bonus
+
+    /// 投资收益与分红。
+    case investment
+
+    /// 兼职、副业等劳务收入。
+    case partTime
+
+    /// 报销款。
+    case reimbursement
+
+    /// 退款与退货返款。
+    case refund
+
+    /// 礼金、赠与等收入。
+    case gifts
+
+    /// 无法归入其他分类的收入。
+    case other
+
+    /// SwiftUI 列表使用稳定持久化值作为标识。
+    var id: String { rawValue }
+}
+
 /// 从 SwiftData 可选字段中严格解码出的账户流水业务载荷。
 enum AccountTransactionPayload: Equatable, Sendable {
     /// 带明确分类的支出金额。
     case expense(category: ExpenseCategory, amount: Decimal)
+
+    /// 带明确分类的收入金额。
+    case income(category: IncomeCategory, amount: Decimal)
 
     /// 余额调整的完整前值、后值与带符号差额。
     case balanceAdjustment(before: Decimal, after: Decimal, delta: Decimal)
@@ -145,6 +181,12 @@ final class AccountTransaction {
     var category: ExpenseCategory? {
         guard transactionType == .expense, let categoryRawValue else { return nil }
         return ExpenseCategory(rawValue: categoryRawValue)
+    }
+
+    /// 已知收入分类；非收入类型、未知或损坏值返回 `nil`。
+    var incomeCategory: IncomeCategory? {
+        guard transactionType == .income, let categoryRawValue else { return nil }
+        return IncomeCategory(rawValue: categoryRawValue)
     }
 
     /// 严格校验并解码当前持久化字段，避免各消费层重复解释可选字段矩阵。
@@ -218,6 +260,33 @@ final class AccountTransaction {
             id: id,
             accountID: accountID,
             typeRawValue: AccountTransactionType.expense.rawValue,
+            categoryRawValue: category.rawValue,
+            amount: amount,
+            balanceBefore: nil,
+            balanceAfter: nil,
+            balanceDelta: nil,
+            transactionDay: transactionDay,
+            note: note,
+            savedAt: savedAt,
+            title: title
+        )
+    }
+
+    /// 校验并清理收入字段，生成尚未插入 context 的账户流水。
+    static func validatingIncome(
+        id: UUID,
+        accountID: UUID,
+        category: IncomeCategory,
+        amount: Decimal,
+        transactionDay: Int,
+        title: String? = nil,
+        note: String = "",
+        savedAt: Date = .now
+    ) throws -> AccountTransaction {
+        try validatingPersistedFields(
+            id: id,
+            accountID: accountID,
+            typeRawValue: AccountTransactionType.income.rawValue,
             categoryRawValue: category.rawValue,
             amount: amount,
             balanceBefore: nil,
@@ -370,6 +439,21 @@ final class AccountTransaction {
                 throw AccountTransactionValidationError.invalidAmount
             }
             return .expense(category: category, amount: amount)
+
+        case .income:
+            guard let categoryRawValue,
+                  let category = IncomeCategory(rawValue: categoryRawValue),
+                  let amount,
+                  balanceBefore == nil,
+                  balanceAfter == nil,
+                  balanceDelta == nil
+            else {
+                throw AccountTransactionValidationError.invalidPayload
+            }
+            guard amount > 0, AccountAmountParser.hasCNYPrecision(amount) else {
+                throw AccountTransactionValidationError.invalidAmount
+            }
+            return .income(category: category, amount: amount)
 
         case .balanceAdjustment:
             guard categoryRawValue == nil,

@@ -2282,6 +2282,41 @@
         }
       }
     },
+    "bookkeeping.entry.save_succeeded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Transaction saved" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "记账成功" } }
+      }
+    },
+    "bookkeeping.entry.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "New Transaction" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "记一笔" } }
+      }
+    },
+    "bookkeeping.entry.type" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Transaction Type" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "收支类型" } }
+      }
+    },
+    "bookkeeping.entry.type.expense" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Expense" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "支出" } }
+      }
+    },
+    "bookkeeping.entry.type.income" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Income" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "收入" } }
+      }
+    },
     "bookkeeping.search.account.active" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3206,7 +3241,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add Expense"
+            "value" : "Add Transaction"
           }
         },
         "zh-Hans" : {
@@ -3319,40 +3354,6 @@
         }
       }
     },
-    "expense.entry.save_succeeded" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Expense saved"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "记账成功"
-          }
-        }
-      }
-    },
-    "expense.entry.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "New Expense"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "记一笔"
-          }
-        }
-      }
-    },
     "expense.edit.amount" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3393,7 +3394,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Expense updated"
+            "value" : "Transaction updated"
           }
         },
         "zh-Hans" : {
@@ -3410,7 +3411,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit Expense"
+            "value" : "Edit Transaction"
           }
         },
         "zh-Hans" : {
@@ -3455,21 +3456,74 @@
         }
       }
     },
-    "home.day.expense" : {
+    "home.day.summary" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Expense: %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "支出：%@"
-          }
-        }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Income: %1$@ · Expense: %2$@" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "收入：%1$@ · 支出：%2$@" } }
+      }
+    },
+    "income.category.bonus" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Bonus" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "奖金" } }
+      }
+    },
+    "income.category.gifts" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Gifts" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "礼金赠与" } }
+      }
+    },
+    "income.category.investment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Investment" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "投资收益" } }
+      }
+    },
+    "income.category.other" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Other" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "其他收入" } }
+      }
+    },
+    "income.category.partTime" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Part-time Work" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "兼职副业" } }
+      }
+    },
+    "income.category.refund" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Refund" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "退款" } }
+      }
+    },
+    "income.category.reimbursement" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reimbursement" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "报销" } }
+      }
+    },
+    "income.category.salary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Salary" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "工资" } }
+      }
+    },
+    "income.category.selection.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Select Income Category" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "选择收入分类" } }
       }
     },
     "home.decorative.actions" : {

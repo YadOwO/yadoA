@@ -19,6 +19,13 @@ struct ChartOverviewPresentationTests {
                 balanceBefore: 10,
                 balanceAfter: 20,
                 transactionDay: 20260818
+            ),
+            try AccountTransaction.validatingIncome(
+                id: UUID(),
+                accountID: UUID(),
+                category: .salary,
+                amount: 500,
+                transactionDay: 20260819
             )
         ]
 

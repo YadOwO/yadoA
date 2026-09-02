@@ -464,11 +464,13 @@ private struct HomeOverviewDayHeader: View {
 
     /// 当前日期组的收入和支出摘要。
     private var daySummary: String {
+        let income = day.incomeTotal.formatted(.currency(code: "CNY").locale(locale))
         let expense = day.expenseTotal.formatted(.currency(code: "CNY").locale(locale))
-        return AccountLocalization.formatted(
-            "home.day.expense",
-            value: expense,
-            locale: locale
+        return String(
+            format: AccountLocalization.string("home.day.summary", locale: locale),
+            locale: locale,
+            income,
+            expense
         )
     }
 }

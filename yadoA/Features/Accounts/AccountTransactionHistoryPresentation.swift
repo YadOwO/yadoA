@@ -71,6 +71,17 @@ enum AccountTransactionHistoryPresentation {
             balanceTransition = nil
             spokenBalanceTransition = nil
 
+        case let .income(category, amount):
+            title = transaction.title
+                ?? category.localizedTitle(locale: locale)
+            formattedAmount = formattedSignedCurrency(
+                amount,
+                code: transaction.currencyCode,
+                locale: locale
+            )
+            balanceTransition = nil
+            spokenBalanceTransition = nil
+
         case let .balanceAdjustment(balanceBefore, balanceAfter, balanceDelta):
             title = AccountLocalization.string(
                 "account.detail.history.balance_adjustment",

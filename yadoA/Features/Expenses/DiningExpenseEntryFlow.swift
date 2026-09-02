@@ -4,14 +4,14 @@ import Foundation
 /// 记账页面注入的显式保存动作。
 typealias DiningExpenseSaveAction = @MainActor (DiningExpenseDraft) async throws -> Void
 
-/// 支出提交期间的页面状态。
+/// 记账提交期间的页面状态。
 enum DiningExpenseSubmissionState: Equatable {
     case editing
     case saving
     case failed
 }
 
-/// 持有单份支出草稿，并协调分类、金额输入与防重复提交。
+/// 持有单份记账草稿，并协调收支方向、分类、金额输入与防重复提交。
 @MainActor
 final class DiningExpenseEntryFlow: ObservableObject {
     /// 页面及其后续账户子流程共享的同一份草稿。
@@ -74,7 +74,12 @@ final class DiningExpenseEntryFlow: ObservableObject {
 
     /// 供界面展示的已确认分类；新草稿在用户选择前返回 `nil`。
     var selectedCategory: ExpenseCategory? {
-        hasConfirmedCategory ? draft.category : nil
+        hasConfirmedCategory && draft.entryType == .expense ? draft.category : nil
+    }
+
+    /// 供界面展示的已确认收入分类；其他状态返回 `nil`。
+    var selectedIncomeCategory: IncomeCategory? {
+        hasConfirmedCategory && draft.entryType == .income ? draft.incomeCategory : nil
     }
 
     /// 草稿是否已经具备明确分类、有效金额和账户选择。
@@ -129,6 +134,22 @@ final class DiningExpenseEntryFlow: ObservableObject {
         guard !isSaving else { return }
         hasConfirmedCategory = true
         draft.category = category
+        markAsEditing()
+    }
+
+    /// 切换收支方向；新方向必须重新确认分类，避免把占位值当成用户选择。
+    func selectEntryType(_ entryType: BookkeepingEntryType) {
+        guard !isSaving, draft.entryType != entryType else { return }
+        draft.entryType = entryType
+        hasConfirmedCategory = false
+        markAsEditing()
+    }
+
+    /// 更新收入分类，并在编辑后清除上一次失败提示。
+    func selectIncomeCategory(_ category: IncomeCategory) {
+        guard !isSaving else { return }
+        hasConfirmedCategory = true
+        draft.incomeCategory = category
         markAsEditing()
     }
 

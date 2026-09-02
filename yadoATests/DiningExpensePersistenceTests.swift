@@ -6,6 +6,45 @@ import Testing
 @Suite("餐饮支出持久化边界", .serialized)
 @MainActor
 struct DiningExpensePersistenceTests {
+    @Test("收入原子保存并按账户语义反向联动余额")
+    func incomeUpdatesAssetAndDebtBalances() throws {
+        for (accountType, expectedBalance) in [
+            (AccountType.cash, Decimal(120)),
+            (AccountType.creditCard, Decimal(80))
+        ] {
+            let dataContainer = try AccountDataContainer.inMemory()
+            let accountID = UUID()
+            try saveAccount(
+                id: accountID,
+                accountType: accountType,
+                amountText: "100",
+                in: dataContainer.modelContainer
+            )
+            let repository = LocalExpenseRepository(container: dataContainer.modelContainer)
+            let draft = DiningExpenseDraft(
+                accountID: accountID,
+                entryType: .income,
+                incomeCategory: .salary,
+                amountText: "20",
+                transactionDay: 20260902
+            )
+
+            try repository.save(draft)
+
+            let savedTransaction = try #require(
+                try transaction(id: draft.id, in: dataContainer.modelContainer)
+            )
+            #expect(
+                try savedTransaction.validatedPayload()
+                    == .income(category: .salary, amount: 20)
+            )
+            #expect(
+                try account(id: accountID, in: dataContainer.modelContainer)?.balance
+                    == expectedBalance
+            )
+        }
+    }
+
     @Test("所选分类与金额一起原子保存并联动账户")
     func selectedCategoryPersistsWithExpense() throws {
         let dataContainer = try AccountDataContainer.inMemory()
@@ -313,6 +352,42 @@ struct DiningExpensePersistenceTests {
         #expect(
             try account(id: secondAccountID, in: dataContainer.modelContainer)?.balance
                 == Decimal(100)
+        )
+    }
+
+    @Test("快速修改收入金额会同步修正资产账户余额")
+    func updateIncomeAmountAdjustsAssetBalance() throws {
+        let dataContainer = try AccountDataContainer.inMemory()
+        let accountID = UUID()
+        let transactionID = UUID()
+        try saveAccount(id: accountID, amountText: "100", in: dataContainer.modelContainer)
+        let repository = LocalExpenseRepository(container: dataContainer.modelContainer)
+        try repository.save(
+            DiningExpenseDraft(
+                id: transactionID,
+                accountID: accountID,
+                entryType: .income,
+                incomeCategory: .bonus,
+                amountText: "20",
+                transactionDay: 20260902
+            )
+        )
+
+        try repository.update(
+            DiningExpenseEditDraft(
+                id: transactionID,
+                title: "季度奖金",
+                amountText: "30"
+            )
+        )
+
+        #expect(
+            try account(id: accountID, in: dataContainer.modelContainer)?.balance
+                == Decimal(130)
+        )
+        #expect(
+            try transaction(id: transactionID, in: dataContainer.modelContainer)?.title
+                == "季度奖金"
         )
     }
 

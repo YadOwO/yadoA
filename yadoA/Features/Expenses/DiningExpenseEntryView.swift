@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 import UIKit
 
-/// 支持分类选择且金额优先的支出录入页。
+/// 支持收支方向、分类选择且金额优先的记账录入页。
 struct DiningExpenseEntryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
@@ -36,6 +36,7 @@ struct DiningExpenseEntryView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                entryTypePicker
                 categoryAndAmount
                 accountSection
                 detailSection
@@ -47,20 +48,13 @@ struct DiningExpenseEntryView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollDismissesKeyboard(.interactively)
-        .navigationTitle(AccountLocalization.string("expense.entry.title", locale: locale))
+        .navigationTitle(AccountLocalization.string("bookkeeping.entry.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(
             isPresented: $isPresentingCategorySelection,
             onDismiss: focusAmountAfterCategorySelection
         ) {
-            ExpenseCategorySelectionView(
-                selectedCategory: flow.selectedCategory,
-                onSelect: { category in
-                    flow.selectCategory(category)
-                    shouldFocusAmountAfterCategorySelection = true
-                    isPresentingCategorySelection = false
-                }
-            )
+            categorySelection
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
@@ -97,6 +91,68 @@ struct DiningExpenseEntryView: View {
         }
     }
 
+    /// 使用系统分段选择器切换支出与收入方向。
+    private var entryTypePicker: some View {
+        Picker(
+            AccountLocalization.string("bookkeeping.entry.type", locale: locale),
+            selection: Binding(
+                get: { flow.draft.entryType },
+                set: { entryType in
+                    focusedField = nil
+                    flow.selectEntryType(entryType)
+                    shouldFocusAmountAfterCategorySelection = false
+                    isPresentingCategorySelection = true
+                }
+            )
+        ) {
+            ForEach(BookkeepingEntryType.allCases) { entryType in
+                Text(entryType.localizedTitle(locale: locale))
+                .tag(entryType)
+            }
+        }
+        .pickerStyle(.segmented)
+        .accessibilityIdentifier("bookkeeping-entry-type")
+    }
+
+    /// 根据当前收支方向展示对应分类面板。
+    @ViewBuilder
+    private var categorySelection: some View {
+        switch flow.draft.entryType {
+        case .expense:
+            BookkeepingCategorySelectionView(
+                entryType: .expense,
+                categories: ExpenseCategory.allCases,
+                selectedCategory: flow.selectedCategory,
+                titleKey: "expense.category.selection.title",
+                accessibilityPrefix: "expense-category",
+                onSelectEntryType: flow.selectEntryType,
+                onSelect: { category in
+                    flow.selectCategory(category)
+                    completeCategorySelection()
+                }
+            )
+        case .income:
+            BookkeepingCategorySelectionView(
+                entryType: .income,
+                categories: IncomeCategory.allCases,
+                selectedCategory: flow.selectedIncomeCategory,
+                titleKey: "income.category.selection.title",
+                accessibilityPrefix: "income-category",
+                onSelectEntryType: flow.selectEntryType,
+                onSelect: { category in
+                    flow.selectIncomeCategory(category)
+                    completeCategorySelection()
+                }
+            )
+        }
+    }
+
+    /// 完成分类选择后关闭面板，并在返回时聚焦金额。
+    private func completeCategorySelection() {
+        shouldFocusAmountAfterCategorySelection = true
+        isPresentingCategorySelection = false
+    }
+
     /// 当前分类入口和主视觉金额。
     private var categoryAndAmount: some View {
         VStack(spacing: 14) {
@@ -106,18 +162,7 @@ struct DiningExpenseEntryView: View {
                 isPresentingCategorySelection = true
             } label: {
                 HStack(spacing: 8) {
-                    if let selectedCategory = flow.selectedCategory {
-                        Image(systemName: selectedCategory.symbolName)
-                        Text(selectedCategory.localizedTitle(locale: locale))
-                    } else {
-                        Image(systemName: "square.grid.2x2")
-                        Text(
-                            AccountLocalization.string(
-                                "expense.category.selection.title",
-                                locale: locale
-                            )
-                        )
-                    }
+                    selectedCategoryLabel
                     Image(systemName: "chevron.down")
                         .font(.caption.weight(.semibold))
                         .accessibilityHidden(true)
@@ -156,6 +201,29 @@ struct DiningExpenseEntryView: View {
                 )
                 .accessibilityValue(Text(verbatim: flow.displayedAmount))
                 .accessibilityIdentifier("expense-entry-amount")
+        }
+    }
+
+    /// 当前方向下的分类图标和标题。
+    @ViewBuilder
+    private var selectedCategoryLabel: some View {
+        switch flow.draft.entryType {
+        case .expense:
+            if let category = flow.selectedCategory {
+                Image(systemName: category.symbolName)
+                Text(category.localizedTitle(locale: locale))
+            } else {
+                Image(systemName: "square.grid.2x2")
+                Text(AccountLocalization.string("expense.category.selection.title", locale: locale))
+            }
+        case .income:
+            if let category = flow.selectedIncomeCategory {
+                Image(systemName: category.symbolName)
+                Text(category.localizedTitle(locale: locale))
+            } else {
+                Image(systemName: "square.grid.2x2")
+                Text(AccountLocalization.string("income.category.selection.title", locale: locale))
+            }
         }
     }
 
@@ -296,7 +364,7 @@ struct DiningExpenseEntryView: View {
     /// 不阻断保存的余额提醒，以及保留草稿后的失败反馈。
     @ViewBuilder
     private var inlineFeedback: some View {
-        if showsInsufficientBalanceWarning {
+        if flow.draft.entryType == .expense && showsInsufficientBalanceWarning {
             Label(
                 AccountLocalization.string("expense.entry.insufficient_balance", locale: locale),
                 systemImage: "exclamationmark.triangle.fill"
@@ -397,7 +465,7 @@ struct DiningExpenseEntryView: View {
         UIAccessibility.post(
             notification: .announcement,
             argument: AccountLocalization.string(
-                "expense.entry.save_succeeded",
+                "bookkeeping.entry.save_succeeded",
                 locale: locale
             )
         )
@@ -410,16 +478,31 @@ struct DiningExpenseEntryView: View {
     }
 }
 
-/// 记账页使用的支出分类选择面板。
-private struct ExpenseCategorySelectionView: View {
+/// 记账页复用的收支分类选择面板。
+private struct BookkeepingCategorySelectionView<Category: BookkeepingCategoryPresentable>: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
 
+    /// 当前面板对应的收支方向。
+    let entryType: BookkeepingEntryType
+
+    /// 当前方向下可选择的全部分类。
+    let categories: [Category]
+
     /// 打开面板时已经选中的分类。
-    let selectedCategory: ExpenseCategory?
+    let selectedCategory: Category?
+
+    /// 面板标题使用的本地化键。
+    let titleKey: String
+
+    /// 自动化标识使用的稳定前缀。
+    let accessibilityPrefix: String
+
+    /// 用户在面板中切换收支方向后的回调。
+    let onSelectEntryType: (BookkeepingEntryType) -> Void
 
     /// 用户点击分类后的回调。
-    let onSelect: (ExpenseCategory) -> Void
+    let onSelect: (Category) -> Void
 
     /// 根据可用宽度自动调整列数，兼顾普通字号和辅助功能字号。
     private let columns = [
@@ -429,16 +512,30 @@ private struct ExpenseCategorySelectionView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVGrid(columns: columns, spacing: 22) {
-                    ForEach(ExpenseCategory.allCases) { category in
-                        categoryButton(category)
+                VStack(spacing: 22) {
+                    Picker(
+                        AccountLocalization.string("bookkeeping.entry.type", locale: locale),
+                        selection: Binding(
+                            get: { entryType },
+                            set: onSelectEntryType
+                        )
+                    ) {
+                        entryTypePickerItems
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("bookkeeping-category-entry-type")
+
+                    LazyVGrid(columns: columns, spacing: 22) {
+                        ForEach(categories) { category in
+                            categoryButton(category)
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 24)
             }
             .navigationTitle(
-                AccountLocalization.string("expense.category.selection.title", locale: locale)
+                AccountLocalization.string(titleKey, locale: locale)
             )
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -451,8 +548,17 @@ private struct ExpenseCategorySelectionView: View {
         }
     }
 
+    /// 分类面板内复用的收支方向选项。
+    @ViewBuilder
+    private var entryTypePickerItems: some View {
+        ForEach(BookkeepingEntryType.allCases) { entryType in
+            Text(entryType.localizedTitle(locale: locale))
+            .tag(entryType)
+        }
+    }
+
     /// 单个分类使用系统图标、动态颜色和本地化名称。
-    private func categoryButton(_ category: ExpenseCategory) -> some View {
+    private func categoryButton(_ category: Category) -> some View {
         Button {
             onSelect(category)
         } label: {
@@ -480,6 +586,6 @@ private struct ExpenseCategorySelectionView: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(category == selectedCategory ? .isSelected : [])
-        .accessibilityIdentifier("expense-category-\(category.rawValue)")
+        .accessibilityIdentifier("\(accessibilityPrefix)-\(category.rawValue)")
     }
 }

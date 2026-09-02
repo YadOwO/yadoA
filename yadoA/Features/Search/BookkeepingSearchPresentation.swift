@@ -221,12 +221,17 @@ struct BookkeepingSearchPresentation {
             : AccountAmountParser.amount(from: normalizedQuery, locale: locale)
         let filteredTransactions = transactions
             .compactMap { transaction -> ValidatedTransaction? in
-                guard let payload = try? transaction.validatedPayload(),
-                      case let .expense(category, amount) = payload
-                else {
+                guard let payload = try? transaction.validatedPayload() else {
                     return nil
                 }
-                let categoryTitle = category.localizedTitle(locale: locale)
+                guard let searchablePayload = Self.searchablePayload(
+                    from: payload,
+                    locale: locale
+                ) else {
+                    return nil
+                }
+                let amount = searchablePayload.amount
+                let categoryTitle = searchablePayload.categoryTitle
 
                 let matchesDate = timeFilter.dateRange?.contains(transaction.transactionDay) ?? true
                 guard matchesDate else { return nil }
@@ -262,6 +267,7 @@ struct BookkeepingSearchPresentation {
                     transaction: transaction,
                     date: date,
                     amount: amount,
+                    entryType: searchablePayload.entryType,
                     categoryTitle: categoryTitle,
                     accountName: account?.name,
                     accountState: accountState,
@@ -319,7 +325,7 @@ struct BookkeepingSearchPresentation {
         )
     }
 
-    /// 将一笔合法支出流水和当前账户快照转换为只读详情。
+    /// 将一笔合法收支流水和当前账户快照转换为只读详情。
     static func detail(
         for transaction: AccountTransaction,
         account: Account?,
@@ -335,20 +341,25 @@ struct BookkeepingSearchPresentation {
             calendar: calendar,
             locale: locale
         ),
-        let payload = try? transaction.validatedPayload(),
-        case let .expense(category, amount) = payload
+        let payload = try? transaction.validatedPayload()
         else {
             return nil
         }
+
+        guard let searchablePayload = searchablePayload(from: payload, locale: locale) else {
+            return nil
+        }
+        let amount = searchablePayload.amount
+        let categoryTitle = searchablePayload.categoryTitle
 
         let accountState: BookkeepingTransactionAccountState = switch account?.isActive {
         case true: .active
         case false: .deactivated
         case nil: .unavailable
         }
-        let categoryTitle = category.localizedTitle(locale: locale)
         let accountName = account?.name
-        let formattedAmount = (-amount).formatted(
+        let displayAmount = searchablePayload.entryType == .income ? amount : -amount
+        let formattedAmount = displayAmount.formatted(
             .currency(code: transaction.currencyCode).locale(locale)
         )
         let formattedDate = formattedDate(date, locale: locale, calendar: calendar)
@@ -385,9 +396,11 @@ struct BookkeepingSearchPresentation {
         /// 解析后的公历业务日期。
         let date: Date
 
-        /// 已校验的精确支出金额。
+        /// 已校验的精确记账金额。
         let amount: Decimal
 
+        /// 当前流水的收支方向。
+        let entryType: BookkeepingEntryType
         /// 当前语言环境下的分类名称。
         let categoryTitle: String
 
@@ -401,13 +414,51 @@ struct BookkeepingSearchPresentation {
         let note: String?
     }
 
+    /// 搜索列表与详情共用的收支载荷投影。
+    private struct SearchablePayload {
+        /// 已校验的正数金额。
+        let amount: Decimal
+
+        /// 当前语言环境下的分类名称。
+        let categoryTitle: String
+
+        /// 流水的收支方向。
+        let entryType: BookkeepingEntryType
+    }
+
+    /// 将有效收支载荷转换为搜索语义，排除余额调整。
+    private static func searchablePayload(
+        from payload: AccountTransactionPayload,
+        locale: Locale
+    ) -> SearchablePayload? {
+        switch payload {
+        case let .expense(category, amount):
+            SearchablePayload(
+                amount: amount,
+                categoryTitle: category.localizedTitle(locale: locale),
+                entryType: .expense
+            )
+        case let .income(category, amount):
+            SearchablePayload(
+                amount: amount,
+                categoryTitle: category.localizedTitle(locale: locale),
+                entryType: .income
+            )
+        case .balanceAdjustment:
+            nil
+        }
+    }
+
     /// 将已过滤的中间结果格式化为结果行。
     private static func row(
         for transaction: ValidatedTransaction,
         locale: Locale,
         calendar: Calendar
     ) -> BookkeepingSearchRowPresentation {
-        let formattedAmount = (-transaction.amount).formatted(
+        let displayAmount = transaction.entryType == .income
+            ? transaction.amount
+            : -transaction.amount
+        let formattedAmount = displayAmount.formatted(
             .currency(code: transaction.transaction.currencyCode).locale(locale)
         )
         let formattedDate = formattedDate(

@@ -5,6 +5,34 @@ import Testing
 @Suite("记账搜索投影", .serialized)
 @MainActor
 struct BookkeepingSearchPresentationTests {
+    @Test("收入分类支持搜索与详情展示")
+    func incomeMatchesSearchAndDetail() throws {
+        let transaction = try AccountTransaction.validatingIncome(
+            id: UUID(),
+            accountID: UUID(),
+            category: .salary,
+            amount: 500,
+            transactionDay: 20260902
+        )
+        let account = account(id: transaction.accountID, name: "Cash")
+        let presentation = BookkeepingSearchPresentation(
+            transactions: [transaction],
+            accounts: [account],
+            query: "工资",
+            locale: chineseLocale
+        )
+        let detail = BookkeepingSearchPresentation.detail(
+            for: transaction,
+            account: account,
+            locale: chineseLocale
+        )
+
+        #expect(presentation.dayGroups.first?.rows.first?.categoryTitle == "工资")
+        #expect(presentation.dayGroups.first?.rows.first?.formattedAmount.contains("500") == true)
+        #expect(detail?.categoryTitle == "工资")
+        #expect(detail?.formattedAmount.contains("500") == true)
+    }
+
     @Test("备注支持包含匹配，且遗留标题不参与搜索")
     func noteMatchesWithoutUsingTitle() throws {
         let transaction = try dining(
