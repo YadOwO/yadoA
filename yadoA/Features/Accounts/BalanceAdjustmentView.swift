@@ -128,16 +128,7 @@ struct BalanceAdjustmentView: View {
                     "account.balance_adjustment.target",
                     locale: locale
                 ),
-                text: Binding(
-                    get: { flow.draft.amountText },
-                    set: {
-                        isSaveErrorFocused = false
-                        flow.updateAmountText(
-                            $0,
-                            decimalSeparator: locale.decimalSeparator ?? "."
-                        )
-                    }
-                ),
+                text: targetAmountTextBinding,
                 prompt: Text(verbatim: "0")
             )
             .font(.system(.largeTitle, design: .rounded, weight: .semibold))
@@ -155,6 +146,39 @@ struct BalanceAdjustmentView: View {
             Color.primary.opacity(0.06),
             in: RoundedRectangle(cornerRadius: 16, style: .continuous)
         )
+    }
+
+    /// 负数目标在输入框中固定显示负号，输入内容只允许编辑绝对值。
+    private var targetAmountTextBinding: Binding<String> {
+        Binding(
+            get: {
+                flow.draft.sign == .negative
+                    ? "-" + flow.draft.amountText
+                    : flow.draft.amountText
+            },
+            set: { amountText in
+                guard let magnitudeText = editableMagnitudeText(from: amountText) else {
+                    return
+                }
+
+                isSaveErrorFocused = false
+                flow.updateAmountText(
+                    magnitudeText,
+                    decimalSeparator: locale.decimalSeparator ?? "."
+                )
+            }
+        )
+    }
+
+    /// 只从负数显示值中移除固定负号，阻止正数输入通过文本注入负号。
+    private func editableMagnitudeText(from amountText: String) -> String? {
+        if flow.draft.sign == .negative {
+            return amountText.hasPrefix("-")
+                ? String(amountText.dropFirst())
+                : amountText
+        }
+
+        return amountText.contains("-") ? nil : amountText
     }
 
     /// 普通字号使用紧凑分段选择；辅助功能字号回退为可换行的纵向按钮。
