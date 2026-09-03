@@ -1211,6 +1211,74 @@
         }
       }
     },
+    "account.management.export.error" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your data could not be exported. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据导出失败，请重试。"
+          }
+        }
+      }
+    },
+    "account.management.export.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export all data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出全部数据"
+          }
+        }
+      }
+    },
+    "account.management.export.warning.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This backup contains sensitive financial information. Save or share it only with people you trust."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这份备份包含敏感财务信息，请仅保存或分享给你信任的人。"
+          }
+        }
+      }
+    },
+    "account.management.export.warning.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export your data?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出数据吗？"
+          }
+        }
+      }
+    },
     "account.management.no_candidate" : {
       "extractionState" : "manual",
       "localizations" : {

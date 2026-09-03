@@ -30,6 +30,20 @@ extension XCTestCase {
         return app
     }
 
+    /// 使用数据导出专用夹具和固定英文环境启动应用。
+    @MainActor
+    func launchExportFixtureInEnglish() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "--ui-testing-in-memory",
+            "--ui-testing-export-fixture",
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US"
+        ]
+        app.launch()
+        return app
+    }
+
     /// 使用记账搜索专用夹具和固定英文环境启动应用。
     @MainActor
     func launchBookkeepingSearchFixtureInEnglish() -> XCUIApplication {
