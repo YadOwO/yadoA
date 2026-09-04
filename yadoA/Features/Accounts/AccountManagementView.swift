@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
 /// 账户生命周期与默认账户的集中管理入口。
 struct AccountManagementView: View {
@@ -72,6 +73,10 @@ struct AccountManagementView: View {
             }
 
             Section {
+                DataExportEntryView(container: modelContext.container)
+            }
+
+            Section {
                 NavigationLink {
                     DeactivatedAccountListView()
                 } label: {
@@ -108,4 +113,121 @@ struct AccountManagementView: View {
             }
         }
     }
+}
+
+/// 账户管理中的完整数据导出入口及其确认、分享和失败反馈。
+private struct DataExportEntryView: View {
+    @Environment(\.locale) private var locale
+    @StateObject private var flow: DataExportFlow
+    @State private var isPresentingConfirmation = false
+
+    /// 使用当前应用容器创建导出流程；流程初始化时清扫上次残留文件。
+    init(container: ModelContainer) {
+        _flow = StateObject(
+            wrappedValue: DataExportFlow(
+                service: BackupExportService(container: container)
+            )
+        )
+    }
+
+    var body: some View {
+        Button {
+            isPresentingConfirmation = true
+        } label: {
+            Label(
+                AccountLocalization.string("account.management.export.title", locale: locale),
+                systemImage: "square.and.arrow.up"
+            )
+        }
+        .disabled(flow.isPreparing)
+        .accessibilityIdentifier("account-management-export-data")
+        .alert(
+            AccountLocalization.string(
+                "account.management.export.warning.title",
+                locale: locale
+            ),
+            isPresented: $isPresentingConfirmation
+        ) {
+            Button(
+                AccountLocalization.string(
+                    "account.management.export.title",
+                    locale: locale
+                )
+            ) {
+                flow.startExport()
+            }
+            .accessibilityIdentifier("account-management-export-confirm")
+
+            Button(
+                AccountLocalization.string("common.cancel", locale: locale),
+                role: .cancel
+            ) {}
+            .accessibilityIdentifier("account-management-export-cancel")
+        } message: {
+            Text(
+                AccountLocalization.string(
+                    "account.management.export.warning.message",
+                    locale: locale
+                )
+            )
+        }
+        .alert(
+            AccountLocalization.string("account.management.export.error", locale: locale),
+            isPresented: failurePresented
+        ) {
+            Button(AccountLocalization.string("common.retry", locale: locale)) {
+                flow.retry()
+            }
+
+            Button(
+                AccountLocalization.string("common.close", locale: locale),
+                role: .cancel
+            ) {
+                flow.dismissFailure()
+            }
+        }
+        .sheet(item: shareItemBinding, onDismiss: flow.finishSharing) { item in
+            DataExportShareSheet(url: item.url)
+        }
+    }
+
+    /// 将状态机中的失败状态转换为系统 Alert 的布尔绑定。
+    private var failurePresented: Binding<Bool> {
+        Binding(
+            get: { flow.failure != nil },
+            set: { isPresented in
+                if !isPresented {
+                    flow.dismissFailure()
+                }
+            }
+        )
+    }
+
+    /// 将状态机中的分享 URL 转换为 `.sheet(item:)` 所需的可选绑定。
+    private var shareItemBinding: Binding<DataExportShareItem?> {
+        Binding(
+            get: { flow.shareItem },
+            set: { _ in }
+        )
+    }
+}
+
+/// 以系统 UIKit 分享面板呈现备份文件，支持保存到 Files 或分享给其他目标。
+private struct DataExportShareSheet: UIViewControllerRepresentable {
+    /// 已生成的备份文件地址。
+    let url: URL
+
+    /// 创建系统分享面板。
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(
+            activityItems: [url],
+            applicationActivities: nil
+        )
+    }
+
+    /// 分享面板无须在 SwiftUI 状态变化时更新内容。
+    func updateUIViewController(
+        _ uiViewController: UIActivityViewController,
+        context: Context
+    ) {}
 }

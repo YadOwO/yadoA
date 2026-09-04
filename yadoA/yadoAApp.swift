@@ -24,6 +24,9 @@ struct yadoAApp: App {
                     }
                     try HomeUITestFixture.seed(in: container.modelContainer)
                 }
+                if ProcessInfo.processInfo.arguments.contains("--ui-testing-export-fixture") {
+                    try HomeUITestFixture.seedExport(in: container.modelContainer)
+                }
                 if ProcessInfo.processInfo.arguments.contains("--ui-testing-bookkeeping-search-fixture") {
                     try HomeUITestFixture.seedBookkeepingSearch(in: container.modelContainer)
                 }

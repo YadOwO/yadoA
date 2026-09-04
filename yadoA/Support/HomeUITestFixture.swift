@@ -70,6 +70,70 @@ enum HomeUITestFixture {
         try context.save()
     }
 
+    /// 为数据导出 UI 冒烟流程创建启用、停用账户和少量历史流水。
+    ///
+    /// - Parameter container: UI 自动化专用的内存容器。
+    /// - Throws: 夹具流水无法通过现有模型校验或容器保存失败时抛出错误。
+    static func seedExport(in container: ModelContainer) throws {
+        let now = Date()
+        let activeAccountID = UUID()
+        let deactivatedAccountID = UUID()
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        context.insert(
+            Account(
+                id: activeAccountID,
+                typeRawValue: AccountType.cash.rawValue,
+                templateID: nil,
+                name: "Export active account",
+                note: nil,
+                lastFourDigits: nil,
+                balance: 20,
+                currencyCode: "CNY",
+                createdAt: now,
+                updatedAt: now
+            )
+        )
+        context.insert(
+            Account(
+                id: deactivatedAccountID,
+                typeRawValue: AccountType.creditCard.rawValue,
+                templateID: AccountTemplate.creditInstitutions[0].id,
+                name: "Export archived account",
+                note: "Historical export fixture",
+                lastFourDigits: "1234",
+                balance: 0,
+                currencyCode: "CNY",
+                createdAt: now,
+                updatedAt: now,
+                deactivatedAt: now
+            )
+        )
+        context.insert(
+            try AccountTransaction.validatingDiningExpense(
+                id: UUID(),
+                accountID: activeAccountID,
+                amount: 12.50,
+                transactionDay: transactionDay(for: now),
+                title: "Export fixture expense",
+                savedAt: now.addingTimeInterval(-2)
+            )
+        )
+        context.insert(
+            try AccountTransaction.validatingIncome(
+                id: UUID(),
+                accountID: activeAccountID,
+                category: .salary,
+                amount: 100,
+                transactionDay: transactionDay(for: now),
+                title: "Export fixture income",
+                savedAt: now.addingTimeInterval(-1)
+            )
+        )
+        context.insert(BookkeepingPreference(defaultAccountID: activeAccountID))
+        try context.save()
+    }
+
     /// 为记账搜索 UI 流程创建启用、停用、孤立和余额调整边界数据。
     ///
     /// - Parameter container: UI 自动化专用的内存容器。
@@ -169,5 +233,15 @@ enum HomeUITestFixture {
     /// 把夹具月份和日转换为现有 `YYYYMMDD` 业务日整数。
     private static func transactionDay(for month: HomeMonth, day: Int) -> Int {
         month.year * 10_000 + month.month * 100 + day
+    }
+
+    /// 把当前日期转换为夹具使用的 `YYYYMMDD` 公历业务日。
+    private static func transactionDay(for date: Date) -> Int {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return (components.year ?? 1970) * 10_000
+            + (components.month ?? 1) * 100
+            + (components.day ?? 1)
     }
 }
