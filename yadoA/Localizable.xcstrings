@@ -3713,6 +3713,40 @@
         }
       }
     },
+    "home.month.pull.continue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep pulling to view %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续拉动，查看%@"
+          }
+        }
+      }
+    },
+    "home.month.pull.release" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Release to view %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "松开切换至%@"
+          }
+        }
+      }
+    },
     "home.month.selector.accessibility" : {
       "extractionState" : "manual",
       "localizations" : {

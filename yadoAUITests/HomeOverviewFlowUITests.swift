@@ -6,6 +6,59 @@ final class HomeOverviewFlowUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// 一屏以内的明细必须实际拉过边界，并且一轮手势只能切换一次。
+    @MainActor
+    func testBoundaryPullSwitchesOneMonthAndCanReturn() throws {
+        let app = launchHomeFixtureInEnglish()
+        let selector = app.buttons["home-month-selector"]
+        XCTAssertTrue(selector.waitForExistence(timeout: 3))
+        let originalMonth = selector.label
+        let list = app.descendants(matching: .any)["home-details-scroll"].firstMatch
+        XCTAssertTrue(list.waitForExistence(timeout: 3))
+
+        let start = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+        let end = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        start.press(forDuration: 0.1, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
+        let nextMonth = monthLabel(offset: 1)
+        XCTAssertTrue(selector.wait(for: \.label, toEqual: nextMonth, timeout: 4))
+
+        let returnStart = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        let returnEnd = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+        returnStart.press(forDuration: 0.1, thenDragTo: returnEnd, withVelocity: .slow, thenHoldForDuration: 0.3)
+        XCTAssertTrue(selector.wait(for: \.label, toEqual: originalMonth, timeout: 4))
+    }
+
+    /// 短列表上的轻微拖动不能因为内容高度不足而误切月份。
+    @MainActor
+    func testSmallPullKeepsCurrentMonth() throws {
+        let app = launchHomeFixtureInEnglish()
+        let selector = app.buttons["home-month-selector"]
+        XCTAssertTrue(selector.waitForExistence(timeout: 3))
+        let originalMonth = selector.label
+        let list = app.descendants(matching: .any)["home-details-scroll"].firstMatch
+        XCTAssertTrue(list.waitForExistence(timeout: 3))
+        let start = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+        let end = start.withOffset(CGVector(dx: 0, dy: -35))
+        start.press(forDuration: 0.1, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
+        let changed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label != %@", originalMonth),
+            object: selector
+        )
+        changed.isInverted = true
+        wait(for: [changed], timeout: 2)
+    }
+
+    /// 与英文夹具一致的当前月偏移标题，包含月份按钮的辅助功能前缀。
+    private func monthLabel(offset: Int) -> String {
+        let calendar = Calendar(identifier: .gregorian)
+        let date = calendar.date(byAdding: .month, value: offset, to: Date())!
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US")
+        formatter.calendar = calendar
+        formatter.setLocalizedDateFormatFromTemplate("MMMM yyyy")
+        return "Selected month, \(formatter.string(from: date))"
+    }
+
     @MainActor
     func testFixtureShowsHomeDataAndMonthPickerCanCancel() throws {
         let app = launchHomeFixtureInEnglish()

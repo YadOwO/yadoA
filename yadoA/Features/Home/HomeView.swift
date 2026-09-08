@@ -69,7 +69,6 @@ private struct HomeQueryContent: View {
 
             HomeOverviewList(
                 monthPresentation: monthPresentation,
-                presentation: presentation,
                 selectedMonth: activeMonth,
                 onSelectMonth: { month in
                     selectedMonth = month
@@ -327,14 +326,15 @@ private struct HomeSummaryColumn: View {
 
 /// 当前月份的独立明细滚动区域。
 private struct HomeOverviewList: View {
-    @State private var boundaryLatch = false
-    @State private var scrollPhase: ScrollPhase = .idle
+    @Environment(\.locale) private var locale
+    @Environment(\.calendar) private var calendar
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// 边界拉动与松手提交状态。
+    @State private var interaction = HomeMonthScrollInteraction()
 
     /// 当前月份的按日展示数据。
     let monthPresentation: HomeOverviewMonthPresentation
-
-    /// 用于寻找边界目标月份的完整投影。
-    let presentation: HomeOverviewPresentation
 
     /// 当前已提交月份。
     let selectedMonth: HomeMonth
@@ -347,96 +347,128 @@ private struct HomeOverviewList: View {
 
     var body: some View {
         GeometryReader { containerGeometry in
-            ScrollViewReader { scrollProxy in
-                List {
-                    Color.clear
-                        .frame(height: 1)
+            List {
+                Color.clear
+                    .frame(height: 1)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+
+                if monthPresentation.isEmpty {
+                    HomeEmptyState()
+                        .frame(
+                            maxWidth: .infinity,
+                            minHeight: max(220, containerGeometry.size.height - 2)
+                        )
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                        .id(HomeOverviewScrollAnchor.top)
-
-                    if monthPresentation.isEmpty {
-                        HomeEmptyState()
-                            .frame(
-                                maxWidth: .infinity,
-                                minHeight: max(220, containerGeometry.size.height - 2)
-                            )
-                            .listRowInsets(EdgeInsets())
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    } else {
-                        ForEach(monthPresentation.dayGroups) { day in
-                            Section {
-                                ForEach(day.rows) { row in
-                                    HomeOverviewRow(
-                                        row: row,
-                                        onEdit: {
-                                            onEditTransaction(row.id)
-                                        }
-                                    )
-                                }
-                            } header: {
-                                HomeOverviewDayHeader(day: day)
+                } else {
+                    ForEach(monthPresentation.dayGroups) { day in
+                        Section {
+                            ForEach(day.rows) { row in
+                                HomeOverviewRow(
+                                    row: row,
+                                    onEdit: {
+                                        onEditTransaction(row.id)
+                                    }
+                                )
                             }
+                        } header: {
+                            HomeOverviewDayHeader(day: day)
                         }
                     }
+                }
 
-                    Color.clear
-                        .frame(height: 1)
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .id(HomeOverviewScrollAnchor.bottom)
+                Color.clear
+                    .frame(height: 1)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+            .listStyle(.insetGrouped)
+            .scrollBounceBehavior(.always)
+            .accessibilityIdentifier("home-details-scroll")
+            .onScrollGeometryChange(for: HomeMonthScrollInteraction.Pull?.self) { geometry in
+                pull(for: geometry)
+            } action: { _, pull in
+                interaction.update(pull)
+            }
+            .onScrollPhaseChange { oldPhase, phase, context in
+                if phase == .interacting {
+                    interaction.beginDragging()
+                    interaction.update(pull(for: context.geometry))
+                } else if oldPhase == .interacting {
+                    interaction.update(pull(for: context.geometry))
+                    interaction.endDragging()
                 }
-                .listStyle(.insetGrouped)
-                .scrollBounceBehavior(.always)
-                .accessibilityIdentifier("home-details-scroll")
-                .onScrollGeometryChange(for: HomeScrollMetrics.self) { geometry in
-                    HomeScrollMetrics(
-                        offsetY: geometry.contentOffset.y,
-                        contentHeight: geometry.contentSize.height,
-                        visibleHeight: geometry.visibleRect.height,
-                        topInset: geometry.contentInsets.top,
-                        bottomInset: geometry.contentInsets.bottom
-                    )
-                } action: { _, metrics in
-                    guard !boundaryLatch, scrollPhase != .idle else { return }
-                    let navigator = HomeMonthNavigator(
-                        availableMonths: presentation.availableMonths
-                    )
-
-                    if metrics.isPulledPastTop {
-                        boundaryLatch = true
-                        if let earlierMonth = navigator.earlierMonth(from: selectedMonth) {
-                            onSelectMonth(earlierMonth)
-                        }
-                    } else if metrics.isPulledPastBottom {
-                        boundaryLatch = true
-                        if let laterMonth = navigator.laterMonth(from: selectedMonth) {
-                            onSelectMonth(laterMonth)
-                        }
-                    }
-                }
-                .onScrollPhaseChange { _, phase in
-                    scrollPhase = phase
-                    if phase == .idle {
-                        boundaryLatch = false
-                    }
-                }
-                .onChange(of: selectedMonth) { _, _ in
-                    scrollToTop(using: scrollProxy)
+                if phase == .idle,
+                   let direction = interaction.settle(),
+                   let month = targetMonth(for: direction) {
+                    onSelectMonth(month)
                 }
             }
+            // 每个月从顶部开始，避免原生回弹与 scrollTo 动画争夺偏移。
+            .id(selectedMonth)
+            .transition(.opacity)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: selectedMonth)
+        }
+        .overlay(alignment: interaction.pull?.direction == .later ? .bottom : .top) {
+            if let pull = interaction.pull,
+               let month = targetMonth(for: pull.direction) {
+                Label {
+                    Text(AccountLocalization.formatted(
+                        pull.isReady ? "home.month.pull.release" : "home.month.pull.continue",
+                        value: month.formatted(locale: locale, calendar: calendar),
+                        locale: locale
+                    ))
+                } icon: {
+                    Image(systemName: pull.direction == .earlier ? "arrow.down" : "arrow.up")
+                        .rotationEffect(.degrees(pull.isReady ? 180 : 0))
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(.regularMaterial, in: Capsule())
+                .padding(8)
+                .allowsHitTesting(false)
+                .accessibilityIdentifier("home-month-pull-hint")
+            }
+        }
+        .sensoryFeedback(.selection, trigger: isReadyToSwitch) { _, isReady in
+            isReady
+        }
+        .onChange(of: selectedMonth) { _, _ in
+            interaction = HomeMonthScrollInteraction()
+        }
+        .onDisappear {
+            interaction = HomeMonthScrollInteraction()
         }
     }
 
-    /// 把当前月份滚动到统一的顶部锚点。
-    private func scrollToTop(using proxy: ScrollViewProxy) {
-        DispatchQueue.main.async {
-            withAnimation(.easeOut(duration: 0.2)) {
-                proxy.scrollTo(HomeOverviewScrollAnchor.top, anchor: .top)
-            }
+    /// 仅在确实存在目标月份时提供越过阈值的触觉反馈。
+    private var isReadyToSwitch: Bool {
+        guard let pull = interaction.pull, pull.isReady else { return false }
+        return targetMonth(for: pull.direction) != nil
+    }
+
+    /// 把原生几何归约为离散的提示状态。
+    private func pull(for geometry: ScrollGeometry) -> HomeMonthScrollInteraction.Pull? {
+        HomeMonthScrollInteraction.pull(
+            offsetY: geometry.contentOffset.y,
+            contentHeight: geometry.contentSize.height,
+            containerHeight: geometry.containerSize.height,
+            topInset: geometry.contentInsets.top,
+            bottomInset: geometry.contentInsets.bottom
+        )
+    }
+
+    /// 按自然月切换：上拉加一个月，下拉减一个月，空月份同样可浏览。
+    private func targetMonth(for direction: HomeMonthScrollInteraction.Direction) -> HomeMonth? {
+        switch direction {
+        case .earlier: return selectedMonth.adding(months: -1, calendar: calendar)
+        case .later: return selectedMonth.adding(months: 1, calendar: calendar)
         }
     }
 }
@@ -563,44 +595,6 @@ private struct HomeEmptyState: View {
             Text(AccountLocalization.string("home.details.empty.message", locale: locale))
         }
         .accessibilityIdentifier("home-details-empty")
-    }
-}
-
-/// 明细区域使用的稳定顶部和底部锚点。
-private enum HomeOverviewScrollAnchor {
-    /// 所有月份共用的顶部锚点。
-    static let top = "home-details-top"
-
-    /// 所有月份共用的底部锚点。
-    static let bottom = "home-details-bottom"
-}
-
-/// 滚动边界观察所需的最小几何数据。
-private struct HomeScrollMetrics: Equatable {
-    /// 当前滚动偏移的 Y 值。
-    let offsetY: CGFloat
-
-    /// 内容高度。
-    let contentHeight: CGFloat
-
-    /// 可见滚动区域高度。
-    let visibleHeight: CGFloat
-
-    /// 顶部内容 inset。
-    let topInset: CGFloat
-
-    /// 底部内容 inset。
-    let bottomInset: CGFloat
-
-    /// 是否已经向下拉过顶部边界。
-    var isPulledPastTop: Bool {
-        offsetY < -topInset - 24
-    }
-
-    /// 是否已经向上滑过底部边界。
-    var isPulledPastBottom: Bool {
-        let visibleBottom = offsetY + visibleHeight
-        return visibleBottom > contentHeight + bottomInset + 24
     }
 }
 
