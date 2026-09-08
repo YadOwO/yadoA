@@ -82,6 +82,7 @@ private struct HomeQueryContent: View {
 
             HomeOverviewList(
                 monthPresentation: monthPresentation,
+                monthNavigator: HomeMonthNavigator(availableMonths: presentation.availableMonths),
                 selectedMonth: activeMonth,
                 onSelectMonth: { month in
                     selectedMonth = month
@@ -349,6 +350,9 @@ private struct HomeOverviewList: View {
     /// 当前月份的按日展示数据。
     let monthPresentation: HomeOverviewMonthPresentation
 
+    /// 仅在有真实流水的月份之间导航，找不到目标时禁止切换。
+    let monthNavigator: HomeMonthNavigator
+
     /// 当前已提交月份。
     let selectedMonth: HomeMonth
 
@@ -426,7 +430,7 @@ private struct HomeOverviewList: View {
             .transition(.opacity)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: selectedMonth)
         }
-        .overlay(alignment: interaction.pull?.direction == .later ? .bottom : .top) {
+        .overlay(alignment: interaction.pull?.direction == .earlier ? .bottom : .top) {
             if let pull = interaction.pull,
                let month = targetMonth(for: pull.direction) {
                 Label {
@@ -436,7 +440,7 @@ private struct HomeOverviewList: View {
                         locale: locale
                     ))
                 } icon: {
-                    Image(systemName: pull.direction == .earlier ? "arrow.down" : "arrow.up")
+                    Image(systemName: pull.direction == .later ? "arrow.down" : "arrow.up")
                         .rotationEffect(.degrees(pull.isReady ? 180 : 0))
                 }
                 .font(.caption)
@@ -477,11 +481,11 @@ private struct HomeOverviewList: View {
         )
     }
 
-    /// 按自然月切换：上拉加一个月，下拉减一个月，空月份同样可浏览。
+    /// 下拉查看更晚、上拉查看更早的最近有数据月份；没有目标时停止切换。
     private func targetMonth(for direction: HomeMonthScrollInteraction.Direction) -> HomeMonth? {
         switch direction {
-        case .earlier: return selectedMonth.adding(months: -1, calendar: calendar)
-        case .later: return selectedMonth.adding(months: 1, calendar: calendar)
+        case .earlier: return monthNavigator.earlierMonth(from: selectedMonth)
+        case .later: return monthNavigator.laterMonth(from: selectedMonth)
         }
     }
 }

@@ -2,11 +2,11 @@ import Foundation
 
 /// 首页边界拉动状态，只在主动拖动达到阈值后接受一次换月请求。
 struct HomeMonthScrollInteraction {
-    /// 上下边界对应的自然月份浏览方向。
+    /// 上下边界对应的月份浏览方向。
     enum Direction: Equatable {
-        /// 顶部下拉，查看上一个自然月。
+        /// 底部上拉，查看更早的最近有数据月份。
         case earlier
-        /// 底部上拉，查看下一个自然月。
+        /// 顶部下拉，查看更晚的最近有数据月份。
         case later
     }
 
@@ -42,7 +42,7 @@ struct HomeMonthScrollInteraction {
         let distance = max(topDistance, bottomDistance)
         guard distance >= 8 else { return nil }
         return Pull(
-            direction: topDistance > bottomDistance ? .earlier : .later,
+            direction: topDistance > bottomDistance ? .later : .earlier,
             isReady: distance >= 64
         )
     }

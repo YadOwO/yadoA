@@ -8,16 +8,16 @@ struct HomeMonthScrollInteractionTests {
     @Test("短列表静止和轻微回弹不会达到切换阈值")
     func shortContentNeedsActualOverscroll() {
         #expect(pull(offset: -20, height: 120) == nil)
-        #expect(pull(offset: 10, height: 120) == .init(direction: .later, isReady: false))
-        #expect(pull(offset: 44, height: 120) == .init(direction: .later, isReady: true))
-        #expect(pull(offset: -84, height: 120) == .init(direction: .earlier, isReady: true))
+        #expect(pull(offset: 10, height: 120) == .init(direction: .earlier, isReady: false))
+        #expect(pull(offset: 44, height: 120) == .init(direction: .earlier, isReady: true))
+        #expect(pull(offset: -84, height: 120) == .init(direction: .later, isReady: true))
     }
 
     @Test("长列表要超过含底部 inset 的真实边界")
     func longContentRespectsInsets() {
         #expect(pull(offset: 500, height: 1_000) == nil)
         #expect(pull(offset: 530, height: 1_000) == nil)
-        #expect(pull(offset: 594, height: 1_000) == .init(direction: .later, isReady: true))
+        #expect(pull(offset: 594, height: 1_000) == .init(direction: .earlier, isReady: true))
     }
 
     @Test("主动拉动松手后只提交一次，惯性回弹不改变方向")
