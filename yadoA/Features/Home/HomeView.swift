@@ -8,14 +8,27 @@ struct HomeView: View {
     /// 用户最近一次选择的收支汇总显隐状态。
     @AppStorage("home.summary.amountsVisible") private var areAmountsVisible = false
 
+    /// 首页头像打开个人设置页。
+    @State private var isProfilePresented = false
+
     var body: some View {
         HomeQueryContent(areAmountsVisible: $areAmountsVisible)
             .navigationTitle(AppTab.home.title(locale: locale))
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $isProfilePresented) {
+                NavigationStack {
+                    ProfileView()
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Image(systemName: "person.circle")
-                        .accessibilityHidden(true)
+                    Button {
+                        isProfilePresented = true
+                    } label: {
+                        Image(systemName: "person.circle")
+                    }
+                    .accessibilityLabel(AccountLocalization.string("profile.title", locale: locale))
+                    .accessibilityIdentifier("home-profile")
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {

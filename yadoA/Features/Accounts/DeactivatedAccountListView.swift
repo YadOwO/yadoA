@@ -19,7 +19,10 @@ struct DeactivatedAccountListView: View {
                 )
             } else {
                 List(accounts) { account in
-                    NavigationLink(value: account.id) {
+                    // 上级通过视图目标进入此列表，详情沿用同一种导航，避免值路由移除上级页面。
+                    NavigationLink {
+                        AccountDetailView(accountID: account.id)
+                    } label: {
                         AccountListRow(
                             presentation: AccountListPresentation.row(
                                 for: account,
@@ -33,8 +36,5 @@ struct DeactivatedAccountListView: View {
         }
         .navigationTitle(AccountLocalization.string("account.deactivated.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(for: UUID.self) { accountID in
-            AccountDetailView(accountID: accountID)
-        }
     }
 }

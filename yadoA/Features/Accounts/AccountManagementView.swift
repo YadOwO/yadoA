@@ -116,7 +116,7 @@ struct AccountManagementView: View {
 }
 
 /// 账户管理中的完整数据导出入口及其确认、分享和失败反馈。
-private struct DataExportEntryView: View {
+struct DataExportEntryView: View {
     @Environment(\.locale) private var locale
     @StateObject private var flow: DataExportFlow
     @State private var isPresentingConfirmation = false
