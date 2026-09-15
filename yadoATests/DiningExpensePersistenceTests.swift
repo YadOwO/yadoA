@@ -376,8 +376,12 @@ struct DiningExpensePersistenceTests {
         try repository.update(
             DiningExpenseEditDraft(
                 id: transactionID,
+                accountID: accountID,
+                entryType: .income,
+                incomeCategory: .bonus,
                 title: "季度奖金",
-                amountText: "30"
+                amountText: "30",
+                transactionDay: 20260901
             )
         )
 
@@ -410,8 +414,10 @@ struct DiningExpensePersistenceTests {
         try repository.update(
             DiningExpenseEditDraft(
                 id: transactionID,
+                accountID: accountID,
                 title: "午餐",
-                amountText: "20.00"
+                amountText: "20.00",
+                transactionDay: 20260901
             )
         )
 
@@ -450,8 +456,10 @@ struct DiningExpensePersistenceTests {
         try repository.update(
             DiningExpenseEditDraft(
                 id: transactionID,
+                accountID: accountID,
                 title: "晚餐",
-                amountText: "12.50"
+                amountText: "12.50",
+                transactionDay: 20260901
             )
         )
 
@@ -485,8 +493,10 @@ struct DiningExpensePersistenceTests {
         )
         let draft = DiningExpenseEditDraft(
             id: transactionID,
+                accountID: accountID,
             title: "不应保存",
-            amountText: "20"
+            amountText: "20",
+                transactionDay: 20260901
         )
 
         #expect(throws: InjectedExpenseSaveFailure.self) {

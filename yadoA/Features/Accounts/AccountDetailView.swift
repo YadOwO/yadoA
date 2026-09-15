@@ -441,7 +441,14 @@ private struct AccountDetailQueryContent: View {
                     .accessibilityIdentifier("account-detail-transaction-history-empty")
                 } else {
                     ForEach(historyRows) { presentation in
-                        AccountTransactionHistoryRow(presentation: presentation)
+                        if presentation.canOpenBookkeepingDetail {
+                            NavigationLink(value: AccountsRoute.transactionDetail(presentation.id)) {
+                                AccountTransactionHistoryRow(presentation: presentation)
+                            }
+                            .accessibilityIdentifier("account-transaction-detail-\(presentation.id.uuidString)")
+                        } else {
+                            AccountTransactionHistoryRow(presentation: presentation)
+                        }
                     }
                 }
             } header: {

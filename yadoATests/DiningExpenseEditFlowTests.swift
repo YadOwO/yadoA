@@ -2,15 +2,17 @@ import Foundation
 import Testing
 @testable import yadoA
 
-@Suite("首页记账快速修改流程", .serialized)
+@Suite("收支完整编辑流程", .serialized)
 @MainActor
 struct DiningExpenseEditFlowTests {
     @Test("有效修改只保存一次且成功后关闭")
     func validEditSavesOnceAndDismissesAfterSuccess() async {
         let original = DiningExpenseEditDraft(
             id: UUID(),
+                accountID: UUID(),
             title: "餐饮",
-            amountText: "12.34"
+            amountText: "12.34",
+                transactionDay: 20260901
         )
         var attempts: [DiningExpenseEditDraft] = []
         var dismissals = 0
@@ -35,8 +37,10 @@ struct DiningExpenseEditFlowTests {
     func invalidEditNeverSaves() async {
         let draft = DiningExpenseEditDraft(
             id: UUID(),
+                accountID: UUID(),
             title: "餐饮",
-            amountText: "12.34"
+            amountText: "12.34",
+                transactionDay: 20260901
         )
         var attempts = 0
         let flow = DiningExpenseEditFlow(draft: draft) { _ in
@@ -50,8 +54,10 @@ struct DiningExpenseEditFlowTests {
         let invalidAmountFlow = DiningExpenseEditFlow(
             draft: DiningExpenseEditDraft(
                 id: UUID(),
+                accountID: UUID(),
                 title: "晚餐",
-                amountText: "1.001"
+                amountText: "1.001",
+                transactionDay: 20260901
             )
         ) { _ in
             attempts += 1
@@ -64,8 +70,10 @@ struct DiningExpenseEditFlowTests {
     func failedEditPreservesDraftAndRetrySucceeds() async {
         let draft = DiningExpenseEditDraft(
             id: UUID(),
+                accountID: UUID(),
             title: "餐饮",
-            amountText: "12.34"
+            amountText: "12.34",
+                transactionDay: 20260901
         )
         let failureState = EditFailureState()
         var attempts: [DiningExpenseEditDraft] = []
@@ -90,6 +98,52 @@ struct DiningExpenseEditFlowTests {
         #expect(attempts[0] == attempts[1])
         #expect(dismissals == 1)
         #expect(flow.submissionState == .editing)
+    }
+
+    @Test("完整字段提交使用稳定快照，保存中禁止再次提交和修改")
+    func pendingSaveFreezesAllFieldsAndPreventsDuplicateSubmission() async {
+        let original = DiningExpenseEditDraft(
+            id: UUID(), accountID: UUID(), title: "午餐",
+            amountText: "20", transactionDay: 20260901
+        )
+        let gate = AsyncSaveGate()
+        var attempts: [DiningExpenseEditDraft] = []
+        let flow = DiningExpenseEditFlow(draft: original) { draft in
+            attempts.append(draft)
+            await gate.wait()
+        }
+        let targetAccount = UUID()
+        flow.update {
+            $0.accountID = targetAccount
+            $0.entryType = .income
+            $0.incomeCategory = .refund
+            $0.transactionDay = 20260902
+            $0.note = "已退回"
+        }
+        let submitted = flow.draft
+        let saveTask = Task { await flow.submit {} }
+        while !gate.hasStarted { await Task.yield() }
+        flow.update { $0.note = "不应写入" }
+        flow.updateAmountText("99", decimalSeparator: ".")
+        await flow.submit {}
+        #expect(attempts == [submitted])
+        #expect(flow.draft == submitted)
+        #expect(flow.isSaving)
+        gate.resume()
+        await saveTask.value
+        #expect(!flow.isSaving)
+    }
+
+    @Test("无效公历日期不能提交")
+    func invalidBusinessDayPreventsSubmission() async {
+        let flow = DiningExpenseEditFlow(draft: DiningExpenseEditDraft(
+            id: UUID(), accountID: UUID(), title: "午餐",
+            amountText: "20", transactionDay: 20260230
+        )) { _ in
+            Issue.record("无效日期不应进入保存动作")
+        }
+        #expect(!flow.canSubmit)
+        await flow.submit {}
     }
 }
 

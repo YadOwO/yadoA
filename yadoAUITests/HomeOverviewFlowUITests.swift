@@ -100,7 +100,7 @@ final class HomeOverviewFlowUITests: XCTestCase {
     }
 
     @MainActor
-    func testTransactionTapOpensQuickEditForTitleAndAmount() throws {
+    func testTransactionTapOpensSharedDetailAndFullEditor() throws {
         let app = launchHomeFixtureInEnglish()
         let transaction = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH 'home-transaction-'")
@@ -109,10 +109,14 @@ final class HomeOverviewFlowUITests: XCTestCase {
         XCTAssertTrue(transaction.waitForExistence(timeout: 3))
         transaction.tap()
 
+        XCTAssertTrue(app.navigationBars["Transaction Details"].waitForExistence(timeout: 3))
+        app.buttons["bookkeeping-detail-edit"].tap()
         XCTAssertTrue(app.navigationBars["Edit Transaction"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.textFields["expense-edit-title"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.textFields["expense-edit-amount"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["expense-edit-save"].exists)
+        XCTAssertTrue(app.datePickers["expense-edit-date"].exists)
+        XCTAssertTrue(app.textViews["expense-edit-note"].exists || app.textFields["expense-edit-note"].exists)
     }
 
     @MainActor

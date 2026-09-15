@@ -2449,6 +2449,159 @@
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "记一笔" } }
       }
     },
+    "bookkeeping.detail.open" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看 %@ 的详情"
+          }
+        }
+      }
+    },
+    "bookkeeping.edit.balance_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes update the current account balance. Earlier balance adjustments remain as recorded."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修改会同步修正当前账户余额，既有余额调整保留当时记录。"
+          }
+        }
+      }
+    },
+    "bookkeeping.edit.account_unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This account is unavailable. Return to the transaction and check its account."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账户已不可用，请返回详情检查账户状态。"
+          }
+        }
+      }
+    },
+    "bookkeeping.edit.discard.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard your changes?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放弃未保存的修改？"
+          }
+        }
+      }
+    },
+    "bookkeeping.edit.discard.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard Changes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放弃修改"
+          }
+        }
+      }
+    },
+    "bookkeeping.delete.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Transaction"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除流水"
+          }
+        }
+      }
+    },
+    "bookkeeping.delete.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete this transaction?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除这笔流水？"
+          }
+        }
+      }
+    },
+    "bookkeeping.delete.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@ · %3$@\n\nDeleting reverses this entry’s effect on the current account balance. This cannot be undone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@ · %3$@\n\n删除会撤销这笔流水对当前账户余额的影响。此操作无法撤销。"
+          }
+        }
+      }
+    },
+    "bookkeeping.delete.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not delete the transaction. It or its account may have changed. Check the details and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除失败，流水或账户状态可能已变化，请检查详情后重试。"
+          }
+        }
+      }
+    },
     "bookkeeping.entry.type" : {
       "extractionState" : "manual",
       "localizations" : {

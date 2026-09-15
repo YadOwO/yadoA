@@ -6,6 +6,9 @@ struct AccountTransactionHistoryRowPresentation: Identifiable, Equatable {
     /// 流水的稳定标识。
     let id: UUID
 
+    /// 收入与支出可进入统一记账详情；余额调整保持历史快照展示。
+    let canOpenBookkeepingDetail: Bool
+
     /// 当前语言环境下的流水类型标题。
     let title: String
 
@@ -61,10 +64,12 @@ enum AccountTransactionHistoryPresentation {
         let formattedAmount: String
         let balanceTransition: String?
         let spokenBalanceTransition: String?
+        let canOpenBookkeepingDetail: Bool
         guard let payload = try? transaction.validatedPayload() else { return nil }
 
         switch payload {
         case let .expense(category, amount):
+            canOpenBookkeepingDetail = true
             title = transaction.title
                 ?? category.localizedTitle(locale: locale)
             formattedAmount = formattedCurrency(-amount, code: transaction.currencyCode, locale: locale)
@@ -72,6 +77,7 @@ enum AccountTransactionHistoryPresentation {
             spokenBalanceTransition = nil
 
         case let .income(category, amount):
+            canOpenBookkeepingDetail = true
             title = transaction.title
                 ?? category.localizedTitle(locale: locale)
             formattedAmount = formattedSignedCurrency(
@@ -83,6 +89,7 @@ enum AccountTransactionHistoryPresentation {
             spokenBalanceTransition = nil
 
         case let .balanceAdjustment(balanceBefore, balanceAfter, balanceDelta):
+            canOpenBookkeepingDetail = false
             title = AccountLocalization.string(
                 "account.detail.history.balance_adjustment",
                 locale: locale
@@ -138,6 +145,7 @@ enum AccountTransactionHistoryPresentation {
 
         return AccountTransactionHistoryRowPresentation(
             id: transaction.id,
+            canOpenBookkeepingDetail: canOpenBookkeepingDetail,
             title: title,
             formattedAmount: formattedAmount,
             balanceTransition: balanceTransition,

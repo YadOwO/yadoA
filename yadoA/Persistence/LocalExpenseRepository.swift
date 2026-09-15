@@ -6,7 +6,7 @@ enum ExpenseRepositoryError: Error, Equatable {
     /// 相同流水 UUID 已经存在，拒绝覆盖或再次联动账户金额。
     case duplicateID(UUID)
 
-    /// 快速修改对应的流水不存在。
+    /// 修改或删除对应的流水不存在。
     case transactionNotFound(UUID)
 
     /// 当前版本只允许修改收入或支出流水。
@@ -69,18 +69,7 @@ final class LocalExpenseRepository {
             draft: draft,
             savedAt: savedAt
         )
-        guard let account = try account(id: transaction.accountID, in: modelContext) else {
-            throw ExpenseRepositoryError.accountNotFound(transaction.accountID)
-        }
-        guard account.isActive else {
-            throw ExpenseRepositoryError.accountDeactivated(transaction.accountID)
-        }
-        guard account.currencyCode == transaction.currencyCode else {
-            throw ExpenseRepositoryError.unsupportedCurrency(account.currencyCode)
-        }
-        guard account.supportsBookkeeping, let accountType = account.accountType else {
-            throw ExpenseRepositoryError.unsupportedAccountType(account.typeRawValue)
-        }
+        let (account, accountType) = try bookkeepingAccount(id: transaction.accountID, in: modelContext)
         let payload = try transaction.validatedPayload()
         guard let (amount, entryType) = Self.amountAndEntryType(for: payload) else {
             throw AccountTransactionValidationError.invalidPayload
@@ -105,54 +94,46 @@ final class LocalExpenseRepository {
 
     /// 校验并原子更新一笔已有收支流水，同时修正绑定账户的金额。
     ///
-    /// 标题只更新流水自身；金额更新会先抵消旧支出，再按账户类型应用新支出，
-    /// 因此重复提交、金额变大或变小都不会累积错误余额。
+    /// 撤销旧收支影响，再应用新收支影响；同一账户只施加净差额。
+    /// 始终从当前余额修正，业务日不承担余额重放，既有调整快照保持原样。
     ///
-    /// - Parameter draft: 首页快速修改页面提交的值类型草稿。
+    /// - Parameter draft: 完整编辑页面提交的值类型草稿。
     /// - Throws: 流水、账户、金额、标题或保存边界不符合约束时抛出对应错误。
     func update(_ draft: DiningExpenseEditDraft) throws {
         let modelContext = makeContext()
         guard let transaction = try transaction(id: draft.id, in: modelContext) else {
             throw ExpenseRepositoryError.transactionNotFound(draft.id)
         }
-        guard let payload = try? transaction.validatedPayload() else {
-            throw ExpenseRepositoryError.transactionNotEditable(draft.id)
-        }
-        guard let (oldAmount, entryType) = Self.amountAndEntryType(for: payload) else {
-            throw ExpenseRepositoryError.transactionNotEditable(draft.id)
-        }
-        guard let newAmount = draft.amount else {
-            throw AccountTransactionValidationError.invalidAmount
-        }
-        let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else {
-            throw DiningExpenseEditDraftValidationError.titleRequired
-        }
+        let (oldAmount, oldEntryType) = try Self.editableAmountAndType(for: transaction)
+        let replacement = try draft.validatedTransaction(savedAt: transaction.savedAt)
+        let (newAmount, newEntryType) = try Self.editableAmountAndType(for: replacement)
+        let (source, sourceType) = try bookkeepingAccount(id: transaction.accountID, in: modelContext)
 
-        guard let account = try account(id: transaction.accountID, in: modelContext) else {
-            throw ExpenseRepositoryError.accountNotFound(transaction.accountID)
+        if source.id == replacement.accountID {
+            source.balance = try Self.updatedBalance(
+                source.balance, from: oldAmount, oldEntryType: oldEntryType,
+                to: newAmount, newEntryType: newEntryType, effect: sourceType.expenseBalanceEffect
+            )
+        } else {
+            let (target, targetType) = try bookkeepingAccount(id: replacement.accountID, in: modelContext)
+            let restoredBalance = try Self.updatedBalance(
+                source.balance, by: -oldAmount,
+                effect: sourceType.expenseBalanceEffect, entryType: oldEntryType
+            )
+            let targetBalance = try Self.updatedBalance(
+                target.balance, by: newAmount,
+                effect: targetType.expenseBalanceEffect, entryType: newEntryType
+            )
+            source.balance = restoredBalance
+            target.balance = targetBalance
         }
-        guard account.isActive else {
-            throw ExpenseRepositoryError.accountDeactivated(transaction.accountID)
-        }
-        guard account.currencyCode == transaction.currencyCode else {
-            throw ExpenseRepositoryError.unsupportedCurrency(account.currencyCode)
-        }
-        guard account.supportsBookkeeping, let accountType = account.accountType else {
-            throw ExpenseRepositoryError.unsupportedAccountType(account.typeRawValue)
-        }
-
-        let updatedBalance = try Self.updatedBalance(
-            account.balance,
-            from: oldAmount,
-            to: newAmount,
-            effect: accountType.expenseBalanceEffect,
-            entryType: entryType
-        )
-
-        transaction.title = title
-        transaction.amount = newAmount
-        account.balance = updatedBalance
+        transaction.accountID = replacement.accountID
+        transaction.typeRawValue = replacement.typeRawValue
+        transaction.categoryRawValue = replacement.categoryRawValue
+        transaction.title = replacement.title
+        transaction.amount = replacement.amount
+        transaction.transactionDay = replacement.transactionDay
+        transaction.note = replacement.note
         do {
             try beforeSave()
             try modelContext.save()
@@ -160,6 +141,58 @@ final class LocalExpenseRepository {
             modelContext.rollback()
             throw error
         }
+    }
+
+    /// 原子删除一笔收支，并撤销其对当前账户余额的影响；不允许删除调整快照。
+    /// - Parameter id: 待删除流水的稳定 UUID，重复提交会报告流水不存在。
+    func delete(id: UUID) throws {
+        let context = makeContext()
+        guard let transaction = try transaction(id: id, in: context) else {
+            throw ExpenseRepositoryError.transactionNotFound(id)
+        }
+        let (amount, entryType) = try Self.editableAmountAndType(for: transaction)
+        let (account, accountType) = try bookkeepingAccount(id: transaction.accountID, in: context)
+        let balance = try Self.updatedBalance(
+            account.balance, by: -amount,
+            effect: accountType.expenseBalanceEffect, entryType: entryType
+        )
+        account.balance = balance
+        context.delete(transaction)
+        do {
+            try beforeSave()
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
+    /// 修改与删除共用的合法收支边界，拒绝币种转换和损坏载荷。
+    private static func editableAmountAndType(
+        for transaction: AccountTransaction
+    ) throws -> (Decimal, BookkeepingEntryType) {
+        guard let payload = try? transaction.validatedPayload(),
+              let result = amountAndEntryType(for: payload)
+        else { throw ExpenseRepositoryError.transactionNotEditable(transaction.id) }
+        guard transaction.currencyCode == "CNY" else {
+            throw ExpenseRepositoryError.unsupportedCurrency(transaction.currencyCode)
+        }
+        return result
+    }
+
+    /// 最终写入前重新校验账户，避免编辑期间停用、删除或类型变化绕过限制。
+    private func bookkeepingAccount(id: UUID, in context: ModelContext) throws -> (Account, AccountType) {
+        guard let account = try account(id: id, in: context) else {
+            throw ExpenseRepositoryError.accountNotFound(id)
+        }
+        guard account.isActive else { throw ExpenseRepositoryError.accountDeactivated(id) }
+        guard account.currencyCode == "CNY" else {
+            throw ExpenseRepositoryError.unsupportedCurrency(account.currencyCode)
+        }
+        guard account.supportsBookkeeping, let type = account.accountType else {
+            throw ExpenseRepositoryError.unsupportedAccountType(account.typeRawValue)
+        }
+        return (account, type)
     }
 
     /// 获取指定 UUID 的账户。
@@ -221,27 +254,27 @@ final class LocalExpenseRepository {
         effect: ExpenseBalanceEffect,
         entryType: BookkeepingEntryType
     ) throws -> Decimal {
-        var currentBalance = balance
-        var amount = amount
-        var result = Decimal()
-        let calculationError: Decimal.CalculationError
+        try adding(balanceChange(amount, effect: effect, entryType: entryType), to: balance)
+    }
+
+    /// 把正数收支金额转换为对账户余额的带符号影响，撤销时可传入负数金额。
+    private static func balanceChange(
+        _ amount: Decimal,
+        effect: ExpenseBalanceEffect,
+        entryType: BookkeepingEntryType
+    ) -> Decimal {
         switch (entryType, effect) {
-        case (.expense, .decreaseValue), (.income, .increaseDebt):
-            calculationError = NSDecimalSubtract(
-                &result,
-                &currentBalance,
-                &amount,
-                .plain
-            )
-        case (.expense, .increaseDebt), (.income, .decreaseValue):
-            calculationError = NSDecimalAdd(
-                &result,
-                &currentBalance,
-                &amount,
-                .plain
-            )
+        case (.expense, .decreaseValue), (.income, .increaseDebt): -amount
+        case (.expense, .increaseDebt), (.income, .decreaseValue): amount
         }
-        guard calculationError == .noError else {
+    }
+
+    /// 使用精确十进制加法应用余额变化，拒绝溢出和精度损失。
+    private static func adding(_ change: Decimal, to balance: Decimal) throws -> Decimal {
+        var currentBalance = balance
+        var change = change
+        var result = Decimal()
+        guard NSDecimalAdd(&result, &currentBalance, &change, .plain) == .noError else {
             throw ExpenseRepositoryError.balanceCalculationFailed
         }
         return result
@@ -251,12 +284,13 @@ final class LocalExpenseRepository {
     private static func updatedBalance(
         _ balance: Decimal,
         from oldAmount: Decimal,
+        oldEntryType: BookkeepingEntryType,
         to newAmount: Decimal,
-        effect: ExpenseBalanceEffect,
-        entryType: BookkeepingEntryType
+        newEntryType: BookkeepingEntryType,
+        effect: ExpenseBalanceEffect
     ) throws -> Decimal {
-        var oldAmount = oldAmount
-        var newAmount = newAmount
+        var oldAmount = balanceChange(oldAmount, effect: effect, entryType: oldEntryType)
+        var newAmount = balanceChange(newAmount, effect: effect, entryType: newEntryType)
         var amountDelta = Decimal()
         guard NSDecimalSubtract(
             &amountDelta,
@@ -267,12 +301,7 @@ final class LocalExpenseRepository {
             throw ExpenseRepositoryError.balanceCalculationFailed
         }
 
-        return try updatedBalance(
-            balance,
-            by: amountDelta,
-            effect: effect,
-            entryType: entryType
-        )
+        return try adding(amountDelta, to: balance)
     }
 
     /// 创建一个关闭自动保存的新鲜 context。

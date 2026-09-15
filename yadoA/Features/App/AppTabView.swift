@@ -56,12 +56,18 @@ enum AppTab: String, CaseIterable, Hashable {
 enum HomeRoute: Hashable {
     /// 新增支出页面。
     case expenseEntry
+
+    /// 统一收支详情入口。
+    case transactionDetail(UUID)
 }
 
 /// 账户导航栈支持的二级页面。
 enum AccountsRoute: Hashable {
     /// 指定账户的详情页面。
     case detail(UUID)
+
+    /// 账户历史中的统一收支详情入口。
+    case transactionDetail(UUID)
 }
 
 /// 搜索导航栈支持的二级页面。
@@ -94,6 +100,9 @@ struct AppTabView: View {
                                     try repository.save(draft)
                                 }
                                 .secondaryPage()
+                            case let .transactionDetail(transactionID):
+                                BookkeepingTransactionDetailView(transactionID: transactionID)
+                                    .secondaryPage()
                             }
                         }
                 }
@@ -116,6 +125,9 @@ struct AppTabView: View {
                             switch route {
                             case let .detail(accountID):
                                 AccountDetailView(accountID: accountID)
+                                    .secondaryPage()
+                            case let .transactionDetail(transactionID):
+                                BookkeepingTransactionDetailView(transactionID: transactionID)
                                     .secondaryPage()
                             }
                         }

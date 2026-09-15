@@ -44,7 +44,6 @@ struct HomeView: View {
 private struct HomeQueryContent: View {
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var environmentCalendar
-    @Environment(\.modelContext) private var modelContext
     @Binding private var areAmountsVisible: Bool
     @Query private var transactions: [AccountTransaction]
 
@@ -53,9 +52,6 @@ private struct HomeQueryContent: View {
 
     /// 是否展示月份选择 Sheet。
     @State private var isMonthPickerPresented = false
-
-    /// 当前正在快速修改的单笔流水。
-    @State private var transactionEditSelection: HomeTransactionEditSelection?
 
     init(areAmountsVisible: Binding<Bool>) {
         _areAmountsVisible = areAmountsVisible
@@ -86,9 +82,6 @@ private struct HomeQueryContent: View {
                 selectedMonth: activeMonth,
                 onSelectMonth: { month in
                     selectedMonth = month
-                },
-                onEditTransaction: { transactionID in
-                    beginEditing(transactionID: transactionID)
                 }
             )
         }
@@ -132,44 +125,6 @@ private struct HomeQueryContent: View {
                 )
             }
         }
-        .sheet(item: $transactionEditSelection) { selection in
-            NavigationStack {
-                DiningExpenseQuickEditView(draft: selection.draft) { draft in
-                    let repository = LocalExpenseRepository(
-                        container: modelContext.container
-                    )
-                    try repository.update(draft)
-                }
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
-    }
-
-    /// 根据首页行 ID 生成快速修改草稿，避免编辑页直接持有查询模型。
-    private func beginEditing(transactionID: UUID) {
-        guard let transaction = transactions.first(where: { $0.id == transactionID }),
-              let row = HomeOverviewPresentation.row(
-                  for: transaction,
-                  locale: locale,
-                  calendar: environmentCalendar
-              ),
-              let amount = transaction.amount
-        else { return }
-
-        transactionEditSelection = HomeTransactionEditSelection(
-            draft: DiningExpenseEditDraft(
-                id: transaction.id,
-                title: row.title,
-                amountText: Self.amountText(for: amount)
-            )
-        )
-    }
-
-    /// 把精确 Decimal 转成编辑草稿使用的英文句点金额字符。
-    private static func amountText(for amount: Decimal) -> String {
-        var amount = amount
-        return NSDecimalString(&amount, Locale(identifier: "en_US_POSIX"))
     }
 }
 
@@ -359,9 +314,6 @@ private struct HomeOverviewList: View {
     /// 月份切换回调。
     let onSelectMonth: (HomeMonth) -> Void
 
-    /// 用户请求快速修改某一笔流水时的回调。
-    let onEditTransaction: (UUID) -> Void
-
     var body: some View {
         GeometryReader { containerGeometry in
             List {
@@ -384,12 +336,7 @@ private struct HomeOverviewList: View {
                     ForEach(monthPresentation.dayGroups) { day in
                         Section {
                             ForEach(day.rows) { row in
-                                HomeOverviewRow(
-                                    row: row,
-                                    onEdit: {
-                                        onEditTransaction(row.id)
-                                    }
-                                )
+                                HomeOverviewRow(row: row)
                             }
                         } header: {
                             HomeOverviewDayHeader(day: day)
@@ -531,11 +478,8 @@ private struct HomeOverviewRow: View {
     /// 已完成本地化的首页行数据。
     let row: HomeOverviewRowPresentation
 
-    /// 打开该流水快速编辑页的回调。
-    let onEdit: () -> Void
-
     var body: some View {
-        Button(action: onEdit) {
+        NavigationLink(value: HomeRoute.transactionDetail(row.id)) {
             HStack(spacing: 14) {
                 Image(systemName: row.symbolName)
                     .font(.body.weight(.semibold))
@@ -569,33 +513,14 @@ private struct HomeOverviewRow: View {
         .accessibilityHint(
             Text(
                 AccountLocalization.formatted(
-                    "home.transaction.edit",
+                    "bookkeeping.detail.open",
                     value: row.title,
                     locale: locale
                 )
             )
         )
         .accessibilityIdentifier("home-transaction-\(row.id.uuidString)")
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(action: onEdit) {
-                Label(
-                    AccountLocalization.string("home.transaction.edit.action", locale: locale),
-                    systemImage: "pencil"
-                )
-            }
-            .tint(.blue)
-            .accessibilityIdentifier("home-transaction-edit-\(row.id.uuidString)")
-        }
     }
-}
-
-/// 首页快速编辑 Sheet 使用的稳定流水草稿包装。
-private struct HomeTransactionEditSelection: Identifiable {
-    /// 快速编辑页面使用的草稿。
-    let draft: DiningExpenseEditDraft
-
-    /// `sheet(item:)` 使用流水 UUID 作为稳定标识。
-    var id: UUID { draft.id }
 }
 
 /// 首页没有真实收入或支出流水时的本地化空状态。

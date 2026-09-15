@@ -62,7 +62,7 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
     }
 
     @MainActor
-    func testActiveDetailOffersNonWritingEditPlaceholder() throws {
+    func testActiveDetailOpensFullEditorAndCanCancel() throws {
         let app = launchBookkeepingSearchFixtureInEnglish()
         openSearch(in: app)
 
@@ -91,8 +91,9 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
         let edit = app.buttons["bookkeeping-detail-edit"]
         XCTAssertTrue(edit.waitForExistence(timeout: 2))
         edit.tap()
-        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 2))
-        app.alerts.firstMatch.buttons["Close"].tap()
+        XCTAssertTrue(app.navigationBars["Edit Transaction"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.textFields["expense-edit-title"].exists)
+        app.buttons["expense-edit-cancel"].tap()
 
         app.navigationBars["Transaction Details"].buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))

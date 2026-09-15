@@ -365,7 +365,9 @@ struct BookkeepingSearchPresentation {
         let formattedDate = formattedDate(date, locale: locale, calendar: calendar)
         let note = sanitizedOptionalText(transaction.note)
         let accountStatus = accountState.localizedTitle(locale: locale)
+        let title = sanitizedOptionalText(transaction.title) ?? categoryTitle
         let spokenParts = [
+            title,
             categoryTitle,
             formattedAmount,
             formattedDate,
@@ -376,6 +378,8 @@ struct BookkeepingSearchPresentation {
 
         return BookkeepingTransactionDetailPresentation(
             id: transaction.id,
+            title: title,
+            entryType: searchablePayload.entryType,
             categoryTitle: categoryTitle,
             formattedAmount: formattedAmount,
             transactionDay: transaction.transactionDay,
@@ -385,6 +389,9 @@ struct BookkeepingSearchPresentation {
             note: note,
             accessibilityLabel: spokenParts.joined(separator: ", "),
             canEdit: accountState == .active
+                && account?.supportsBookkeeping == true
+                && account?.currencyCode == "CNY"
+                && transaction.currencyCode == "CNY"
         )
     }
 
@@ -584,6 +591,12 @@ struct BookkeepingTransactionDetailPresentation: Equatable {
     /// 流水稳定标识。
     let id: UUID
 
+    /// 用户标题，旧流水回退到分类名。
+    let title: String
+
+    /// 收入与支出方向，供详情明确展示。
+    let entryType: BookkeepingEntryType
+
     /// 当前语言环境下的真实分类名称。
     let categoryTitle: String
 
@@ -608,6 +621,6 @@ struct BookkeepingTransactionDetailPresentation: Equatable {
     /// 包含详情字段和账户状态的播报文本。
     let accessibilityLabel: String
 
-    /// 当前账户是否允许显示未来编辑入口。
+    /// 当前账户是否允许编辑与删除流水。
     let canEdit: Bool
 }
