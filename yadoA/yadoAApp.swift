@@ -17,7 +17,13 @@ struct yadoAApp: App {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing-in-memory") {
             do {
-                let container = try AccountDataContainer.inMemory()
+                // 设计预览沿用隔离启动路径，示例收支不会写入真实账本。
+                let container = ProcessInfo.processInfo.arguments.contains("--ui-testing-home-design-preview")
+                    ? AccountDataContainer(
+                        modelContainer: try HomeDesignPreviewData.makeContainer(),
+                        storage: .inMemory
+                    )
+                    : try AccountDataContainer.inMemory()
                 if ProcessInfo.processInfo.arguments.contains("--ui-testing-home-fixture") {
                     if ProcessInfo.processInfo.arguments.contains("--ui-testing-reset-home-summary-visibility") {
                         UserDefaults.standard.set(false, forKey: "home.summary.amountsVisible")

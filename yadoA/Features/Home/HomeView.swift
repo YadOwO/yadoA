@@ -14,27 +14,23 @@ struct HomeView: View {
     var body: some View {
         HomeQueryContent(areAmountsVisible: $areAmountsVisible)
             .navigationTitle(AppTab.home.title(locale: locale))
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $isProfilePresented) {
                 NavigationStack {
                     ProfileView()
                 }
             }
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isProfilePresented = true
                     } label: {
-                        Image(systemName: "person.circle")
+                        Image(systemName: "person.crop.circle.fill")
+                            .font(.title2.weight(.regular))
+                            .foregroundStyle(Color.accentColor)
                     }
                     .accessibilityLabel(AccountLocalization.string("profile.title", locale: locale))
                     .accessibilityIdentifier("home-profile")
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    Image(systemName: "calendar")
-                        .accessibilityHidden(true)
-                        .foregroundStyle(.primary)
                 }
             }
     }
@@ -44,6 +40,8 @@ struct HomeView: View {
 private struct HomeQueryContent: View {
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var environmentCalendar
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Binding private var areAmountsVisible: Bool
     @Query private var transactions: [AccountTransaction]
 
@@ -67,44 +65,44 @@ private struct HomeQueryContent: View {
         let activeMonth = selectedMonth ?? presentation.initialMonth
         let monthPresentation = presentation.presentation(for: activeMonth)
 
-        VStack(spacing: 0) {
-            HomeOverviewHeader(
-                monthPresentation: monthPresentation,
-                areAmountsVisible: $areAmountsVisible,
-                onSelectMonth: {
-                    isMonthPickerPresented = true
-                }
-            )
-
-            HomeOverviewList(
-                monthPresentation: monthPresentation,
-                monthNavigator: HomeMonthNavigator(availableMonths: presentation.availableMonths),
-                selectedMonth: activeMonth,
-                onSelectMonth: { month in
-                    selectedMonth = month
-                }
-            )
-        }
-        .background(Color(uiColor: .systemBackground))
-        .overlay(alignment: .bottomTrailing) {
-            NavigationLink(value: HomeRoute.expenseEntry) {
-                Image(systemName: "plus")
-                    .font(.title2.weight(.medium))
-                    .foregroundStyle(.primary)
-                    .frame(width: 58, height: 58)
-                    .background(Circle().fill(Color.yellow))
-                    .overlay {
-                        Circle()
-                            .stroke(.white.opacity(0.8), lineWidth: 1)
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                let header = HomeOverviewHeader(
+                    monthPresentation: monthPresentation,
+                    areAmountsVisible: $areAmountsVisible,
+                    onSelectMonth: {
+                        isMonthPickerPresented = true
                     }
-                    .shadow(color: .black.opacity(0.16), radius: 8, y: 4)
+                )
+                if dynamicTypeSize.isAccessibilitySize || verticalSizeClass == .compact {
+                    // 大字号与紧凑高度下汇总独立滚动，给原有月份手势列表保留空间。
+                    ScrollView {
+                        header
+                    }
+                    .frame(maxHeight: geometry.size.height * 0.5)
+                } else {
+                    header
+                }
+
+                HomeOverviewList(
+                    monthPresentation: monthPresentation,
+                    monthNavigator: HomeMonthNavigator(availableMonths: presentation.availableMonths),
+                    selectedMonth: activeMonth,
+                    onSelectMonth: { month in
+                        selectedMonth = month
+                    }
+                )
             }
-            .accessibilityLabel(
-                Text(AccountLocalization.string("expense.entry.action", locale: locale))
-            )
-            .accessibilityIdentifier("home-add-expense")
-            .padding(.trailing, 18)
-            .padding(.bottom, 18)
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            HStack {
+                Spacer()
+                HomeAddTransactionButton()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+            .background(Color(uiColor: .systemGroupedBackground))
         }
         .onAppear {
             if selectedMonth == nil {
@@ -131,6 +129,8 @@ private struct HomeQueryContent: View {
 /// 首页固定头部，展示月份入口、月度收支和金额显隐控制。
 private struct HomeOverviewHeader: View {
     @Environment(\.locale) private var locale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// 当前月份的已本地化展示数据。
     let monthPresentation: HomeOverviewMonthPresentation
@@ -142,90 +142,99 @@ private struct HomeOverviewHeader: View {
     let onSelectMonth: () -> Void
 
     var body: some View {
-        VStack(spacing: 14) {
-            HStack(alignment: .center, spacing: 16) {
-                Button(action: onSelectMonth) {
-                    HStack(spacing: 6) {
-                        Text(monthPresentation.formattedMonth)
-                            .font(.headline)
-                            .lineLimit(1)
-                        Image(systemName: "chevron.down")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 20) {
+                HStack(alignment: .center, spacing: 12) {
+                    Button(action: onSelectMonth) {
+                        HStack(spacing: 8) {
+                            Text(monthPresentation.formattedMonth)
+                                .font(.headline)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Image(systemName: "chevron.down")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color.accentColor)
+                                .accessibilityHidden(true)
+                        }
+                        .frame(minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(
+                        Text(
+                            AccountLocalization.formatted(
+                                "home.month.selector.accessibility",
+                                value: monthPresentation.formattedMonth,
+                                locale: locale
+                            )
+                        )
+                    )
+                    .accessibilityIdentifier("home-month-selector")
+
+                    Spacer()
+
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+                            areAmountsVisible.toggle()
+                        }
+                    } label: {
+                        Image(systemName: areAmountsVisible ? "eye" : "eye.slash")
+                            .font(.system(size: 17))
+                            .foregroundStyle(.secondary)
+                            .contentTransition(.symbolEffect(.replace))
+                            .frame(width: 44, height: 44)
+                            .background(Color(uiColor: .tertiarySystemGroupedBackground), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(
+                        Text(
+                            AccountLocalization.string(
+                                areAmountsVisible
+                                    ? "home.summary.hide"
+                                    : "home.summary.show",
+                                locale: locale
+                            )
+                        )
+                    )
+                    .accessibilityValue(
+                        Text(
+                            AccountLocalization.string(
+                                areAmountsVisible
+                                    ? "home.summary.visible"
+                                    : "home.summary.hidden",
+                                locale: locale
+                            )
+                        )
+                    )
+                    .accessibilityIdentifier("home-summary-visibility")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(
-                    Text(
-                        AccountLocalization.formatted(
-                            "home.month.selector.accessibility",
-                            value: monthPresentation.formattedMonth,
-                            locale: locale
-                        )
+
+                Divider().overlay(Color.primary.opacity(0.02))
+
+                let summaryLayout = dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 20))
+                    : AnyLayout(HStackLayout(alignment: .top, spacing: 20))
+                summaryLayout {
+                    HomeSummaryColumn(
+                        title: AccountLocalization.string("home.summary.expense", locale: locale),
+                        amount: monthPresentation.expenseTotal,
+                        isVisible: areAmountsVisible,
+                        isIncome: false,
+                        locale: locale
                     )
-                )
-                .accessibilityIdentifier("home-month-selector")
 
-                Spacer()
-
-                Button {
-                    areAmountsVisible.toggle()
-                } label: {
-                    Image(systemName: areAmountsVisible ? "eye" : "eye.slash")
-                        .font(.headline)
-                        .frame(width: 44, height: 44)
+                    HomeSummaryColumn(
+                        title: AccountLocalization.string("home.summary.income", locale: locale),
+                        amount: monthPresentation.incomeTotal,
+                        isVisible: areAmountsVisible,
+                        isIncome: true,
+                        locale: locale
+                    )
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(
-                    Text(
-                        AccountLocalization.string(
-                            areAmountsVisible
-                                ? "home.summary.hide"
-                                : "home.summary.show",
-                            locale: locale
-                        )
-                    )
-                )
-                .accessibilityValue(
-                    Text(
-                        AccountLocalization.string(
-                            areAmountsVisible
-                                ? "home.summary.visible"
-                                : "home.summary.hidden",
-                            locale: locale
-                        )
-                    )
-                )
-                .accessibilityIdentifier("home-summary-visibility")
             }
-            .padding(.horizontal, 20)
+            .padding(20)
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: .rect(cornerRadius: 24))
 
-            HStack(spacing: 24) {
-                HomeSummaryColumn(
-                    title: AccountLocalization.string("home.summary.income", locale: locale),
-                    amount: monthPresentation.incomeTotal,
-                    isVisible: areAmountsVisible,
-                    isIncome: true,
-                    locale: locale
-                )
-
-                HomeSummaryColumn(
-                    title: AccountLocalization.string("home.summary.expense", locale: locale),
-                    amount: monthPresentation.expenseTotal,
-                    isVisible: areAmountsVisible,
-                    isIncome: false,
-                    locale: locale
-                )
-
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-
-            HStack(spacing: 12) {
-                Image(systemName: "calendar.badge.clock")
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
+            HStack {
                 Text(
                     AccountLocalization.string(
                         monthPresentation.isEmpty
@@ -234,15 +243,19 @@ private struct HomeOverviewHeader: View {
                         locale: locale
                     )
                 )
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .font(.title3.weight(.semibold))
+                .accessibilityAddTraits(.isHeader)
                 Spacer()
+                Image(systemName: "list.bullet")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 12)
+            .padding(.horizontal, 4)
         }
-        .padding(.top, 8)
-        .background(Color.yellow.opacity(0.32))
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .padding(.bottom, 4)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("home-fixed-header")
     }
@@ -266,14 +279,26 @@ private struct HomeSummaryColumn: View {
     let locale: Locale
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 7) {
+                Image(systemName: isIncome ? "arrow.down.left" : "arrow.up.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(isIncome ? Color.accentColor : Color.primary)
+                    .frame(width: 24, height: 24)
+                    .background(
+                        isIncome ? Color.accentColor.opacity(0.09) : Color.primary.opacity(0.05),
+                        in: Circle()
+                    )
+                    .accessibilityHidden(true)
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
             Text(isVisible ? formattedAmount : AccountLocalization.string("home.summary.mask", locale: locale))
-                .font(.body.monospacedDigit())
+                .font(.system(.title, design: .rounded, weight: .semibold).monospacedDigit())
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                .minimumScaleFactor(0.5)
+                .contentTransition(.numericText())
                 .accessibilityLabel(Text(title))
                 .accessibilityValue(
                     Text(
@@ -284,12 +309,38 @@ private struct HomeSummaryColumn: View {
                 )
                 .accessibilityIdentifier(isIncome ? "home-summary-income" : "home-summary-expense")
         }
-        .frame(minWidth: 72, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// 使用应用当前固定的 CNY 货币格式化金额。
     private var formattedAmount: String {
         amount.formatted(.currency(code: "CNY").locale(locale))
+    }
+}
+
+/// 首页主要操作，使用系统按钮反馈；新系统显示玻璃效果，iOS 18 保留原生实色按钮。
+private struct HomeAddTransactionButton: View {
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        if #available(iOS 26, *) {
+            entryLink.buttonStyle(.glassProminent)
+        } else {
+            entryLink.buttonStyle(.borderedProminent)
+        }
+    }
+
+    /// 沿用原有记账路由和本地化标题，整颗胶囊均为点击区域。
+    private var entryLink: some View {
+        NavigationLink(value: HomeRoute.expenseEntry) {
+            Label(AccountLocalization.string("expense.entry.action", locale: locale), systemImage: "plus")
+                .font(.headline)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 5)
+        }
+        .controlSize(.large)
+        .buttonBorderShape(.capsule)
+        .accessibilityIdentifier("home-add-expense")
     }
 }
 
@@ -317,17 +368,11 @@ private struct HomeOverviewList: View {
     var body: some View {
         GeometryReader { containerGeometry in
             List {
-                Color.clear
-                    .frame(height: 1)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-
                 if monthPresentation.isEmpty {
                     HomeEmptyState()
                         .frame(
                             maxWidth: .infinity,
-                            minHeight: max(220, containerGeometry.size.height - 2)
+                            minHeight: max(0, containerGeometry.size.height - 2)
                         )
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
@@ -337,6 +382,9 @@ private struct HomeOverviewList: View {
                         Section {
                             ForEach(day.rows) { row in
                                 HomeOverviewRow(row: row)
+                                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                                    .listRowBackground(Color(uiColor: .secondarySystemGroupedBackground))
+                                    .alignmentGuide(.listRowSeparatorLeading) { _ in 58 }
                             }
                         } header: {
                             HomeOverviewDayHeader(day: day)
@@ -351,6 +399,9 @@ private struct HomeOverviewList: View {
                     .listRowSeparator(.hidden)
             }
             .listStyle(.insetGrouped)
+            .listSectionSpacing(20)
+            .contentMargins(.top, 0, for: .scrollContent)
+            .scrollContentBackground(.hidden)
             .scrollBounceBehavior(.always)
             .accessibilityIdentifier("home-details-scroll")
             .onScrollGeometryChange(for: HomeMonthScrollInteraction.Pull?.self) { geometry in
@@ -440,19 +491,30 @@ private struct HomeOverviewList: View {
 /// 首页原生列表中的日期分组标题。
 private struct HomeOverviewDayHeader: View {
     @Environment(\.locale) private var locale
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// 当前日期组数据。
     let day: HomeOverviewDayPresentation
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(day.formattedDate)
-            Text(day.formattedWeekday)
-            Spacer(minLength: 8)
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+        layout {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(day.formattedDate)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
+                Text(day.formattedWeekday)
+                    .font(.caption)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             Text(daySummary)
+                .font(.caption.monospacedDigit())
+                .multilineTextAlignment(dynamicTypeSize.isAccessibilitySize ? .leading : .trailing)
         }
-        .font(.subheadline)
         .foregroundStyle(.secondary)
+        .padding(.vertical, 4)
         .textCase(nil)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("home-day-\(day.transactionDay)")
@@ -474,6 +536,7 @@ private struct HomeOverviewDayHeader: View {
 /// 首页单条只读流水行。
 private struct HomeOverviewRow: View {
     @Environment(\.locale) private var locale
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// 已完成本地化的首页行数据。
     let row: HomeOverviewRowPresentation
@@ -482,29 +545,34 @@ private struct HomeOverviewRow: View {
         NavigationLink(value: HomeRoute.transactionDetail(row.id)) {
             HStack(spacing: 14) {
                 Image(systemName: row.symbolName)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.yellow)
-                    .frame(width: 42, height: 42)
-                    .background(Circle().fill(Color.secondary.opacity(0.12)))
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 42, height: 44)
+                    .background(Color.accentColor.opacity(0.08), in: .rect(cornerRadius: 14))
                     .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(row.title)
-                        .font(.body)
-                    if let note = row.note {
-                        Text(note)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                let layout = dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                    : AnyLayout(HStackLayout(alignment: .center, spacing: 8))
+                layout {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(row.title)
+                            .font(.body.weight(.medium))
+                        if let note = row.note {
+                            Text(note)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(row.formattedAmount)
+                        .font(.system(.body, design: .rounded, weight: .semibold).monospacedDigit())
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .layoutPriority(1)
                 }
-
-                Spacer(minLength: 8)
-
-                Text(row.formattedAmount)
-                    .font(.body.monospacedDigit())
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
             }
             .frame(minHeight: 44)
         }

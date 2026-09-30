@@ -16,14 +16,14 @@ final class HomeOverviewFlowUITests: XCTestCase {
         let list = app.descendants(matching: .any)["home-details-scroll"].firstMatch
         XCTAssertTrue(list.waitForExistence(timeout: 3))
 
-        let start = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
-        let end = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+        let start = listCoordinate(in: app, list: list, fraction: 0.1)
+        let end = listCoordinate(in: app, list: list, fraction: 0.9)
         start.press(forDuration: 0.1, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
         let nextMonth = monthLabel(offset: 3)
         XCTAssertTrue(selector.wait(for: \.label, toEqual: nextMonth, timeout: 4))
 
-        let returnStart = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
-        let returnEnd = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        let returnStart = listCoordinate(in: app, list: list, fraction: 0.9)
+        let returnEnd = listCoordinate(in: app, list: list, fraction: 0.1)
         returnStart.press(forDuration: 0.1, thenDragTo: returnEnd, withVelocity: .slow, thenHoldForDuration: 0.3)
         XCTAssertTrue(selector.wait(for: \.label, toEqual: originalMonth, timeout: 4))
     }
@@ -37,7 +37,7 @@ final class HomeOverviewFlowUITests: XCTestCase {
         let originalMonth = selector.label
         let list = app.descendants(matching: .any)["home-details-scroll"].firstMatch
         XCTAssertTrue(list.waitForExistence(timeout: 3))
-        let start = list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+        let start = listCoordinate(in: app, list: list, fraction: 0.5)
         let end = start.withOffset(CGVector(dx: 0, dy: -35))
         start.press(forDuration: 0.1, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
         let changed = XCTNSPredicateExpectation(
@@ -46,6 +46,17 @@ final class HomeOverviewFlowUITests: XCTestCase {
         )
         changed.isInverted = true
         wait(for: [changed], timeout: 2)
+    }
+
+    /// List 的辅助功能边框包含底部安全区，手势只能从记账按钮上方的可见明细区域开始。
+    @MainActor
+    private func listCoordinate(in app: XCUIApplication, list: XCUIElement, fraction: CGFloat) -> XCUICoordinate {
+        let frame = list.frame
+        let top = frame.minY + 12
+        let bottom = min(frame.maxY, app.buttons["home-add-expense"].frame.minY - 20)
+        return list.coordinate(withNormalizedOffset: .zero).withOffset(
+            CGVector(dx: frame.width * 0.5, dy: top - frame.minY + (bottom - top) * fraction)
+        )
     }
 
     /// 与英文夹具一致的当前月偏移标题，包含月份按钮的辅助功能前缀。
