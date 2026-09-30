@@ -96,7 +96,7 @@ struct ChartOverviewPresentation: Equatable {
     /// 按时间正序排列的图表点。
     let points: [ChartPointPresentation]
 
-    /// 月视图横轴只展示首日、从首日起每隔五天和末日，避免整月标签相互重叠。
+    /// 月视图每隔五天显示日期并保留月末；与月末不足五天的刻度省略，避免短月份尾部拥挤。
     var monthlyXAxisLabelValues: [String] {
         guard period == .month,
               let firstPoint = points.first,
@@ -106,10 +106,11 @@ struct ChartOverviewPresentation: Equatable {
         }
 
         let firstDay = firstPoint.bucketValue % 100
+        let lastDay = lastPoint.bucketValue % 100
         return points.compactMap { point in
             let day = point.bucketValue % 100
             guard point.id == lastPoint.id
-                    || (day - firstDay).isMultiple(of: 5)
+                    || ((day - firstDay).isMultiple(of: 5) && lastDay - day >= 5)
             else {
                 return nil
             }

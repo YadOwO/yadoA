@@ -316,13 +316,16 @@ private struct ChartExpenseCard: View {
                 }
             }
             .chartXAxis {
-                if chart.period == .month {
-                    AxisMarks(values: chart.monthlyXAxisLabelValues) { _ in
-                        AxisValueLabel()
-                    }
-                } else {
-                    AxisMarks { _ in
-                        AxisValueLabel()
+                AxisMarks(values: xAxisLabelValues) { value in
+                    AxisValueLabel(
+                        centered: false,
+                        collisionResolution: .greedy(minimumSpacing: 8)
+                    ) {
+                        if let label = value.as(String.self) {
+                            Text(label)
+                                .lineLimit(1)
+                                .fixedSize()
+                        }
                     }
                 }
             }
@@ -333,6 +336,13 @@ private struct ChartExpenseCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(uiColor: .secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    /// 月视图先减少日期刻度，其余周期由系统按实际标签宽度避让；折线仍使用全部数据点。
+    private var xAxisLabelValues: [String] {
+        chart.period == .month
+            ? chart.monthlyXAxisLabelValues
+            : chart.points.map(\.formattedLabel)
     }
 
 }
