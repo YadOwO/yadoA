@@ -2,11 +2,14 @@ import Charts
 import SwiftData
 import SwiftUI
 
-/// 图表 Tab，按周、月或年展示真实支出趋势。
+/// 图表 Tab，按周、月或年展示真实收支趋势。
 struct ChartView: View {
     @Environment(\.calendar) private var environmentCalendar
     @Environment(\.locale) private var locale
     @Query private var transactions: [AccountTransaction]
+
+    /// 当前展示的收支类型，默认支出。
+    @State private var selectedEntryType: BookkeepingEntryType = .expense
 
     /// 当前使用的周、月或年周期，默认保持原有月视图。
     @State private var selectedPeriod: ChartPeriod = .month
@@ -31,6 +34,7 @@ struct ChartView: View {
         }
         let chart = ChartOverviewPresentation(
             period: selectedPeriod,
+            entryType: selectedEntryType,
             anchorDate: selectedAnchorDate,
             transactions: transactions,
             calendar: environmentCalendar,
@@ -39,6 +43,15 @@ struct ChartView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                ChartEntryTypePicker(selection: Binding(
+                    get: { selectedEntryType },
+                    set: { entryType in
+                        // 切换收支时保留当前显示日期，便于比较同一周期。
+                        selectAnchorDate(chart.anchorDate)
+                        selectedEntryType = entryType
+                    }
+                ))
+
                 ChartPeriodPicker(selection: $selectedPeriod)
 
                 ChartTimeSelector(
@@ -66,7 +79,7 @@ struct ChartView: View {
 
                 ChartSummaryCard(chart: chart)
 
-                ChartExpenseCard(chart: chart)
+                ChartTrendCard(chart: chart)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -104,6 +117,28 @@ struct ChartView: View {
         selectedAnchorDay = date.map {
             TransactionDay.encode($0, calendar: environmentCalendar)
         }
+    }
+}
+
+/// 图表页顶部的支出、收入分段选择器。
+private struct ChartEntryTypePicker: View {
+    @Environment(\.locale) private var locale
+
+    /// 当前选中的收支类型。
+    @Binding var selection: BookkeepingEntryType
+
+    var body: some View {
+        Picker(
+            AccountLocalization.string("bookkeeping.entry.type", locale: locale),
+            selection: $selection
+        ) {
+            ForEach(BookkeepingEntryType.allCases) { entryType in
+                Text(entryType.localizedTitle(locale: locale))
+                    .tag(entryType)
+            }
+        }
+        .pickerStyle(.segmented)
+        .accessibilityIdentifier("chart-entry-type-picker")
     }
 }
 
@@ -215,7 +250,7 @@ private struct ChartTimeSelector: View {
     }
 }
 
-/// 图表页顶部的周期总支出与记录数量摘要。
+/// 图表页顶部的周期收支总额与记录数量摘要。
 private struct ChartSummaryCard: View {
     @Environment(\.locale) private var locale
 
@@ -224,12 +259,12 @@ private struct ChartSummaryCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(AccountLocalization.string("chart.summary.title", locale: locale))
+            Text(AccountLocalization.string(chart.summaryTitleLocalizationKey, locale: locale))
                 .font(.headline)
 
             HStack(spacing: 24) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(AccountLocalization.string("chart.summary.total", locale: locale))
+                    Text(AccountLocalization.string(chart.totalTitleLocalizationKey, locale: locale))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text(formattedTotal)
@@ -255,14 +290,14 @@ private struct ChartSummaryCard: View {
         .accessibilityIdentifier("chart-summary-card")
     }
 
-    /// 当前周期总支出的本地化货币金额。
+    /// 当前周期收支总额的本地化货币金额。
     private var formattedTotal: String {
-        chart.totalExpense.formatted(.currency(code: "CNY").locale(locale))
+        chart.totalAmount.formatted(.currency(code: "CNY").locale(locale))
     }
 }
 
-/// 图表页当前周期的支出折线图；没有支出的时间桶按零展示。
-private struct ChartExpenseCard: View {
+/// 图表页当前周期的收支折线图；没有对应流水的时间桶按零展示。
+private struct ChartTrendCard: View {
     @Environment(\.locale) private var locale
 
     /// 当前周期的完整展示投影。
@@ -272,7 +307,7 @@ private struct ChartExpenseCard: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(
                 AccountLocalization.string(
-                    chart.period.chartTitleLocalizationKey,
+                    chart.chartTitleLocalizationKey,
                     locale: locale
                 )
             )
@@ -285,8 +320,8 @@ private struct ChartExpenseCard: View {
                         point.formattedLabel
                     ),
                     y: .value(
-                        AccountLocalization.string("chart.axis.expense", locale: locale),
-                        point.expenseTotal.doubleValue
+                        chart.entryType.localizedTitle(locale: locale),
+                        point.amount.doubleValue
                     )
                 )
                 .foregroundStyle(Color.accentColor)
@@ -299,14 +334,14 @@ private struct ChartExpenseCard: View {
                         point.formattedLabel
                     ),
                     y: .value(
-                        AccountLocalization.string("chart.axis.expense", locale: locale),
-                        point.expenseTotal.doubleValue
+                        chart.entryType.localizedTitle(locale: locale),
+                        point.amount.doubleValue
                     )
                 )
                 .foregroundStyle(Color.accentColor)
                 .symbolSize(24)
                 .accessibilityLabel(point.formattedLabel)
-                .accessibilityValue(point.formattedExpense)
+                .accessibilityValue(point.formattedAmount)
             }
             .chartYScale(domain: .automatic(includesZero: true))
             .chartYAxis {
@@ -330,7 +365,7 @@ private struct ChartExpenseCard: View {
                 }
             }
             .frame(height: 240)
-            .accessibilityIdentifier("chart-expense-\(chart.period.rawValue)")
+            .accessibilityIdentifier("chart-\(chart.entryType.rawValue)-\(chart.period.rawValue)")
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)

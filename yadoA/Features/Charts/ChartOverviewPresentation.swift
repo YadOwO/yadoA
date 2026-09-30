@@ -3,13 +3,13 @@ import SwiftData
 
 /// 图表页支持的时间聚合周期。
 enum ChartPeriod: String, CaseIterable, Identifiable, Hashable {
-    /// 按自然周查看每日支出。
+    /// 按自然周查看每日收支。
     case week
 
-    /// 按自然月查看每日支出。
+    /// 按自然月查看每日收支。
     case month
 
-    /// 按自然年查看每月支出。
+    /// 按自然年查看每月收支。
     case year
 
     /// 分段选择器使用的稳定标识。
@@ -18,16 +18,6 @@ enum ChartPeriod: String, CaseIterable, Identifiable, Hashable {
     /// 周、月、年标题对应的稳定本地化键。
     var titleLocalizationKey: String {
         "chart.period.\(rawValue)"
-    }
-
-    /// 当前周期下图表标题对应的稳定本地化键。
-    var chartTitleLocalizationKey: String {
-        switch self {
-        case .week, .month:
-            "chart.daily.title"
-        case .year:
-            "chart.monthly.title"
-        }
     }
 
     /// 日历移动和区间计算使用的组件。
@@ -48,7 +38,7 @@ enum ChartPeriod: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
-/// 图表页单个时间桶的支出展示数据。
+/// 图表页单个时间桶的收支展示数据。
 struct ChartPointPresentation: Identifiable, Equatable {
     /// 日使用 `YYYYMMDD`、月使用 `YYYYMM` 的稳定时间桶标识。
     let bucketValue: Int
@@ -56,11 +46,11 @@ struct ChartPointPresentation: Identifiable, Equatable {
     /// 当前语言环境下的横轴标题。
     let formattedLabel: String
 
-    /// 当前时间桶内有效支出的精确金额。
-    let expenseTotal: Decimal
+    /// 当前时间桶内所选类型的有效流水的精确金额。
+    let amount: Decimal
 
     /// 当前语言环境下的货币金额，用于辅助功能播报。
-    let formattedExpense: String
+    let formattedAmount: String
 
     /// 图表点使用的稳定标识。
     var id: Int { bucketValue }
@@ -68,15 +58,19 @@ struct ChartPointPresentation: Identifiable, Equatable {
 
 /// 图表页当前周期的纯展示投影。
 struct ChartOverviewPresentation: Equatable {
-    /// 只读取图表需要的支出；聚合不依赖持久化排序。
+    /// 读取支出和收入；余额调整不参与图表统计，聚合不依赖持久化排序。
     static func descriptor() -> FetchDescriptor<AccountTransaction> {
         let expenseType = AccountTransactionType.expense.rawValue
+        let incomeType = AccountTransactionType.income.rawValue
         return FetchDescriptor(
             predicate: #Predicate<AccountTransaction> { transaction in
-                transaction.typeRawValue == expenseType
+                transaction.typeRawValue == expenseType || transaction.typeRawValue == incomeType
             }
         )
     }
+
+    /// 当前展示的收支类型。
+    let entryType: BookkeepingEntryType
 
     /// 当前使用的周、月或年周期。
     let period: ChartPeriod
@@ -87,14 +81,34 @@ struct ChartOverviewPresentation: Equatable {
     /// 当前语言环境下的周期范围标题。
     let formattedPeriod: String
 
-    /// 当前周期有效支出的精确总额。
-    let totalExpense: Decimal
+    /// 当前周期所选类型的有效流水的精确总额。
+    let totalAmount: Decimal
 
-    /// 当前周期有效支出流水的数量。
+    /// 当前周期所选类型的有效流水的数量。
     let transactionCount: Int
 
     /// 按时间正序排列的图表点。
     let points: [ChartPointPresentation]
+
+    /// 概览卡片根据收支类型选择标题。
+    var summaryTitleLocalizationKey: String {
+        entryType == .expense ? "chart.summary.title" : "chart.income.summary.title"
+    }
+
+    /// 总额标签根据收支类型选择标题。
+    var totalTitleLocalizationKey: String {
+        entryType == .expense ? "chart.summary.total" : "chart.income.summary.total"
+    }
+
+    /// 趋势图根据收支类型和周期选择标题。
+    var chartTitleLocalizationKey: String {
+        switch (entryType, period) {
+        case (.expense, .week), (.expense, .month): "chart.daily.title"
+        case (.expense, .year): "chart.monthly.title"
+        case (.income, .week), (.income, .month): "chart.income.daily.title"
+        case (.income, .year): "chart.income.monthly.title"
+        }
+    }
 
     /// 月视图每隔五天显示日期并保留月末；与月末不足五天的刻度省略，避免短月份尾部拥挤。
     var monthlyXAxisLabelValues: [String] {
@@ -118,20 +132,22 @@ struct ChartOverviewPresentation: Equatable {
         }
     }
 
-    /// 从原始账户流水生成周、月或年的支出展示数据。
+    /// 从原始账户流水生成周、月或年的收支展示数据。
     ///
-    /// 只有通过 `validatedPayload()` 校验的支出会进入图表；余额调整、
+    /// 只有通过 `validatedPayload()` 校验且匹配所选收支类型的流水会进入图表；余额调整、
     /// 未知类型、损坏字段和无效业务日都会被安全排除。
     ///
     /// - Parameters:
     ///   - period: 当前周、月或年周期。
-    ///   - anchorDate: 定位当前周期的日期；为空时根据真实支出自动选择。
+    ///   - entryType: 要统计的收支类型，默认支出。
+    ///   - anchorDate: 定位当前周期的日期；为空时根据所选类型的真实流水自动选择。
     ///   - transactions: 跨账户查询得到的原始流水。
     ///   - now: 没有显式锚点时用于选择初始周期的当前日期。
     ///   - calendar: 提供时区和周起始规则的日历。
     ///   - locale: 用于周期、横轴和金额展示的语言环境。
     init(
         period: ChartPeriod,
+        entryType: BookkeepingEntryType = .expense,
         anchorDate: Date? = nil,
         transactions: [AccountTransaction],
         now: Date = .now,
@@ -142,11 +158,11 @@ struct ChartOverviewPresentation: Equatable {
             basedOn: sourceCalendar,
             locale: locale
         )
-        let validExpenses = transactions.compactMap {
-            Self.validExpense(for: $0, calendar: calendar, locale: locale)
+        let validTransactions = transactions.compactMap {
+            Self.validTransaction(for: $0, entryType: entryType, calendar: calendar, locale: locale)
         }
         let resolvedAnchorDate = anchorDate ?? Self.initialAnchorDate(
-            dates: validExpenses.map(\.date),
+            dates: validTransactions.map(\.date),
             now: now,
             calendar: calendar
         )
@@ -155,11 +171,11 @@ struct ChartOverviewPresentation: Equatable {
             containing: resolvedAnchorDate,
             calendar: calendar
         )
-        let periodExpenses = validExpenses.filter { expense in
-            expense.date >= interval.start && expense.date < interval.end
+        let periodTransactions = validTransactions.filter { transaction in
+            transaction.date >= interval.start && transaction.date < interval.end
         }
-        let groupedExpenses = Dictionary(grouping: periodExpenses) { expense in
-            Self.bucketStart(for: expense.date, period: period, calendar: calendar)
+        let groupedTransactions = Dictionary(grouping: periodTransactions) { transaction in
+            Self.bucketStart(for: transaction.date, period: period, calendar: calendar)
         }
         let bucketDates = Self.bucketDates(
             for: period,
@@ -167,6 +183,7 @@ struct ChartOverviewPresentation: Equatable {
             calendar: calendar
         )
 
+        self.entryType = entryType
         self.period = period
         self.anchorDate = resolvedAnchorDate
         self.formattedPeriod = Self.formattedPeriod(
@@ -175,20 +192,20 @@ struct ChartOverviewPresentation: Equatable {
             locale: locale,
             calendar: calendar
         )
-        self.totalExpense = periodExpenses.reduce(into: Decimal.zero) { total, expense in
-            total += expense.amount
+        self.totalAmount = periodTransactions.reduce(into: Decimal.zero) { total, transaction in
+            total += transaction.amount
         }
-        self.transactionCount = periodExpenses.count
+        self.transactionCount = periodTransactions.count
         let pointFormatter = Self.pointFormatter(
             for: period,
             locale: locale,
             calendar: calendar
         )
         self.points = bucketDates.map { bucketDate in
-            let expenseTotal = groupedExpenses[bucketDate, default: []].reduce(
+            let amount = groupedTransactions[bucketDate, default: []].reduce(
                 into: Decimal.zero
-            ) { total, expense in
-                total += expense.amount
+            ) { total, transaction in
+                total += transaction.amount
             }
             return ChartPointPresentation(
                 bucketValue: Self.bucketValue(
@@ -197,32 +214,33 @@ struct ChartOverviewPresentation: Equatable {
                     calendar: calendar
                 ),
                 formattedLabel: pointFormatter.string(from: bucketDate),
-                expenseTotal: expenseTotal,
-                formattedExpense: expenseTotal.formatted(
+                amount: amount,
+                formattedAmount: amount.formatted(
                     .currency(code: "CNY").locale(locale)
                 )
             )
         }
     }
 
-    /// 根据真实支出选择首次进入图表时的日期锚点。
+    /// 根据所选类型的真实流水选择首次进入图表时的日期锚点。
     ///
-    /// 当前月有数据时保留当前日期；否则优先最近历史支出，再选择最早未来支出，
-    /// 完全没有有效支出时仍使用当前日期。
+    /// 当前月有数据时保留当前日期；否则优先最近历史流水，再选择最早未来流水，
+    /// 完全没有所选类型的有效流水时仍使用当前日期。
     static func initialAnchorDate(
         transactions: [AccountTransaction],
+        entryType: BookkeepingEntryType = .expense,
         now: Date = .now,
         calendar sourceCalendar: Calendar = .current,
         locale: Locale = .current
     ) -> Date {
         let calendar = chartCalendar(basedOn: sourceCalendar, locale: locale)
         let dates = transactions.compactMap {
-            validExpense(for: $0, calendar: calendar, locale: locale)?.date
+            validTransaction(for: $0, entryType: entryType, calendar: calendar, locale: locale)?.date
         }
         return initialAnchorDate(dates: dates, now: now, calendar: calendar)
     }
 
-    /// 从已校验支出选择首次进入图表时的日期锚点。
+    /// 从已校验流水选择首次进入图表时的日期锚点。
     private static func initialAnchorDate(
         dates: [Date],
         now: Date,
@@ -261,12 +279,12 @@ struct ChartOverviewPresentation: Equatable {
         )
     }
 
-    /// 已完成有效日期和载荷解码的支出。
-    private struct ValidExpense {
+    /// 已完成有效日期和载荷解码的流水。
+    private struct ValidTransaction {
         /// 当前时区下的业务日日期。
         let date: Date
 
-        /// 经领域模型确认的精确支出金额。
+        /// 经领域模型确认的精确金额。
         let amount: Decimal
     }
 
@@ -284,23 +302,28 @@ struct ChartOverviewPresentation: Equatable {
         return calendar
     }
 
-    /// 严格解码单笔真实支出。
-    private static func validExpense(
+    /// 严格解码单笔所选类型的真实流水。
+    private static func validTransaction(
         for transaction: AccountTransaction,
+        entryType: BookkeepingEntryType,
         calendar: Calendar,
         locale: Locale
-    ) -> ValidExpense? {
+    ) -> ValidTransaction? {
         guard let date = TransactionDay.date(
             from: transaction.transactionDay,
             calendar: calendar,
             locale: locale
         ),
-        let payload = try? transaction.validatedPayload(),
-        case let .expense(_, amount) = payload
+        let payload = try? transaction.validatedPayload()
         else {
             return nil
         }
-        return ValidExpense(date: date, amount: amount)
+        switch (entryType, payload) {
+        case let (.expense, .expense(_, amount)), let (.income, .income(_, amount)):
+            return ValidTransaction(date: date, amount: amount)
+        default:
+            return nil
+        }
     }
 
     /// 返回日期所在周、月或年的半开区间。
@@ -316,7 +339,7 @@ struct ChartOverviewPresentation: Equatable {
             )
     }
 
-    /// 返回支出在当前周期下所属的日或月起点。
+    /// 返回流水在当前周期下所属的日或月起点。
     private static func bucketStart(
         for date: Date,
         period: ChartPeriod,
