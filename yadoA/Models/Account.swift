@@ -5,7 +5,7 @@ import SwiftData
 enum AccountValidationError: Error, Equatable {
     /// 清理后的账户名称为空。
     case emptyName
-    /// 金额为空、为负数，或不符合当前语言环境的十进制格式。
+    /// 金额为空、为负数、超过两位小数，或不符合当前语言环境的十进制格式。
     case invalidAmount
     /// 所选模板缺失、与账户类型不匹配或不是当前支持的稳定模板。
     case invalidTemplate

@@ -6,6 +6,29 @@ import Testing
 @Suite("Account 持久化边界", .serialized)
 @MainActor
 struct AccountPersistenceTests {
+    /// 表单禁用保存与仓库最终校验必须同时阻止无法按分调整的初始余额。
+    @Test("创建账户拒绝超出 CNY 精度的余额", arguments: [
+        ("en_US", "100.001"), ("de_DE", "100,001")
+    ])
+    func rejectsExcessPrecision(localeID: String, amountText: String) throws {
+        let locale = Locale(identifier: localeID)
+        let dataContainer = try AccountDataContainer.inMemory()
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        var draft = AccountDraft(accountType: .cash, name: "现金", amountText: amountText)
+
+        #expect(!draft.isFormValid(locale: locale))
+        #expect(throws: AccountValidationError.invalidAmount) {
+            try repository.save(draft, locale: locale)
+        }
+        #expect(try repository.accounts().isEmpty)
+        #expect(try repository.defaultCandidates().isEmpty)
+
+        draft.amountText = localeID == "de_DE" ? "100,01" : "100.01"
+        #expect(draft.isFormValid(locale: locale))
+        try repository.save(draft, locale: locale)
+        #expect(try repository.account(id: draft.id)?.balance == Decimal(string: "100.01"))
+    }
+
     @Test("内存存储显式保存并拒绝重复 UUID")
     func savesAndRejectsDuplicateID() throws {
         let dataContainer = try AccountDataContainer.inMemory()

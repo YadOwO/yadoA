@@ -442,7 +442,11 @@ private struct AccountDetailQueryContent: View {
                 } else {
                     ForEach(historyRows) { presentation in
                         if presentation.canOpenBookkeepingDetail {
-                            NavigationLink(value: AccountsRoute.transactionDetail(presentation.id)) {
+                            // 详情也会出现在设置和账户管理的导航栈中，直接目标无需依赖 Tab 路由注册。
+                            NavigationLink {
+                                BookkeepingTransactionDetailView(transactionID: presentation.id)
+                                    .secondaryPage()
+                            } label: {
                                 AccountTransactionHistoryRow(presentation: presentation)
                             }
                             .accessibilityIdentifier("account-transaction-detail-\(presentation.id.uuidString)")

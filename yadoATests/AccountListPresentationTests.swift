@@ -7,6 +7,24 @@ import Testing
 @Suite("账户列表展示", .serialized)
 @MainActor
 struct AccountListPresentationTests {
+    /// 可改名模板账户在切换语言后仍应保留用户填写的名称。
+    @Test("虚拟与投资账户保留自定义名称", arguments: [AccountType.virtualAccount, .investment])
+    func editableTemplatePreservesCustomName(accountType: AccountType) throws {
+        let template = try #require(accountType.templates.first)
+        let account = makeAccount(
+            typeRawValue: accountType.rawValue,
+            templateID: template.id,
+            name: "我的专用账户"
+        )
+        for localeID in ["en", "zh-Hans"] {
+            let row = AccountListPresentation.row(for: account, locale: Locale(identifier: localeID))
+            #expect(row.name == "我的专用账户")
+            #expect(row.icon.symbolName == template.symbolName)
+        }
+        account.name = "修改后的账户"
+        #expect(AccountListPresentation.row(for: account).name == "修改后的账户")
+    }
+
     @Test("空与非空状态始终只提供一个主要添加入口")
     func addActionStateHasExactlyOneEntryPoint() {
         #expect(AccountListState.showsInlineAdd(accountCount: 0))

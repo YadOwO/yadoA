@@ -1,6 +1,8 @@
 import Foundation
 
+/// 账户与金额查询共用的 CNY 输入解析规则。
 enum AccountAmountParser {
+    /// 解析区域化非负金额，拒绝超过两位小数的输入，供表单和持久化边界共用。
     static func amount(from text: String, locale: Locale = .current) -> Decimal? {
         let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty, value.first != "-" else { return nil }
@@ -8,6 +10,7 @@ enum AccountAmountParser {
         let decimalSeparator = locale.decimalSeparator ?? "."
         let parts = value.components(separatedBy: decimalSeparator)
         guard parts.count <= 2,
+              parts.count == 1 || parts[1].count <= 2,
               parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isWholeNumber) })
         else { return nil }
 

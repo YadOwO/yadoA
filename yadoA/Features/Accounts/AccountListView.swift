@@ -7,7 +7,7 @@ struct AccountRowPresentation: Identifiable, Equatable {
     /// 持久账户的稳定标识。
     let id: UUID
 
-    /// 已知模板使用当前语言标签，其他情况保留持久化账户名称。
+    /// 不可改名的机构账户使用本地化模板标签，其余保留持久化账户名称。
     let name: String
 
     /// 本地化账户类型及可选掩码后缀。
@@ -156,7 +156,9 @@ enum AccountListPresentation {
 
         return AccountRowPresentation(
             id: account.id,
-            name: template?.name(locale: locale) ?? account.name,
+            name: accountType?.showsEditableName == false
+                ? (template?.name(locale: locale) ?? account.name)
+                : account.name,
             detail: detail,
             formattedAmount: formattedAmount,
             amountLabel: amountLabel,
