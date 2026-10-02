@@ -22,6 +22,12 @@ struct HomeView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(value: HomeRoute.bills) {
+                        Label(AccountLocalization.string("bill.title", locale: locale), systemImage: "doc.text")
+                    }
+                    .accessibilityIdentifier("home-bills")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isProfilePresented = true
                     } label: {

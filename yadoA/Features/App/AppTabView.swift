@@ -54,6 +54,9 @@ enum AppTab: String, CaseIterable, Hashable {
 
 /// 首页导航栈支持的二级页面。
 enum HomeRoute: Hashable {
+    /// 首页临时账单入口。
+    case bills
+
     /// 新增支出页面。
     case expenseEntry
 
@@ -92,6 +95,9 @@ struct AppTabView: View {
                     HomeView()
                         .navigationDestination(for: HomeRoute.self) { route in
                             switch route {
+                            case .bills:
+                                BillView()
+                                    .secondaryPage()
                             case .expenseEntry:
                                 DiningExpenseEntryView { draft in
                                     let repository = LocalExpenseRepository(
