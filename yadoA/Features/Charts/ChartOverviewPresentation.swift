@@ -90,6 +90,9 @@ struct ChartOverviewPresentation: Equatable {
     /// 按时间正序排列的图表点。
     let points: [ChartPointPresentation]
 
+    /// 与趋势图使用同一周期、收支类型和校验规则的分类排行。
+    let categoryRanking: [CategoryRankingItem]
+
     /// 概览卡片根据收支类型选择标题。
     var summaryTitleLocalizationKey: String {
         entryType == .expense ? "chart.summary.title" : "chart.income.summary.title"
@@ -196,6 +199,19 @@ struct ChartOverviewPresentation: Equatable {
             total += transaction.amount
         }
         self.transactionCount = periodTransactions.count
+        self.categoryRanking = Dictionary(grouping: periodTransactions, by: \.categoryID)
+            .compactMap { categoryID, transactions in
+                guard let first = transactions.first else { return nil }
+                return CategoryRankingItem(
+                    id: categoryID,
+                    title: first.categoryTitle,
+                    symbolName: first.categorySymbol,
+                    amount: transactions.reduce(Decimal.zero) { $0 + $1.amount }
+                )
+            }
+            .sorted {
+                $0.amount == $1.amount ? $0.id < $1.id : $0.amount > $1.amount
+            }
         let pointFormatter = Self.pointFormatter(
             for: period,
             locale: locale,
@@ -286,6 +302,15 @@ struct ChartOverviewPresentation: Equatable {
 
         /// 经领域模型确认的精确金额。
         let amount: Decimal
+
+        /// 含收支方向前缀的分类标识，避免两种“其他”分类冲突。
+        let categoryID: String
+
+        /// 当前语言环境下的分类名称。
+        let categoryTitle: String
+
+        /// 复用记账分类的系统图标。
+        let categorySymbol: String
     }
 
     /// 保留来源日历的时区与周规则，并统一使用公历。
@@ -319,8 +344,20 @@ struct ChartOverviewPresentation: Equatable {
             return nil
         }
         switch (entryType, payload) {
-        case let (.expense, .expense(_, amount)), let (.income, .income(_, amount)):
-            return ValidTransaction(date: date, amount: amount)
+        case let (.expense, .expense(category, amount)):
+            return ValidTransaction(
+                date: date, amount: amount,
+                categoryID: "expense.\(category.rawValue)",
+                categoryTitle: category.localizedTitle(locale: locale),
+                categorySymbol: category.symbolName
+            )
+        case let (.income, .income(category, amount)):
+            return ValidTransaction(
+                date: date, amount: amount,
+                categoryID: "income.\(category.rawValue)",
+                categoryTitle: category.localizedTitle(locale: locale),
+                categorySymbol: category.symbolName
+            )
         default:
             return nil
         }

@@ -80,6 +80,16 @@ struct ChartView: View {
                 ChartSummaryCard(chart: chart)
 
                 ChartTrendCard(chart: chart)
+
+                CategoryRankingView(
+                    title: AccountLocalization.string(
+                        selectedEntryType == .expense
+                            ? "category.ranking.expense.title"
+                            : "category.ranking.income.title",
+                        locale: locale
+                    ),
+                    items: chart.categoryRanking
+                )
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)

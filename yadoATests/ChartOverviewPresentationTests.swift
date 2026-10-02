@@ -6,6 +6,39 @@ import Testing
 @Suite("图表页周期投影")
 @MainActor
 struct ChartOverviewPresentationTests {
+    @Test("分类排行跨账户合并并按金额降序，金额相同保持稳定顺序", arguments: ChartPeriod.allCases)
+    func ranksExpenseCategories(period: ChartPeriod) throws {
+        let shopping = try AccountTransaction.validatingExpense(
+            id: UUID(), accountID: UUID(), category: .shopping,
+            amount: 20, transactionDay: 20260819
+        )
+        let entertainment = try AccountTransaction.validatingExpense(
+            id: UUID(), accountID: UUID(), category: .entertainment,
+            amount: 20, transactionDay: 20260819
+        )
+        let chart = ChartOverviewPresentation(
+            period: period,
+            anchorDate: try #require(date(year: 2026, month: 8, day: 19)),
+            transactions: [
+                shopping, entertainment,
+                try dining(amount: "10.10", transactionDay: 20260819),
+                try dining(amount: "20.20", transactionDay: 20260819),
+                try income(amount: "999", transactionDay: 20260819),
+                try dining(amount: "999", transactionDay: 20270101)
+            ],
+            calendar: utcCalendar,
+            locale: Locale(identifier: "en")
+        )
+
+        #expect(chart.categoryRanking.map(\.id) == [
+            "expense.dining", "expense.entertainment", "expense.shopping"
+        ])
+        #expect(chart.categoryRanking.first?.amount == Decimal(string: "30.30"))
+        #expect(chart.categoryRanking.first?.title == ExpenseCategory.dining.localizedTitle(locale: Locale(identifier: "en")))
+        #expect(chart.categoryRanking.first?.symbolName == ExpenseCategory.dining.symbolName)
+        #expect(chart.categoryRanking.reduce(Decimal.zero) { $0 + $1.amount } == chart.totalAmount)
+    }
+
     @Test("收入按周月年独立聚合，排除支出、调整和周期外流水", arguments: ChartPeriod.allCases)
     func projectsIncomeByPeriod(period: ChartPeriod) throws {
         let chart = ChartOverviewPresentation(
@@ -40,6 +73,8 @@ struct ChartOverviewPresentationTests {
         #expect(chart.points.count == expected.buckets)
         #expect(chart.points.first { $0.bucketValue == expected.bucket }?.amount == Decimal(string: expected.amount))
         #expect(chart.points.reduce(Decimal.zero) { $0 + $1.amount } == chart.totalAmount)
+        #expect(chart.categoryRanking.map(\.id) == ["income.salary"])
+        #expect(chart.categoryRanking.first?.amount == chart.totalAmount)
         #expect(chart.points.contains { $0.amount == .zero })
         #expect(AccountLocalization.string(chart.summaryTitleLocalizationKey, locale: Locale(identifier: "en")) == "Income overview")
         #expect(AccountLocalization.string(chart.totalTitleLocalizationKey, locale: Locale(identifier: "zh-Hans")) == "总收入")
@@ -65,6 +100,7 @@ struct ChartOverviewPresentationTests {
         )
 
         #expect(chart.transactionCount == 0)
+        #expect(chart.categoryRanking.isEmpty)
         #expect(chart.totalAmount == .zero)
         #expect(chart.points.count == 31)
         #expect(chart.points.allSatisfy { $0.amount == .zero })
