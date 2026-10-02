@@ -8,14 +8,16 @@
 
 ## 系统版本兼容
 
+- 截至 **2026-09-30**，当前最新系统版本为 **iOS 27**；开发与适配时应同时考虑 iOS 27、iOS 26 和最低支持版本 iOS 18。
 - 本项目最低支持 **iOS 18**，所有功能必须在 iOS 18 上可编译、可运行。
 - **鼓励使用 iOS 26 及更高版本的新 API**（如 Liquid Glass 系列 `glassEffect`、`GlassEffectContainer`、`tabBarMinimizeBehavior`、`scrollEdgeEffect`、`FoundationModels` 等），让高版本系统拿到更好的体验。
 - 使用高版本 API 时必须做可用性判断与降级处理，保证 iOS 18 上有可接受的等价表现（可以是简化效果或原生替代方案，但不能崩溃、不能功能缺失）：
-  - Swift 代码用 `if #available(iOS 26, *) { ... } else { ... }`；
+  - Swift 代码按 API 实际引入版本判断，例如 `if #available(iOS 27, *) { ... } else { ... }` 或 `if #available(iOS 26, *) { ... } else { ... }`；
   - SwiftUI 修饰符用条件包装（如自定义 `ViewModifier` + `@available` 分支）或 `if #available` 分支返回不同视图，不要直接裸调用。
 - 禁止的只是**无降级分支的裸调用**，以及为了用新 API 而抬高工程最低版本。
 - 新增依赖或 SPM 包前，需确认其 deployment target 不高于 iOS 18。
 - 工程 `IPHONEOS_DEPLOYMENT_TARGET` 应保持为 18.x，不得随 Xcode 升级被自动抬高。
+- 搜索 Tab 统一使用 `role: .search`，布局跟随系统：iOS 26 独立展示，iOS 27 与其他 Tab 合并展示；不要为了保持 iOS 26 的外观而在 iOS 27 改用 `.prominent`。
 
 ## 多语言与外观适配
 

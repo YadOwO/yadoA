@@ -97,6 +97,23 @@ struct ChartView: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle(AppTab.charts.title(locale: locale))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    CategoryBreakdownView(
+                        entryType: selectedEntryType,
+                        period: selectedPeriod,
+                        anchorDay: TransactionDay.encode(chart.anchorDate, calendar: environmentCalendar)
+                    )
+                } label: {
+                    Label(
+                        AccountLocalization.string("chart.category.title", locale: locale),
+                        systemImage: "chart.pie"
+                    )
+                }
+                .accessibilityIdentifier("chart-category-breakdown-entry")
+            }
+        }
         .sheet(isPresented: $isMonthPickerPresented) {
             NavigationStack {
                 HomeMonthPickerView(
@@ -131,7 +148,7 @@ struct ChartView: View {
 }
 
 /// 图表页顶部的支出、收入分段选择器。
-private struct ChartEntryTypePicker: View {
+struct ChartEntryTypePicker: View {
     @Environment(\.locale) private var locale
 
     /// 当前选中的收支类型。
@@ -153,7 +170,7 @@ private struct ChartEntryTypePicker: View {
 }
 
 /// 图表页顶部的周、月、年分段选择器。
-private struct ChartPeriodPicker: View {
+struct ChartPeriodPicker: View {
     @Environment(\.locale) private var locale
 
     /// 当前选中的图表周期。
@@ -175,7 +192,7 @@ private struct ChartPeriodPicker: View {
 }
 
 /// 图表时间切换控制，左右按钮按当前周、月或年移动。
-private struct ChartTimeSelector: View {
+struct ChartTimeSelector: View {
     @Environment(\.locale) private var locale
 
     /// 当前周期的完整展示投影。

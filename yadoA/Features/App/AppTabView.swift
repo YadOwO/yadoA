@@ -12,7 +12,7 @@ enum AppTab: String, CaseIterable, Hashable {
     /// 本地账户管理入口。
     case accounts
 
-    /// 跨账户记账搜索入口；iOS 26 会以系统分割 Search Tab 展示。
+    /// 跨账户记账搜索入口，使用系统原生搜索 Tab 外观。
     case search
 
     /// 应用启动时默认展示首页。
@@ -79,7 +79,7 @@ enum SearchRoute: Hashable {
     case transactionDetail(UUID)
 }
 
-/// 应用根级导航；iOS 26 将搜索分割展示，iOS 18 保持普通系统 Tab 样式。
+/// 应用根级导航，Tab 外观与搜索入口布局跟随系统版本。
 struct AppTabView: View {
     @Environment(\.locale) private var locale
     @Environment(\.modelContext) private var modelContext

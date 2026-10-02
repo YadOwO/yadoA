@@ -273,6 +273,27 @@
         }
       }
     },
+    "chart.category.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Category breakdown" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "分类统计" } }
+      }
+    },
+    "chart.category.share": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Category share" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "分类占比" } }
+      }
+    },
+    "chart.category.remaining": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Other categories" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "其他分类" } }
+      }
+    },
     "category.ranking.expense.title": {
       "extractionState": "manual",
       "localizations": {
