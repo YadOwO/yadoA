@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 两步快捷指令和系统轻点背面的配置说明。
+/// 完整快捷指令模板的添加入口，以及系统轻点背面的绑定说明。
 struct ScreenshotShortcutSetupView: View {
     @Environment(\.locale) private var locale
     @Environment(\.openURL) private var openURL
@@ -19,7 +19,7 @@ struct ScreenshotShortcutSetupView: View {
                 Text(text("shortcut.screenshot.setup.input"))
                     .foregroundStyle(.secondary)
                 Button(text("shortcut.screenshot.setup.open")) {
-                    openURL(URL(string: "shortcuts://create-shortcut")!) { accepted in
+                    openURL(ScreenshotShortcutTemplate.url) { accepted in
                         cannotOpenShortcuts = !accepted
                     }
                 }

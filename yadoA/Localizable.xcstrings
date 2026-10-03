@@ -228,13 +228,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "1. Create a shortcut"
+            "value": "1. Add the shortcut"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "1. 创建快捷指令"
+            "value": "1. 添加快捷指令"
           }
         }
       }
@@ -245,13 +245,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "In Shortcuts, create a shortcut named “yadoA Screenshot Bookkeeping”. Add “Take Screenshot”, then search for yadoA and add “Record from Screenshot”."
+            "value": "Open the preset below, then tap Add Shortcut in Shortcuts. There are no actions or image inputs to configure."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在“快捷指令”中创建“yadoA 截图记账”。先添加“截屏”，再搜索 yadoA，添加“用截图记账”。"
+            "value": "打开下方预设，在快捷指令中点“添加快捷指令”即可，无需配置动作或图片参数。"
           }
         }
       }
@@ -262,13 +262,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Set the Screenshot input of the second action to the result of Take Screenshot. Keep this order so the screen is captured before yadoA opens."
+            "value": "The preset takes a screenshot, then sends it to Record from Screenshot in yadoA."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "将第二步的“截图”参数设为上一步“截屏”的结果。保持这个顺序，才能先截取当前页面，再打开 yadoA。"
+            "value": "已预设“截屏 → 用截图记账”，截图会自动传给 yadoA。"
           }
         }
       }
@@ -279,13 +279,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Create in Shortcuts"
+            "value": "Add Preset Shortcut"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "前往快捷指令创建"
+            "value": "添加预设快捷指令"
           }
         }
       }
@@ -330,13 +330,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Under Shortcuts, select the shortcut you just created. This must be set up in Settings."
+            "value": "Under Shortcuts, select the shortcut you just added. This must be set up in Settings."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在“快捷指令”区域选择刚创建的“yadoA 截图记账”。这一步需要在系统设置中手动完成。"
+            "value": "在“快捷指令”区域选择刚添加的“yadoA 截图记账”。这一步需要在系统设置中手动完成。"
           }
         }
       }
@@ -381,13 +381,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Could not open Shortcuts. Open or install the Shortcuts app and follow the steps above."
+            "value": "Could not open the preset. Make sure Shortcuts is installed, check your internet connection, and try again."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "无法打开快捷指令。请打开或安装“快捷指令”App，再按上述步骤配置。"
+            "value": "无法打开预设模板。请确认已安装“快捷指令”，检查网络连接后重试。"
           }
         }
       }

@@ -27,7 +27,7 @@ struct ScreenshotBookkeepingIntent: AppIntent {
     }
 }
 
-/// 让系统索引截图记账动作；完整的两步工作流仍需在快捷指令中配置。
+/// 让系统索引截图记账动作；两步工作流通过 ScreenshotShortcutTemplate 预设分发。
 struct YadoAppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
