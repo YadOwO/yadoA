@@ -10,6 +10,7 @@ final class BookkeepingTransactionMutationUITests: XCTestCase {
     func testSearchEditChangesAccountAndRefreshesDetail() throws {
         let app = launchBookkeepingSearchFixtureInEnglish()
         openSearchFixtureDetail(in: app)
+        capture(app, name: "Transaction receipt")
         app.buttons["bookkeeping-detail-edit"].tap()
         XCTAssertTrue(app.navigationBars["Edit Transaction"].waitForExistence(timeout: 3))
         capture(app, name: "Full transaction editor")
@@ -123,12 +124,18 @@ final class BookkeepingTransactionMutationUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Transaction Details"].waitForExistence(timeout: 3))
     }
 
-    /// 用系统全选替换当前字段内容，避免点击位置导致只删除光标前的文字。
+    /// 优先使用系统编辑菜单全选，避免新系统把 Command-A 忽略后直接插入旧内容前。
     @MainActor
     private func replaceText(_ field: XCUIElement, with text: String) {
         XCTAssertTrue(field.exists)
         field.tap()
-        field.typeKey("a", modifierFlags: .command)
+        field.press(forDuration: 1)
+        let selectAll = XCUIApplication().descendants(matching: .any)["Select All"].firstMatch
+        if selectAll.waitForExistence(timeout: 2) {
+            selectAll.tap()
+        } else {
+            field.typeKey("a", modifierFlags: .command)
+        }
         field.typeText(text)
         XCTAssertEqual(field.value as? String, text)
     }

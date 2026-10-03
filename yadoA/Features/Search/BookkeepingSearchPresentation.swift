@@ -351,6 +351,16 @@ struct BookkeepingSearchPresentation {
         }
         let amount = searchablePayload.amount
         let categoryTitle = searchablePayload.categoryTitle
+        // 图标只在打开详情时解析，不增加批量搜索的展示计算。
+        let categorySymbolName: String
+        switch payload {
+        case let .expense(category, _):
+            categorySymbolName = category.symbolName
+        case let .income(category, _):
+            categorySymbolName = category.symbolName
+        case .balanceAdjustment:
+            return nil
+        }
 
         let accountState: BookkeepingTransactionAccountState = switch account?.isActive {
         case true: .active
@@ -381,6 +391,7 @@ struct BookkeepingSearchPresentation {
             title: title,
             entryType: searchablePayload.entryType,
             categoryTitle: categoryTitle,
+            categorySymbolName: categorySymbolName,
             formattedAmount: formattedAmount,
             transactionDay: transaction.transactionDay,
             formattedDate: formattedDate,
@@ -599,6 +610,9 @@ struct BookkeepingTransactionDetailPresentation: Equatable {
 
     /// 当前语言环境下的真实分类名称。
     let categoryTitle: String
+
+    /// 从合法收支载荷解析的分类图标，不通过本地化名称反推类别。
+    let categorySymbolName: String
 
     /// 使用负向金额表示支出的本地化金额。
     let formattedAmount: String

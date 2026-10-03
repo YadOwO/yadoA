@@ -77,8 +77,6 @@ struct ChartView: View {
                     }
                 )
 
-                ChartSummaryCard(chart: chart)
-
                 ChartTrendCard(chart: chart)
 
                 CategoryRankingView(
@@ -277,43 +275,38 @@ struct ChartTimeSelector: View {
     }
 }
 
-/// 图表页顶部的周期收支总额与记录数量摘要。
-private struct ChartSummaryCard: View {
+/// 趋势卡片顶部的收支摘要，突出总额，笔数作为次级信息。
+private struct ChartSummaryHeader: View {
     @Environment(\.locale) private var locale
 
     /// 当前周期的完整展示投影。
     let chart: ChartOverviewPresentation
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(AccountLocalization.string(chart.summaryTitleLocalizationKey, locale: locale))
-                .font(.headline)
-
-            HStack(spacing: 24) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(AccountLocalization.string(chart.totalTitleLocalizationKey, locale: locale))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(formattedTotal)
-                        .font(.title3.weight(.semibold).monospacedDigit())
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(AccountLocalization.string("chart.summary.records", locale: locale))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(chart.transactionCount.formatted(.number.locale(locale)))
-                        .font(.title3.weight(.semibold).monospacedDigit())
-                }
-
-                Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(AccountLocalization.string(chart.totalTitleLocalizationKey, locale: locale))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Text(formattedTotal)
+                .font(.system(.largeTitle, design: .rounded, weight: .semibold).monospacedDigit())
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            HStack(spacing: 6) {
+                Text(AccountLocalization.string("chart.summary.records", locale: locale))
+                Text(chart.transactionCount.formatted(.number.locale(locale)))
             }
+            .font(.subheadline.monospacedDigit())
+            .foregroundStyle(.secondary)
         }
-        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text([
+            AccountLocalization.string(chart.summaryTitleLocalizationKey, locale: locale),
+            AccountLocalization.string(chart.totalTitleLocalizationKey, locale: locale),
+            formattedTotal,
+            AccountLocalization.string("chart.summary.records", locale: locale),
+            chart.transactionCount.formatted(.number.locale(locale))
+        ].joined(separator: ", ")))
         .accessibilityIdentifier("chart-summary-card")
     }
 
@@ -323,7 +316,7 @@ private struct ChartSummaryCard: View {
     }
 }
 
-/// 图表页当前周期的收支折线图；没有对应流水的时间桶按零展示。
+/// 将当前周期总额与收支趋势合并展示；没有对应流水的时间桶仍按零绘制。
 private struct ChartTrendCard: View {
     @Environment(\.locale) private var locale
 
@@ -331,14 +324,17 @@ private struct ChartTrendCard: View {
     let chart: ChartOverviewPresentation
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 20) {
+            ChartSummaryHeader(chart: chart)
+
             Text(
                 AccountLocalization.string(
                     chart.chartTitleLocalizationKey,
                     locale: locale
                 )
             )
-            .font(.headline)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
 
             Chart(chart.points) { point in
                 LineMark(
@@ -394,7 +390,7 @@ private struct ChartTrendCard: View {
             .frame(height: 240)
             .accessibilityIdentifier("chart-\(chart.entryType.rawValue)-\(chart.period.rawValue)")
         }
-        .padding(18)
+        .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(uiColor: .secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -425,3 +421,15 @@ private extension Decimal {
         inMemory: true
     )
 }
+
+#if DEBUG
+#Preview("Spending trend · populated") {
+    if let container = try? HomeDesignPreviewData.makeContainer() {
+        NavigationStack {
+            ChartView()
+        }
+        .modelContainer(container)
+        .environment(\.locale, Locale(identifier: "zh-Hans"))
+    }
+}
+#endif

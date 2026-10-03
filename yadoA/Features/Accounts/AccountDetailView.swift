@@ -303,7 +303,7 @@ private struct AccountDetailQueryContent: View {
         }
     }
 
-    /// 当前账户的基础信息、可调整余额入口与账户范围内流水。
+    /// 优先展示账户身份和余额，次要资料按需展开，流水保持原有导航与查询范围。
     private func detailContent(
         account: Account,
         presentation: AccountDetailPresentation
@@ -317,100 +317,50 @@ private struct AccountDetailQueryContent: View {
 
         return List {
             Section {
-                HStack(spacing: 12) {
-                    AccountIconView(presentation: presentation.icon)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(presentation.name)
-                            .font(.headline)
-                            .accessibilityIdentifier("account-detail-name")
-                        if presentation.isDefault {
-                            Text(AccountLocalization.string("account.default.badge", locale: locale))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.tint)
-                                .accessibilityIdentifier("account-default-badge-\(presentation.id.uuidString)")
-                        }
-                        if !presentation.isActive {
-                            Text(AccountLocalization.string("account.detail.deactivated_message", locale: locale))
+                accountSummary(account: account, presentation: presentation)
+                    .listRowInsets(EdgeInsets(top: 20, leading: 20, bottom: 20, trailing: 20))
+            }
+
+            Section {
+                DisclosureGroup {
+                    LabeledContent(
+                        AccountLocalization.string("account.detail.type", locale: locale),
+                        value: presentation.typeTitle
+                    )
+                    .accessibilityIdentifier("account-detail-type")
+
+                    if let institution = presentation.institution {
+                        LabeledContent(
+                            AccountLocalization.string("account.detail.institution", locale: locale),
+                            value: institution
+                        )
+                        .accessibilityIdentifier("account-detail-institution")
+                    }
+
+                    if let lastFourDigits = presentation.lastFourDigits {
+                        LabeledContent(
+                            AccountLocalization.string("account.detail.last_four_digits", locale: locale),
+                            value: AccountLocalization.formatted(
+                                "account.detail.masked_suffix_format",
+                                value: lastFourDigits,
+                                locale: locale
+                            )
+                        )
+                        .accessibilityIdentifier("account-detail-last-four-digits")
+                    }
+
+                    if let note = presentation.note {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(AccountLocalization.string("account.detail.note", locale: locale))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            Text(note)
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("account-detail-note")
                     }
-                }
-                .padding(.vertical, 4)
-            }
-
-            Section {
-                LabeledContent(
-                    AccountLocalization.string("account.detail.type", locale: locale),
-                    value: presentation.typeTitle
-                )
-                .accessibilityIdentifier("account-detail-type")
-
-                if let institution = presentation.institution {
-                    LabeledContent(
-                        AccountLocalization.string("account.detail.institution", locale: locale),
-                        value: institution
-                    )
-                    .accessibilityIdentifier("account-detail-institution")
-                }
-
-                if let lastFourDigits = presentation.lastFourDigits {
-                    LabeledContent(
-                        AccountLocalization.string("account.detail.last_four_digits", locale: locale),
-                        value: AccountLocalization.formatted(
-                            "account.detail.masked_suffix_format",
-                            value: lastFourDigits,
-                            locale: locale
-                        )
-                    )
-                    .accessibilityIdentifier("account-detail-last-four-digits")
-                }
-
-                if let note = presentation.note {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(AccountLocalization.string("account.detail.note", locale: locale))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(note)
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier("account-detail-note")
-                }
-            }
-
-            Section {
-                if presentation.isActive && account.supportsBookkeeping {
-                    Button {
-                        onAdjustBalance(account.id, account.balance)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Text(presentation.amountLabel)
-                            Spacer(minLength: 8)
-                            Text(presentation.formattedAmount)
-                                .font(.body.monospacedDigit())
-                                .accessibilityIdentifier("account-detail-amount")
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                                .accessibilityHidden(true)
-                        }
-                        .frame(minHeight: 44)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(presentation.amountAccessibilityLabel)
-                    .accessibilityHint(
-                        AccountLocalization.string(
-                            "account.detail.balance.adjust_action",
-                            locale: locale
-                        )
-                    )
-                    .accessibilityIdentifier("account-detail-adjust-balance")
-                } else {
-                    LabeledContent(
-                        AccountLocalization.string("account.detail.current_balance", locale: locale),
-                        value: presentation.formattedAmount
-                    )
+                } label: {
+                    Text(AccountLocalization.string("account.detail.information", locale: locale))
                 }
             }
 
@@ -464,6 +414,7 @@ private struct AccountDetailQueryContent: View {
                 )
             }
         }
+        .listStyle(.insetGrouped)
         .toolbar {
             if presentation.isActive {
                 ToolbarItem(placement: .primaryAction) {
@@ -508,6 +459,80 @@ private struct AccountDetailQueryContent: View {
                 }
             }
         }
+    }
+
+    /// 将账户身份、余额语义和调整操作集中在首屏，停用或不支持记账的账户仅展示金额。
+    private func accountSummary(
+        account: Account,
+        presentation: AccountDetailPresentation
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 24) {
+            HStack(alignment: .top, spacing: 12) {
+                AccountIconView(presentation: presentation.icon)
+                    .frame(width: 52, height: 52)
+                    .background(Color(uiColor: .tertiarySystemGroupedBackground), in: .rect(cornerRadius: 14))
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(presentation.name)
+                        .font(.title3.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("account-detail-name")
+                    if presentation.name != presentation.typeTitle {
+                        Text(presentation.typeTitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let lastFourDigits = presentation.lastFourDigits {
+                        Text(AccountLocalization.formatted(
+                            "account.detail.masked_suffix_format", value: lastFourDigits, locale: locale
+                        ))
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    }
+                    if presentation.isDefault {
+                        Text(AccountLocalization.string("account.default.badge", locale: locale))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tint)
+                            .accessibilityIdentifier("account-default-badge-\(presentation.id.uuidString)")
+                    }
+                    if !presentation.isActive {
+                        Text(AccountLocalization.string("account.detail.deactivated_message", locale: locale))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(presentation.amountLabel)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                Text(presentation.formattedAmount)
+                    .font(.system(.largeTitle, design: .rounded, weight: .semibold).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .accessibilityLabel(presentation.amountAccessibilityLabel)
+                    .accessibilityIdentifier("account-detail-amount")
+            }
+
+            if presentation.isActive && account.supportsBookkeeping {
+                Button {
+                    onAdjustBalance(account.id, account.balance)
+                } label: {
+                    Label(
+                        AccountLocalization.string("account.balance_adjustment.title", locale: locale),
+                        systemImage: "plusminus"
+                    )
+                    .font(.subheadline.weight(.medium))
+                    .padding(.vertical, 4)
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .accessibilityIdentifier("account-detail-adjust-balance")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// 过期或已不存在 UUID 的安全空状态。
@@ -608,3 +633,17 @@ private struct AccountTransactionHistoryRow: View {
         inMemory: true
     )
 }
+
+#if DEBUG
+#Preview("Account details · populated") {
+    if let container = try? HomeDesignPreviewData.makeContainer(),
+       let accounts = try? container.mainContext.fetch(FetchDescriptor<Account>()),
+       let account = accounts.first {
+        NavigationStack {
+            AccountDetailView(accountID: account.id)
+        }
+        .modelContainer(container)
+        .environment(\.locale, Locale(identifier: "zh-Hans"))
+    }
+}
+#endif

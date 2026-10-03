@@ -147,19 +147,18 @@ private struct BookkeepingTransactionDetailQueryContent: View {
         }
     }
 
-    /// 展示详情字段和账户生命周期状态。
+    /// 先展示收据摘要，再按分组提供分类、账户状态与备注。
     @ViewBuilder
     private func detailContent(
         _ presentation: BookkeepingTransactionDetailPresentation
     ) -> some View {
-        Form {
+        List {
             Section {
-                LabeledContent(
-                    AccountLocalization.string("expense.edit.title.field", locale: locale),
-                    value: presentation.title
-                )
-                .accessibilityIdentifier("bookkeeping-detail-title")
+                transactionSummary(presentation)
+                    .listRowInsets(EdgeInsets(top: 24, leading: 20, bottom: 24, trailing: 20))
+            }
 
+            Section {
                 LabeledContent(
                     AccountLocalization.string("bookkeeping.entry.type", locale: locale),
                     value: presentation.entryType.localizedTitle(locale: locale)
@@ -174,24 +173,6 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                     value: presentation.categoryTitle
                 )
                 .accessibilityIdentifier("bookkeeping-detail-category")
-
-                LabeledContent(
-                    AccountLocalization.string(
-                        "bookkeeping.search.detail.amount",
-                        locale: locale
-                    ),
-                    value: presentation.formattedAmount
-                )
-                .accessibilityIdentifier("bookkeeping-detail-amount")
-
-                LabeledContent(
-                    AccountLocalization.string(
-                        "bookkeeping.search.detail.date",
-                        locale: locale
-                    ),
-                    value: presentation.formattedDate
-                )
-                .accessibilityIdentifier("bookkeeping-detail-date")
             }
 
             Section {
@@ -240,13 +221,58 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                         onDelete(presentation)
                     } label: {
                         Label(AccountLocalization.string("bookkeeping.delete.action", locale: locale), systemImage: "trash")
+                            .foregroundStyle(.red)
                     }
                     .accessibilityIdentifier("bookkeeping-detail-delete")
                 }
             }
         }
+        .listStyle(.insetGrouped)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("bookkeeping-detail-content")
+    }
+
+    /// 收据式摘要突出交易名称和带收支方向的金额，同时保留字段语义供辅助功能读取。
+    private func transactionSummary(
+        _ presentation: BookkeepingTransactionDetailPresentation
+    ) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: presentation.categorySymbolName)
+                .font(.title2.weight(.medium))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 60, height: 60)
+                .background(Color.accentColor.opacity(0.1), in: .rect(cornerRadius: 18))
+                .accessibilityHidden(true)
+
+            VStack(spacing: 8) {
+                Text(presentation.title)
+                    .font(.title3.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel(Text(
+                        "\(AccountLocalization.string("expense.edit.title.field", locale: locale)), \(presentation.title)"
+                    ))
+                    .accessibilityIdentifier("bookkeeping-detail-title")
+
+                Text(presentation.formattedAmount)
+                    .font(.system(.largeTitle, design: .rounded, weight: .semibold).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .accessibilityLabel(Text(
+                        "\(AccountLocalization.string("bookkeeping.search.detail.amount", locale: locale)), \(presentation.formattedAmount)"
+                    ))
+                    .accessibilityIdentifier("bookkeeping-detail-amount")
+
+                Text(presentation.formattedDate)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(Text(
+                        "\(AccountLocalization.string("bookkeeping.search.detail.date", locale: locale)), \(presentation.formattedDate)"
+                    ))
+                    .accessibilityIdentifier("bookkeeping-detail-date")
+            }
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
     }
 
     /// 流水缺失、失效或损坏时的安全降级状态。
@@ -277,3 +303,17 @@ private struct BookkeepingTransactionDetailQueryContent: View {
         state.localizedTitle(locale: locale)
     }
 }
+
+#if DEBUG
+#Preview("Transaction receipt · populated") {
+    if let container = try? HomeDesignPreviewData.makeContainer(),
+       let transactions = try? container.mainContext.fetch(FetchDescriptor<AccountTransaction>()),
+       let transaction = transactions.first {
+        NavigationStack {
+            BookkeepingTransactionDetailView(transactionID: transaction.id)
+        }
+        .modelContainer(container)
+        .environment(\.locale, Locale(identifier: "zh-Hans"))
+    }
+}
+#endif
