@@ -37,6 +37,10 @@ struct yadoAApp: App {
                     try HomeUITestFixture.seedBookkeepingSearch(in: container.modelContainer)
                 }
                 uiTestingDataContainer = container
+                if ScreenshotShortcutUITestFixture.isEnabled,
+                   ProcessInfo.processInfo.arguments.contains("--ui-testing-screenshot-cold-start") {
+                    try ScreenshotBookkeepingRouter.shared.receive(ScreenshotShortcutUITestFixture.imageData())
+                }
             } catch {
                 // UI 自动化绝不能因隔离容器失败而转入生产文件存储。
                 fatalError("Unable to create isolated UI testing store: \(error)")

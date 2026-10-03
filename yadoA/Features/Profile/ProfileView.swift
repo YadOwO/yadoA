@@ -45,6 +45,15 @@ struct ProfileView: View {
                         .labelStyle(ProfileExportLabelStyle())
                 }
 
+                settingsSection("shortcut.screenshot.section") {
+                    NavigationLink {
+                        ScreenshotShortcutSetupView()
+                    } label: {
+                        row("shortcut.screenshot.title", symbol: "viewfinder", value: "")
+                    }
+                    .accessibilityIdentifier("profile-screenshot-shortcut")
+                }
+
                 settingsSection("profile.section.display") {
                     Toggle(isOn: $areAmountsVisible) {
                         Label(text("profile.show_amounts"), systemImage: "eye")

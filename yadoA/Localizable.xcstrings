@@ -1,6 +1,397 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "shortcut.screenshot.action": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record from Screenshot"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用截图记账"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open yadoA with an image to enter a transaction manually. Use Take Screenshot before this action."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接收截图并打开 yadoA 手动记账。请在此动作前添加“截屏”。"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.input": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Screenshot"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截图"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.summary ${screenshot}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record from ${screenshot}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用${screenshot}记账"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Screenshot Bookkeeping"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截图记账"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.section": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shortcuts"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快捷指令"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.received": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Screenshot received · Tap to preview"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已收到截图 · 轻点预览"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.manual_hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check the screenshot, then enter the amount and category yourself. Automatic recognition is not available yet."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请参照截图手动填写金额和分类，暂不支持自动识别。"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.privacy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The image is only used during this entry. yadoA does not upload it or save it to your ledger or photo library."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图片仅用于本次录入预览，yadoA 不会上传图片，也不会将其存入账本或相册。"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.error.invalid": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No readable image was received. Add Take Screenshot before Record from Screenshot and use its output as the Screenshot input."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未收到可读取的图片。请先添加“截屏”，再将其输出连接到“用截图记账”的“截图”参数。"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.error.large": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This image is too large. Use an image smaller than 20 MB."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图片过大，请使用不超过 20 MB 的图片。"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.error.busy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish or close the current screenshot entry before sending another screenshot."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先保存或关闭当前截图记账，再传入新的截图。"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.intro": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double-tap the back of your iPhone to take a screenshot and open yadoA."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻点 iPhone 背面两下，截屏并打开 yadoA 记账。"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.create": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1. Create a shortcut"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1. 创建快捷指令"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.actions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Shortcuts, create a shortcut named “yadoA Screenshot Bookkeeping”. Add “Take Screenshot”, then search for yadoA and add “Record from Screenshot”."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在“快捷指令”中创建“yadoA 截图记账”。先添加“截屏”，再搜索 yadoA，添加“用截图记账”。"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.input": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set the Screenshot input of the second action to the result of Take Screenshot. Keep this order so the screen is captured before yadoA opens."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将第二步的“截图”参数设为上一步“截屏”的结果。保持这个顺序，才能先截取当前页面，再打开 yadoA。"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.open": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create in Shortcuts"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前往快捷指令创建"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.back_tap": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2. Set up Back Tap"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2. 设置轻点背面"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.settings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings → Accessibility → Touch → Back Tap → Double Tap."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开手机“设置”→“辅助功能”→“触控”→“轻点背面”→“轻点两下”。"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.select": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Under Shortcuts, select the shortcut you just created. This must be set up in Settings."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在“快捷指令”区域选择刚创建的“yadoA 截图记账”。这一步需要在系统设置中手动完成。"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.use": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3. Try it"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3. 试一试"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.try": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With your iPhone unlocked, open a payment result or bill and double-tap the back. If Shortcuts asks to share the image with yadoA, allow access. Confirm the image in yadoA and fill in the transaction, then save."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解锁 iPhone，打开支付结果或账单页，轻点背面两下。首次运行时，如快捷指令询问是否允许向 yadoA 传递图片，请允许。进入 yadoA 后确认截图，手动填写并保存。"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.open_failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not open Shortcuts. Open or install the Shortcuts app and follow the steps above."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法打开快捷指令。请打开或安装“快捷指令”App，再按上述步骤配置。"
+          }
+        }
+      }
+    },
     "account.detail.information": {
       "extractionState": "manual",
       "localizations": {

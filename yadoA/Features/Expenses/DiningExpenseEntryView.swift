@@ -16,15 +16,28 @@ struct DiningExpenseEntryView: View {
     @State private var isPresentingAccountSelection = false
     @State private var hasAccountCreationError = false
 
+    /// 快捷指令传入的临时参考图，不作为流水附件持久化。
+    private let screenshot: UIImage?
+    /// 外部入口的关闭动作；普通导航录入沿用环境 dismiss。
+    private let onFinish: (@MainActor () -> Void)?
+    /// 截图预览默认收起，优先为金额和分类保留可见空间。
+    @State private var isScreenshotExpanded = false
+
     /// 创建支出录入页。
     ///
     /// - Parameters:
     ///   - draft: 可选的既有草稿，默认创建以今天为日期的新草稿。
+    ///   - screenshot: 截图入口的参考图片，为空时保持普通记账流程。
+    ///   - onFinish: 外部展示容器在取消或保存成功后的收尾动作。
     ///   - save: 上层注入的本地餐饮支出保存动作。
     init(
         draft: DiningExpenseDraft? = nil,
+        screenshot: UIImage? = nil,
+        onFinish: (@MainActor () -> Void)? = nil,
         save: @escaping DiningExpenseSaveAction
     ) {
+        self.screenshot = screenshot
+        self.onFinish = onFinish
         _flow = StateObject(
             wrappedValue: DiningExpenseEntryFlow(
                 draft: draft,
@@ -36,6 +49,9 @@ struct DiningExpenseEntryView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                if let screenshot {
+                    screenshotPreview(screenshot)
+                }
                 entryTypePicker
                 categoryAndAmount
                 accountSection
@@ -78,6 +94,15 @@ struct DiningExpenseEntryView: View {
             submitButton
         }
         .toolbar {
+            if screenshot != nil {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(AccountLocalization.string("common.close", locale: locale)) {
+                        finishEntry()
+                    }
+                    .disabled(flow.isSaving)
+                    .accessibilityIdentifier("screenshot-entry-close")
+                }
+            }
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
                 Button(AccountLocalization.string("common.done", locale: locale)) {
@@ -89,6 +114,53 @@ struct DiningExpenseEntryView: View {
             applyInitialDefaultIfNeeded()
             presentInitialCategorySelectionIfNeeded()
         }
+    }
+
+    /// 无论取消还是保存成功，都只关闭本次录入页面。
+    private func finishEntry() {
+        if let onFinish {
+            onFinish()
+        } else {
+            dismiss()
+        }
+    }
+
+    /// 明确展示传入图片和手动填写提示，收起时不占用金额输入区域。
+    private func screenshotPreview(_ image: UIImage) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                withAnimation { isScreenshotExpanded.toggle() }
+            } label: {
+                HStack {
+                    Label(
+                        AccountLocalization.string("shortcut.screenshot.received", locale: locale),
+                        systemImage: "photo"
+                    )
+                    Spacer(minLength: 8)
+                    Image(systemName: isScreenshotExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.tint)
+            .accessibilityIdentifier("screenshot-entry-preview")
+
+            if isScreenshotExpanded {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: 320)
+                    .clipShape(.rect(cornerRadius: 12))
+                    .accessibilityLabel(AccountLocalization.string("shortcut.screenshot.input", locale: locale))
+                    .accessibilityIdentifier("screenshot-entry-image")
+            }
+            Text(AccountLocalization.string("shortcut.screenshot.manual_hint", locale: locale))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .multilineTextAlignment(.leading)
     }
 
     /// 使用系统分段选择器切换支出与收入方向。
@@ -234,7 +306,7 @@ struct DiningExpenseEntryView: View {
             Task {
                 await flow.submit {
                     provideSuccessFeedback()
-                    dismiss()
+                    finishEntry()
                 }
             }
         } label: {
@@ -420,6 +492,9 @@ struct DiningExpenseEntryView: View {
     private func presentInitialCategorySelectionIfNeeded() {
         guard !hasPresentedInitialCategorySelection else { return }
         hasPresentedInitialCategorySelection = true
+
+        // 截图入口先展示接收状态，让用户确认图片后主动选择分类。
+        guard screenshot == nil else { return }
 
         if flow.selectedCategory == nil {
             focusedField = nil
