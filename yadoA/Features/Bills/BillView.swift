@@ -7,6 +7,9 @@ struct BillView: View {
     @Environment(\.calendar) private var calendar
     @Query private var transactions: [AccountTransaction]
 
+    /// 账单页独立保存结余配色，默认正红负绿。
+    @AppStorage("bill.balance.positiveIsRed") private var positiveBalanceIsRed = true
+
     /// 模式切换保留用户上次选中的月账单年份。
     @State private var period: BillPeriod = .monthly
     /// 未选择时默认当前年，切换年账单不清空此值。
@@ -53,7 +56,7 @@ struct BillView: View {
                     .accessibilityIdentifier("bill-year-selector")
                 }
 
-                BillSummaryCard(totals: totals, period: period)
+                BillSummaryCard(totals: totals, period: period, positiveBalanceIsRed: positiveBalanceIsRed)
 
                 if totals.transactionCount == 0 {
                     ContentUnavailableView(
@@ -65,8 +68,10 @@ struct BillView: View {
                 } else {
                     BillTable(
                         rows: period == .monthly ? presentation.monthlyRows(for: year) : presentation.yearlyRows,
-                        period: period
+                        period: period,
+                        positiveBalanceIsRed: positiveBalanceIsRed
                     )
+                    .padding(.horizontal, -8)
                 }
             }
             .padding(.horizontal, 20)
@@ -75,6 +80,25 @@ struct BillView: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle(AccountLocalization.string("bill.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker(
+                        AccountLocalization.string("bill.balance.color", locale: locale),
+                        selection: $positiveBalanceIsRed
+                    ) {
+                        Text(AccountLocalization.string("bill.balance.positiveRed", locale: locale)).tag(true)
+                        Text(AccountLocalization.string("bill.balance.positiveGreen", locale: locale)).tag(false)
+                    }
+                } label: {
+                    Label(
+                        AccountLocalization.string("bill.balance.color", locale: locale),
+                        systemImage: "paintpalette"
+                    )
+                }
+                .accessibilityIdentifier("bill-balance-color")
+            }
+        }
     }
 }
 
@@ -85,6 +109,8 @@ private struct BillSummaryCard: View {
     /// 当前模式对应的汇总与文案范围。
     let totals: BillTotals
     let period: BillPeriod
+    /// 汇总和明细共用页面选择的结余配色。
+    let positiveBalanceIsRed: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -99,6 +125,7 @@ private struct BillSummaryCard: View {
                     .font(.system(.largeTitle, design: .rounded, weight: .semibold).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
+                    .foregroundStyle(billBalanceColor(totals.balance, positiveIsRed: positiveBalanceIsRed))
                     .accessibilityIdentifier("bill-summary-balance")
             }
             Divider()
@@ -115,7 +142,7 @@ private struct BillSummaryCard: View {
         .background(Color(uiColor: .secondarySystemGroupedBackground), in: .rect(cornerRadius: 24))
     }
 
-    /// 收入沿用主题色，支出使用主文字色；图标与标题同时传达含义。
+    /// 收入和支出统一使用主文字色，图标与标题传达收支含义。
     private func amount(_ value: Decimal, titleKey: String, symbol: String, isIncome: Bool) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Label(AccountLocalization.string(titleKey, locale: locale), systemImage: symbol)
@@ -123,7 +150,7 @@ private struct BillSummaryCard: View {
                 .foregroundStyle(.secondary)
             Text(value.formatted(.currency(code: "CNY").locale(locale)))
                 .font(.system(.title3, design: .rounded, weight: .semibold).monospacedDigit())
-                .foregroundStyle(isIncome ? Color.accentColor : Color.primary)
+                .foregroundStyle(Color.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
                 .accessibilityIdentifier(isIncome ? "bill-summary-income" : "bill-summary-expense")
@@ -141,6 +168,8 @@ private struct BillTable: View {
     let rows: [BillRowPresentation]
     /// 决定第一列表头显示月份还是年份。
     let period: BillPeriod
+    /// 汇总和明细共用页面选择的结余配色。
+    let positiveBalanceIsRed: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -162,13 +191,14 @@ private struct BillTable: View {
                 }
             }
         }
-        .padding(16)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 16)
         .background(Color(uiColor: .secondarySystemGroupedBackground), in: .rect(cornerRadius: 24))
     }
 
     /// 原生 Grid 统一列宽，数字使用固有宽度以触发窄屏降级。
     private var table: some View {
-        Grid(alignment: .trailing, horizontalSpacing: 16, verticalSpacing: 0) {
+        Grid(alignment: .trailing, horizontalSpacing: 12, verticalSpacing: 0) {
             GridRow {
                 heading(period == .monthly ? "bill.month" : "bill.year")
                     .gridColumnAlignment(.leading)
@@ -182,9 +212,12 @@ private struct BillTable: View {
                 Divider().gridCellUnsizedAxes(.horizontal)
                 GridRow {
                     Text(row.title).font(.subheadline.weight(.medium)).fixedSize()
-                    numericText(row.totals.income, isIncome: true)
+                    numericText(row.totals.income)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                     numericText(row.totals.expense)
-                    numericText(row.totals.balance)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    numericText(row.totals.balance, isBalance: true)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 .padding(.vertical, 16)
                 .accessibilityElement(children: .ignore)
@@ -203,13 +236,13 @@ private struct BillTable: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(row.title).font(.headline)
                     LabeledContent(AccountLocalization.string("bill.income", locale: locale)) {
-                        numericText(row.totals.income, isIncome: true)
+                        numericText(row.totals.income)
                     }
                     LabeledContent(AccountLocalization.string("bill.expense", locale: locale)) {
                         numericText(row.totals.expense)
                     }
                     LabeledContent(AccountLocalization.string("bill.balance", locale: locale)) {
-                        numericText(row.totals.balance)
+                        numericText(row.totals.balance, isBalance: true)
                     }
                 }
                 .accessibilityElement(children: .ignore)
@@ -228,10 +261,10 @@ private struct BillTable: View {
     }
 
     /// 表格统一在标题注明 CNY，单元格保留完整的两位小数。
-    private func numericText(_ amount: Decimal, isIncome: Bool = false) -> some View {
+    private func numericText(_ amount: Decimal, isBalance: Bool = false) -> some View {
         Text(formatted(amount))
             .font(.system(.subheadline, design: .rounded).monospacedDigit())
-            .foregroundStyle(isIncome ? Color.accentColor : Color.primary)
+            .foregroundStyle(isBalance ? billBalanceColor(amount, positiveIsRed: positiveBalanceIsRed) : Color.primary)
             .fixedSize(horizontal: true, vertical: false)
     }
 
@@ -249,6 +282,12 @@ private struct BillTable: View {
             AccountLocalization.string("bill.balance", locale: locale), formatted(row.totals.balance)
         ].joined(separator: ", ")
     }
+}
+
+/// 正负结余按用户偏好映射为红绿，零结余保持中性文字色。
+private func billBalanceColor(_ amount: Decimal, positiveIsRed: Bool) -> Color {
+    guard amount != 0 else { return .primary }
+    return (amount > 0) == positiveIsRed ? .red : .green
 }
 
 #if DEBUG

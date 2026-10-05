@@ -562,6 +562,57 @@
         }
       }
     },
+    "bill.balance.color": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Balance colors"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结余颜色"
+          }
+        }
+      }
+    },
+    "bill.balance.positiveRed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Positive red, negative green"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正结余红色，负结余绿色"
+          }
+        }
+      }
+    },
+    "bill.balance.positiveGreen": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Positive green, negative red"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正结余绿色，负结余红色"
+          }
+        }
+      }
+    },
     "bill.balance": {
       "extractionState": "manual",
       "localizations": {
