@@ -13,6 +13,49 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
         XCTAssertEqual(app.tabBars.buttons.count, 4)
         openSearch(in: app)
         XCTAssertTrue(app.staticTexts["Search your bookkeeping"].waitForExistence(timeout: 3))
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Search landing"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    /// 点击真实类别建议应直接展示结果，无需输入或提交搜索词。
+    @MainActor
+    func testCategorySuggestionStartsSearch() throws {
+        let app = launchBookkeepingSearchFixtureInEnglish()
+        openSearch(in: app)
+        let suggestion = app.buttons["bookkeeping-search-suggestion-Dining"]
+        XCTAssertTrue(suggestion.waitForExistence(timeout: 3))
+        suggestion.tap()
+        let result = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'bookkeeping-search-result-'")
+        ).firstMatch
+        XCTAssertTrue(result.waitForExistence(timeout: 3))
+        XCTAssertEqual(app.searchFields.firstMatch.value as? String, "Dining")
+    }
+
+    /// 无结果时应显示输入内容，清除日期筛选不能丢失关键词。
+    @MainActor
+    func testNoResultsCanClearDateFilterWithoutClearingQuery() throws {
+        let app = launchBookkeepingSearchFixtureInEnglish()
+        openSearch(in: app)
+        app.buttons["bookkeeping-search-filter"].tap()
+        app.segmentedControls.buttons["Custom range"].tap()
+        app.buttons["bookkeeping-search-filter-confirm"].tap()
+        let searchField = app.searchFields.firstMatch
+        searchField.tap()
+        searchField.typeText("missing entry")
+        XCTAssertTrue(app.staticTexts["No entries match “missing entry”."].waitForExistence(timeout: 3))
+        let clearFilter = app.buttons["bookkeeping-search-empty-range-clear"]
+        XCTAssertTrue(clearFilter.waitForExistence(timeout: 3))
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Search no results with date filter"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        clearFilter.tap()
+        XCTAssertTrue(app.otherElements["bookkeeping-search-applied-range"].waitForNonExistence(timeout: 3))
+        XCTAssertEqual(app.searchFields.firstMatch.value as? String, "missing entry")
+        XCTAssertTrue(app.staticTexts["No entries match “missing entry”."].exists)
     }
 
     @MainActor

@@ -5,6 +5,61 @@ import Testing
 @Suite("记账搜索投影", .serialized)
 @MainActor
 struct BookkeepingSearchPresentationTests {
+    @Test("初始建议按最近有效记账排序、去重并限制数量，且支持中英文搜索")
+    func initialSuggestionsUseSearchableCategories() throws {
+        let accountID = UUID()
+        let expenses = try [ExpenseCategory.dining, .medical, .travel, .housing, .shopping, .transportation]
+            .enumerated().map { index, category in
+                try AccountTransaction.validatingExpense(
+                    id: UUID(), accountID: accountID, category: category,
+                    amount: 30, transactionDay: 20260826 - index
+                )
+            }
+        let recentShopping = try AccountTransaction.validatingExpense(
+            id: UUID(), accountID: accountID, category: .shopping,
+            amount: 30, transactionDay: 20260828
+        )
+        let salary = try AccountTransaction.validatingIncome(
+            id: UUID(), accountID: accountID, category: .salary,
+            amount: 500, transactionDay: 20260829
+        )
+        let adjustment = try AccountTransaction.validatingBalanceAdjustment(
+            id: UUID(), accountID: accountID, balanceBefore: 100,
+            balanceAfter: 200, transactionDay: 20260831
+        )
+        let invalidDate = try AccountTransaction.validatingExpense(
+            id: UUID(), accountID: accountID, category: .pets,
+            amount: 30, transactionDay: 20260831
+        )
+        invalidDate.transactionDay = 20260230
+        let corrupted = try AccountTransaction.validatingExpense(
+            id: UUID(), accountID: accountID, category: .education,
+            amount: 30, transactionDay: 20260831
+        )
+        corrupted.amount = nil
+        let transactions = expenses + [recentShopping, salary, adjustment, invalidDate, corrupted]
+        for (locale, expected) in [
+            (chineseLocale, ["工资", "购物", "餐饮", "医疗", "旅行"]),
+            (englishLocale, ["Salary", "Shopping", "Dining", "Medical", "Travel"])
+        ] {
+            let initial = BookkeepingSearchPresentation(
+                transactions: transactions, accounts: [], query: "", locale: locale
+            )
+            #expect(initial.state == .initial)
+            #expect(initial.dayGroups.isEmpty)
+            #expect(initial.suggestedCategories == expected)
+            for category in initial.suggestedCategories {
+                let result = BookkeepingSearchPresentation(
+                    transactions: transactions, accounts: [], query: category, locale: locale
+                )
+                #expect(result.state == .results)
+                #expect(result.suggestedCategories.isEmpty)
+            }
+        }
+        let empty = BookkeepingSearchPresentation(transactions: [], accounts: [], query: "")
+        #expect(empty.suggestedCategories.isEmpty)
+    }
+
     @Test("收入分类支持搜索与详情展示")
     func incomeMatchesSearchAndDetail() throws {
         let transaction = try AccountTransaction.validatingIncome(

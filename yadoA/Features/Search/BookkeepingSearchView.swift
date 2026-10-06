@@ -104,29 +104,9 @@ struct BookkeepingSearchView: View {
     ) -> some View {
         switch presentation.state {
         case .initial:
-            BookkeepingSearchEmptyState(
-                title: AccountLocalization.string(
-                    "bookkeeping.search.initial.title",
-                    locale: locale
-                ),
-                message: AccountLocalization.string(
-                    "bookkeeping.search.initial.message",
-                    locale: locale
-                ),
-                identifier: "bookkeeping-search-initial"
-            )
+            initialContent(presentation.suggestedCategories)
         case .noResults:
-            BookkeepingSearchEmptyState(
-                title: AccountLocalization.string(
-                    "bookkeeping.search.empty.title",
-                    locale: locale
-                ),
-                message: AccountLocalization.string(
-                    "bookkeeping.search.empty.message",
-                    locale: locale
-                ),
-                identifier: "bookkeeping-search-no-results"
-            )
+            noResultsContent(presentation)
         case .results:
             List {
                 ForEach(presentation.dayGroups) { day in
@@ -164,6 +144,88 @@ struct BookkeepingSearchView: View {
             .listStyle(.insetGrouped)
             .accessibilityIdentifier("bookkeeping-search-results")
         }
+    }
+
+    /// 搜索前说明跨账户范围与金额语义，并提供来自实际记账的类别快捷入口。
+    private func initialContent(_ categories: [String]) -> some View {
+        List {
+            Section {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(AccountLocalization.string("bookkeeping.search.initial.title", locale: locale))
+                        .font(.title2.bold())
+                    Text(AccountLocalization.string("bookkeeping.search.initial.message", locale: locale))
+                        .foregroundStyle(.secondary)
+                    Text(amountSearchHint)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 8)
+                .accessibilityIdentifier("bookkeeping-search-initial")
+            }
+
+            if !categories.isEmpty {
+                Section {
+                    ForEach(categories, id: \.self) { category in
+                        Button {
+                            query = category
+                        } label: {
+                            Label(category, systemImage: "magnifyingglass")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                        }
+                        .accessibilityIdentifier("bookkeeping-search-suggestion-\(category)")
+                    }
+                } header: {
+                    Text(AccountLocalization.string("bookkeeping.search.suggestions.title", locale: locale))
+                }
+                .textCase(nil)
+            }
+        }
+        .listStyle(.insetGrouped)
+    }
+
+    /// 无结果时展示实际搜索词；清除日期条件只扩大时间范围，保留关键词。
+    private func noResultsContent(_ presentation: BookkeepingSearchPresentation) -> some View {
+        ContentUnavailableView {
+            Label(
+                AccountLocalization.string("bookkeeping.search.empty.title", locale: locale),
+                systemImage: "magnifyingglass"
+            )
+        } description: {
+            if !presentation.normalizedQuery.isEmpty {
+                Text(String(
+                    format: AccountLocalization.string("bookkeeping.search.empty.query.format", locale: locale),
+                    locale: locale,
+                    presentation.normalizedQuery
+                ))
+            }
+            Text(AccountLocalization.string(
+                timeFilter.isUnbounded
+                    ? "bookkeeping.search.empty.message"
+                    : "bookkeeping.search.empty.filtered.message",
+                locale: locale
+            ))
+        } actions: {
+            if !timeFilter.isUnbounded {
+                Button(AccountLocalization.string("bookkeeping.search.range.clear", locale: locale)) {
+                    timeFilter = .all
+                }
+                .accessibilityIdentifier("bookkeeping-search-empty-range-clear")
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("bookkeeping-search-no-results")
+    }
+
+    /// 金额示例使用当前区域的数字格式，避免小数分隔符与输入习惯不一致。
+    private var amountSearchHint: String {
+        String(
+            format: AccountLocalization.string("bookkeeping.search.initial.amount_hint.format", locale: locale),
+            locale: locale,
+            Decimal(30).formatted(.number.locale(locale).precision(.fractionLength(0))),
+            Decimal(30).formatted(.number.locale(locale).precision(.fractionLength(2))),
+            (Decimal(305) / 10).formatted(.number.locale(locale).precision(.fractionLength(2)))
+        )
     }
 
     /// 记录目标流水并结束系统搜索界面，使详情直接成为当前导航页。
@@ -221,28 +283,6 @@ struct BookkeepingSearchView: View {
                 timeZone: calendar.timeZone
             )
         )
-    }
-}
-
-/// 搜索结果无数据时使用的通用引导或反馈状态。
-private struct BookkeepingSearchEmptyState: View {
-    /// 状态标题。
-    let title: String
-
-    /// 状态说明。
-    let message: String
-
-    /// UI 自动化和无障碍定位标识。
-    let identifier: String
-
-    var body: some View {
-        ContentUnavailableView {
-            Label(title, systemImage: "magnifyingglass")
-        } description: {
-            Text(message)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier(identifier)
     }
 }
 

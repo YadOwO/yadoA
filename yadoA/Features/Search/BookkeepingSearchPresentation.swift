@@ -146,6 +146,9 @@ struct BookkeepingSearchPresentation {
     /// 按业务日倒序排列的结果分组。
     let dayGroups: [BookkeepingSearchDayPresentation]
 
+    /// 初始页中最近有效记账的类别建议，按本地化名称去重且最多展示五项。
+    let suggestedCategories: [String]
+
     /// 复用首页的跨账户稳定排序描述符，避免查询层出现不同顺序。
     static func descriptor() -> FetchDescriptor<AccountTransaction> {
         HomeOverviewPresentation.descriptor()
@@ -207,8 +210,10 @@ struct BookkeepingSearchPresentation {
         guard !normalizedQuery.isEmpty || !timeFilter.isUnbounded else {
             self.state = .initial
             self.dayGroups = []
+            self.suggestedCategories = Self.categorySuggestions(from: transactions, locale: locale)
             return
         }
+        self.suggestedCategories = []
 
         var accountsByID: [UUID: Account] = [:]
         accountsByID.reserveCapacity(accounts.count)
@@ -274,7 +279,7 @@ struct BookkeepingSearchPresentation {
                     note: note
                 )
             }
-        let validTransactions = Self.isOrdered(filteredTransactions)
+        let validTransactions = Self.isOrdered(filteredTransactions, transaction: \.transaction)
             ? filteredTransactions
             : filteredTransactions.sorted { Self.isOrderedBefore($0.transaction, $1.transaction) }
 
@@ -444,6 +449,28 @@ struct BookkeepingSearchPresentation {
         let entryType: BookkeepingEntryType
     }
 
+    /// 从最近的有效收支记录提取类别，保证每个建议都能通过现有关键词搜索找到结果。
+    private static func categorySuggestions(
+        from transactions: [AccountTransaction],
+        locale: Locale
+    ) -> [String] {
+        var titles: [String] = []
+        var seenTitles: Set<String> = []
+        let orderedTransactions = isOrdered(transactions, transaction: { $0 })
+            ? transactions
+            : transactions.sorted(by: isOrderedBefore)
+        for transaction in orderedTransactions {
+            guard TransactionDay.isValid(transaction.transactionDay),
+                  let payload = try? transaction.validatedPayload(),
+                  let searchable = searchablePayload(from: payload, locale: locale),
+                  seenTitles.insert(searchable.categoryTitle).inserted
+            else { continue }
+            titles.append(searchable.categoryTitle)
+            if titles.count == 5 { break }
+        }
+        return titles
+    }
+
     /// 将有效收支载荷转换为搜索语义，排除余额调整。
     private static func searchablePayload(
         from payload: AccountTransactionPayload,
@@ -551,13 +578,16 @@ struct BookkeepingSearchPresentation {
         return cleaned.isEmpty ? nil : cleaned
     }
 
-    /// 判断过滤后的结果是否已经符合稳定排序，避免对已排序查询重复排序。
-    private static func isOrdered(_ transactions: [ValidatedTransaction]) -> Bool {
+    /// 判断流水或校验后的投影是否符合稳定排序，避免对 SwiftData 有序快照重复排序。
+    private static func isOrdered<T>(
+        _ transactions: [T],
+        transaction: (T) -> AccountTransaction
+    ) -> Bool {
         guard transactions.count > 1 else { return true }
         for index in 1..<transactions.count {
             if isOrderedBefore(
-                transactions[index].transaction,
-                transactions[index - 1].transaction
+                transaction(transactions[index]),
+                transaction(transactions[index - 1])
             ) {
                 return false
             }

@@ -3749,6 +3749,23 @@
         }
       }
     },
+    "bookkeeping.search.empty.filtered.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No entries match within this date range. Try a different range or clear the date filter."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此时间范围内没有匹配的记账，试试其他时间范围或清除日期筛选。"
+          }
+        }
+      }
+    },
     "bookkeeping.search.empty.message" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3762,6 +3779,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "试试其他关键词或时间范围。"
+          }
+        }
+      }
+    },
+    "bookkeeping.search.empty.query.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No entries match “%@”."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有找到与“%@”匹配的记账。"
           }
         }
       }
@@ -3953,19 +3987,36 @@
         }
       }
     },
+    "bookkeeping.search.initial.amount_hint.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amounts match exactly: %1$@ matches %2$@, but not %3$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "金额按数值精确匹配：%1$@ 可匹配 %2$@，但不匹配 %3$@。"
+          }
+        }
+      }
+    },
     "bookkeeping.search.initial.message" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search by category, amount, note, or choose a date range."
+            "value" : "Search income and expenses across all accounts by category, amount, or note. You can also choose a date range."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "按类别、金额、备注搜索，或选择时间范围。"
+            "value" : "按类别、金额或备注搜索所有账户的收支记录，也可以只选择时间范围。"
           }
         }
       }
@@ -4034,6 +4085,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ 至 %2$@"
+          }
+        }
+      }
+    },
+    "bookkeeping.search.suggestions.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search by category"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按类别搜索"
           }
         }
       }
