@@ -60,8 +60,8 @@ final class LocalExpenseRepository {
         _ draft: DiningExpenseDraft,
         savedAt: Date = .now
     ) throws {
-        let modelContext = makeContext()
-        guard try !containsTransaction(id: draft.id, in: modelContext) else {
+        let modelContext = container.makeManualSaveContext()
+        guard try !modelContext.containsTransaction(id: draft.id) else {
             throw ExpenseRepositoryError.duplicateID(draft.id)
         }
 
@@ -71,7 +71,7 @@ final class LocalExpenseRepository {
         )
         let (account, accountType) = try bookkeepingAccount(id: transaction.accountID, in: modelContext)
         let payload = try transaction.validatedPayload()
-        guard let (amount, entryType) = Self.amountAndEntryType(for: payload) else {
+        guard let (entryType, amount) = payload.bookkeepingAmount else {
             throw AccountTransactionValidationError.invalidPayload
         }
         let updatedBalance = try Self.updatedBalance(
@@ -83,13 +83,7 @@ final class LocalExpenseRepository {
 
         modelContext.insert(transaction)
         account.balance = updatedBalance
-        do {
-            try beforeSave()
-            try modelContext.save()
-        } catch {
-            modelContext.rollback()
-            throw error
-        }
+        try modelContext.saveOrRollback(beforeSave: beforeSave)
     }
 
     /// 校验并原子更新一笔已有收支流水，同时修正绑定账户的金额。
@@ -100,8 +94,8 @@ final class LocalExpenseRepository {
     /// - Parameter draft: 完整编辑页面提交的值类型草稿。
     /// - Throws: 流水、账户、金额、标题或保存边界不符合约束时抛出对应错误。
     func update(_ draft: DiningExpenseEditDraft) throws {
-        let modelContext = makeContext()
-        guard let transaction = try transaction(id: draft.id, in: modelContext) else {
+        let modelContext = container.makeManualSaveContext()
+        guard let transaction = try modelContext.transaction(id: draft.id) else {
             throw ExpenseRepositoryError.transactionNotFound(draft.id)
         }
         let (oldAmount, oldEntryType) = try Self.editableAmountAndType(for: transaction)
@@ -134,20 +128,14 @@ final class LocalExpenseRepository {
         transaction.amount = replacement.amount
         transaction.transactionDay = replacement.transactionDay
         transaction.note = replacement.note
-        do {
-            try beforeSave()
-            try modelContext.save()
-        } catch {
-            modelContext.rollback()
-            throw error
-        }
+        try modelContext.saveOrRollback(beforeSave: beforeSave)
     }
 
     /// 原子删除一笔收支，并撤销其对当前账户余额的影响；不允许删除调整快照。
     /// - Parameter id: 待删除流水的稳定 UUID，重复提交会报告流水不存在。
     func delete(id: UUID) throws {
-        let context = makeContext()
-        guard let transaction = try transaction(id: id, in: context) else {
+        let context = container.makeManualSaveContext()
+        guard let transaction = try context.transaction(id: id) else {
             throw ExpenseRepositoryError.transactionNotFound(id)
         }
         let (amount, entryType) = try Self.editableAmountAndType(for: transaction)
@@ -158,31 +146,24 @@ final class LocalExpenseRepository {
         )
         account.balance = balance
         context.delete(transaction)
-        do {
-            try beforeSave()
-            try context.save()
-        } catch {
-            context.rollback()
-            throw error
-        }
+        try context.saveOrRollback(beforeSave: beforeSave)
     }
 
     /// 修改与删除共用的合法收支边界，拒绝币种转换和损坏载荷。
     private static func editableAmountAndType(
         for transaction: AccountTransaction
     ) throws -> (Decimal, BookkeepingEntryType) {
-        guard let payload = try? transaction.validatedPayload(),
-              let result = amountAndEntryType(for: payload)
+        guard let (entryType, amount) = try? transaction.validatedPayload().bookkeepingAmount
         else { throw ExpenseRepositoryError.transactionNotEditable(transaction.id) }
         guard transaction.currencyCode == "CNY" else {
             throw ExpenseRepositoryError.unsupportedCurrency(transaction.currencyCode)
         }
-        return result
+        return (amount, entryType)
     }
 
     /// 最终写入前重新校验账户，避免编辑期间停用、删除或类型变化绕过限制。
     private func bookkeepingAccount(id: UUID, in context: ModelContext) throws -> (Account, AccountType) {
-        guard let account = try account(id: id, in: context) else {
+        guard let account = try context.account(id: id) else {
             throw ExpenseRepositoryError.accountNotFound(id)
         }
         guard account.isActive else { throw ExpenseRepositoryError.accountDeactivated(id) }
@@ -193,58 +174,6 @@ final class LocalExpenseRepository {
             throw ExpenseRepositoryError.unsupportedAccountType(account.typeRawValue)
         }
         return (account, type)
-    }
-
-    /// 获取指定 UUID 的账户。
-    private func account(id: UUID, in modelContext: ModelContext) throws -> Account? {
-        let accountID = id
-        var descriptor = FetchDescriptor<Account>(
-            predicate: #Predicate<Account> { account in
-                account.id == accountID
-            }
-        )
-        descriptor.fetchLimit = 1
-        return try modelContext.fetch(descriptor).first
-    }
-
-    /// 判断指定 UUID 的流水是否已经存在，避免实例化无须读取的完整模型。
-    private func containsTransaction(id: UUID, in modelContext: ModelContext) throws -> Bool {
-        let transactionID = id
-        let descriptor = FetchDescriptor<AccountTransaction>(
-            predicate: #Predicate<AccountTransaction> { transaction in
-                transaction.id == transactionID
-            }
-        )
-        return try modelContext.fetchCount(descriptor) > 0
-    }
-
-    /// 获取指定 UUID 的流水。
-    private func transaction(
-        id: UUID,
-        in modelContext: ModelContext
-    ) throws -> AccountTransaction? {
-        let transactionID = id
-        var descriptor = FetchDescriptor<AccountTransaction>(
-            predicate: #Predicate<AccountTransaction> { transaction in
-                transaction.id == transactionID
-            }
-        )
-        descriptor.fetchLimit = 1
-        return try modelContext.fetch(descriptor).first
-    }
-
-    /// 从可编辑的收支载荷中提取金额与方向。
-    private static func amountAndEntryType(
-        for payload: AccountTransactionPayload
-    ) -> (Decimal, BookkeepingEntryType)? {
-        switch payload {
-        case let .expense(_, amount):
-            (amount, .expense)
-        case let .income(_, amount):
-            (amount, .income)
-        case .balanceAdjustment:
-            nil
-        }
     }
 
     /// 根据账户语义计算收支后的精确金额，并拒绝溢出或精度损失。
@@ -302,12 +231,5 @@ final class LocalExpenseRepository {
         }
 
         return try adding(amountDelta, to: balance)
-    }
-
-    /// 创建一个关闭自动保存的新鲜 context。
-    private func makeContext() -> ModelContext {
-        let context = ModelContext(container)
-        context.autosaveEnabled = false
-        return context
     }
 }

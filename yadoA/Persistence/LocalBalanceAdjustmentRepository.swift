@@ -60,16 +60,15 @@ final class LocalBalanceAdjustmentRepository {
         now: Date = .now,
         calendar: Calendar = .current
     ) throws -> BalanceAdjustmentSaveResult {
-        let modelContext = ModelContext(container)
-        modelContext.autosaveEnabled = false
+        let modelContext = container.makeManualSaveContext()
 
         guard let targetBalance = draft.targetBalance else {
             throw BalanceAdjustmentRepositoryError.invalidTargetBalance
         }
-        guard try !containsTransaction(id: draft.id, in: modelContext) else {
+        guard try !modelContext.containsTransaction(id: draft.id) else {
             throw BalanceAdjustmentRepositoryError.duplicateID(draft.id)
         }
-        guard let account = try account(id: draft.accountID, in: modelContext) else {
+        guard let account = try modelContext.account(id: draft.accountID) else {
             throw BalanceAdjustmentRepositoryError.accountNotFound(draft.accountID)
         }
         guard account.isActive else {
@@ -99,40 +98,7 @@ final class LocalBalanceAdjustmentRepository {
         )
         modelContext.insert(transaction)
         account.balance = targetBalance
-        do {
-            try beforeSave()
-            try modelContext.save()
-            return .saved(currentBalance: targetBalance)
-        } catch {
-            modelContext.rollback()
-            throw error
-        }
+        try modelContext.saveOrRollback(beforeSave: beforeSave)
+        return .saved(currentBalance: targetBalance)
     }
-
-    /// 获取指定 UUID 的账户。
-    private func account(id: UUID, in modelContext: ModelContext) throws -> Account? {
-        let accountID = id
-        var descriptor = FetchDescriptor<Account>(
-            predicate: #Predicate<Account> { account in
-                account.id == accountID
-            }
-        )
-        descriptor.fetchLimit = 1
-        return try modelContext.fetch(descriptor).first
-    }
-
-    /// 跨全部账户流水类型检查 UUID，防止重复联动余额。
-    private func containsTransaction(
-        id: UUID,
-        in modelContext: ModelContext
-    ) throws -> Bool {
-        let transactionID = id
-        let descriptor = FetchDescriptor<AccountTransaction>(
-            predicate: #Predicate<AccountTransaction> { transaction in
-                transaction.id == transactionID
-            }
-        )
-        return try modelContext.fetchCount(descriptor) > 0
-    }
-
 }

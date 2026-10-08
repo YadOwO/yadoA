@@ -128,6 +128,18 @@ enum AccountTransactionPayload: Equatable, Sendable {
 
     /// 余额调整的完整前值、后值与带符号差额。
     case balanceAdjustment(before: Decimal, after: Decimal, delta: Decimal)
+
+    /// 真实收支的方向与正数金额；余额调整不属于收支，返回 `nil`。
+    var bookkeepingAmount: (entryType: BookkeepingEntryType, amount: Decimal)? {
+        switch self {
+        case let .expense(_, amount):
+            (.expense, amount)
+        case let .income(_, amount):
+            (.income, amount)
+        case .balanceAdjustment:
+            nil
+        }
+    }
 }
 
 /// SwiftData 中持久化的类型化账户流水。

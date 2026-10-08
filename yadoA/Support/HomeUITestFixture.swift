@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 import SwiftData
 
@@ -245,3 +246,4 @@ enum HomeUITestFixture {
             + (components.day ?? 1)
     }
 }
+#endif

@@ -134,7 +134,7 @@ final class LocalAccountRepository {
     ) throws {
         let account = try Account.validating(draft: draft, locale: locale, now: now)
         let context = makeContext()
-        guard try self.account(id: draft.id, in: context) == nil else {
+        guard try context.account(id: draft.id) == nil else {
             throw AccountRepositoryError.duplicateID(draft.id)
         }
 
@@ -157,7 +157,7 @@ final class LocalAccountRepository {
         now: Date = .now
     ) throws {
         let context = makeContext()
-        guard let account = try account(id: draft.id, in: context) else {
+        guard let account = try context.account(id: draft.id) else {
             throw AccountRepositoryError.accountNotFound(draft.id)
         }
         guard account.isActive else {
@@ -172,7 +172,7 @@ final class LocalAccountRepository {
     /// 手动切换唯一的全局默认记账账户。
     func setDefaultAccount(id: UUID) throws {
         let context = makeContext()
-        guard let account = try account(id: id, in: context), account.isEligibleForDefault else {
+        guard let account = try context.account(id: id), account.isEligibleForDefault else {
             throw AccountRepositoryError.invalidDefaultCandidate(id)
         }
 
@@ -186,7 +186,7 @@ final class LocalAccountRepository {
     func defaultResolution() throws -> BookkeepingDefaultResolution {
         let context = makeContext()
         return try BookkeepingPreference.resolution(
-            preference: preference(in: context),
+            preference: context.canonicalBookkeepingPreference(),
             accounts: allAccounts(in: context)
         )
     }
@@ -217,12 +217,12 @@ final class LocalAccountRepository {
     /// 生成删除或停用确认界面使用的值类型预检快照。
     func disposalPlan(for accountID: UUID) throws -> AccountDisposalPlan {
         let context = makeContext()
-        guard let account = try account(id: accountID, in: context) else {
+        guard let account = try context.account(id: accountID) else {
             throw AccountRepositoryError.accountNotFound(accountID)
         }
         let accounts = try allAccounts(in: context)
         let defaultAccountID = BookkeepingPreference.resolvedAccountID(
-            preference: try preference(in: context),
+            preference: try context.canonicalBookkeepingPreference(),
             accounts: accounts
         )
         let candidates = accounts
@@ -245,7 +245,7 @@ final class LocalAccountRepository {
         now: Date = .now
     ) throws {
         let context = makeContext()
-        guard let account = try account(id: expectation.accountID, in: context) else {
+        guard let account = try context.account(id: expectation.accountID) else {
             throw AccountRepositoryError.accountNotFound(expectation.accountID)
         }
         guard account.isActive else {
@@ -253,7 +253,7 @@ final class LocalAccountRepository {
         }
 
         let accounts = try allAccounts(in: context)
-        let preference = try preference(in: context)
+        let preference = try context.canonicalBookkeepingPreference()
         let currentDefault = BookkeepingPreference.resolvedAccountID(
             preference: preference,
             accounts: accounts
@@ -301,7 +301,7 @@ final class LocalAccountRepository {
     /// 恢复停用账户；无有效默认时，合格账户在同一次保存中自动成为默认。
     func restore(id: UUID) throws {
         let context = makeContext()
-        guard let account = try account(id: id, in: context) else {
+        guard let account = try context.account(id: id) else {
             throw AccountRepositoryError.accountNotFound(id)
         }
         guard !account.isActive else {
@@ -323,7 +323,7 @@ final class LocalAccountRepository {
 
     /// 获取指定稳定 UUID 的当前账户；读取命令使用新鲜 context。
     func account(id: UUID) throws -> Account? {
-        try account(id: id, in: makeContext())
+        try makeContext().account(id: id)
     }
 
     /// 获取确定性排序的全部账户，包含停用账户供管理和历史详情使用。
@@ -335,14 +335,14 @@ final class LocalAccountRepository {
     private func effectiveDefaultAccountID() throws -> UUID? {
         let context = makeContext()
         return BookkeepingPreference.resolvedAccountID(
-            preference: try preference(in: context),
+            preference: try context.canonicalBookkeepingPreference(),
             accounts: try allAccounts(in: context)
         )
     }
 
     /// 创建或读取 canonical singleton；只在写命令中调用。
     private func canonicalPreference(in context: ModelContext) throws -> BookkeepingPreference {
-        if let preference = try preference(in: context) {
+        if let preference = try context.canonicalBookkeepingPreference() {
             return preference
         }
         let preference = BookkeepingPreference()
@@ -350,33 +350,9 @@ final class LocalAccountRepository {
         return preference
     }
 
-    /// 读取固定 singleton，忽略非 canonical 的偏好记录。
-    private func preference(in context: ModelContext) throws -> BookkeepingPreference? {
-        let singletonID = BookkeepingPreference.singletonID
-        var descriptor = FetchDescriptor<BookkeepingPreference>(
-            predicate: #Predicate<BookkeepingPreference> { preference in
-                preference.id == singletonID
-            }
-        )
-        descriptor.fetchLimit = 1
-        return try context.fetch(descriptor).first
-    }
-
     /// 在同一 context 中读取全部账户。
     private func allAccounts(in context: ModelContext) throws -> [Account] {
         try context.fetch(FetchDescriptor<Account>())
-    }
-
-    /// 在同一 context 中按 UUID 读取账户。
-    private func account(id: UUID, in context: ModelContext) throws -> Account? {
-        let accountID = id
-        var descriptor = FetchDescriptor<Account>(
-            predicate: #Predicate<Account> { account in
-                account.id == accountID
-            }
-        )
-        descriptor.fetchLimit = 1
-        return try context.fetch(descriptor).first
     }
 
     /// 统计账户关联的全部流水类型，未来新增流水无需修改删除语义。
@@ -428,9 +404,7 @@ final class LocalAccountRepository {
 
     /// 创建一个关闭自动保存的新鲜 context。
     private func makeContext() -> ModelContext {
-        let context = ModelContext(container)
-        context.autosaveEnabled = false
-        return context
+        container.makeManualSaveContext()
     }
 
     /// 在单个 context 中执行变更、显式保存并统一回滚失败。
@@ -440,11 +414,10 @@ final class LocalAccountRepository {
     ) throws {
         do {
             try changes()
-            try beforeSave()
-            try context.save()
         } catch {
             context.rollback()
             throw error
         }
+        try context.saveOrRollback(beforeSave: beforeSave)
     }
 }

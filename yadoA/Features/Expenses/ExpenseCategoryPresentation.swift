@@ -77,6 +77,36 @@ extension IncomeCategory: BookkeepingCategoryPresentable {
     }
 }
 
+/// 收支载荷的分类展示信息；余额调整没有分类，全部返回 `nil`。
+extension AccountTransactionPayload {
+    /// 含收支方向前缀的分类标识，避免收入与支出的同名分类冲突。
+    var categoryID: String? {
+        switch self {
+        case let .expense(category, _): "expense.\(category.rawValue)"
+        case let .income(category, _): "income.\(category.rawValue)"
+        case .balanceAdjustment: nil
+        }
+    }
+
+    /// 分类使用的系统图标名称。
+    var categorySymbolName: String? {
+        switch self {
+        case let .expense(category, _): category.symbolName
+        case let .income(category, _): category.symbolName
+        case .balanceAdjustment: nil
+        }
+    }
+
+    /// 返回当前语言环境下的分类名称。
+    func categoryTitle(locale: Locale) -> String? {
+        switch self {
+        case let .expense(category, _): category.localizedTitle(locale: locale)
+        case let .income(category, _): category.localizedTitle(locale: locale)
+        case .balanceAdjustment: nil
+        }
+    }
+}
+
 /// 收支方向的本地化展示配置。
 extension BookkeepingEntryType {
     /// String Catalog 中稳定的收支方向键。

@@ -91,15 +91,11 @@ struct HomeMonth: Comparable, Hashable, Sendable {
             return String(format: "%04d-%02d", year, month)
         }
 
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.calendar = TransactionDay.gregorianCalendar(
-            basedOn: sourceCalendar,
-            locale: locale
-        )
-        formatter.timeZone = sourceCalendar.timeZone
-        formatter.setLocalizedDateFormatFromTemplate("MMMM yyyy")
-        return formatter.string(from: date)
+        return BookkeepingDateFormatting.formatter(
+            template: "MMMM yyyy",
+            locale: locale,
+            calendar: TransactionDay.gregorianCalendar(basedOn: sourceCalendar, locale: locale)
+        ).string(from: date)
     }
 }
 
@@ -205,13 +201,7 @@ struct HomeOverviewPresentation {
     ///
     /// - Returns: 可直接提供给 SwiftData `@Query` 或查询上下文的描述符。
     static func descriptor() -> FetchDescriptor<AccountTransaction> {
-        FetchDescriptor(
-            sortBy: [
-                SortDescriptor(\AccountTransaction.transactionDay, order: .reverse),
-                SortDescriptor(\AccountTransaction.savedAt, order: .reverse),
-                SortDescriptor(\AccountTransaction.id, order: .forward)
-            ]
-        )
+        FetchDescriptor(sortBy: AccountTransactionOrdering.sortDescriptors)
     }
 
     /// 经过校验并按展示顺序保存的首页真实流水。
@@ -243,40 +233,25 @@ struct HomeOverviewPresentation {
             basedOn: sourceCalendar,
             locale: locale
         )
-        let sortedTransactions = transactions.sorted(by: Self.isOrderedBefore)
+        // 流水数量远多于业务日数量：日期按业务日解析一次，月份直接取自 `YYYYMM`。
+        var dayCache = TransactionDay.DateCache(calendar: calendar, locale: locale)
+        let sortedTransactions = AccountTransactionOrdering.sorted(transactions) { $0 }
         let validTransactions = sortedTransactions.compactMap { transaction -> ValidatedTransaction? in
-            guard let transactionDate = TransactionDay.date(
-                from: transaction.transactionDay,
-                calendar: calendar,
-                locale: locale
-            ),
-            let month = HomeMonth.from(
-                date: transactionDate,
-                calendar: calendar,
-                locale: locale
-            ),
-            let payload = try? transaction.validatedPayload()
+            guard dayCache.date(for: transaction.transactionDay) != nil,
+                  let month = HomeMonth(value: transaction.transactionDay / 100),
+                  let payload = try? transaction.validatedPayload(),
+                  let entry = payload.bookkeepingAmount,
+                  let symbolName = payload.categorySymbolName
             else {
-                return nil
-            }
-
-            let amount: Decimal
-            let entryType: BookkeepingEntryType
-            switch payload {
-            case let .expense(_, value):
-                amount = value
-                entryType = .expense
-            case let .income(_, value):
-                amount = value
-                entryType = .income
-            case .balanceAdjustment:
                 return nil
             }
             return ValidatedTransaction(
                 transaction: transaction,
                 month: month,
-                amount: amount,
-                entryType: entryType
+                payload: payload,
+                symbolName: symbolName,
+                amount: entry.amount,
+                entryType: entry.entryType
             )
         }
         self.validTransactions = validTransactions
@@ -299,6 +274,11 @@ struct HomeOverviewPresentation {
     func presentation(for month: HomeMonth) -> HomeOverviewMonthPresentation {
         let monthTransactions = validTransactions.filter { $0.month == month }
         let groupedTransactions = Dictionary(grouping: monthTransactions, by: \.transaction.transactionDay)
+        let weekdayFormatter = BookkeepingDateFormatting.formatter(
+            template: "EEEE",
+            locale: locale,
+            calendar: calendar
+        )
         let dayGroups = groupedTransactions.keys.sorted(by: >).compactMap {
             transactionDay -> HomeOverviewDayPresentation? in
             guard let date = TransactionDay.date(
@@ -310,11 +290,14 @@ struct HomeOverviewPresentation {
             }
 
             let transactions = groupedTransactions[transactionDay, default: []]
-            let rows = transactions.compactMap { Self.row(
-                for: $0.transaction,
+            let formattedDate = BookkeepingDateFormatting.shortDate(
+                date,
                 locale: locale,
                 calendar: calendar
-            ) }
+            )
+            let rows = transactions.map {
+                Self.row(for: $0, formattedDate: formattedDate, locale: locale)
+            }
             let incomeTotal = transactions.reduce(into: Decimal.zero) { total, transaction in
                 if transaction.entryType == .income {
                     total += transaction.amount
@@ -327,8 +310,8 @@ struct HomeOverviewPresentation {
             }
             return HomeOverviewDayPresentation(
                 transactionDay: transactionDay,
-                formattedDate: Self.formattedDate(date, locale: locale, calendar: calendar),
-                formattedWeekday: Self.formattedWeekday(date, locale: locale, calendar: calendar),
+                formattedDate: formattedDate,
+                formattedWeekday: weekdayFormatter.string(from: date),
                 incomeTotal: incomeTotal,
                 expenseTotal: expenseTotal,
                 rows: rows
@@ -363,30 +346,58 @@ struct HomeOverviewPresentation {
         calendar sourceCalendar: Calendar = .current
     ) -> HomeOverviewRowPresentation? {
         guard let payload = try? transaction.validatedPayload(),
+              let symbolName = payload.categorySymbolName,
               TransactionDay.date(
                   from: transaction.transactionDay,
                   calendar: sourceCalendar,
                   locale: locale
-              ) != nil,
-              let historyRow = AccountTransactionHistoryPresentation.row(
-                  for: transaction,
-                  locale: locale,
-                  calendar: sourceCalendar
-              )
+              ) != nil
         else {
             return nil
         }
 
-        let symbolName: String
-        switch payload {
-        case let .expense(category, _):
-            symbolName = category.symbolName
-        case let .income(category, _):
-            symbolName = category.symbolName
-        case .balanceAdjustment:
-            return nil
-        }
+        return row(
+            for: transaction,
+            payload: payload,
+            symbolName: symbolName,
+            formattedDate: AccountTransactionHistoryPresentation.formattedDate(
+                transaction.transactionDay,
+                locale: locale,
+                calendar: sourceCalendar
+            ),
+            locale: locale
+        )
+    }
 
+    /// 把初始化阶段已校验的收支流水转换为首页明细行，不再重复校验载荷。
+    private static func row(
+        for validated: ValidatedTransaction,
+        formattedDate: String,
+        locale: Locale
+    ) -> HomeOverviewRowPresentation {
+        row(
+            for: validated.transaction,
+            payload: validated.payload,
+            symbolName: validated.symbolName,
+            formattedDate: formattedDate,
+            locale: locale
+        )
+    }
+
+    /// 复用账户流水行的标题、金额与播报文本，并补充首页使用的分类图标。
+    private static func row(
+        for transaction: AccountTransaction,
+        payload: AccountTransactionPayload,
+        symbolName: String,
+        formattedDate: String,
+        locale: Locale
+    ) -> HomeOverviewRowPresentation {
+        let historyRow = AccountTransactionHistoryPresentation.row(
+            for: transaction,
+            payload: payload,
+            formattedDate: formattedDate,
+            locale: locale
+        )
         return HomeOverviewRowPresentation(
             id: historyRow.id,
             title: historyRow.title,
@@ -423,20 +434,6 @@ struct HomeOverviewPresentation {
         return months.first(where: { $0 > currentMonth }) ?? currentMonth
     }
 
-    /// 供 SwiftData 查询结果和纯数组投影共用的稳定流水排序。
-    private nonisolated static func isOrderedBefore(
-        _ lhs: AccountTransaction,
-        _ rhs: AccountTransaction
-    ) -> Bool {
-        if lhs.transactionDay != rhs.transactionDay {
-            return lhs.transactionDay > rhs.transactionDay
-        }
-        if lhs.savedAt != rhs.savedAt {
-            return lhs.savedAt > rhs.savedAt
-        }
-        return lhs.id.uuidString < rhs.id.uuidString
-    }
-
     /// 已完成有效日期、载荷和自然月份解码的收支流水。
     private struct ValidatedTransaction {
         /// 原始流水，供本地化行展示使用。
@@ -444,6 +441,12 @@ struct HomeOverviewPresentation {
 
         /// 由业务日解析出的自然月份。
         let month: HomeMonth
+
+        /// 已校验的收支载荷，生成明细行时直接复用。
+        let payload: AccountTransactionPayload
+
+        /// 分类使用的系统图标名称。
+        let symbolName: String
 
         /// 经 `validatedPayload()` 确认的精确记账金额。
         let amount: Decimal
@@ -457,35 +460,4 @@ struct HomeOverviewPresentation {
 
     /// 首页投影使用的固定公历及时区。
     private let calendar: Calendar
-
-    /// 格式化短日期，失败时回退到公历数字日期。
-    private static func formattedDate(
-        _ date: Date,
-        locale: Locale,
-        calendar: Calendar
-    ) -> String {
-        date.formatted(
-            Date.FormatStyle(
-                date: .numeric,
-                time: .omitted,
-                locale: locale,
-                calendar: calendar,
-                timeZone: calendar.timeZone
-            )
-        )
-    }
-
-    /// 格式化本地化星期标题。
-    private static func formattedWeekday(
-        _ date: Date,
-        locale: Locale,
-        calendar sourceCalendar: Calendar
-    ) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.calendar = sourceCalendar
-        formatter.timeZone = sourceCalendar.timeZone
-        formatter.setLocalizedDateFormatFromTemplate("EEEE")
-        return formatter.string(from: date)
-    }
 }

@@ -115,7 +115,7 @@ final class BackupExportService {
 
     /// 在单一新鲜 context 中读取、校验并组装备份信封。
     private func makeBackup(exportedAt: Date) throws -> BackupFile {
-        let context = makeContext()
+        let context = container.makeManualSaveContext()
 
         let accounts = try context.fetch(FetchDescriptor<Account>()).sorted { lhs, rhs in
             if lhs.createdAt != rhs.createdAt { return lhs.createdAt < rhs.createdAt }
@@ -135,7 +135,7 @@ final class BackupExportService {
             }
         }
 
-        let preference = try canonicalPreference(in: context)
+        let preference = try context.canonicalBookkeepingPreference()
         return BackupFile(
             exportedAt: exportedAt,
             appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
@@ -167,24 +167,5 @@ final class BackupExportService {
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         let fileName = "yadoA-backup-\(formatter.string(from: exportedAt)).yadoabackup"
         return exportDirectory.appending(path: fileName)
-    }
-
-    /// 读取 canonical singleton 偏好，忽略非 canonical 的杂散记录。
-    private func canonicalPreference(in context: ModelContext) throws -> BookkeepingPreference? {
-        let singletonID = BookkeepingPreference.singletonID
-        var descriptor = FetchDescriptor<BookkeepingPreference>(
-            predicate: #Predicate<BookkeepingPreference> { preference in
-                preference.id == singletonID
-            }
-        )
-        descriptor.fetchLimit = 1
-        return try context.fetch(descriptor).first
-    }
-
-    /// 创建一个关闭自动保存的新鲜 context。
-    private func makeContext() -> ModelContext {
-        let context = ModelContext(container)
-        context.autosaveEnabled = false
-        return context
     }
 }

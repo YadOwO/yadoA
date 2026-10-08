@@ -40,11 +40,7 @@ enum AccountTransactionHistoryPresentation {
             predicate: #Predicate<AccountTransaction> { transaction in
                 transaction.accountID == targetAccountID
             },
-            sortBy: [
-                SortDescriptor(\AccountTransaction.transactionDay, order: .reverse),
-                SortDescriptor(\AccountTransaction.savedAt, order: .reverse),
-                SortDescriptor(\AccountTransaction.id, order: .forward)
-            ]
+            sortBy: AccountTransactionOrdering.sortDescriptors
         )
     }
 
@@ -60,12 +56,38 @@ enum AccountTransactionHistoryPresentation {
         locale: Locale = .current,
         calendar: Calendar = .current
     ) -> AccountTransactionHistoryRowPresentation? {
+        guard let payload = try? transaction.validatedPayload() else { return nil }
+        return row(
+            for: transaction,
+            payload: payload,
+            formattedDate: formattedDate(
+                transaction.transactionDay,
+                locale: locale,
+                calendar: calendar
+            ),
+            locale: locale
+        )
+    }
+
+    /// 使用调用方已校验的载荷和已格式化的业务日期生成展示行，供批量投影避免重复校验。
+    ///
+    /// - Parameters:
+    ///   - transaction: 已持久化的类型化账户流水。
+    ///   - payload: 由 `validatedPayload()` 解码出的同一笔流水载荷。
+    ///   - formattedDate: 该流水业务日的本地化短日期。
+    ///   - locale: 标题和金额使用的语言环境。
+    /// - Returns: 可直接渲染的流水行。
+    static func row(
+        for transaction: AccountTransaction,
+        payload: AccountTransactionPayload,
+        formattedDate: String,
+        locale: Locale
+    ) -> AccountTransactionHistoryRowPresentation {
         let title: String
         let formattedAmount: String
         let balanceTransition: String?
         let spokenBalanceTransition: String?
         let canOpenBookkeepingDetail: Bool
-        guard let payload = try? transaction.validatedPayload() else { return nil }
 
         switch payload {
         case let .expense(category, amount):
@@ -130,11 +152,6 @@ enum AccountTransactionHistoryPresentation {
 
         }
 
-        let formattedDate = formattedDate(
-            transaction.transactionDay,
-            locale: locale,
-            calendar: calendar
-        )
         let spokenParts = [
             title,
             formattedAmount,
@@ -175,7 +192,7 @@ enum AccountTransactionHistoryPresentation {
     }
 
     /// 把 `YYYYMMDD` 整数转换为当前语言环境下的短日期。
-    private static func formattedDate(
+    static func formattedDate(
         _ transactionDay: Int,
         locale: Locale,
         calendar sourceCalendar: Calendar
@@ -192,14 +209,6 @@ enum AccountTransactionHistoryPresentation {
             return String(transactionDay)
         }
 
-        return date.formatted(
-            Date.FormatStyle(
-                date: .numeric,
-                time: .omitted,
-                locale: locale,
-                calendar: calendar,
-                timeZone: calendar.timeZone
-            )
-        )
+        return BookkeepingDateFormatting.shortDate(date, locale: locale, calendar: calendar)
     }
 }

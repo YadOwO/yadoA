@@ -161,8 +161,9 @@ struct ChartOverviewPresentation: Equatable {
             basedOn: sourceCalendar,
             locale: locale
         )
+        var dayCache = TransactionDay.DateCache(calendar: calendar, locale: locale)
         let validTransactions = transactions.compactMap {
-            Self.validTransaction(for: $0, entryType: entryType, calendar: calendar, locale: locale)
+            Self.validTransaction(for: $0, entryType: entryType, dayCache: &dayCache)
         }
         let resolvedAnchorDate = anchorDate ?? Self.initialAnchorDate(
             dates: validTransactions.map(\.date),
@@ -201,11 +202,15 @@ struct ChartOverviewPresentation: Equatable {
         self.transactionCount = periodTransactions.count
         self.categoryRanking = Dictionary(grouping: periodTransactions, by: \.categoryID)
             .compactMap { categoryID, transactions in
-                guard let first = transactions.first else { return nil }
+                // 分类名称与图标按分类解析一次，不随流水数量增长。
+                guard let payload = transactions.first?.payload,
+                      let title = payload.categoryTitle(locale: locale),
+                      let symbolName = payload.categorySymbolName
+                else { return nil }
                 return CategoryRankingItem(
                     id: categoryID,
-                    title: first.categoryTitle,
-                    symbolName: first.categorySymbol,
+                    title: title,
+                    symbolName: symbolName,
                     amount: transactions.reduce(Decimal.zero) { $0 + $1.amount }
                 )
             }
@@ -250,8 +255,9 @@ struct ChartOverviewPresentation: Equatable {
         locale: Locale = .current
     ) -> Date {
         let calendar = chartCalendar(basedOn: sourceCalendar, locale: locale)
+        var dayCache = TransactionDay.DateCache(calendar: calendar, locale: locale)
         let dates = transactions.compactMap {
-            validTransaction(for: $0, entryType: entryType, calendar: calendar, locale: locale)?.date
+            validTransaction(for: $0, entryType: entryType, dayCache: &dayCache)?.date
         }
         return initialAnchorDate(dates: dates, now: now, calendar: calendar)
     }
@@ -306,11 +312,8 @@ struct ChartOverviewPresentation: Equatable {
         /// 含收支方向前缀的分类标识，避免两种“其他”分类冲突。
         let categoryID: String
 
-        /// 当前语言环境下的分类名称。
-        let categoryTitle: String
-
-        /// 复用记账分类的系统图标。
-        let categorySymbol: String
+        /// 已校验的收支载荷，分类排行按分类解析名称与图标时使用。
+        let payload: AccountTransactionPayload
     }
 
     /// 保留来源日历的时区与周规则，并统一使用公历。
@@ -328,39 +331,30 @@ struct ChartOverviewPresentation: Equatable {
     }
 
     /// 严格解码单笔所选类型的真实流水。
+    ///
+    /// - Parameters:
+    ///   - transaction: 跨账户查询得到的原始流水。
+    ///   - entryType: 要统计的收支类型。
+    ///   - dayCache: 绑定图表日历的业务日缓存，同一业务日只解析一次。
     private static func validTransaction(
         for transaction: AccountTransaction,
         entryType: BookkeepingEntryType,
-        calendar: Calendar,
-        locale: Locale
+        dayCache: inout TransactionDay.DateCache
     ) -> ValidTransaction? {
-        guard let date = TransactionDay.date(
-            from: transaction.transactionDay,
-            calendar: calendar,
-            locale: locale
-        ),
-        let payload = try? transaction.validatedPayload()
+        guard let date = dayCache.date(for: transaction.transactionDay),
+              let payload = try? transaction.validatedPayload(),
+              let entry = payload.bookkeepingAmount,
+              entry.entryType == entryType,
+              let categoryID = payload.categoryID
         else {
             return nil
         }
-        switch (entryType, payload) {
-        case let (.expense, .expense(category, amount)):
-            return ValidTransaction(
-                date: date, amount: amount,
-                categoryID: "expense.\(category.rawValue)",
-                categoryTitle: category.localizedTitle(locale: locale),
-                categorySymbol: category.symbolName
-            )
-        case let (.income, .income(category, amount)):
-            return ValidTransaction(
-                date: date, amount: amount,
-                categoryID: "income.\(category.rawValue)",
-                categoryTitle: category.localizedTitle(locale: locale),
-                categorySymbol: category.symbolName
-            )
-        default:
-            return nil
-        }
+        return ValidTransaction(
+            date: date,
+            amount: entry.amount,
+            categoryID: categoryID,
+            payload: payload
+        )
     }
 
     /// 返回日期所在周、月或年的半开区间。
@@ -515,11 +509,6 @@ struct ChartOverviewPresentation: Equatable {
         locale: Locale,
         calendar: Calendar
     ) -> DateFormatter {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-        formatter.setLocalizedDateFormatFromTemplate(template)
-        return formatter
+        BookkeepingDateFormatting.formatter(template: template, locale: locale, calendar: calendar)
     }
 }
