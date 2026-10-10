@@ -126,6 +126,7 @@ struct DiningExpenseQuickEditView: View {
             Button(text("bookkeeping.edit.discard.action"), role: .destructive) { dismiss() }
             Button(text("common.cancel"), role: .cancel) {}
         }
+        .paperPage()
     }
 
     /// 按方向展示对应分类，保留另一方向的上次草稿选择。

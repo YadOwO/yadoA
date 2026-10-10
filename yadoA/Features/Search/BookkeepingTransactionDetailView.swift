@@ -54,6 +54,7 @@ struct BookkeepingTransactionDetailView: View {
         .alert(text("bookkeeping.delete.failed"), isPresented: $isDeleteFailed) {
             Button(text("common.close"), role: .cancel) {}
         }
+        .paperPage()
     }
 
     /// 只有持久化成功才离开详情；失败保留当前页面和可重试入口。

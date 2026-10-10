@@ -61,6 +61,7 @@ struct ExpenseAccountSelectionView: View {
                 }
             )
         }
+        .paperPage()
     }
 
     /// 当前没有账户时展示唯一的上下文创建入口。

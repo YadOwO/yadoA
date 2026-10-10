@@ -80,6 +80,7 @@ struct BalanceAdjustmentView: View {
         .task {
             focusedField = .amount
         }
+        .paperPage()
     }
 
     /// 清晰说明页面正在设置总余额，而不是输入增减差额。

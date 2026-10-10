@@ -36,5 +36,6 @@ struct DeactivatedAccountListView: View {
         }
         .navigationTitle(AccountLocalization.string("account.deactivated.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
+        .paperPage()
     }
 }

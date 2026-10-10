@@ -95,6 +95,7 @@ struct BookkeepingSearchView: View {
                 )
             }
         }
+        .paperPage()
     }
 
     /// 根据投影状态渲染初始、无结果或日期分组结果。

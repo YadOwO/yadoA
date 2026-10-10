@@ -63,5 +63,6 @@ struct DefaultAccountSelectionView: View {
         ) {
             Button(AccountLocalization.string("common.close", locale: locale), role: .cancel) {}
         }
+        .paperPage()
     }
 }

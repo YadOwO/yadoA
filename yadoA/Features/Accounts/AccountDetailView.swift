@@ -227,6 +227,7 @@ struct AccountDetailView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
+        .paperPage()
     }
 }
 

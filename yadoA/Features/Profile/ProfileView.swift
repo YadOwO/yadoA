@@ -68,7 +68,7 @@ struct ProfileView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 32)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .paperPage()
         .navigationTitle(text("profile.title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

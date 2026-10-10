@@ -175,6 +175,7 @@ struct AccountLifecycleSheet: View {
             }
         }
         .interactiveDismissDisabled(flow.isSaving)
+        .paperPage()
     }
 
     /// 只有预检允许且默认处置条件已满足时开放提交。

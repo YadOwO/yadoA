@@ -134,7 +134,7 @@ struct CategoryRankingView: View {
         ]
     )
     .padding()
-    .background(Color(uiColor: .systemGroupedBackground))
+    .paperPage()
 }
 
 #Preview("Empty ranking") {

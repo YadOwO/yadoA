@@ -159,6 +159,7 @@ struct BookkeepingSearchTimeFilterView: View {
                 .accessibilityIdentifier("bookkeeping-search-filter-confirm")
             }
         }
+        .paperPage()
     }
 
     /// 当前草稿可提交时生成搜索条件，否则保持确认按钮禁用。

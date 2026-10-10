@@ -114,6 +114,7 @@ struct DiningExpenseEntryView: View {
             applyInitialDefaultIfNeeded()
             presentInitialCategorySelectionIfNeeded()
         }
+        .paperPage()
     }
 
     /// 无论取消还是保存成功，都只关闭本次录入页面。
@@ -615,6 +616,7 @@ private struct BookkeepingCategorySelectionView<Category: BookkeepingCategoryPre
                 .padding(.horizontal, 20)
                 .padding(.vertical, 24)
             }
+            .paperPage()
             .navigationTitle(
                 AccountLocalization.string(titleKey, locale: locale)
             )

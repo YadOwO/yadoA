@@ -71,6 +71,7 @@ struct HomeMonthPickerView: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+        .paperPage()
     }
 }
 

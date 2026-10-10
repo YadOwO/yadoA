@@ -257,6 +257,7 @@ struct AccountListView: View {
                 DeactivatedAccountListView()
             }
         }
+        .paperPage()
     }
 
     /// 干净存储唯一的主要添加入口。

@@ -112,6 +112,7 @@ struct AccountManagementView: View {
                     .save(draft, locale: locale)
             }
         }
+        .paperPage()
     }
 }
 

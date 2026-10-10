@@ -239,6 +239,7 @@ private struct AccountEditFormView: View {
             }
         }
         .interactiveDismissDisabled(flow.isSaving)
+        .paperPage()
     }
 
 }

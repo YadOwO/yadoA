@@ -77,7 +77,7 @@ struct BillView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .paperPage()
         .navigationTitle(AccountLocalization.string("bill.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

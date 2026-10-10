@@ -92,7 +92,7 @@ struct ChartView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .paperPage()
         .navigationTitle(AppTab.charts.title(locale: locale))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

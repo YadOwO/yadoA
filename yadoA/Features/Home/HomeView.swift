@@ -112,7 +112,7 @@ private struct HomeQueryContent: View {
                 )
             }
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .paperPage()
         // 按钮悬浮在明细之上且不带整条底栏；居中放置以避开右侧的金额列。
         .overlay(alignment: .bottom) {
             HomeAddTransactionButton()
@@ -747,10 +747,12 @@ private struct HomeEmptyState: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label(
-                AccountLocalization.string("home.details.empty.title", locale: locale),
-                systemImage: "tray"
-            )
+            // 沿用系统空状态的排版，只把图标换成手绘小票。
+            Label {
+                Text(AccountLocalization.string("home.details.empty.title", locale: locale))
+            } icon: {
+                HandDrawnSlipIllustration()
+            }
         } description: {
             Text(AccountLocalization.string("home.details.empty.message", locale: locale))
         }

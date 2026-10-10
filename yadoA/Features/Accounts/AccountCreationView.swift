@@ -108,6 +108,7 @@ struct AccountCreationView: View {
                 }
                 .accessibilityIdentifier("account-creation-type-\(accountType.rawValue)")
             }
+            .paperPage()
             .navigationTitle(AccountLocalization.string("account.creation.title", locale: locale))
             .navigationDestination(for: AccountCreationRoute.self) { route in
                 destination(for: route)
@@ -211,6 +212,7 @@ private struct AccountTemplateListView: View {
                 locale: locale
             )
         )
+        .paperPage()
     }
 }
 
@@ -366,6 +368,7 @@ private struct AccountFormView: View {
             )
         )
         .navigationBarBackButtonHidden(flow.isSaving)
+        .paperPage()
     }
 }
 

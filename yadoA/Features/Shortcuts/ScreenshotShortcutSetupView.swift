@@ -34,7 +34,7 @@ struct ScreenshotShortcutSetupView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 32)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .paperPage()
         .navigationTitle(text("shortcut.screenshot.title"))
         .navigationBarTitleDisplayMode(.inline)
         .alert(text("shortcut.screenshot.setup.open_failed"), isPresented: $cannotOpenShortcuts) {

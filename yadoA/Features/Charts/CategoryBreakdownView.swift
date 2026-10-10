@@ -59,7 +59,7 @@ struct CategoryBreakdownView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .paperPage()
         .navigationTitle(AccountLocalization.string("chart.category.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
         .secondaryPage()
