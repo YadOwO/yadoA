@@ -12,7 +12,7 @@ struct CategoryRankingItem: Identifiable, Equatable {
     let amount: Decimal
 }
 
-/// 分类排行榜卡片；调用方传入当前筛选下的分类汇总，组件负责排序和占比展示。
+/// 分类排行榜，直接写在纸面上、不带卡片底；调用方传入当前筛选下的分类汇总，组件负责排序和占比展示。
 struct CategoryRankingView: View {
     @Environment(\.locale) private var locale
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -32,9 +32,16 @@ struct CategoryRankingView: View {
         let maximum = rankedItems.first?.amount ?? .zero
 
         VStack(alignment: .leading, spacing: 20) {
-            Text(title)
-                .font(.headline)
-                .accessibilityAddTraits(.isHeader)
+            VStack(alignment: .leading, spacing: 7) {
+                Text(title)
+                    .font(.system(.headline, design: .serif))
+                    .accessibilityAddTraits(.isHeader)
+                // 与首页日期标题下的重线一致，标出一段明细的开头。
+                HandDrawnRule(seed: 17)
+                    .stroke(Color.primary.opacity(0.6), style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+                    .frame(height: 3)
+                    .accessibilityHidden(true)
+            }
 
             if rankedItems.isEmpty {
                 Text(AccountLocalization.string("category.ranking.empty", locale: locale))
@@ -47,10 +54,9 @@ struct CategoryRankingView: View {
                 }
             }
         }
-        .padding(18)
+        .padding(.horizontal, 2)
+        .padding(.top, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .accessibilityIdentifier("category-ranking")
     }
 
@@ -69,34 +75,32 @@ struct CategoryRankingView: View {
                 .font(.body)
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 36, height: 36)
-                .background(Color.accentColor.opacity(0.1), in: Circle())
+                .background(Color.accentColor.opacity(0.08), in: HandDrawnBlob(seed: item.id.handDrawnSeed))
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 8) {
                 if dynamicTypeSize.isAccessibilitySize {
                     categoryLabel(item, percentage: percentage)
                     Text(amount)
-                        .font(.subheadline.monospacedDigit())
+                        .font(.system(.subheadline, design: .serif).monospacedDigit())
                 } else {
                     ViewThatFits(in: .horizontal) {
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
                             categoryLabel(item, percentage: percentage)
                             Spacer(minLength: 0)
                             Text(amount)
-                                .font(.subheadline.monospacedDigit())
+                                .font(.system(.subheadline, design: .serif).monospacedDigit())
                                 .fixedSize()
                         }
                         VStack(alignment: .leading, spacing: 4) {
                             categoryLabel(item, percentage: percentage)
                             Text(amount)
-                                .font(.subheadline.monospacedDigit())
+                                .font(.system(.subheadline, design: .serif).monospacedDigit())
                         }
                     }
                 }
 
-                ProgressView(value: ratio(item.amount, to: maximum))
-                    .tint(Color.accentColor)
-                    .accessibilityHidden(true)
+                rankingBar(ratio(item.amount, to: maximum), seed: item.id.handDrawnSeed)
             }
         }
         .accessibilityElement(children: .ignore)
@@ -105,13 +109,27 @@ struct CategoryRankingView: View {
         .accessibilityIdentifier("category-ranking-\(item.id)")
     }
 
+    /// 用一笔粗墨线表示该分类相对最高分类的比例，底下的淡线是满格长度。
+    private func rankingBar(_ value: Double, seed: UInt64) -> some View {
+        let style = StrokeStyle(lineWidth: 4, lineCap: .round)
+        return ZStack {
+            HandDrawnRule(seed: seed)
+                .stroke(Color.primary.opacity(0.1), style: style)
+            HandDrawnRule(seed: seed)
+                .trim(from: 0, to: value)
+                .stroke(Color.primary.opacity(0.85), style: style)
+        }
+        .frame(height: 6)
+        .accessibilityHidden(true)
+    }
+
     /// 分类名称与本周期金额占比。
     private func categoryLabel(_ item: CategoryRankingItem, percentage: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(item.title)
                 .font(.subheadline.weight(.medium))
             Text(percentage)
-                .font(.caption.monospacedDigit())
+                .font(.system(.caption, design: .serif).monospacedDigit())
                 .foregroundStyle(.secondary)
                 .fixedSize()
         }

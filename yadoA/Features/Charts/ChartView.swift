@@ -260,7 +260,7 @@ struct ChartTimeSelector: View {
     /// 当前周范围、月份或年份标题。
     private var periodTitle: some View {
         Text(chart.formattedPeriod)
-            .font(.headline)
+            .font(.system(.headline, design: .serif))
             .lineLimit(1)
             .minimumScaleFactor(0.75)
     }
@@ -288,14 +288,14 @@ private struct ChartSummaryHeader: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Text(formattedTotal)
-                .font(.system(.largeTitle, design: .rounded, weight: .semibold).monospacedDigit())
+                .font(.system(.largeTitle, design: .serif, weight: .medium).monospacedDigit())
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             HStack(spacing: 6) {
                 Text(AccountLocalization.string("chart.summary.records", locale: locale))
                 Text(chart.transactionCount.formatted(.number.locale(locale)))
             }
-            .font(.subheadline.monospacedDigit())
+            .font(.system(.subheadline, design: .serif).monospacedDigit())
             .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -326,6 +326,11 @@ private struct ChartTrendCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             ChartSummaryHeader(chart: chart)
+
+            HandDrawnRule(seed: 13)
+                .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                .frame(height: 3)
+                .accessibilityHidden(true)
 
             Text(
                 AccountLocalization.string(
@@ -369,8 +374,11 @@ private struct ChartTrendCard: View {
             .chartYScale(domain: .automatic(includesZero: true))
             .chartYAxis {
                 AxisMarks(position: .leading) { _ in
-                    AxisGridLine()
+                    // 网格线压到和账本横线一样淡，让墨色折线成为唯一的重笔。
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 1, lineCap: .round))
+                        .foregroundStyle(Color.primary.opacity(0.12))
                     AxisValueLabel()
+                        .font(.system(.caption2, design: .serif).monospacedDigit())
                 }
             }
             .chartXAxis {
@@ -381,6 +389,7 @@ private struct ChartTrendCard: View {
                     ) {
                         if let label = value.as(String.self) {
                             Text(label)
+                                .font(.system(.caption2, design: .serif).monospacedDigit())
                                 .lineLimit(1)
                                 .fixedSize()
                         }
@@ -392,8 +401,13 @@ private struct ChartTrendCard: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background {
+            HandDrawnBox(cornerRadius: 22, seed: 5)
+                .stroke(
+                    Color.primary.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                )
+        }
     }
 
     /// 月视图先减少日期刻度，其余周期由系统按实际标签宽度避让；折线仍使用全部数据点。
