@@ -5,6 +5,7 @@ import SwiftUI
 struct BillView: View {
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
+    @Environment(\.colorScheme) private var colorScheme
     @Query private var transactions: [AccountTransaction]
 
     /// 账单页独立保存结余配色，默认正红负绿。
@@ -23,7 +24,7 @@ struct BillView: View {
         let totals = period == .monthly ? presentation.totals(for: year) : presentation.total
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 22) {
                 Picker(AccountLocalization.string("bill.period.label", locale: locale), selection: $period) {
                     ForEach(BillPeriod.allCases) { period in
                         Text(period.title(locale: locale)).tag(period)
@@ -32,38 +33,44 @@ struct BillView: View {
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("bill-period-picker")
 
-                if period == .monthly {
-                    Menu {
-                        Picker(
-                            AccountLocalization.string("bill.year.select", locale: locale),
-                            selection: Binding(get: { year }, set: { selectedYear = $0 })
-                        ) {
-                            ForEach(Set(presentation.availableYears + [year]).sorted(by: >), id: \.self) { year in
-                                Text(presentation.yearTitle(year)).tag(year)
+                // 年份选择放进汇总框的标题行；该行高度固定，切换月/年账单时下方内容不会上下跳动。
+                BillSummaryCard(totals: totals, period: period, positiveBalanceIsRed: positiveBalanceIsRed) {
+                    if period == .monthly {
+                        Menu {
+                            Picker(
+                                AccountLocalization.string("bill.year.select", locale: locale),
+                                selection: Binding(get: { year }, set: { selectedYear = $0 })
+                            ) {
+                                ForEach(Set(presentation.availableYears + [year]).sorted(by: >), id: \.self) { year in
+                                    Text(presentation.yearTitle(year)).tag(year)
+                                }
                             }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(presentation.yearTitle(year)).font(.system(.headline, design: .serif))
+                                Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+                            }
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
                         }
-                    } label: {
-                        HStack(spacing: 8) {
-                            Text(presentation.yearTitle(year)).font(.headline)
-                            Image(systemName: "chevron.down").font(.caption.weight(.semibold))
-                        }
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
+                        .foregroundStyle(.primary)
+                        .accessibilityLabel(AccountLocalization.string("bill.year.select", locale: locale))
+                        .accessibilityValue(presentation.yearTitle(year))
+                        .accessibilityIdentifier("bill-year-selector")
                     }
-                    .foregroundStyle(.primary)
-                    .accessibilityLabel(AccountLocalization.string("bill.year.select", locale: locale))
-                    .accessibilityValue(presentation.yearTitle(year))
-                    .accessibilityIdentifier("bill-year-selector")
                 }
 
-                BillSummaryCard(totals: totals, period: period, positiveBalanceIsRed: positiveBalanceIsRed)
-
                 if totals.transactionCount == 0 {
-                    ContentUnavailableView(
-                        AccountLocalization.string("bill.empty.title", locale: locale),
-                        systemImage: "doc.text",
-                        description: Text(AccountLocalization.string("bill.empty.message", locale: locale))
-                    )
+                    ContentUnavailableView {
+                        // 与首页空状态一致，图标换成手绘小票。
+                        Label {
+                            Text(AccountLocalization.string("bill.empty.title", locale: locale))
+                        } icon: {
+                            HandDrawnSlipIllustration()
+                        }
+                    } description: {
+                        Text(AccountLocalization.string("bill.empty.message", locale: locale))
+                    }
                     .accessibilityIdentifier("bill-empty")
                 } else {
                     BillTable(
@@ -71,7 +78,6 @@ struct BillView: View {
                         period: period,
                         positiveBalanceIsRed: positiveBalanceIsRed
                     )
-                    .padding(.horizontal, -8)
                 }
             }
             .padding(.horizontal, 20)
@@ -87,8 +93,19 @@ struct BillView: View {
                         AccountLocalization.string("bill.balance.color", locale: locale),
                         selection: $positiveBalanceIsRed
                     ) {
-                        Text(AccountLocalization.string("bill.balance.positiveRed", locale: locale)).tag(true)
-                        Text(AccountLocalization.string("bill.balance.positiveGreen", locale: locale)).tag(false)
+                        // 系统菜单不支持给部分文字上色，改用带颜色的正负号示意两种配色。
+                        Label {
+                            Text(AccountLocalization.string("bill.balance.positiveRed", locale: locale))
+                        } icon: {
+                            billBalanceSwatch(positiveIsRed: true, colorScheme: colorScheme)
+                        }
+                        .tag(true)
+                        Label {
+                            Text(AccountLocalization.string("bill.balance.positiveGreen", locale: locale))
+                        } icon: {
+                            billBalanceSwatch(positiveIsRed: false, colorScheme: colorScheme)
+                        }
+                        .tag(false)
                     }
                 } label: {
                     Label(
@@ -102,8 +119,8 @@ struct BillView: View {
     }
 }
 
-/// 延续首页圆角卡片和圆体数字，以结余为主、收入支出为辅。
-private struct BillSummaryCard: View {
+/// 延续首页的墨线框和衬线数字，以结余为主、收入支出为辅。
+private struct BillSummaryCard<Accessory: View>: View {
     @Environment(\.locale) private var locale
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// 当前模式对应的汇总与文案范围。
@@ -111,24 +128,35 @@ private struct BillSummaryCard: View {
     let period: BillPeriod
     /// 汇总和明细共用页面选择的结余配色。
     let positiveBalanceIsRed: Bool
+    /// 标题行右侧的附加控件，月账单下是年份选择；为空时标题行高度不变。
+    @ViewBuilder let accessory: () -> Accessory
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(AccountLocalization.string(
-                    period == .monthly ? "bill.summary.yearBalance" : "bill.summary.totalBalance",
-                    locale: locale
-                ))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 12) {
+                    Text(AccountLocalization.string(
+                        period == .monthly ? "bill.summary.yearBalance" : "bill.summary.totalBalance",
+                        locale: locale
+                    ))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                    accessory()
+                }
+                // 无论右侧是否有年份选择，标题行都保持同一高度。
+                .frame(minHeight: 44)
                 Text(totals.balance.formatted(.currency(code: "CNY").locale(locale)))
-                    .font(.system(.largeTitle, design: .rounded, weight: .semibold).monospacedDigit())
+                    .font(.system(.largeTitle, design: .serif, weight: .medium).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
                     .foregroundStyle(billBalanceColor(totals.balance, positiveIsRed: positiveBalanceIsRed))
                     .accessibilityIdentifier("bill-summary-balance")
             }
-            Divider()
+            HandDrawnRule(seed: 11)
+                .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                .frame(height: 3)
+                .accessibilityHidden(true)
             let layout = dynamicTypeSize.isAccessibilitySize
                 ? AnyLayout(VStackLayout(alignment: .leading, spacing: 20))
                 : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
@@ -137,9 +165,18 @@ private struct BillSummaryCard: View {
                 amount(totals.expense, titleKey: "bill.expense", symbol: "arrow.up.right", isIncome: false)
             }
         }
-        .padding(20)
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: .rect(cornerRadius: 24))
+        // 不垫实色卡片，直接写在纸上，用一笔画成的墨线框圈出来。
+        .background {
+            HandDrawnBox(cornerRadius: 24, seed: 3)
+                .stroke(
+                    Color.primary.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                )
+        }
     }
 
     /// 收入和支出统一使用主文字色，图标与标题传达收支含义。
@@ -149,7 +186,7 @@ private struct BillSummaryCard: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Text(value.formatted(.currency(code: "CNY").locale(locale)))
-                .font(.system(.title3, design: .rounded, weight: .semibold).monospacedDigit())
+                .font(.system(.title3, design: .serif, weight: .medium).monospacedDigit())
                 .foregroundStyle(Color.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
@@ -172,8 +209,8 @@ private struct BillTable: View {
     let positiveBalanceIsRed: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
                 Text(AccountLocalization.string("bill.details", locale: locale))
                     .font(.headline)
                     .accessibilityAddTraits(.isHeader)
@@ -191,9 +228,9 @@ private struct BillTable: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 16)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: .rect(cornerRadius: 24))
+        // 明细像账本内页一样直接写在纸上，不再垫卡片。
+        .padding(.horizontal, 2)
+        .padding(.top, 6)
     }
 
     /// 原生 Grid 统一列宽，数字使用固有宽度以触发窄屏降级。
@@ -206,12 +243,12 @@ private struct BillTable: View {
                 heading("bill.expense")
                 heading("bill.balance")
             }
-            .padding(.bottom, 12)
+            .padding(.bottom, 8)
 
-            ForEach(rows) { row in
-                Divider().gridCellUnsizedAxes(.horizontal)
+            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                rule(for: row, isHeading: index == 0).gridCellUnsizedAxes(.horizontal)
                 GridRow {
-                    Text(row.title).font(.subheadline.weight(.medium)).fixedSize()
+                    Text(row.title).font(.system(.subheadline, design: .serif, weight: .medium)).fixedSize()
                     numericText(row.totals.income)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                     numericText(row.totals.expense)
@@ -231,10 +268,10 @@ private struct BillTable: View {
     /// 自适应明细把每个金额放到单独一行，避免挤压和截断。
     private var stackedRows: some View {
         VStack(alignment: .leading, spacing: 16) {
-            ForEach(rows) { row in
-                Divider()
+            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                rule(for: row, isHeading: index == 0)
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(row.title).font(.headline)
+                    Text(row.title).font(.system(.headline, design: .serif))
                     LabeledContent(AccountLocalization.string("bill.income", locale: locale)) {
                         numericText(row.totals.income)
                     }
@@ -252,6 +289,17 @@ private struct BillTable: View {
         }
     }
 
+    /// 行上方的手画横线：表头下面是一条较重的墨线，其余是较淡的账本横线。
+    private func rule(for row: BillRowPresentation, isHeading: Bool) -> some View {
+        HandDrawnRule(seed: UInt64(truncatingIfNeeded: row.id))
+            .stroke(
+                Color.primary.opacity(isHeading ? 0.6 : 0.16),
+                style: StrokeStyle(lineWidth: isHeading ? 1.3 : 1, lineCap: .round)
+            )
+            .frame(height: 3)
+            .accessibilityHidden(true)
+    }
+
     /// 表头使用与正文区分的次级文字。
     private func heading(_ key: String) -> some View {
         Text(AccountLocalization.string(key, locale: locale))
@@ -263,7 +311,7 @@ private struct BillTable: View {
     /// 表格统一在标题注明 CNY，单元格保留完整的两位小数。
     private func numericText(_ amount: Decimal, isBalance: Bool = false) -> some View {
         Text(formatted(amount))
-            .font(.system(.subheadline, design: .rounded).monospacedDigit())
+            .font(.system(.subheadline, design: .serif).monospacedDigit())
             .foregroundStyle(isBalance ? billBalanceColor(amount, positiveIsRed: positiveBalanceIsRed) : Color.primary)
             .fixedSize(horizontal: true, vertical: false)
     }
@@ -284,10 +332,41 @@ private struct BillTable: View {
     }
 }
 
-/// 正负结余按用户偏好映射为红绿，零结余保持中性文字色。
+/// 正负结余按用户偏好映射为账本红、账本绿，零结余保持中性文字色。
 private func billBalanceColor(_ amount: Decimal, positiveIsRed: Bool) -> Color {
     guard amount != 0 else { return .primary }
-    return (amount > 0) == positiveIsRed ? .red : .green
+    return (amount > 0) == positiveIsRed ? Color(.ledgerRed) : Color(.ledgerGreen)
+}
+
+/// 配色菜单项里的示意图：带颜色的加号和减号，对应正、负结余各自的颜色。
+///
+/// 系统菜单只会原样显示"原色"位图，因此按当前外观把两种颜色画进一张图。
+@MainActor
+private func billBalanceSwatch(positiveIsRed: Bool, colorScheme: ColorScheme) -> Image {
+    let traits = UITraitCollection(userInterfaceStyle: colorScheme == .dark ? .dark : .light)
+    let red = UIColor(resource: .ledgerRed).resolvedColor(with: traits)
+    let green = UIColor(resource: .ledgerGreen).resolvedColor(with: traits)
+    let configuration = UIImage.SymbolConfiguration(pointSize: 13, weight: .bold)
+
+    guard
+        let plus = UIImage(systemName: "plus", withConfiguration: configuration)?
+            .withTintColor(positiveIsRed ? red : green, renderingMode: .alwaysOriginal),
+        let minus = UIImage(systemName: "minus", withConfiguration: configuration)?
+            .withTintColor(positiveIsRed ? green : red, renderingMode: .alwaysOriginal)
+    else {
+        return Image(systemName: "plusminus")
+    }
+
+    let spacing: CGFloat = 4
+    let size = CGSize(
+        width: plus.size.width + spacing + minus.size.width,
+        height: max(plus.size.height, minus.size.height)
+    )
+    let image = UIGraphicsImageRenderer(size: size).image { _ in
+        plus.draw(at: CGPoint(x: 0, y: (size.height - plus.size.height) / 2))
+        minus.draw(at: CGPoint(x: plus.size.width + spacing, y: (size.height - minus.size.height) / 2))
+    }
+    return Image(uiImage: image.withRenderingMode(.alwaysOriginal))
 }
 
 #if DEBUG

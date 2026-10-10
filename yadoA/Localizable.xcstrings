@@ -670,13 +670,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Positive red, negative green"
+            "value": "Red when positive"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "正结余红色，负结余绿色"
+            "value": "正红负绿"
           }
         }
       }
@@ -687,13 +687,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Positive green, negative red"
+            "value": "Green when positive"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "正结余绿色，负结余红色"
+            "value": "正绿负红"
           }
         }
       }
