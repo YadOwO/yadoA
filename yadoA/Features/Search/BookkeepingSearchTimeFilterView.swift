@@ -121,7 +121,7 @@ struct BookkeepingSearchTimeFilterView: View {
                     if let rangeError {
                         Text(rangeError)
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color(.ledgerRed))
                             .accessibilityIdentifier("bookkeeping-search-filter-error")
                     }
                 }

@@ -337,7 +337,7 @@ private struct AccountDetailQueryContent: View {
                         AccountLocalization.string("account.detail.type", locale: locale),
                         value: presentation.typeTitle
                     )
-                    .accountLedgerRow(seed: 31)
+                    .ledgerRow(seed: 31)
                     .accessibilityIdentifier("account-detail-type")
 
                     if let institution = presentation.institution {
@@ -345,7 +345,7 @@ private struct AccountDetailQueryContent: View {
                             AccountLocalization.string("account.detail.institution", locale: locale),
                             value: institution
                         )
-                        .accountLedgerRow(seed: 32)
+                        .ledgerRow(seed: 32)
                         .accessibilityIdentifier("account-detail-institution")
                     }
 
@@ -358,7 +358,7 @@ private struct AccountDetailQueryContent: View {
                                 locale: locale
                             )
                         )
-                        .accountLedgerRow(seed: 33)
+                        .ledgerRow(seed: 33)
                         .accessibilityIdentifier("account-detail-last-four-digits")
                     }
 
@@ -369,14 +369,14 @@ private struct AccountDetailQueryContent: View {
                                 .foregroundStyle(.secondary)
                             Text(note)
                         }
-                        .accountLedgerRow(seed: 34)
+                        .ledgerRow(seed: 34)
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("account-detail-note")
                     }
                 } label: {
                     Text(AccountLocalization.string("account.detail.information", locale: locale))
                 }
-                .accountLedgerRow(seed: 30)
+                .ledgerRow(seed: 30)
             }
 
             if !presentation.isActive {
@@ -389,7 +389,7 @@ private struct AccountDetailQueryContent: View {
                             systemImage: "arrow.uturn.backward"
                         )
                     }
-                    .accountLedgerRow(seed: 35, showsRule: false)
+                    .ledgerRow(seed: 35, showsRule: false)
                     .accessibilityIdentifier("account-detail-restore")
                 }
             }
@@ -404,7 +404,7 @@ private struct AccountDetailQueryContent: View {
                     )
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .accountLedgerRow(seed: 36, showsRule: false)
+                    .ledgerRow(seed: 36, showsRule: false)
                     .accessibilityIdentifier("account-detail-transaction-history-empty")
                 } else {
                     ForEach(historyRows) { presentation in
@@ -423,30 +423,22 @@ private struct AccountDetailQueryContent: View {
                                 AccountTransactionHistoryRow(presentation: presentation)
                             }
                         }
-                        .accountLedgerRow(
+                        .ledgerRow(
                             seed: presentation.id.handDrawnSeed,
                             showsRule: presentation.id != historyRows.last?.id
                         )
                     }
                 }
             } header: {
-                // 与首页日期标题同样的写法：衬线标题下压一条重线。
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(
-                        AccountLocalization.string(
-                            "account.detail.history.title",
-                            locale: locale
-                        )
+                Text(
+                    AccountLocalization.string(
+                        "account.detail.history.title",
+                        locale: locale
                     )
-                    .font(.system(.callout, design: .serif, weight: .medium))
-                    .foregroundStyle(.primary)
-                    .textCase(nil)
-                    HandDrawnRule(seed: 37)
-                        .stroke(Color.primary.opacity(0.6), style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
-                        .frame(height: 3)
-                        .accessibilityHidden(true)
-                }
-                .listRowInsets(EdgeInsets(top: 0, leading: 2, bottom: 2, trailing: 2))
+                )
+                .font(.system(.callout, design: .serif, weight: .medium))
+                .foregroundStyle(.primary)
+                .ledgerHeadingRule(seed: 37)
             }
         }
         .listStyle(.insetGrouped)

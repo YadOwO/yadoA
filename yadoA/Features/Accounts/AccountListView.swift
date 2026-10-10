@@ -201,26 +201,6 @@ enum AccountListState {
 
 }
 
-extension View {
-    /// 让账户相关的列表行直接落在纸面上：去掉系统行底和分隔线，在行底画一条账本细线。
-    ///
-    /// - Parameters:
-    ///   - seed: 细线的笔迹种子，同一行每次画成同一个样子。
-    ///   - showsRule: 一段里的最后一行传 `false`，不画线。
-    func accountLedgerRow(seed: UInt64, showsRule: Bool = true) -> some View {
-        listRowBackground(
-            HandDrawnRule(seed: seed)
-                .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
-                .frame(height: 3)
-                .frame(maxHeight: .infinity, alignment: .bottom)
-                .padding(.horizontal, 2)
-                .opacity(showsRule ? 1 : 0)
-        )
-        .listRowSeparator(.hidden)
-        .listRowInsets(EdgeInsets(top: 9, leading: 2, bottom: 9, trailing: 2))
-    }
-}
-
 /// 应用根账户列表，根据 SwiftData 查询结果切换空状态与列表状态。
 struct AccountListView: View {
     @Environment(\.locale) private var locale
@@ -334,7 +314,7 @@ struct AccountListView: View {
                         AccountListRow(presentation: presentation)
                     }
                     .navigationLinkIndicatorVisibility(.hidden)
-                    .accountLedgerRow(
+                    .ledgerRow(
                         seed: account.id.handDrawnSeed,
                         showsRule: account.id != accounts.last?.id
                     )

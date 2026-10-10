@@ -157,6 +157,15 @@ private struct BookkeepingTransactionDetailQueryContent: View {
             Section {
                 transactionSummary(presentation)
                     .listRowInsets(EdgeInsets(top: 24, leading: 20, bottom: 24, trailing: 20))
+                    .listRowBackground(
+                        HandDrawnBox(cornerRadius: 22, seed: 51)
+                            .stroke(
+                                Color.primary.opacity(0.85),
+                                style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                            )
+                            .padding(.horizontal, 2)
+                    )
+                    .listRowSeparator(.hidden)
             }
 
             Section {
@@ -164,6 +173,7 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                     AccountLocalization.string("bookkeeping.entry.type", locale: locale),
                     value: presentation.entryType.localizedTitle(locale: locale)
                 )
+                .ledgerRow(seed: 52)
                 .accessibilityIdentifier("bookkeeping-detail-type")
 
                 LabeledContent(
@@ -173,6 +183,7 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                     ),
                     value: presentation.categoryTitle
                 )
+                .ledgerRow(seed: 53, showsRule: false)
                 .accessibilityIdentifier("bookkeeping-detail-category")
             }
 
@@ -186,6 +197,7 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                         presentation.accountState
                     )
                 )
+                .ledgerRow(seed: 54)
                 .accessibilityIdentifier("bookkeeping-detail-account")
 
                 LabeledContent(
@@ -195,6 +207,7 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                     ),
                     value: accountStatusText(presentation.accountState)
                 )
+                .ledgerRow(seed: 55, showsRule: false)
                 .accessibilityIdentifier("bookkeeping-detail-account-status")
             }
 
@@ -212,6 +225,7 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                         Text(note)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    .ledgerRow(seed: 56, showsRule: false)
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("bookkeeping-detail-note")
                 }
@@ -222,8 +236,9 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                         onDelete(presentation)
                     } label: {
                         Label(AccountLocalization.string("bookkeeping.delete.action", locale: locale), systemImage: "trash")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color(.ledgerRed))
                     }
+                    .ledgerRow(seed: 57, showsRule: false)
                     .accessibilityIdentifier("bookkeeping-detail-delete")
                 }
             }
@@ -242,7 +257,7 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                 .font(.title2.weight(.medium))
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 60, height: 60)
-                .background(Color.accentColor.opacity(0.1), in: .rect(cornerRadius: 18))
+                .background(Color.accentColor.opacity(0.08), in: HandDrawnBlob(seed: presentation.id.handDrawnSeed))
                 .accessibilityHidden(true)
 
             VStack(spacing: 8) {
@@ -255,7 +270,7 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                     .accessibilityIdentifier("bookkeeping-detail-title")
 
                 Text(presentation.formattedAmount)
-                    .font(.system(.largeTitle, design: .rounded, weight: .semibold).monospacedDigit())
+                    .font(.system(.largeTitle, design: .serif, weight: .medium).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .accessibilityLabel(Text(

@@ -116,33 +116,33 @@ struct BookkeepingSearchView: View {
                             Button {
                                 openDetail(transactionID: row.id)
                             } label: {
-                                HStack(spacing: 8) {
-                                    BookkeepingSearchRowView(row: row, locale: locale)
-                                    Image(systemName: "chevron.forward")
-                                        .font(.footnote.weight(.semibold))
-                                        .foregroundStyle(.tertiary)
-                                        .accessibilityHidden(true)
-                                }
-                                .contentShape(Rectangle())
+                                BookkeepingSearchRowView(row: row, locale: locale)
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .ledgerRow(
+                                seed: row.id.handDrawnSeed,
+                                showsRule: row.id != day.rows.last?.id
+                            )
                             .accessibilityIdentifier("bookkeeping-search-result-\(row.id.uuidString)")
                         }
                     } header: {
-                        VStack(alignment: .leading, spacing: 2) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text(day.formattedDate)
-                                .font(.headline)
+                                .font(.system(.callout, design: .serif, weight: .medium))
+                                .foregroundStyle(.primary)
                             Text(day.formattedWeekday)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        .textCase(nil)
+                        .ledgerHeadingRule(seed: UInt64(truncatingIfNeeded: day.transactionDay))
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("bookkeeping-search-day-\(day.transactionDay)")
                     }
                 }
             }
             .listStyle(.insetGrouped)
+            .listSectionSpacing(22)
             .accessibilityIdentifier("bookkeeping-search-results")
         }
     }
@@ -153,7 +153,7 @@ struct BookkeepingSearchView: View {
             Section {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(AccountLocalization.string("bookkeeping.search.initial.title", locale: locale))
-                        .font(.title2.bold())
+                        .font(.system(.title2, design: .serif, weight: .medium))
                     Text(AccountLocalization.string("bookkeeping.search.initial.message", locale: locale))
                         .foregroundStyle(.secondary)
                     Text(amountSearchHint)
@@ -161,6 +161,7 @@ struct BookkeepingSearchView: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 8)
+                .ledgerRow(seed: 41, showsRule: false)
                 .accessibilityIdentifier("bookkeeping-search-initial")
             }
 
@@ -174,12 +175,18 @@ struct BookkeepingSearchView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .contentShape(Rectangle())
                         }
+                        .ledgerRow(
+                            seed: category.handDrawnSeed,
+                            showsRule: category != categories.last
+                        )
                         .accessibilityIdentifier("bookkeeping-search-suggestion-\(category)")
                     }
                 } header: {
                     Text(AccountLocalization.string("bookkeeping.search.suggestions.title", locale: locale))
+                        .font(.system(.callout, design: .serif, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .ledgerHeadingRule(seed: 42)
                 }
-                .textCase(nil)
             }
         }
         .listStyle(.insetGrouped)
@@ -326,8 +333,14 @@ private struct AppliedSearchRangeView: View {
             )
             .accessibilityIdentifier("bookkeeping-search-range-clear")
         }
-        .padding(.horizontal, 16)
-        .background(.thinMaterial)
+        .padding(.horizontal, 20)
+        // 范围条和下面的结果同在一张纸上，用一条账本细线隔开即可。
+        .background(alignment: .bottom) {
+            HandDrawnRule(seed: 43)
+                .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                .frame(height: 3)
+                .padding(.horizontal, 20)
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("bookkeeping-search-applied-range")
     }
@@ -373,7 +386,7 @@ private struct BookkeepingSearchRowView: View {
                     .lineLimit(2)
                 Spacer(minLength: 8)
                 Text(row.formattedAmount)
-                    .font(.body.monospacedDigit())
+                    .font(.system(.body, design: .serif).monospacedDigit())
                     .lineLimit(1)
             }
 
@@ -394,7 +407,6 @@ private struct BookkeepingSearchRowView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 5)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(row.accessibilityLabel))
     }
