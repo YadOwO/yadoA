@@ -56,14 +56,17 @@ struct yadoAApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if let uiTestingDataContainer {
-                ContentView()
-                    .modelContainer(uiTestingDataContainer.modelContainer)
-            } else {
-                LocalDataBootstrapView {
+            Group {
+                if let uiTestingDataContainer {
                     ContentView()
+                        .modelContainer(uiTestingDataContainer.modelContainer)
+                } else {
+                    LocalDataBootstrapView {
+                        ContentView()
+                    }
                 }
             }
+            .modifier(AppDisplayPreferencesModifier())
         }
     }
 }

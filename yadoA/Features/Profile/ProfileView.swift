@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// 个人设置入口：以分组卡片承载现有账户、备份与金额显示功能。
+/// 个人设置入口：以分组卡片承载账户、备份、语言与外观等本机偏好。
 struct ProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
@@ -11,6 +11,10 @@ struct ProfileView: View {
 
     /// 与首页共用金额显隐偏好，修改后立即同步。
     @AppStorage("home.summary.amountsVisible") private var areAmountsVisible = false
+    /// 与窗口根部共享语言偏好，修改后立即更新界面文案。
+    @AppStorage(AppLanguage.storageKey) private var language: AppLanguage = .system
+    /// 与窗口根部共享外观偏好，修改后立即同步亮暗色。
+    @AppStorage(AppAppearance.storageKey) private var appearance: AppAppearance = .system
     /// 默认账户选择沿用现有独立弹层流程。
     @State private var isDefaultSelectionPresented = false
 
@@ -55,6 +59,32 @@ struct ProfileView: View {
                 }
 
                 settingsSection("profile.section.display") {
+                    Menu {
+                        Picker(text("profile.language.title"), selection: $language) {
+                            ForEach(AppLanguage.allCases) { option in
+                                Text(text(option.titleLocalizationKey)).tag(option)
+                            }
+                        }
+                    } label: {
+                        row("profile.language.title", symbol: "globe", value: text(language.titleLocalizationKey))
+                    }
+                    .accessibilityIdentifier("profile-language")
+
+                    rowDivider
+
+                    Menu {
+                        Picker(text("profile.appearance.title"), selection: $appearance) {
+                            ForEach(AppAppearance.allCases) { option in
+                                Text(text(option.titleLocalizationKey)).tag(option)
+                            }
+                        }
+                    } label: {
+                        row("profile.appearance.title", symbol: "circle.lefthalf.filled", value: text(appearance.titleLocalizationKey))
+                    }
+                    .accessibilityIdentifier("profile-appearance")
+
+                    rowDivider
+
                     Toggle(isOn: $areAmountsVisible) {
                         Label(text("profile.show_amounts"), systemImage: "eye")
                             .labelStyle(ProfileSettingsLabelStyle())
@@ -71,6 +101,7 @@ struct ProfileView: View {
         .paperPage()
         .navigationTitle(text("profile.title"))
         .navigationBarTitleDisplayMode(.inline)
+        .preferredColorScheme(appearance.colorScheme)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button { dismiss() } label: {
