@@ -143,13 +143,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The image is only used during this entry. yadoA does not upload it or save it to your ledger or photo library."
+            "value": "Screenshots are only used for this entry. They are never uploaded or saved."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "图片仅用于本次录入预览，yadoA 不会上传图片，也不会将其存入账本或相册。"
+            "value": "截图仅用于本次记账，不上传、不保存。"
           }
         }
       }
@@ -205,70 +205,36 @@
         }
       }
     },
-    "shortcut.screenshot.setup.intro": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Double-tap the back of your iPhone to take a screenshot and open yadoA."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "轻点 iPhone 背面两下，截屏并打开 yadoA 记账。"
-          }
-        }
-      }
-    },
     "shortcut.screenshot.setup.create": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "1. Add the shortcut"
+            "value": "Add the shortcut"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "1. 添加快捷指令"
+            "value": "添加快捷指令"
           }
         }
       }
     },
-    "shortcut.screenshot.setup.actions": {
+    "shortcut.screenshot.setup.create.detail": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open the preset below, then tap Add Shortcut in Shortcuts. There are no actions or image inputs to configure."
+            "value": "Tap the button, then tap Add Shortcut."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "打开下方预设，在快捷指令中点“添加快捷指令”即可，无需配置动作或图片参数。"
-          }
-        }
-      }
-    },
-    "shortcut.screenshot.setup.input": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The preset takes a screenshot, then sends it to Record from Screenshot in yadoA."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已预设“截屏 → 用截图记账”，截图会自动传给 yadoA。"
+            "value": "点下方按钮，再点“添加快捷指令”。"
           }
         }
       }
@@ -279,13 +245,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Add Preset Shortcut"
+            "value": "Add Shortcut"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "添加预设快捷指令"
+            "value": "立即添加"
           }
         }
       }
@@ -296,47 +262,115 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "2. Set up Back Tap"
+            "value": "Turn on Back Tap"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "2. 设置轻点背面"
+            "value": "设置轻点背面"
           }
         }
       }
     },
-    "shortcut.screenshot.setup.settings": {
+    "shortcut.screenshot.setup.back_tap.detail": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open Settings → Accessibility → Touch → Back Tap → Double Tap."
+            "value": "In Settings, follow this path and choose “yadoA 截图记账”."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "打开手机“设置”→“辅助功能”→“触控”→“轻点背面”→“轻点两下”。"
+            "value": "在系统设置中按下方路径，选择“yadoA 截图记账”。"
           }
         }
       }
     },
-    "shortcut.screenshot.setup.select": {
+    "shortcut.screenshot.setup.path.settings": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Under Shortcuts, select the shortcut you just added. This must be set up in Settings."
+            "value": "Settings"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在“快捷指令”区域选择刚添加的“yadoA 截图记账”。这一步需要在系统设置中手动完成。"
+            "value": "设置"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.path.accessibility": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accessibility"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "辅助功能"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.path.touch": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touch"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "触控"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.path.back_tap": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back Tap"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻点背面"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.path.double_tap": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double Tap"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻点两下"
           }
         }
       }
@@ -347,30 +381,47 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "3. Try it"
+            "value": "Try it"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "3. 试一试"
+            "value": "试一试"
           }
         }
       }
     },
-    "shortcut.screenshot.setup.try": {
+    "shortcut.screenshot.setup.use.detail": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "With your iPhone unlocked, open a payment result or bill and double-tap the back. If Shortcuts asks to share the image with yadoA, allow access. Confirm the image in yadoA and fill in the transaction, then save."
+            "value": "Open a payment screen, double-tap the back, then enter the amount from the screenshot."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "解锁 iPhone，打开支付结果或账单页，轻点背面两下。首次运行时，如快捷指令询问是否允许向 yadoA 传递图片，请允许。进入 yadoA 后确认截图，手动填写并保存。"
+            "value": "打开付款结果页，轻点背面两下，对照截图填写金额。"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.use.note": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If asked the first time, tap Allow."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "首次运行如询问权限，请点“允许”。"
           }
         }
       }
@@ -388,6 +439,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "无法打开预设模板。请确认已安装“快捷指令”，检查网络连接后重试。"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.hero.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double-tap the back to log a bill"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻点背面两下，截图记账"
+          }
+        }
+      }
+    },
+    "shortcut.screenshot.setup.hero.subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set it up once. It takes about a minute."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只需设置一次，约 1 分钟"
           }
         }
       }
