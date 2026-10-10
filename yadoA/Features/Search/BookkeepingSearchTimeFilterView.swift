@@ -1,19 +1,17 @@
 import SwiftUI
 
-/// 搜索页时间条件的独立草稿 Sheet。
+/// 搜索页日期范围的独立草稿 Sheet。
+///
+/// 打开就是起止两个日期，确认即按这段范围筛选；"不限时间"不再是一个需要选的模式，
+/// 而是已有筛选时页面下方的"清除"动作。
 struct BookkeepingSearchTimeFilterView: View {
-    /// 筛选模式的本地化选择值。
-    private enum SelectionMode: String, CaseIterable, Identifiable {
-        case all
-        case custom
-
-        var id: Self { self }
-    }
-
     @Environment(\.locale) private var locale
 
     /// DatePicker 使用的业务日公历。
     private let calendar: Calendar
+
+    /// 打开时是否已有生效的日期范围，决定是否提供清除入口。
+    private let hasAppliedRange: Bool
 
     /// 筛选 Sheet 关闭回调。
     private let onCancel: () -> Void
@@ -21,16 +19,13 @@ struct BookkeepingSearchTimeFilterView: View {
     /// 筛选确认回调。
     private let onConfirm: (BookkeepingSearchTimeFilter) -> Void
 
-    /// Sheet 内尚未提交的筛选模式。
-    @State private var selectionMode: SelectionMode
-
-    /// 自定义范围的起始日期草稿。
+    /// 范围的起始日期草稿。
     @State private var startDate: Date
 
-    /// 自定义范围的结束日期草稿。
+    /// 范围的结束日期草稿。
     @State private var endDate: Date
 
-    /// 从已提交条件创建独立可取消的日期草稿。
+    /// 从已提交条件创建独立可取消的日期草稿；尚未筛选时默认填入本月初到今天。
     init(
         initialFilter: BookkeepingSearchTimeFilter,
         calendar: Calendar,
@@ -40,18 +35,19 @@ struct BookkeepingSearchTimeFilterView: View {
         self.calendar = TransactionDay.gregorianCalendar(basedOn: calendar)
         self.onCancel = onCancel
         self.onConfirm = onConfirm
+        let today = self.calendar.startOfDay(for: Date())
         switch initialFilter {
         case .all:
-            _selectionMode = State(initialValue: .all)
-            let today = Self.today(calendar: self.calendar)
-            _startDate = State(initialValue: today)
+            hasAppliedRange = false
+            let monthStart = self.calendar.dateInterval(of: .month, for: today)?.start ?? today
+            _startDate = State(initialValue: monthStart)
             _endDate = State(initialValue: today)
         case let .custom(range):
-            _selectionMode = State(initialValue: .custom)
+            hasAppliedRange = true
             let start = TransactionDay.date(
                 from: range.startDay,
                 calendar: self.calendar
-            ) ?? Self.today(calendar: self.calendar)
+            ) ?? today
             let end = TransactionDay.date(
                 from: range.endDay,
                 calendar: self.calendar
@@ -63,58 +59,47 @@ struct BookkeepingSearchTimeFilterView: View {
 
     var body: some View {
         LedgerFormPage {
-            LedgerSwitch(
-                label: AccountLocalization.string("bookkeeping.search.filter.mode", locale: locale),
-                selection: $selectionMode,
-                options: SelectionMode.allCases.map {
-                    .init(
-                        value: $0,
-                        title: AccountLocalization.string(
-                            "bookkeeping.search.filter.\($0.rawValue)",
-                            locale: locale
-                        ),
-                        identifier: "bookkeeping-search-filter-mode-\($0.rawValue)"
-                    )
+            LedgerCard(seed: 123) {
+                DatePicker(
+                    selection: $startDate,
+                    displayedComponents: .date
+                ) {
+                    Text(AccountLocalization.string("bookkeeping.search.filter.start", locale: locale))
+                        .foregroundStyle(.secondary)
                 }
-            )
-            .frame(maxWidth: .infinity)
-            .onChange(of: selectionMode) { oldValue, newValue in
-                guard oldValue == .all, newValue == .custom else { return }
-                let today = Self.today(calendar: calendar)
-                startDate = today
-                endDate = today
+                .ledgerCardRow()
+                .accessibilityIdentifier("bookkeeping-search-filter-start")
+
+                DatePicker(
+                    selection: $endDate,
+                    displayedComponents: .date
+                ) {
+                    Text(AccountLocalization.string("bookkeeping.search.filter.end", locale: locale))
+                        .foregroundStyle(.secondary)
+                }
+                .ledgerCardRow()
+                .accessibilityIdentifier("bookkeeping-search-filter-end")
+            }
+            // 起止颠倒时把另一头带过去，范围始终有效，不需要报错。
+            .onChange(of: startDate) { _, newValue in
+                if newValue > endDate { endDate = newValue }
+            }
+            .onChange(of: endDate) { _, newValue in
+                if newValue < startDate { startDate = newValue }
             }
 
-            if selectionMode == .custom {
-                LedgerCard(seed: 123) {
-                    DatePicker(
-                        selection: $startDate,
-                        displayedComponents: .date
-                    ) {
-                        Text(AccountLocalization.string("bookkeeping.search.filter.start", locale: locale))
-                            .foregroundStyle(.secondary)
-                    }
-                    .ledgerCardRow()
-                    .accessibilityIdentifier("bookkeeping-search-filter-start")
+            Text(AccountLocalization.string("bookkeeping.search.filter.hint", locale: locale))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
 
-                    DatePicker(
-                        selection: $endDate,
-                        displayedComponents: .date
-                    ) {
-                        Text(AccountLocalization.string("bookkeeping.search.filter.end", locale: locale))
-                            .foregroundStyle(.secondary)
-                    }
-                    .ledgerCardRow()
-                    .accessibilityIdentifier("bookkeeping-search-filter-end")
+            if hasAppliedRange {
+                Button(AccountLocalization.string("bookkeeping.search.range.clear", locale: locale)) {
+                    onConfirm(.all)
                 }
-
-                if let rangeError {
-                    Text(rangeError)
-                        .font(.footnote)
-                        .foregroundStyle(Color(.ledgerRed))
-                        .padding(.horizontal, 4)
-                        .accessibilityIdentifier("bookkeeping-search-filter-error")
-                }
+                .foregroundStyle(Color(.ledgerRed))
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .accessibilityIdentifier("bookkeeping-search-filter-clear")
             }
         }
         .navigationTitle(
@@ -151,33 +136,11 @@ struct BookkeepingSearchTimeFilterView: View {
         }
     }
 
-    /// 当前草稿可提交时生成搜索条件，否则保持确认按钮禁用。
+    /// 当前草稿对应的搜索条件；起止颠倒的瞬间返回 `nil`，确认按钮保持禁用。
     private var filter: BookkeepingSearchTimeFilter? {
-        switch selectionMode {
-        case .all:
-            return .all
-        case .custom:
-            guard let range = BookkeepingSearchDateRange(
-                startDay: TransactionDay.encode(startDate, calendar: calendar),
-                endDay: TransactionDay.encode(endDate, calendar: calendar)
-            ) else {
-                return nil
-            }
-            return .custom(range)
-        }
-    }
-
-    /// 反向业务日范围的本地化错误说明。
-    private var rangeError: String? {
-        guard selectionMode == .custom, filter == nil else { return nil }
-        return AccountLocalization.string(
-            "bookkeeping.search.filter.invalid_range",
-            locale: locale
-        )
-    }
-
-    /// 取得当前时区下的当天零点，供首次进入自定义模式使用。
-    private static func today(calendar: Calendar) -> Date {
-        calendar.startOfDay(for: Date())
+        BookkeepingSearchDateRange(
+            startDay: TransactionDay.encode(startDate, calendar: calendar),
+            endDay: TransactionDay.encode(endDate, calendar: calendar)
+        ).map(BookkeepingSearchTimeFilter.custom)
     }
 }

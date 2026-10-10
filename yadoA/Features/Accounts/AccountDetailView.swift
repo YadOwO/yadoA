@@ -420,13 +420,18 @@ private struct AccountDetailQueryContent: View {
                 }
             }
             if presentation.isActive {
+                // 没有流水的账户可以直接删除；记过账的只能停用，菜单按实际会发生的操作命名。
+                let canDelete = transactions.isEmpty
                 ToolbarItem(placement: .secondaryAction) {
-                    Button {
+                    Button(role: canDelete ? .destructive : nil) {
                         onManageLifecycle(account.id)
                     } label: {
                         Label(
-                            AccountLocalization.string("account.management.title", locale: locale),
-                            systemImage: "archivebox"
+                            AccountLocalization.string(
+                                canDelete ? "account.lifecycle.delete_account" : "account.lifecycle.deactivate",
+                                locale: locale
+                            ),
+                            systemImage: canDelete ? "trash" : "pause.circle"
                         )
                     }
                     .accessibilityIdentifier("account-detail-lifecycle")

@@ -70,7 +70,12 @@ struct BookkeepingSearchView: View {
                 Button {
                     isTimeFilterPresented = true
                 } label: {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
+                    // 已有日期范围时换成实心图标，不展开也能看出筛选正在生效。
+                    Image(
+                        systemName: timeFilter.isUnbounded
+                            ? "line.3.horizontal.decrease.circle"
+                            : "line.3.horizontal.decrease.circle.fill"
+                    )
                         .frame(width: 44, height: 44)
                 }
                 .accessibilityLabel(
@@ -94,6 +99,9 @@ struct BookkeepingSearchView: View {
                     }
                 )
             }
+            // 只有两行日期，半屏足够，背后的搜索结果仍然看得见。
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .paperPage()
     }

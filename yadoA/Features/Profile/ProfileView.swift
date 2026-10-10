@@ -159,13 +159,7 @@ struct ProfileView: View {
                 .accessibilityAddTraits(.isHeader)
 
             VStack(spacing: 0, content: content)
-                .background {
-                    HandDrawnBox(cornerRadius: 22, seed: titleKey.handDrawnSeed)
-                        .stroke(
-                            Color.primary.opacity(0.85),
-                            style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
-                        )
-                }
+                .ledgerFormBorder(seed: titleKey.handDrawnSeed)
         }
     }
 

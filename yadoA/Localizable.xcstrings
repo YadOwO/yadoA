@@ -1986,13 +1986,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Adjust the balance to exactly zero before deactivating this account."
+            "value" : "This account has entries, so it can only be deactivated, and its balance must be zero first. Adjust the balance to zero, then try again."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请先通过余额调整将账户余额精确归零，再停用账户。"
+            "value" : "这个账户已有流水，只能停用，而且余额必须先归零。请先把余额调整为 0，再来停用。"
           }
         }
       }
@@ -2003,13 +2003,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The account will stay available for history, but it must have a zero balance."
+            "value" : "This account has entries, so it can only be deactivated. Its history is kept, and you can restore it later from Account Management."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "账户及历史会保留，但停用前余额必须为零。"
+            "value" : "这个账户已有流水，只能停用。历史记录会保留，之后可以在“账户管理”里恢复。"
           }
         }
       }
@@ -2031,19 +2031,36 @@
         }
       }
     },
+    "account.lifecycle.delete_account" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除账户"
+          }
+        }
+      }
+    },
     "account.lifecycle.delete_warning" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This permanently deletes the account. Existing transaction history must be empty."
+            "value" : "This account has no entries yet. Deleting it cannot be undone."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此操作会永久删除账户；账户必须没有任何历史流水。"
+            "value" : "这个账户还没有任何流水，删除后无法恢复。"
           }
         }
       }
@@ -5362,6 +5379,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在准备本地数据…"
+          }
+        }
+      }
+    },
+    "bookkeeping.search.filter.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only entries dated within this range are searched, including both days."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只搜索这段日期内的记账，包含起止当天。"
           }
         }
       }

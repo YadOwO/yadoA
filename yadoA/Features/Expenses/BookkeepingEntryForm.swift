@@ -176,13 +176,7 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
         .padding(.top, 24)
         .padding(.bottom, 8)
         .frame(maxWidth: .infinity)
-        .background {
-            HandDrawnBox(cornerRadius: 22, seed: 59)
-                .stroke(
-                    Color.primary.opacity(0.85),
-                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
-                )
-        }
+        .ledgerFormBorder(seed: 59)
     }
 
     /// 分类入口和主视觉金额；金额写在一条手绘的横线上。
@@ -280,7 +274,11 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
                 HStack(spacing: 8) {
                     if let account = selectedAccount {
                         let row = AccountListPresentation.row(for: account, locale: locale)
-                        VStack(alignment: .trailing, spacing: 2) {
+                        // 图标紧挨在名称前面，一眼认出是哪个账户，不必读字。
+                        AccountIconView(presentation: row.icon)
+                            .scaleEffect(0.8)
+                            .frame(width: 30, height: 30)
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(row.name)
                                 .foregroundStyle(Color.primary)
                             Text(verbatim: "\(row.amountLabel) \(row.formattedAmount)")
@@ -288,7 +286,7 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
                                 .monospacedDigit()
                                 .foregroundStyle(.secondary)
                         }
-                        .multilineTextAlignment(.trailing)
+                        .multilineTextAlignment(.leading)
                     } else {
                         // 原账户已停用或删除时用账本红提示，尚未选择时只是普通占位。
                         Text(text(accountPlaceholderKey))

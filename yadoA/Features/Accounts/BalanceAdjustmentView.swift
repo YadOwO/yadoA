@@ -98,13 +98,7 @@ struct BalanceAdjustmentView: View {
         .padding(.top, 22)
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            HandDrawnBox(cornerRadius: 22, seed: 103)
-                .stroke(
-                    Color.primary.opacity(0.85),
-                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
-                )
-        }
+        .ledgerFormBorder(seed: 103)
     }
 
     /// 清晰说明页面正在设置总余额，而不是输入增减差额。

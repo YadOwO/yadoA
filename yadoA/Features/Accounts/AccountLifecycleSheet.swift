@@ -57,25 +57,14 @@ struct AccountLifecycleSheet: View {
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Label(
-                        text(plan.canPermanentlyDelete ? "account.lifecycle.delete" : "account.lifecycle.deactivate"),
-                        systemImage: plan.canPermanentlyDelete ? "trash" : "pause.circle"
-                    )
-                    .font(.system(.headline, design: .serif))
-
-                    Text(
-                        plan.canPermanentlyDelete
-                            ? text("account.lifecycle.delete_warning")
-                            : plan.canDeactivate
-                                ? text("account.lifecycle.deactivate_warning")
-                                : text("account.lifecycle.deactivate_blocked")
-                    )
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                }
-                .ledgerCardRow()
             }
+
+            // 后果说明写在方框外，紧跟在要处理的账户下面；余额未归零时用账本红说明为什么不能继续。
+            Text(text(consequenceKey))
+                .font(.footnote)
+                .foregroundStyle(isBlocked ? AnyShapeStyle(Color(.ledgerRed)) : AnyShapeStyle(.secondary))
+                .padding(.horizontal, 4)
+                .accessibilityIdentifier("account-lifecycle-consequence")
 
             if plan.isCurrentDefault {
                 LedgerCard(seed: 116) {
@@ -130,7 +119,11 @@ struct AccountLifecycleSheet: View {
                 .accessibilityIdentifier("account-lifecycle-error")
             }
 
-            LedgerSubmitButton(title: text("common.confirm"), isSaving: flow.isSaving) {
+            LedgerSubmitButton(
+                title: text(plan.canPermanentlyDelete ? "account.lifecycle.delete" : "account.lifecycle.deactivate"),
+                isSaving: flow.isSaving,
+                isDestructive: plan.canPermanentlyDelete
+            ) {
                 flow.update(
                     replacementAccountID: replacementAccountID,
                     allowsNoDefault: allowsNoDefault
@@ -149,7 +142,9 @@ struct AccountLifecycleSheet: View {
             .disabled(!canSubmit)
             .accessibilityIdentifier("account-lifecycle-submit")
         }
-        .navigationTitle(AccountLocalization.string("account.management.title", locale: locale))
+        .navigationTitle(
+            text(plan.canPermanentlyDelete ? "account.lifecycle.delete_account" : "account.lifecycle.deactivate")
+        )
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -165,6 +160,21 @@ struct AccountLifecycleSheet: View {
     /// 按当前应用语言解析 String Catalog 文案。
     private func text(_ key: String) -> String {
         AccountLocalization.string(key, locale: locale)
+    }
+
+    /// 有流水且余额不为零时既不能删除也不能停用。
+    private var isBlocked: Bool {
+        !plan.canPermanentlyDelete && !plan.canDeactivate
+    }
+
+    /// 当前操作的后果或受阻原因对应的文案键。
+    private var consequenceKey: String {
+        if plan.canPermanentlyDelete {
+            return "account.lifecycle.delete_warning"
+        }
+        return plan.canDeactivate
+            ? "account.lifecycle.deactivate_warning"
+            : "account.lifecycle.deactivate_blocked"
     }
 
     /// 只有预检允许且默认处置条件已满足时开放提交。

@@ -52,13 +52,7 @@ struct LedgerCard<Content: View>: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .background {
-            HandDrawnBox(cornerRadius: 22, seed: seed)
-                .stroke(
-                    Color.primary.opacity(0.85),
-                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
-                )
-        }
+        .ledgerFormBorder(seed: seed)
     }
 }
 
@@ -82,13 +76,16 @@ struct LedgerFormRow<Content: View>: View {
     }
 }
 
-/// 卡片下方的墨色实底提交按钮，保存中显示进度。
+/// 卡片下方的实底提交按钮，保存中显示进度；删除这类不可撤销的操作改用账本红。
 struct LedgerSubmitButton: View {
     /// 已本地化的按钮文字。
     let title: String
 
     /// 是否正在保存。
     let isSaving: Bool
+
+    /// 是否为删除等不可撤销的操作。
+    var isDestructive = false
 
     /// 点击后的提交动作。
     let action: () -> Void
@@ -104,9 +101,26 @@ struct LedgerSubmitButton: View {
                     .fontWeight(.semibold)
             }
             .frame(maxWidth: .infinity, minHeight: 44)
-            .onAccentForeground()
+            .modifier(SubmitLabelForeground(isDestructive: isDestructive))
         }
         .buttonStyle(.borderedProminent)
+        .tint(isDestructive ? Color(.ledgerRed) : Color.accentColor)
+    }
+}
+
+/// 提交按钮文字的颜色：墨色底上跟随外观切换，账本红底上固定用白字。
+private struct SubmitLabelForeground: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+
+    /// 是否画在账本红的底色上。
+    let isDestructive: Bool
+
+    func body(content: Content) -> some View {
+        if isDestructive {
+            content.foregroundStyle(isEnabled ? Color.white : Color(uiColor: .tertiaryLabel))
+        } else {
+            content.onAccentForeground()
+        }
     }
 }
 
@@ -137,6 +151,22 @@ struct LedgerCardRowLabelStyle: LabelStyle {
 }
 
 extension View {
+    /// 表单方框的边线：比展示卡片的墨线更细、更淡，圆角也收小一点。
+    ///
+    /// 首页汇总、账户卡、流水票据这些"读"的卡片用粗墨线；需要填写或点选的方框用这道铅笔线，
+    /// 让输入内容本身比边框更显眼。
+    ///
+    /// - Parameter seed: 方框的笔迹种子。
+    func ledgerFormBorder(seed: UInt64) -> some View {
+        background {
+            HandDrawnBox(cornerRadius: 16, seed: seed)
+                .stroke(
+                    Color.primary.opacity(0.4),
+                    style: StrokeStyle(lineWidth: 1.1, lineCap: .round, lineJoin: .round)
+                )
+        }
+    }
+
     /// 卡片里一行的内边距、最小高度和整行点击区域。
     func ledgerCardRow() -> some View {
         padding(.horizontal, 20)
