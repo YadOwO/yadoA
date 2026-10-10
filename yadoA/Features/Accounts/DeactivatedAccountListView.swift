@@ -18,19 +18,25 @@ struct DeactivatedAccountListView: View {
                     systemImage: "archivebox"
                 )
             } else {
-                List(accounts) { account in
-                    // 上级通过视图目标进入此列表，详情沿用同一种导航，避免值路由移除上级页面。
-                    NavigationLink {
-                        AccountDetailView(accountID: account.id)
-                    } label: {
-                        AccountListRow(
-                            presentation: AccountListPresentation.row(
-                                for: account,
-                                locale: locale
-                            )
-                        )
+                LedgerFormPage {
+                    LedgerCard(seed: 121) {
+                        ForEach(accounts) { account in
+                            // 上级通过视图目标进入此列表，详情沿用同一种导航，避免值路由移除上级页面。
+                            NavigationLink {
+                                AccountDetailView(accountID: account.id)
+                            } label: {
+                                AccountListRow(
+                                    presentation: AccountListPresentation.row(
+                                        for: account,
+                                        locale: locale
+                                    )
+                                )
+                                .ledgerCardRow()
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("deactivated-account-row-\(account.id.uuidString)")
+                        }
                     }
-                    .accessibilityIdentifier("deactivated-account-row-\(account.id.uuidString)")
                 }
             }
         }

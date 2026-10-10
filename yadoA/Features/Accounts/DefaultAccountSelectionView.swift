@@ -25,26 +25,31 @@ struct DefaultAccountSelectionView: View {
                     systemImage: "star.slash"
                 )
             } else {
-                List(accounts) { account in
-                    Button {
-                        do {
-                            try LocalAccountRepository(container: modelContext.container)
-                                .setDefaultAccount(id: account.id)
-                            dismiss()
-                        } catch {
-                            isSaveFailed = true
+                LedgerFormPage {
+                    LedgerCard(seed: 120) {
+                        ForEach(accounts) { account in
+                            Button {
+                                do {
+                                    try LocalAccountRepository(container: modelContext.container)
+                                        .setDefaultAccount(id: account.id)
+                                    dismiss()
+                                } catch {
+                                    isSaveFailed = true
+                                }
+                            } label: {
+                                AccountListRow(
+                                    presentation: AccountListPresentation.row(
+                                        for: account,
+                                        locale: locale,
+                                        isDefault: account.id == defaultAccountID
+                                    )
+                                )
+                                .ledgerCardRow()
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("default-account-row-\(account.id.uuidString)")
                         }
-                    } label: {
-                        AccountListRow(
-                            presentation: AccountListPresentation.row(
-                                for: account,
-                                locale: locale,
-                                isDefault: account.id == defaultAccountID
-                            )
-                        )
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("default-account-row-\(account.id.uuidString)")
                 }
             }
         }

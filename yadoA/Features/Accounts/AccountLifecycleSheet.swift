@@ -43,59 +43,56 @@ struct AccountLifecycleSheet: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                LabeledContent(
-                    AccountLocalization.string("account.lifecycle.account", locale: locale),
-                    value: plan.accountName
-                )
-
-                if plan.balance != .zero {
-                    LabeledContent(
-                        AccountLocalization.string("account.lifecycle.current_balance", locale: locale),
-                        value: plan.balance.formatted(
-                            .currency(code: "CNY")
-                                .locale(locale)
-                        )
-                    )
+        LedgerFormPage {
+            LedgerCard(seed: 115) {
+                LedgerFormRow(title: text("account.lifecycle.account")) {
+                    Text(plan.accountName)
                 }
 
-                Label(
-                    plan.canPermanentlyDelete
-                        ? AccountLocalization.string("account.lifecycle.delete", locale: locale)
-                        : AccountLocalization.string("account.lifecycle.deactivate", locale: locale),
-                    systemImage: plan.canPermanentlyDelete ? "trash" : "pause.circle"
-                )
-                .font(.headline)
+                if plan.balance != .zero {
+                    LedgerFormRow(title: text("account.lifecycle.current_balance")) {
+                        Text(plan.balance.formatted(.currency(code: "CNY").locale(locale)))
+                            .font(.system(.body, design: .serif))
+                            .monospacedDigit()
+                    }
+                }
 
-                Text(
-                    plan.canPermanentlyDelete
-                        ? AccountLocalization.string("account.lifecycle.delete_warning", locale: locale)
-                        : plan.canDeactivate
-                            ? AccountLocalization.string("account.lifecycle.deactivate_warning", locale: locale)
-                            : AccountLocalization.string("account.lifecycle.deactivate_blocked", locale: locale)
-                )
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(
+                        text(plan.canPermanentlyDelete ? "account.lifecycle.delete" : "account.lifecycle.deactivate"),
+                        systemImage: plan.canPermanentlyDelete ? "trash" : "pause.circle"
+                    )
+                    .font(.system(.headline, design: .serif))
+
+                    Text(
+                        plan.canPermanentlyDelete
+                            ? text("account.lifecycle.delete_warning")
+                            : plan.canDeactivate
+                                ? text("account.lifecycle.deactivate_warning")
+                                : text("account.lifecycle.deactivate_blocked")
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+                .ledgerCardRow()
             }
 
             if plan.isCurrentDefault {
-                Section {
+                LedgerCard(seed: 116) {
                     if plan.replacementCandidates.isEmpty {
-                        Toggle(
-                            AccountLocalization.string("account.lifecycle.confirm_no_default", locale: locale),
-                            isOn: $allowsNoDefault
-                        )
-                        .accessibilityIdentifier("account-lifecycle-no-default")
-                        .onChange(of: allowsNoDefault) { _, value in
-                            flow.update(
-                                replacementAccountID: replacementAccountID,
-                                allowsNoDefault: value
-                            )
-                        }
+                        Toggle(text("account.lifecycle.confirm_no_default"), isOn: $allowsNoDefault)
+                            .ledgerCardRow()
+                            .accessibilityIdentifier("account-lifecycle-no-default")
+                            .onChange(of: allowsNoDefault) { _, value in
+                                flow.update(
+                                    replacementAccountID: replacementAccountID,
+                                    allowsNoDefault: value
+                                )
+                            }
                     } else {
-                        Text(AccountLocalization.string("account.lifecycle.choose_replacement", locale: locale))
-                            .font(.subheadline.weight(.semibold))
+                        Text(text("account.lifecycle.choose_replacement"))
+                            .font(.system(.subheadline, design: .serif, weight: .semibold))
+                            .ledgerCardRow()
 
                         ForEach(plan.replacementCandidates) { candidate in
                             Button {
@@ -113,8 +110,10 @@ struct AccountLifecycleSheet: View {
                                             .foregroundStyle(.tint)
                                     }
                                 }
+                                .ledgerCardRow()
                             }
                             .buttonStyle(.plain)
+                            .accessibilityAddTraits(replacementAccountID == candidate.id ? .isSelected : [])
                             .accessibilityIdentifier("account-lifecycle-replacement-\(candidate.id.uuidString)")
                         }
                     }
@@ -122,47 +121,33 @@ struct AccountLifecycleSheet: View {
             }
 
             if let error = flow.lastError {
-                Section {
-                    Label(
-                        error.isStateChanged
-                            ? AccountLocalization.string("account.lifecycle.state_changed", locale: locale)
-                            : AccountLocalization.string("account.lifecycle.save_error", locale: locale),
-                        systemImage: "exclamationmark.triangle.fill"
-                    )
-                    .foregroundStyle(.red)
-                    .accessibilityIdentifier("account-lifecycle-error")
-                }
+                Label(
+                    text(error.isStateChanged ? "account.lifecycle.state_changed" : "account.lifecycle.save_error"),
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.footnote)
+                .foregroundStyle(Color(.ledgerRed))
+                .accessibilityIdentifier("account-lifecycle-error")
             }
 
-            Section {
-                Button {
-                    flow.update(
-                        replacementAccountID: replacementAccountID,
-                        allowsNoDefault: allowsNoDefault
-                    )
-                    flow.submit(
-                        onSaved: {
-                            onSaved()
-                            dismiss()
-                        },
-                        onNeedsRefresh: {
-                            onNeedsRefresh()
-                            dismiss()
-                        }
-                    )
-                } label: {
-                    HStack {
-                        if flow.isSaving {
-                            ProgressView()
-                                .accessibilityHidden(true)
-                        }
-                        Text(AccountLocalization.string("common.confirm", locale: locale))
+            LedgerSubmitButton(title: text("common.confirm"), isSaving: flow.isSaving) {
+                flow.update(
+                    replacementAccountID: replacementAccountID,
+                    allowsNoDefault: allowsNoDefault
+                )
+                flow.submit(
+                    onSaved: {
+                        onSaved()
+                        dismiss()
+                    },
+                    onNeedsRefresh: {
+                        onNeedsRefresh()
+                        dismiss()
                     }
-                    .frame(maxWidth: .infinity)
-                }
-                .disabled(!canSubmit)
-                .accessibilityIdentifier("account-lifecycle-submit")
+                )
             }
+            .disabled(!canSubmit)
+            .accessibilityIdentifier("account-lifecycle-submit")
         }
         .navigationTitle(AccountLocalization.string("account.management.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
@@ -175,7 +160,11 @@ struct AccountLifecycleSheet: View {
             }
         }
         .interactiveDismissDisabled(flow.isSaving)
-        .paperPage()
+    }
+
+    /// 按当前应用语言解析 String Catalog 文案。
+    private func text(_ key: String) -> String {
+        AccountLocalization.string(key, locale: locale)
     }
 
     /// 只有预检允许且默认处置条件已满足时开放提交。

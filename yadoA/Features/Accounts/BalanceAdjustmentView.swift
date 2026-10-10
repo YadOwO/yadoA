@@ -42,9 +42,7 @@ struct BalanceAdjustmentView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                currentBalanceSummary
-                targetBalanceSection
-                noteSection
+                slip
                 inlineFeedback
             }
             .padding(.horizontal, 20)
@@ -83,6 +81,32 @@ struct BalanceAdjustmentView: View {
         .paperPage()
     }
 
+    /// 一张手绘方框里的调整单：当前余额、目标余额和原因从上到下写在同一张纸上。
+    private var slip: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            currentBalanceSummary
+
+            HandDrawnRule(seed: 104)
+                .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                .frame(height: 3)
+                .accessibilityHidden(true)
+
+            targetBalanceSection
+            noteSection
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 22)
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            HandDrawnBox(cornerRadius: 22, seed: 103)
+                .stroke(
+                    Color.primary.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                )
+        }
+    }
+
     /// 清晰说明页面正在设置总余额，而不是输入增减差额。
     private var currentBalanceSummary: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -96,7 +120,8 @@ struct BalanceAdjustmentView: View {
             .foregroundStyle(.secondary)
 
             Text(formattedCurrency(flow.currentBalance))
-                .font(.title2.monospacedDigit().weight(.semibold))
+                .font(.system(.title2, design: .serif, weight: .medium))
+                .monospacedDigit()
 
             Text(
                 AccountLocalization.string(
@@ -120,7 +145,7 @@ struct BalanceAdjustmentView: View {
                     locale: locale
                 )
             )
-            .font(.headline)
+            .font(.system(.headline, design: .serif))
 
             signPicker
 
@@ -132,21 +157,22 @@ struct BalanceAdjustmentView: View {
                 text: targetAmountTextBinding,
                 prompt: Text(verbatim: "0")
             )
-            .font(.system(.largeTitle, design: .rounded, weight: .semibold))
+            .font(.system(.largeTitle, design: .serif, weight: .medium))
             .monospacedDigit()
             .keyboardType(.decimalPad)
             .focused($focusedField, equals: .amount)
             .multilineTextAlignment(.center)
             .minimumScaleFactor(0.55)
             .lineLimit(1)
-            .frame(maxWidth: .infinity, minHeight: 72)
+            .frame(maxWidth: .infinity, minHeight: 56)
             .accessibilityIdentifier("balance-adjustment-target")
+
+            // 目标金额写在一条手绘的横线上，与记账页的金额一致。
+            HandDrawnRule(seed: 105)
+                .stroke(Color.primary.opacity(0.6), style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+                .frame(height: 3)
+                .accessibilityHidden(true)
         }
-        .padding(16)
-        .background(
-            Color.primary.opacity(0.06),
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-        )
     }
 
     /// 负数目标在输入框中固定显示负号，输入内容只允许编辑绝对值。
@@ -277,12 +303,7 @@ struct BalanceAdjustmentView: View {
         )
         .focused($focusedField, equals: .note)
         .lineLimit(1...4)
-        .padding(14)
-        .frame(minHeight: 52)
-        .background(
-            Color.primary.opacity(0.06),
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-        )
+        .frame(minHeight: 44)
         .accessibilityLabel(
             Text(
                 AccountLocalization.string(
@@ -306,7 +327,7 @@ struct BalanceAdjustmentView: View {
                 systemImage: "exclamationmark.circle.fill"
             )
             .font(.footnote)
-            .foregroundStyle(.red)
+            .foregroundStyle(Color(.ledgerRed))
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityFocused($isSaveErrorFocused)
             .accessibilityIdentifier("balance-adjustment-save-error")
@@ -358,7 +379,7 @@ struct BalanceAdjustmentView: View {
         .padding(.vertical, 12)
         .frame(maxWidth: 620)
         .frame(maxWidth: .infinity)
-        .background(.regularMaterial)
+        .background(Color(.paperBackground))
         .accessibilityIdentifier("balance-adjustment-save")
     }
 

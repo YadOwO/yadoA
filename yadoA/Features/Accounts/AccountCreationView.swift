@@ -102,13 +102,22 @@ struct AccountCreationView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            List(AccountType.allCases) { accountType in
-                NavigationLink(value: accountType.nextRoute) {
-                    AccountTypeRow(accountType: accountType)
+            LedgerFormPage {
+                LedgerCard(seed: 111) {
+                    ForEach(AccountType.allCases) { accountType in
+                        NavigationLink(value: accountType.nextRoute) {
+                            HStack(spacing: 12) {
+                                AccountTypeRow(accountType: accountType)
+                                Spacer(minLength: 8)
+                                LedgerChevron()
+                            }
+                            .ledgerCardRow()
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("account-creation-type-\(accountType.rawValue)")
+                    }
                 }
-                .accessibilityIdentifier("account-creation-type-\(accountType.rawValue)")
             }
-            .paperPage()
             .navigationTitle(AccountLocalization.string("account.creation.title", locale: locale))
             .navigationDestination(for: AccountCreationRoute.self) { route in
                 destination(for: route)
@@ -195,15 +204,22 @@ private struct AccountTemplateListView: View {
     let accountType: AccountType
 
     var body: some View {
-        List(accountType.templates) { template in
-            NavigationLink(value: AccountCreationRoute.form(accountType, template)) {
-                HStack(spacing: 12) {
-                    AccountTemplateIcon(template: template)
-                    Text(template.name(locale: locale))
+        LedgerFormPage {
+            LedgerCard(seed: 112) {
+                ForEach(accountType.templates) { template in
+                    NavigationLink(value: AccountCreationRoute.form(accountType, template)) {
+                        HStack(spacing: 12) {
+                            AccountTemplateIcon(template: template)
+                            Text(template.name(locale: locale))
+                            Spacer(minLength: 8)
+                            LedgerChevron()
+                        }
+                        .ledgerCardRow()
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("account-creation-template-\(template.id)")
                 }
-                    .padding(.vertical, 4)
             }
-            .accessibilityIdentifier("account-creation-template-\(template.id)")
         }
         .navigationTitle(
             AccountLocalization.formatted(
@@ -212,7 +228,6 @@ private struct AccountTemplateListView: View {
                 locale: locale
             )
         )
-        .paperPage()
     }
 }
 
@@ -278,86 +293,84 @@ private struct AccountFormView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
+        LedgerFormPage {
+            LedgerCard(seed: 113) {
                 if flow.draft.accountType.showsInstitution, let template = flow.draft.template {
-                    LabeledContent(
-                        AccountLocalization.string("account.creation.field.institution", locale: locale),
-                        value: template.name(locale: locale)
-                    )
+                    LedgerFormRow(title: text("account.creation.field.institution")) {
+                        Text(template.name(locale: locale))
+                    }
                 }
 
                 if flow.draft.accountType.showsEditableName {
-                    TextField(
-                        AccountLocalization.string("account.creation.field.name", locale: locale),
-                        text: $flow.draft.name
-                    )
-                    .accessibilityIdentifier("account-creation-name")
+                    LedgerFormRow(title: text("account.creation.field.name")) {
+                        TextField(
+                            text("account.creation.field.name"),
+                            text: $flow.draft.name,
+                            prompt: Text(verbatim: "")
+                        )
+                        .accessibilityIdentifier("account-creation-name")
+                    }
                 }
 
                 if flow.draft.accountType.showsLastFourDigits {
-                    AccountLastFourDigitsField(
-                        locale: locale,
-                        text: $flow.draft.lastFourDigits,
-                        accessibilityIdentifier: "account-creation-last-four-digits"
-                    )
+                    LedgerFormRow(title: text("account.detail.last_four_digits")) {
+                        AccountLastFourDigitsField(
+                            locale: locale,
+                            text: $flow.draft.lastFourDigits,
+                            accessibilityIdentifier: "account-creation-last-four-digits"
+                        )
+                    }
                 }
 
-                TextField(
-                    AccountLocalization.string("account.creation.field.note", locale: locale),
-                    text: $flow.draft.note
-                )
-                .accessibilityIdentifier("account-creation-note")
+                LedgerFormRow(title: text("account.detail.note")) {
+                    TextField(
+                        text("account.creation.field.note"),
+                        text: $flow.draft.note,
+                        prompt: Text(text("common.optional"))
+                    )
+                    .accessibilityIdentifier("account-creation-note")
+                }
 
-                TextField(
-                    flow.draft.accountType.amountLabel(locale: locale),
-                    text: $flow.draft.amountText
-                )
+                LedgerFormRow(title: flow.draft.accountType.amountLabel(locale: locale)) {
+                    TextField(
+                        flow.draft.accountType.amountLabel(locale: locale),
+                        text: $flow.draft.amountText,
+                        prompt: Text(verbatim: "0")
+                    )
+                    .font(.system(.body, design: .serif))
+                    .monospacedDigit()
                     .keyboardType(.decimalPad)
                     .accessibilityIdentifier("account-creation-amount")
+                }
             }
 
             if flow.hasSaveError {
-                Section {
-                    Label(
-                        AccountLocalization.string("account.creation.save_error.message", locale: locale),
-                        systemImage: "exclamationmark.triangle.fill"
-                    )
-                    .foregroundStyle(.red)
-                    .accessibilityIdentifier("account-creation-save-error")
-                }
+                Label(
+                    text("account.creation.save_error.message"),
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.footnote)
+                .foregroundStyle(Color(.ledgerRed))
+                .accessibilityIdentifier("account-creation-save-error")
             }
 
-            Section {
-                Button {
-                    isSheetSaving = true
-                    Task {
-                        await flow.submit(
-                            locale: locale,
-                            onFailure: onFailure
-                        ) {
-                            onSaved(flow.draft.id)
-                        }
-                        isSheetSaving = false
+            LedgerSubmitButton(
+                title: text(flow.hasSaveError ? "common.retry" : "common.save"),
+                isSaving: flow.isSaving
+            ) {
+                isSheetSaving = true
+                Task {
+                    await flow.submit(
+                        locale: locale,
+                        onFailure: onFailure
+                    ) {
+                        onSaved(flow.draft.id)
                     }
-                } label: {
-                    HStack {
-                        if flow.isSaving {
-                            ProgressView()
-                                .accessibilityHidden(true)
-                        }
-                        Text(
-                            AccountLocalization.string(
-                                flow.hasSaveError ? "common.retry" : "common.save",
-                                locale: locale
-                            )
-                        )
-                    }
-                    .frame(maxWidth: .infinity)
+                    isSheetSaving = false
                 }
-                .disabled(!flow.draft.isFormValid(locale: locale) || flow.isSaving)
-                .accessibilityIdentifier("account-creation-save")
             }
+            .disabled(!flow.draft.isFormValid(locale: locale) || flow.isSaving)
+            .accessibilityIdentifier("account-creation-save")
         }
         .navigationTitle(
             AccountLocalization.formatted(
@@ -368,7 +381,11 @@ private struct AccountFormView: View {
             )
         )
         .navigationBarBackButtonHidden(flow.isSaving)
-        .paperPage()
+    }
+
+    /// 按表单使用的语言环境解析 String Catalog 文案。
+    private func text(_ key: String) -> String {
+        AccountLocalization.string(key, locale: locale)
     }
 }
 
@@ -386,7 +403,13 @@ struct AccountLastFourDigitsField: View {
     var body: some View {
         TextField(
             AccountLocalization.string("account.creation.field.last_four_digits", locale: locale),
-            text: $text
+            text: $text,
+            prompt: Text(
+                AccountLocalization.string(
+                    "account.creation.field.last_four_digits.placeholder",
+                    locale: locale
+                )
+            )
         )
         .keyboardType(.numberPad)
         .onChange(of: text) { _, newValue in

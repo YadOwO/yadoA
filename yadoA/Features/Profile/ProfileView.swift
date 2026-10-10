@@ -126,7 +126,7 @@ struct ProfileView: View {
                 .accessibilityHidden(true)
 
             Text(verbatim: "yadoA")
-                .font(.title2.weight(.semibold))
+                .font(.system(.title2, design: .serif, weight: .semibold))
 
             Text(text("profile.local_data"))
                 .font(.subheadline)
@@ -153,13 +153,19 @@ struct ProfileView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(text(titleKey))
-                .font(.subheadline)
+                .font(.system(.subheadline, design: .serif, weight: .medium))
                 .foregroundStyle(.secondary)
                 .padding(.leading, 20)
                 .accessibilityAddTraits(.isHeader)
 
             VStack(spacing: 0, content: content)
-                .background(Color(uiColor: .secondarySystemGroupedBackground), in: .rect(cornerRadius: 24))
+                .background {
+                    HandDrawnBox(cornerRadius: 22, seed: titleKey.handDrawnSeed)
+                        .stroke(
+                            Color.primary.opacity(0.85),
+                            style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                        )
+                }
         }
     }
 
@@ -184,9 +190,14 @@ struct ProfileView: View {
         .contentShape(Rectangle())
     }
 
-    /// 分隔线从标题处开始，与参考图的缩进保持一致。
+    /// 两行之间的手绘细线，从标题处开始。
     private var rowDivider: some View {
-        Divider().padding(.leading, 62).padding(.trailing, 20)
+        HandDrawnRule(seed: 99)
+            .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+            .frame(height: 3)
+            .padding(.leading, 62)
+            .padding(.trailing, 20)
+            .accessibilityHidden(true)
     }
 
     /// 按应用当前语言解析已有 String Catalog 文案。

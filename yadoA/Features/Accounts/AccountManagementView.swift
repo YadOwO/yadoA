@@ -19,14 +19,14 @@ struct AccountManagementView: View {
             accounts: queriedAccounts
         )
 
-        List {
-            Section {
+        LedgerFormPage {
+            LedgerCard(seed: 117) {
                 VStack(alignment: .leading, spacing: 8) {
                     Label(
                         AccountLocalization.string("account.management.default.title", locale: locale),
                         systemImage: "star.circle.fill"
                     )
-                    .font(.headline)
+                    .font(.system(.headline, design: .serif))
 
                     Text(AccountLocalization.string("account.management.default.message", locale: locale))
                         .font(.footnote)
@@ -47,7 +47,7 @@ struct AccountManagementView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                .padding(.vertical, 4)
+                .ledgerCardRow()
 
                 Button {
                     isPresentingDefaultSelection = true
@@ -72,25 +72,32 @@ struct AccountManagementView: View {
                 }
             }
 
-            Section {
+            LedgerCard(seed: 118) {
                 DataExportEntryView(container: modelContext.container)
             }
 
-            Section {
+            LedgerCard(seed: 119) {
                 NavigationLink {
                     DeactivatedAccountListView()
                 } label: {
-                    Label(
-                        AccountLocalization.string("account.deactivated.title", locale: locale),
-                        systemImage: "archivebox"
-                    )
-                    Spacer()
-                    Text(queriedAccounts.filter { !$0.isActive }.count.formatted())
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 12) {
+                        Label(
+                            AccountLocalization.string("account.deactivated.title", locale: locale),
+                            systemImage: "archivebox"
+                        )
+                        .labelStyle(.titleAndIcon)
+                        Spacer(minLength: 8)
+                        Text(queriedAccounts.filter { !$0.isActive }.count.formatted())
+                            .foregroundStyle(.secondary)
+                        LedgerChevron()
+                    }
+                    .ledgerCardRow()
                 }
                 .accessibilityIdentifier("account-management-deactivated")
             }
         }
+        .buttonStyle(.plain)
+        .labelStyle(LedgerCardRowLabelStyle())
         .navigationTitle(AccountLocalization.string("account.management.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -112,7 +119,6 @@ struct AccountManagementView: View {
                     .save(draft, locale: locale)
             }
         }
-        .paperPage()
     }
 }
 

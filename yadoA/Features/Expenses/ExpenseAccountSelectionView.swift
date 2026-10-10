@@ -89,19 +89,23 @@ struct ExpenseAccountSelectionView: View {
 
     /// 复用账户列表展示转换和共享行，保持名称、类型、尾号与金额语义一致。
     private func accountList(_ accounts: [Account]) -> some View {
-        List(accounts) { account in
-            Button {
-                onSelectAccount(account.id)
-                dismiss()
-            } label: {
-                AccountListRow(
-                    presentation: AccountListPresentation.row(for: account, locale: locale)
-                )
-                .contentShape(Rectangle())
+        LedgerFormPage {
+            LedgerCard(seed: 122) {
+                ForEach(accounts) { account in
+                    Button {
+                        onSelectAccount(account.id)
+                        dismiss()
+                    } label: {
+                        AccountListRow(
+                            presentation: AccountListPresentation.row(for: account, locale: locale)
+                        )
+                        .ledgerCardRow()
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!account.supportsBookkeeping)
+                    .accessibilityIdentifier("expense-account-selection-row-\(account.id.uuidString)")
+                }
             }
-            .buttonStyle(.plain)
-            .disabled(!account.supportsBookkeeping)
-            .accessibilityIdentifier("expense-account-selection-row-\(account.id.uuidString)")
         }
     }
 

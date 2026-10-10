@@ -150,81 +150,73 @@ private struct AccountEditFormView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
+        LedgerFormPage {
+            LedgerCard(seed: 114) {
                 if let institution {
-                    LabeledContent(
-                        AccountLocalization.string("account.detail.institution", locale: locale),
-                        value: institution
-                    )
+                    LedgerFormRow(title: text("account.detail.institution")) {
+                        Text(institution)
+                    }
                 }
 
                 if flow.draft.accountType?.showsEditableName ?? true {
-                    TextField(
-                        AccountLocalization.string("account.creation.field.name", locale: locale),
-                        text: $flow.draft.name
-                    )
-                    .accessibilityIdentifier("account-edit-name")
+                    LedgerFormRow(title: text("account.creation.field.name")) {
+                        TextField(
+                            text("account.creation.field.name"),
+                            text: $flow.draft.name,
+                            prompt: Text(verbatim: "")
+                        )
+                        .accessibilityIdentifier("account-edit-name")
+                    }
                 }
 
                 if flow.draft.accountType?.showsLastFourDigits == true {
-                    AccountLastFourDigitsField(
-                        locale: locale,
-                        text: $flow.draft.lastFourDigits,
-                        accessibilityIdentifier: "account-edit-last-four-digits"
-                    )
-                }
-
-                TextField(
-                    AccountLocalization.string("account.creation.field.note", locale: locale),
-                    text: $flow.draft.note
-                )
-                .accessibilityIdentifier("account-edit-note")
-            }
-
-            Section {
-                Text(AccountLocalization.string("account.edit.immutable_message", locale: locale))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            if flow.hasSaveError {
-                Section {
-                    Label(
-                        AccountLocalization.string("account.edit.save_error.message", locale: locale),
-                        systemImage: "exclamationmark.triangle.fill"
-                    )
-                    .foregroundStyle(.red)
-                    .accessibilityIdentifier("account-edit-save-error")
-                }
-            }
-
-            Section {
-                Button {
-                    Task {
-                        await flow.submit {
-                            onSaved()
-                            dismiss()
-                        }
-                    }
-                } label: {
-                    HStack {
-                        if flow.isSaving {
-                            ProgressView()
-                                .accessibilityHidden(true)
-                        }
-                        Text(
-                            AccountLocalization.string(
-                                flow.hasSaveError ? "common.retry" : "common.save",
-                                locale: locale
-                            )
+                    LedgerFormRow(title: text("account.detail.last_four_digits")) {
+                        AccountLastFourDigitsField(
+                            locale: locale,
+                            text: $flow.draft.lastFourDigits,
+                            accessibilityIdentifier: "account-edit-last-four-digits"
                         )
                     }
-                    .frame(maxWidth: .infinity)
                 }
-                .disabled(!flow.draft.isFormValid || flow.isSaving)
-                .accessibilityIdentifier("account-edit-save")
+
+                LedgerFormRow(title: text("account.detail.note")) {
+                    TextField(
+                        text("account.creation.field.note"),
+                        text: $flow.draft.note,
+                        prompt: Text(text("common.optional"))
+                    )
+                    .accessibilityIdentifier("account-edit-note")
+                }
             }
+
+            Text(text("account.edit.immutable_message"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+
+            if flow.hasSaveError {
+                Label(
+                    text("account.edit.save_error.message"),
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.footnote)
+                .foregroundStyle(Color(.ledgerRed))
+                .accessibilityIdentifier("account-edit-save-error")
+            }
+
+            LedgerSubmitButton(
+                title: text(flow.hasSaveError ? "common.retry" : "common.save"),
+                isSaving: flow.isSaving
+            ) {
+                Task {
+                    await flow.submit {
+                        onSaved()
+                        dismiss()
+                    }
+                }
+            }
+            .disabled(!flow.draft.isFormValid || flow.isSaving)
+            .accessibilityIdentifier("account-edit-save")
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -239,7 +231,11 @@ private struct AccountEditFormView: View {
             }
         }
         .interactiveDismissDisabled(flow.isSaving)
-        .paperPage()
+    }
+
+    /// 按当前应用语言解析 String Catalog 文案。
+    private func text(_ key: String) -> String {
+        AccountLocalization.string(key, locale: locale)
     }
 
 }

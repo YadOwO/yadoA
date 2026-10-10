@@ -51,7 +51,7 @@ struct ScreenshotShortcutSetupView: View {
 
             VStack(spacing: 6) {
                 Text(text("shortcut.screenshot.setup.hero.title"))
-                    .font(.title2.weight(.bold))
+                    .font(.system(.title2, design: .serif, weight: .semibold))
                     .multilineTextAlignment(.center)
                     .accessibilityAddTraits(.isHeader)
                 Text(text("shortcut.screenshot.setup.hero.subtitle"))
@@ -98,7 +98,13 @@ struct ScreenshotShortcutSetupView: View {
             }
         }
         .padding(20)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: .rect(cornerRadius: 24))
+        .background {
+            HandDrawnBox(cornerRadius: 22, seed: 101)
+                .stroke(
+                    Color.primary.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                )
+        }
     }
 
     /// 打开已发布的预设模板；新系统显示玻璃效果，iOS 18 保留原生实色按钮。

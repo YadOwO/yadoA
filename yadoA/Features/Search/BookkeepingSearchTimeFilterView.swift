@@ -62,59 +62,58 @@ struct BookkeepingSearchTimeFilterView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                LedgerSwitch(
-                    label: AccountLocalization.string("bookkeeping.search.filter.mode", locale: locale),
-                    selection: $selectionMode,
-                    options: SelectionMode.allCases.map {
-                        .init(
-                            value: $0,
-                            title: AccountLocalization.string(
-                                "bookkeeping.search.filter.\($0.rawValue)",
-                                locale: locale
-                            ),
-                            identifier: "bookkeeping-search-filter-mode-\($0.rawValue)"
-                        )
-                    }
-                )
-                .frame(maxWidth: .infinity)
-                .onChange(of: selectionMode) { oldValue, newValue in
-                    guard oldValue == .all, newValue == .custom else { return }
-                    let today = Self.today(calendar: calendar)
-                    startDate = today
-                    endDate = today
+        LedgerFormPage {
+            LedgerSwitch(
+                label: AccountLocalization.string("bookkeeping.search.filter.mode", locale: locale),
+                selection: $selectionMode,
+                options: SelectionMode.allCases.map {
+                    .init(
+                        value: $0,
+                        title: AccountLocalization.string(
+                            "bookkeeping.search.filter.\($0.rawValue)",
+                            locale: locale
+                        ),
+                        identifier: "bookkeeping-search-filter-mode-\($0.rawValue)"
+                    )
                 }
+            )
+            .frame(maxWidth: .infinity)
+            .onChange(of: selectionMode) { oldValue, newValue in
+                guard oldValue == .all, newValue == .custom else { return }
+                let today = Self.today(calendar: calendar)
+                startDate = today
+                endDate = today
             }
 
             if selectionMode == .custom {
-                Section {
+                LedgerCard(seed: 123) {
                     DatePicker(
-                        AccountLocalization.string(
-                            "bookkeeping.search.filter.start",
-                            locale: locale
-                        ),
                         selection: $startDate,
                         displayedComponents: .date
-                    )
+                    ) {
+                        Text(AccountLocalization.string("bookkeeping.search.filter.start", locale: locale))
+                            .foregroundStyle(.secondary)
+                    }
+                    .ledgerCardRow()
                     .accessibilityIdentifier("bookkeeping-search-filter-start")
 
                     DatePicker(
-                        AccountLocalization.string(
-                            "bookkeeping.search.filter.end",
-                            locale: locale
-                        ),
                         selection: $endDate,
                         displayedComponents: .date
-                    )
-                    .accessibilityIdentifier("bookkeeping-search-filter-end")
-
-                    if let rangeError {
-                        Text(rangeError)
-                            .font(.footnote)
-                            .foregroundStyle(Color(.ledgerRed))
-                            .accessibilityIdentifier("bookkeeping-search-filter-error")
+                    ) {
+                        Text(AccountLocalization.string("bookkeeping.search.filter.end", locale: locale))
+                            .foregroundStyle(.secondary)
                     }
+                    .ledgerCardRow()
+                    .accessibilityIdentifier("bookkeeping-search-filter-end")
+                }
+
+                if let rangeError {
+                    Text(rangeError)
+                        .font(.footnote)
+                        .foregroundStyle(Color(.ledgerRed))
+                        .padding(.horizontal, 4)
+                        .accessibilityIdentifier("bookkeeping-search-filter-error")
                 }
             }
         }
@@ -150,7 +149,6 @@ struct BookkeepingSearchTimeFilterView: View {
                 .accessibilityIdentifier("bookkeeping-search-filter-confirm")
             }
         }
-        .paperPage()
     }
 
     /// 当前草稿可提交时生成搜索条件，否则保持确认按钮禁用。
