@@ -26,12 +26,19 @@ final class BookkeepingTransactionMutationUITests: XCTestCase {
         XCTAssertTrue(app.segmentedControls["expense-edit-type"].waitForExistence(timeout: 3))
         app.segmentedControls["expense-edit-type"].buttons["Income"].tap()
         app.buttons["expense-edit-category"].tap()
-        app.buttons["Refund"].tap()
+        let refund = app.buttons["income-category-refund"]
+        XCTAssertTrue(refund.waitForExistence(timeout: 3))
+        refund.tap()
 
         replaceText(app.textFields["expense-edit-title"], with: "Corrected lunch")
         replaceText(app.textFields["expense-edit-amount"], with: "40.50")
         app.buttons["expense-edit-account"].tap()
-        let target = app.buttons["Home fixture account"]
+        let target = app.buttons.matching(
+            NSPredicate(
+                format: "identifier BEGINSWITH 'expense-account-selection-row-' AND label CONTAINS %@",
+                "Home fixture account"
+            )
+        ).firstMatch
         XCTAssertTrue(target.waitForExistence(timeout: 3))
         target.tap()
         let note = app.textViews["expense-edit-note"].exists
