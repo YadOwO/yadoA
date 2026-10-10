@@ -61,6 +61,15 @@ private struct HomeQueryContent: View {
     /// 悬浮记账按钮占用的底部高度，列表末尾据此留白，保证最后一条流水能滚到按钮上方。
     @State private var addButtonClearance: CGFloat = 76
 
+    /// 首页当前是否在导航栈顶部可见；被记账页盖住时不消费新流水提示。
+    @State private var isVisible = false
+
+    /// 正在标红提示的新流水，提示结束后清空。
+    @State private var highlightedTransactionID: UUID?
+
+    /// 刚保存成功的流水提示通道。
+    private let recentEntryHighlight = HomeRecentEntryHighlight.shared
+
     init(areAmountsVisible: Binding<Bool>) {
         _areAmountsVisible = areAmountsVisible
         _transactions = Query(HomeOverviewPresentation.descriptor())
@@ -95,6 +104,7 @@ private struct HomeQueryContent: View {
                     monthPresentation: monthPresentation,
                     monthNavigator: HomeMonthNavigator(availableMonths: presentation.availableMonths),
                     selectedMonth: activeMonth,
+                    highlightedTransactionID: highlightedTransactionID,
                     bottomClearance: addButtonClearance,
                     onSelectMonth: { month in
                         selectedMonth = month
@@ -124,6 +134,15 @@ private struct HomeQueryContent: View {
             if selectedMonth == nil {
                 selectedMonth = presentation.initialMonth
             }
+            isVisible = true
+            showRecentEntryHighlightIfNeeded()
+        }
+        .onDisappear {
+            isVisible = false
+        }
+        // 截图记账以全屏模态盖在首页之上，关闭时不会再次触发 onAppear，需要直接响应登记。
+        .onChange(of: recentEntryHighlight.pending) { _, _ in
+            showRecentEntryHighlightIfNeeded()
         }
         .sheet(isPresented: $isMonthPickerPresented) {
             NavigationStack {
@@ -137,6 +156,27 @@ private struct HomeQueryContent: View {
                         isMonthPickerPresented = false
                     }
                 )
+            }
+        }
+    }
+}
+
+extension HomeQueryContent {
+    /// 新流水提示从标红到完全回到默认色所需的总时长，之后清除标记。
+    private static let highlightLifetime: Duration = .seconds(4)
+
+    /// 首页可见时取走刚保存的流水：切到它所在的月份，并让对应行短暂标红。
+    private func showRecentEntryHighlightIfNeeded() {
+        guard isVisible, let entry = recentEntryHighlight.consume() else { return }
+
+        if let month = HomeMonth(value: entry.transactionDay / 100) {
+            selectedMonth = month
+        }
+        highlightedTransactionID = entry.id
+        Task {
+            try? await Task.sleep(for: Self.highlightLifetime)
+            if highlightedTransactionID == entry.id {
+                highlightedTransactionID = nil
             }
         }
     }
@@ -292,12 +332,9 @@ private struct HomeSummaryColumn: View {
             HStack(spacing: 6) {
                 Image(systemName: isIncome ? "arrow.down.left" : "arrow.up.right")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(isIncome ? Color.accentColor : Color.primary)
+                    .foregroundStyle(.primary)
                     .frame(width: 20, height: 20)
-                    .background(
-                        isIncome ? Color.accentColor.opacity(0.09) : Color.primary.opacity(0.05),
-                        in: Circle()
-                    )
+                    .background(Color.primary.opacity(0.06), in: Circle())
                     .accessibilityHidden(true)
                 Text(title)
                     .font(.footnote)
@@ -348,6 +385,7 @@ private struct HomeAddTransactionButton: View {
                 .font(.headline)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 5)
+                .onAccentForeground()
         }
         .controlSize(.large)
         .buttonBorderShape(.capsule)
@@ -373,6 +411,9 @@ private struct HomeOverviewList: View {
     /// 当前已提交月份。
     let selectedMonth: HomeMonth
 
+    /// 需要短暂标红提示的新流水；为空时所有行保持默认样式。
+    let highlightedTransactionID: UUID?
+
     /// 悬浮记账按钮占用的底部高度，用于列表末尾留白和上拉提示避让。
     let bottomClearance: CGFloat
 
@@ -381,67 +422,77 @@ private struct HomeOverviewList: View {
 
     var body: some View {
         GeometryReader { containerGeometry in
-            List {
-                if monthPresentation.isEmpty {
-                    HomeEmptyState()
-                        .frame(
-                            maxWidth: .infinity,
-                            minHeight: max(0, containerGeometry.size.height - 2)
-                        )
+            ScrollViewReader { scrollProxy in
+                List {
+                    if monthPresentation.isEmpty {
+                        HomeEmptyState()
+                            .frame(
+                                maxWidth: .infinity,
+                                minHeight: max(0, containerGeometry.size.height - 2)
+                            )
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    } else {
+                        ForEach(monthPresentation.dayGroups) { day in
+                            Section {
+                                ForEach(day.rows) { row in
+                                    HomeOverviewRow(row: row, isHighlighted: row.id == highlightedTransactionID)
+                                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                                        .listRowBackground(Color(uiColor: .secondarySystemGroupedBackground))
+                                        .alignmentGuide(.listRowSeparatorLeading) { _ in 52 }
+                                }
+                            } header: {
+                                HomeOverviewDayHeader(day: day)
+                            }
+                        }
+                    }
+
+                    // 末尾留白计入内容高度，最后一条流水可以完整滚到悬浮按钮上方。
+                    Color.clear
+                        .frame(height: bottomClearance)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                } else {
-                    ForEach(monthPresentation.dayGroups) { day in
-                        Section {
-                            ForEach(day.rows) { row in
-                                HomeOverviewRow(row: row)
-                                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                                    .listRowBackground(Color(uiColor: .secondarySystemGroupedBackground))
-                                    .alignmentGuide(.listRowSeparatorLeading) { _ in 52 }
-                            }
-                        } header: {
-                            HomeOverviewDayHeader(day: day)
-                        }
+                }
+                .listStyle(.insetGrouped)
+                .listSectionSpacing(16)
+                .contentMargins(.top, 0, for: .scrollContent)
+                .scrollContentBackground(.hidden)
+                .scrollBounceBehavior(.always)
+                .accessibilityIdentifier("home-details-scroll")
+                .onScrollGeometryChange(for: HomeMonthScrollInteraction.Pull?.self) { geometry in
+                    pull(for: geometry)
+                } action: { _, pull in
+                    interaction.update(pull)
+                }
+                .onScrollPhaseChange { oldPhase, phase, context in
+                    if phase == .interacting {
+                        interaction.beginDragging()
+                        interaction.update(pull(for: context.geometry))
+                    } else if oldPhase == .interacting {
+                        interaction.update(pull(for: context.geometry))
+                        interaction.endDragging()
+                    }
+                    if phase == .idle,
+                       let direction = interaction.settle(),
+                       let month = targetMonth(for: direction) {
+                        onSelectMonth(month)
                     }
                 }
-
-                // 末尾留白计入内容高度，最后一条流水可以完整滚到悬浮按钮上方。
-                Color.clear
-                    .frame(height: bottomClearance)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
-            .listStyle(.insetGrouped)
-            .listSectionSpacing(16)
-            .contentMargins(.top, 0, for: .scrollContent)
-            .scrollContentBackground(.hidden)
-            .scrollBounceBehavior(.always)
-            .accessibilityIdentifier("home-details-scroll")
-            .onScrollGeometryChange(for: HomeMonthScrollInteraction.Pull?.self) { geometry in
-                pull(for: geometry)
-            } action: { _, pull in
-                interaction.update(pull)
-            }
-            .onScrollPhaseChange { oldPhase, phase, context in
-                if phase == .interacting {
-                    interaction.beginDragging()
-                    interaction.update(pull(for: context.geometry))
-                } else if oldPhase == .interacting {
-                    interaction.update(pull(for: context.geometry))
-                    interaction.endDragging()
+                // 新流水所在行进入当前月份数据后滚到可见位置；查询刷新可能晚于返回首页，因此同时观察行是否已出现。
+                .onChange(of: highlightScrollTarget, initial: true) { _, target in
+                    guard let target else { return }
+                    // 等列表完成本轮布局后再滚动，不带动画以免与返回转场叠加。
+                    Task { @MainActor in
+                        scrollProxy.scrollTo(target, anchor: .center)
+                    }
                 }
-                if phase == .idle,
-                   let direction = interaction.settle(),
-                   let month = targetMonth(for: direction) {
-                    onSelectMonth(month)
-                }
+                // 每个月从顶部开始，避免原生回弹与 scrollTo 动画争夺偏移。
+                .id(selectedMonth)
+                .transition(.opacity)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: selectedMonth)
             }
-            // 每个月从顶部开始，避免原生回弹与 scrollTo 动画争夺偏移。
-            .id(selectedMonth)
-            .transition(.opacity)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: selectedMonth)
         }
         .overlay(alignment: interaction.pull?.direction == .earlier ? .bottom : .top) {
             if let pull = interaction.pull,
@@ -476,6 +527,16 @@ private struct HomeOverviewList: View {
         .onDisappear {
             interaction = HomeMonthScrollInteraction()
         }
+    }
+
+    /// 需要标红的新流水已出现在当前月份明细中时返回其标识，否则为 `nil`。
+    private var highlightScrollTarget: UUID? {
+        guard let highlightedTransactionID,
+              monthPresentation.dayGroups.contains(where: { day in
+                  day.rows.contains { $0.id == highlightedTransactionID }
+              })
+        else { return nil }
+        return highlightedTransactionID
     }
 
     /// 仅在确实存在目标月份时提供越过阈值的触觉反馈。
@@ -566,19 +627,44 @@ private struct HomeOverviewDayHeader: View {
 private struct HomeOverviewRow: View {
     @Environment(\.locale) private var locale
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// 已完成本地化的首页行数据。
     let row: HomeOverviewRowPresentation
 
+    /// 是否为刚保存的新流水；为真时先以账本红呈现，再缓缓回到默认色。
+    let isHighlighted: Bool
+
+    /// 图标位置手绘对勾的书写进度。
+    @State private var tickProgress: CGFloat = 0
+
+    /// 本次提示是否已经褪回默认色。
+    @State private var hasSettled = false
+
+    /// 当前是否处于"刚记下"的标红状态。
+    private var isMarked: Bool {
+        isHighlighted && !hasSettled
+    }
+
     var body: some View {
         NavigationLink(value: HomeRoute.transactionDetail(row.id)) {
             HStack(spacing: 14) {
-                Image(systemName: row.symbolName)
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(Color.accentColor)
-                    .frame(width: 38, height: 38)
-                    .background(Color.accentColor.opacity(0.08), in: .rect(cornerRadius: 12))
-                    .accessibilityHidden(true)
+                ZStack {
+                    Image(systemName: row.symbolName)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(Color.accentColor)
+                        .opacity(isMarked ? 0 : 1)
+                    // 标红期间图标位置写出一笔对勾，褪色时再交还给分类图标。
+                    HandDrawnTick(progress: tickProgress)
+                        .frame(width: 24)
+                        .opacity(isMarked ? 1 : 0)
+                }
+                .frame(width: 38, height: 38)
+                .background(
+                    isMarked ? Color(.ledgerRed).opacity(0.12) : Color.accentColor.opacity(0.08),
+                    in: .rect(cornerRadius: 12)
+                )
+                .accessibilityHidden(true)
 
                 let layout = dynamicTypeSize.isAccessibilitySize
                     ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
@@ -587,6 +673,7 @@ private struct HomeOverviewRow: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(row.title)
                             .font(.body.weight(.medium))
+                            .foregroundStyle(isMarked ? Color(.ledgerRed) : Color.primary)
                         if let note = row.note {
                             Text(note)
                                 .font(.subheadline)
@@ -598,6 +685,7 @@ private struct HomeOverviewRow: View {
 
                     Text(row.formattedAmount)
                         .font(.system(.body, design: .rounded, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(isMarked ? Color(.ledgerRed) : Color.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                         .layoutPriority(1)
@@ -606,6 +694,9 @@ private struct HomeOverviewRow: View {
             .frame(minHeight: 44)
         }
         .buttonStyle(.plain)
+        .task(id: isHighlighted) {
+            await playHighlight()
+        }
         .accessibilityLabel(row.accessibilityLabel)
         .accessibilityHint(
             Text(
@@ -617,6 +708,36 @@ private struct HomeOverviewRow: View {
             )
         )
         .accessibilityIdentifier("home-transaction-\(row.id.uuidString)")
+    }
+}
+
+extension HomeOverviewRow {
+    /// 新流水提示的节奏：等返回转场结束后写出对勾，停留片刻，再让红色缓缓褪回默认色。
+    private func playHighlight() async {
+        guard isHighlighted else {
+            // 提示结束后复位，下一次标红可以从头播放。
+            hasSettled = false
+            tickProgress = 0
+            return
+        }
+
+        do {
+            try await Task.sleep(for: .milliseconds(450))
+            if reduceMotion {
+                tickProgress = 1
+            } else {
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    tickProgress = 1
+                }
+            }
+            try await Task.sleep(for: .milliseconds(1100))
+            // 颜色渐变不涉及位移，减少动态效果时同样保留，只是更短。
+            withAnimation(.easeInOut(duration: reduceMotion ? 0.6 : 1.2)) {
+                hasSettled = true
+            }
+        } catch {
+            // 行被回收或提示被取消时直接结束，状态随视图一起丢弃。
+        }
     }
 }
 

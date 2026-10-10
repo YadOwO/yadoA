@@ -346,6 +346,7 @@ struct BalanceAdjustmentView: View {
                 .fontWeight(.semibold)
             }
             .frame(maxWidth: .infinity, minHeight: 44)
+            .onAccentForeground()
         }
         .buttonStyle(.borderedProminent)
         .disabled(!flow.canSubmit)

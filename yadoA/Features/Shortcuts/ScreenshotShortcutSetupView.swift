@@ -113,6 +113,7 @@ struct ScreenshotShortcutSetupView: View {
                 .font(.headline)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 4)
+                .onAccentForeground()
         }
         .controlSize(.large)
         .accessibilityIdentifier("screenshot-shortcut-create")
@@ -182,7 +183,7 @@ private struct ScreenshotShortcutStep<Accessory: View>: View {
             VStack(spacing: 6) {
                 Text(number, format: .number)
                     .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color(.onAccent))
                     .frame(width: 28, height: 28)
                     .background(Color.accentColor, in: .circle)
                     .accessibilityHidden(true)
@@ -294,7 +295,7 @@ private struct ScreenshotShortcutIllustration: View {
                     .overlay {
                         Image(systemName: "checkmark")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color(.onAccent))
                     }
             }
             .padding(10)

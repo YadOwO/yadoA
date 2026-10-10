@@ -306,6 +306,11 @@ struct DiningExpenseEntryView: View {
             Task {
                 await flow.submit {
                     provideSuccessFeedback()
+                    // 首页回到前台后会把这一笔短暂标红，提示它记在了哪里。
+                    HomeRecentEntryHighlight.shared.mark(
+                        id: flow.draft.id,
+                        transactionDay: flow.draft.transactionDay
+                    )
                     finishEntry()
                 }
             }
@@ -324,6 +329,7 @@ struct DiningExpenseEntryView: View {
                 .fontWeight(.semibold)
             }
             .frame(maxWidth: .infinity, minHeight: 44)
+            .onAccentForeground()
         }
         .buttonStyle(.borderedProminent)
         .disabled(!canSubmit)
