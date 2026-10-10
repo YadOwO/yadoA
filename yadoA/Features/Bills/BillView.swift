@@ -201,35 +201,41 @@ private struct BillSummaryCard<Accessory: View>: View {
     }
 }
 
-/// 周期收支表；窄屏、大额数字或辅助功能字号下改为纵向明细，保留完整金额。
+/// 周期收支明细：每个周期一行，右边是结余，收入和支出作为小字写在下面一行。
+///
+/// 不再把三列带小数的数字并排成表格——那样满屏都是同样大小的数字；现在一眼先看到各期结余，
+/// 需要时再读下面的收支。
 private struct BillTable: View {
     @Environment(\.locale) private var locale
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// 已按时间倒序排列的账单行。
     let rows: [BillRowPresentation]
-    /// 决定第一列表头显示月份还是年份。
+    /// 当前是月账单还是年账单。
     let period: BillPeriod
     /// 汇总和明细共用页面选择的结余配色。
     let positiveBalanceIsRed: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
                 Text(AccountLocalization.string("bill.details", locale: locale))
-                    .font(.headline)
+                    .font(.system(.headline, design: .serif))
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
-                Text(AccountLocalization.string("bill.currency", locale: locale))
+                // 右侧一列都是结余，在表头注明一次，金额统一以人民币计。
+                Text(verbatim: "\(text("bill.balance")) · \(text("bill.currency"))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            if dynamicTypeSize.isAccessibilitySize {
-                stackedRows
-            } else {
-                ViewThatFits(in: .horizontal) {
-                    table
-                    stackedRows
-                }
+            .padding(.bottom, 10)
+
+            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                rule(for: row, isHeading: index == 0)
+                rowView(row)
+                    .padding(.vertical, 14)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(rowLabel(row))
+                    .accessibilityIdentifier("bill-row-\(row.id)")
             }
         }
         // 明细像账本内页一样直接写在纸上，不再垫卡片。
@@ -237,60 +243,53 @@ private struct BillTable: View {
         .padding(.top, 6)
     }
 
-    /// 原生 Grid 统一列宽，数字使用固有宽度以触发窄屏降级。
-    private var table: some View {
-        Grid(alignment: .trailing, horizontalSpacing: 12, verticalSpacing: 0) {
-            GridRow {
-                heading(period == .monthly ? "bill.month" : "bill.year")
-                    .gridColumnAlignment(.leading)
-                heading("bill.income")
-                heading("bill.expense")
-                heading("bill.balance")
+    /// 一个周期：第一行是周期和结余，第二行是较小的收入、支出。
+    private func rowView(_ row: BillRowPresentation) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(row.title)
+                    .font(.system(.body, design: .serif, weight: .medium))
+                Spacer(minLength: 8)
+                Text(formatted(row.totals.balance))
+                    .font(.system(.body, design: .serif, weight: .medium).monospacedDigit())
+                    .foregroundStyle(billBalanceColor(row.totals.balance, positiveIsRed: positiveBalanceIsRed))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
-            .padding(.bottom, 8)
 
-            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                rule(for: row, isHeading: index == 0).gridCellUnsizedAxes(.horizontal)
-                GridRow {
-                    Text(row.title).font(.system(.subheadline, design: .serif, weight: .medium)).fixedSize()
-                    numericText(row.totals.income)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                    numericText(row.totals.expense)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                    numericText(row.totals.balance, isBalance: true)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+            // 两个金额一行放不下（大额或大字号）时改为上下两行，不截断数字。
+            let layout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 18))
+            ViewThatFits(in: .horizontal) {
+                layout {
+                    detail("bill.income", row.totals.income)
+                    detail("bill.expense", row.totals.expense)
                 }
-                .padding(.vertical, 16)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(rowLabel(row))
-                .accessibilityIdentifier("bill-row-\(row.id)")
+                VStack(alignment: .leading, spacing: 4) {
+                    detail("bill.income", row.totals.income)
+                    detail("bill.expense", row.totals.expense)
+                }
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 自适应明细把每个金额放到单独一行，避免挤压和截断。
-    private var stackedRows: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                rule(for: row, isHeading: index == 0)
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(row.title).font(.system(.headline, design: .serif))
-                    LabeledContent(AccountLocalization.string("bill.income", locale: locale)) {
-                        numericText(row.totals.income)
-                    }
-                    LabeledContent(AccountLocalization.string("bill.expense", locale: locale)) {
-                        numericText(row.totals.expense)
-                    }
-                    LabeledContent(AccountLocalization.string("bill.balance", locale: locale)) {
-                        numericText(row.totals.balance, isBalance: true)
-                    }
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(rowLabel(row))
-                .accessibilityIdentifier("bill-row-\(row.id)")
-            }
+    /// 第二行里的"收入 1,234.00"这样一小段。
+    private func detail(_ titleKey: String, _ amount: Decimal) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
+            Text(text(titleKey))
+                .font(.caption)
+            Text(formatted(amount))
+                .font(.system(.footnote, design: .serif).monospacedDigit())
         }
+        .foregroundStyle(.secondary)
+        .fixedSize()
+    }
+
+    /// 按当前应用语言解析 String Catalog 文案。
+    private func text(_ key: String) -> String {
+        AccountLocalization.string(key, locale: locale)
     }
 
     /// 行上方的手画横线：表头下面是一条较重的墨线，其余是较淡的账本横线。
@@ -302,22 +301,6 @@ private struct BillTable: View {
             )
             .frame(height: 3)
             .accessibilityHidden(true)
-    }
-
-    /// 表头使用与正文区分的次级文字。
-    private func heading(_ key: String) -> some View {
-        Text(AccountLocalization.string(key, locale: locale))
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize()
-    }
-
-    /// 表格统一在标题注明 CNY，单元格保留完整的两位小数。
-    private func numericText(_ amount: Decimal, isBalance: Bool = false) -> some View {
-        Text(formatted(amount))
-            .font(.system(.subheadline, design: .serif).monospacedDigit())
-            .foregroundStyle(isBalance ? billBalanceColor(amount, positiveIsRed: positiveBalanceIsRed) : Color.primary)
-            .fixedSize(horizontal: true, vertical: false)
     }
 
     /// Decimal 直接格式化，避免经过 Double 丢失精度。

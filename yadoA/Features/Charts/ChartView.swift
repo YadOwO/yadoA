@@ -308,20 +308,26 @@ private struct ChartSummaryHeader: View {
     let chart: ChartOverviewPresentation
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(AccountLocalization.string(chart.totalTitleLocalizationKey, locale: locale))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text(formattedTotal)
-                .font(.system(.largeTitle, design: .serif, weight: .medium).monospacedDigit())
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+        // 总额在左、笔数在右写成一行，把高度留给下面的折线。
+        HStack(alignment: .lastTextBaseline, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(AccountLocalization.string(chart.totalTitleLocalizationKey, locale: locale))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text(formattedTotal)
+                    .font(.system(.title, design: .serif, weight: .medium).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+            Spacer(minLength: 8)
             HStack(spacing: 6) {
                 Text(AccountLocalization.string("chart.summary.records", locale: locale))
                 Text(chart.transactionCount.formatted(.number.locale(locale)))
             }
-            .font(.system(.subheadline, design: .serif).monospacedDigit())
+            .font(.system(.footnote, design: .serif).monospacedDigit())
             .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .fixedSize()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -349,7 +355,7 @@ private struct ChartTrendCard: View {
     let chart: ChartOverviewPresentation
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 14) {
             ChartSummaryHeader(chart: chart)
 
             HandDrawnRule(seed: 13)
@@ -363,7 +369,7 @@ private struct ChartTrendCard: View {
                     locale: locale
                 )
             )
-            .font(.subheadline)
+            .font(.caption)
             .foregroundStyle(.secondary)
 
             Chart(chart.points) { point in
@@ -378,7 +384,7 @@ private struct ChartTrendCard: View {
                     )
                 )
                 .foregroundStyle(Color.accentColor)
-                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                 .interpolationMethod(.linear)
 
                 PointMark(
@@ -392,13 +398,13 @@ private struct ChartTrendCard: View {
                     )
                 )
                 .foregroundStyle(Color.accentColor)
-                .symbolSize(24)
+                .symbolSize(16)
                 .accessibilityLabel(point.formattedLabel)
                 .accessibilityValue(point.formattedAmount)
             }
             .chartYScale(domain: .automatic(includesZero: true))
             .chartYAxis {
-                AxisMarks(position: .leading) { _ in
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
                     // 网格线压到和账本横线一样淡，让墨色折线成为唯一的重笔。
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 1, lineCap: .round))
                         .foregroundStyle(Color.primary.opacity(0.12))
@@ -421,10 +427,12 @@ private struct ChartTrendCard: View {
                     }
                 }
             }
-            .frame(height: 240)
+            // 趋势只需看出起伏，矮一些让下面的分类排行在首屏露出来。
+            .frame(height: 150)
             .accessibilityIdentifier("chart-\(chart.entryType.rawValue)-\(chart.period.rawValue)")
         }
-        .padding(20)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             HandDrawnBox(cornerRadius: 22, seed: 5)

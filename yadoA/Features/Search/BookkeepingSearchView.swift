@@ -40,20 +40,16 @@ struct BookkeepingSearchView: View {
             locale: locale
         )
 
-        Group {
-            if let range = timeFilter.dateRange {
-                VStack(spacing: 0) {
-                    AppliedSearchRangeView(
-                        range: range,
-                        calendar: environmentCalendar,
-                        locale: locale,
-                        onClear: { timeFilter = .all }
-                    )
-                    searchContent(presentation)
-                }
-            } else {
-                searchContent(presentation)
-            }
+        // 日期条放在搜索栏正下方的内容区：正在输入关键词时导航栏按钮会被收起，这里始终点得到。
+        VStack(spacing: 0) {
+            SearchDateFilterBar(
+                range: timeFilter.dateRange,
+                calendar: environmentCalendar,
+                locale: locale,
+                onEdit: { isTimeFilterPresented = true },
+                onClear: { timeFilter = .all }
+            )
+            searchContent(presentation)
         }
         .navigationTitle(AccountLocalization.string("bookkeeping.search.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
@@ -65,26 +61,6 @@ struct BookkeepingSearchView: View {
         )
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    isTimeFilterPresented = true
-                } label: {
-                    // 已有日期范围时换成实心图标，不展开也能看出筛选正在生效。
-                    Image(
-                        systemName: timeFilter.isUnbounded
-                            ? "line.3.horizontal.decrease.circle"
-                            : "line.3.horizontal.decrease.circle.fill"
-                    )
-                        .frame(width: 44, height: 44)
-                }
-                .accessibilityLabel(
-                    Text(AccountLocalization.string("bookkeeping.search.filter", locale: locale))
-                )
-                .accessibilityValue(Text(filterAccessibilityValue))
-                .accessibilityIdentifier("bookkeeping-search-filter")
-            }
-        }
         .sheet(isPresented: $isTimeFilterPresented) {
             NavigationStack {
                 BookkeepingSearchTimeFilterView(
@@ -250,62 +226,12 @@ struct BookkeepingSearchView: View {
         isSearchPresented = false
     }
 
-    /// 筛选按钮的可读状态，避免只用图标表达当前条件。
-    private var filterAccessibilityValue: String {
-        guard let range = timeFilter.dateRange else {
-            return AccountLocalization.string("bookkeeping.search.filter.all", locale: locale)
-        }
-        return dateRangeSummary(range)
-    }
-
-    /// 将业务日闭区间格式化为筛选状态摘要。
-    private func dateRangeSummary(_ range: BookkeepingSearchDateRange) -> String {
-        let start = TransactionDay.date(
-            from: range.startDay,
-            calendar: environmentCalendar,
-            locale: locale
-        )
-        let end = TransactionDay.date(
-            from: range.endDay,
-            calendar: environmentCalendar,
-            locale: locale
-        )
-        guard let start, let end else { return "\(range.startDay)-\(range.endDay)" }
-        let startText = formattedDate(start)
-        let endText = formattedDate(end)
-        return String(
-            format: AccountLocalization.string(
-                "bookkeeping.search.range.format",
-                locale: locale
-            ),
-            locale: locale,
-            startText,
-            endText
-        )
-    }
-
-    /// 使用当前语言环境格式化不含时间的日期。
-    private func formattedDate(_ date: Date) -> String {
-        let calendar = TransactionDay.gregorianCalendar(
-            basedOn: environmentCalendar,
-            locale: locale
-        )
-        return date.formatted(
-            Date.FormatStyle(
-                date: .numeric,
-                time: .omitted,
-                locale: locale,
-                calendar: calendar,
-                timeZone: calendar.timeZone
-            )
-        )
-    }
 }
 
-/// 搜索页顶部已提交的业务日范围摘要。
-private struct AppliedSearchRangeView: View {
-    /// 已提交的闭区间条件。
-    let range: BookkeepingSearchDateRange
+/// 搜索栏下方常驻的日期条：显示当前的日期范围，点一下修改，有范围时右侧可以直接清除。
+private struct SearchDateFilterBar: View {
+    /// 已提交的闭区间条件；`nil` 表示不限时间。
+    let range: BookkeepingSearchDateRange?
 
     /// 业务日使用的公历及时区。
     let calendar: Calendar
@@ -313,53 +239,78 @@ private struct AppliedSearchRangeView: View {
     /// 日期摘要使用的语言环境。
     let locale: Locale
 
+    /// 打开日期范围选择的操作。
+    let onEdit: () -> Void
+
     /// 清除已提交范围的操作。
     let onClear: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "calendar")
-                .accessibilityHidden(true)
-            Text(summary)
-                .font(.subheadline)
-                .lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Button {
-                onClear()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .frame(width: 44, height: 44)
+        HStack(spacing: 4) {
+            Button(action: onEdit) {
+                HStack(spacing: 8) {
+                    Image(systemName: "calendar")
+                        .foregroundStyle(.secondary)
+                    Text(summary)
+                        .font(.system(.subheadline, design: .serif))
+                        .foregroundStyle(range == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.primary))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Image(systemName: "chevron.down")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(
-                Text(
-                    AccountLocalization.string(
-                        "bookkeeping.search.range.clear",
-                        locale: locale
-                    )
-                )
+                Text(AccountLocalization.string("bookkeeping.search.filter", locale: locale))
             )
-            .accessibilityIdentifier("bookkeeping-search-range-clear")
+            .accessibilityValue(Text(summary))
+            .accessibilityIdentifier("bookkeeping-search-filter")
+
+            Spacer(minLength: 0)
+
+            if range != nil {
+                Button(action: onClear) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    Text(AccountLocalization.string("bookkeeping.search.range.clear", locale: locale))
+                )
+                .accessibilityIdentifier("bookkeeping-search-range-clear")
+            }
         }
         .padding(.horizontal, 20)
-        // 范围条和下面的结果同在一张纸上，用一条账本细线隔开即可。
+        // 日期条和下面的结果同在一张纸上，用一条账本细线隔开即可。
         .background(alignment: .bottom) {
             HandDrawnRule(seed: 43)
                 .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
                 .frame(height: 3)
                 .padding(.horizontal, 20)
+                .accessibilityHidden(true)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("bookkeeping-search-applied-range")
+        .accessibilityIdentifier(
+            range == nil ? "bookkeeping-search-date-bar" : "bookkeeping-search-applied-range"
+        )
     }
 
-    /// 当前已提交范围的本地化摘要。
+    /// 当前范围的本地化摘要；没有范围时为"不限时间"。
     private var summary: String {
+        guard let range else {
+            return AccountLocalization.string("bookkeeping.search.filter.all", locale: locale)
+        }
         let start = TransactionDay.date(from: range.startDay, calendar: calendar, locale: locale)
         let end = TransactionDay.date(from: range.endDay, calendar: calendar, locale: locale)
         guard let start, let end else { return "\(range.startDay)-\(range.endDay)" }
         let dateCalendar = TransactionDay.gregorianCalendar(basedOn: calendar, locale: locale)
-        let format: Date.FormatStyle = Date.FormatStyle(
+        let format = Date.FormatStyle(
             date: .numeric,
             time: .omitted,
             locale: locale,
@@ -367,10 +318,7 @@ private struct AppliedSearchRangeView: View {
             timeZone: dateCalendar.timeZone
         )
         return String(
-            format: AccountLocalization.string(
-                "bookkeeping.search.range.format",
-                locale: locale
-            ),
+            format: AccountLocalization.string("bookkeeping.search.range.format", locale: locale),
             locale: locale,
             start.formatted(format),
             end.formatted(format)
