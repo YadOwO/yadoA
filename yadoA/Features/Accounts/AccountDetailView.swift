@@ -304,7 +304,7 @@ private struct AccountDetailQueryContent: View {
         }
     }
 
-    /// 优先展示账户身份和余额，次要资料按需展开，流水保持原有导航与查询范围。
+    /// 首屏是写有账户身份、余额和资料的卡片，下面是流水；流水保持原有导航与查询范围。
     private func detailContent(
         account: Account,
         presentation: AccountDetailPresentation
@@ -319,64 +319,10 @@ private struct AccountDetailQueryContent: View {
         return List {
             Section {
                 accountSummary(account: account, presentation: presentation)
-                    .listRowInsets(EdgeInsets(top: 20, leading: 20, bottom: 20, trailing: 20))
-                    .listRowBackground(
-                        HandDrawnBox(cornerRadius: 22, seed: 23)
-                            .stroke(
-                                Color.primary.opacity(0.85),
-                                style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
-                            )
-                            .padding(.horizontal, 2)
-                    )
+                    // 方框画在内容自己的背景上；画成系统行底会被行的圆角裁掉四个角。
+                    .listRowInsets(EdgeInsets(top: 8, leading: 2, bottom: 8, trailing: 2))
+                    .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
-            }
-
-            Section {
-                DisclosureGroup {
-                    LabeledContent(
-                        AccountLocalization.string("account.detail.type", locale: locale),
-                        value: presentation.typeTitle
-                    )
-                    .ledgerRow(seed: 31)
-                    .accessibilityIdentifier("account-detail-type")
-
-                    if let institution = presentation.institution {
-                        LabeledContent(
-                            AccountLocalization.string("account.detail.institution", locale: locale),
-                            value: institution
-                        )
-                        .ledgerRow(seed: 32)
-                        .accessibilityIdentifier("account-detail-institution")
-                    }
-
-                    if let lastFourDigits = presentation.lastFourDigits {
-                        LabeledContent(
-                            AccountLocalization.string("account.detail.last_four_digits", locale: locale),
-                            value: AccountLocalization.formatted(
-                                "account.detail.masked_suffix_format",
-                                value: lastFourDigits,
-                                locale: locale
-                            )
-                        )
-                        .ledgerRow(seed: 33)
-                        .accessibilityIdentifier("account-detail-last-four-digits")
-                    }
-
-                    if let note = presentation.note {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(AccountLocalization.string("account.detail.note", locale: locale))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(note)
-                        }
-                        .ledgerRow(seed: 34)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityIdentifier("account-detail-note")
-                    }
-                } label: {
-                    Text(AccountLocalization.string("account.detail.information", locale: locale))
-                }
-                .ledgerRow(seed: 30)
             }
 
             if !presentation.isActive {
@@ -437,7 +383,8 @@ private struct AccountDetailQueryContent: View {
                     )
                 )
                 .font(.system(.callout, design: .serif, weight: .medium))
-                .foregroundStyle(.primary)
+                // 分组标题里的 `.primary` 会被系统解析成灰色，这里指定墨色本身。
+                .foregroundStyle(Color.primary)
                 .ledgerHeadingRule(seed: 37)
             }
         }
@@ -488,34 +435,22 @@ private struct AccountDetailQueryContent: View {
         }
     }
 
-    /// 将账户身份、余额语义和调整操作集中在首屏，停用或不支持记账的账户仅展示金额。
+    /// 一张手绘方框里写完账户的身份、余额、调整操作和资料；停用或不支持记账的账户不显示调整入口。
     private func accountSummary(
         account: Account,
         presentation: AccountDetailPresentation
     ) -> some View {
-        VStack(alignment: .leading, spacing: 24) {
-            HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .center, spacing: 12) {
                 AccountIconView(presentation: presentation.icon)
-                    .frame(width: 52, height: 52)
+                    .frame(width: 48, height: 48)
                     .background(Color.accentColor.opacity(0.08), in: HandDrawnBlob(seed: presentation.id.handDrawnSeed))
 
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(presentation.name)
                         .font(.title3.weight(.semibold))
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("account-detail-name")
-                    if presentation.name != presentation.typeTitle {
-                        Text(presentation.typeTitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    if let lastFourDigits = presentation.lastFourDigits {
-                        Text(AccountLocalization.formatted(
-                            "account.detail.masked_suffix_format", value: lastFourDigits, locale: locale
-                        ))
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                    }
                     if presentation.isDefault {
                         Text(AccountLocalization.string("account.default.badge", locale: locale))
                             .font(.caption.weight(.semibold))
@@ -558,8 +493,58 @@ private struct AccountDetailQueryContent: View {
                 .buttonBorderShape(.capsule)
                 .accessibilityIdentifier("account-detail-adjust-balance")
             }
+
+            HandDrawnRule(seed: 29)
+                .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                .frame(height: 3)
+                .accessibilityHidden(true)
+
+            // 资料直接写在卡片下半部分，不再需要展开。
+            VStack(spacing: 12) {
+                LedgerField(
+                    title: AccountLocalization.string("account.detail.type", locale: locale),
+                    value: presentation.typeTitle
+                )
+                .accessibilityIdentifier("account-detail-type")
+
+                if let institution = presentation.institution {
+                    LedgerField(
+                        title: AccountLocalization.string("account.detail.institution", locale: locale),
+                        value: institution
+                    )
+                    .accessibilityIdentifier("account-detail-institution")
+                }
+
+                if let lastFourDigits = presentation.lastFourDigits {
+                    LedgerField(
+                        title: AccountLocalization.string("account.detail.last_four_digits", locale: locale),
+                        value: AccountLocalization.formatted(
+                            "account.detail.masked_suffix_format",
+                            value: lastFourDigits,
+                            locale: locale
+                        )
+                    )
+                    .accessibilityIdentifier("account-detail-last-four-digits")
+                }
+
+                if let note = presentation.note {
+                    LedgerField(
+                        title: AccountLocalization.string("account.detail.note", locale: locale),
+                        value: note
+                    )
+                    .accessibilityIdentifier("account-detail-note")
+                }
+            }
         }
+        .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            HandDrawnBox(cornerRadius: 22, seed: 23)
+                .stroke(
+                    Color.primary.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                )
+        }
     }
 
     /// 过期或已不存在 UUID 的安全空状态。

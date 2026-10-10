@@ -130,7 +130,7 @@ struct BookkeepingSearchView: View {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text(day.formattedDate)
                                 .font(.system(.callout, design: .serif, weight: .medium))
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(Color.primary)
                             Text(day.formattedWeekday)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -184,7 +184,7 @@ struct BookkeepingSearchView: View {
                 } header: {
                     Text(AccountLocalization.string("bookkeeping.search.suggestions.title", locale: locale))
                         .font(.system(.callout, design: .serif, weight: .medium))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.primary)
                         .ledgerHeadingRule(seed: 42)
                 }
             }

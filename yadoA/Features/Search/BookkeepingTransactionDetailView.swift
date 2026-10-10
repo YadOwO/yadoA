@@ -148,88 +148,20 @@ private struct BookkeepingTransactionDetailQueryContent: View {
         }
     }
 
-    /// 先展示收据摘要，再按分组提供分类、账户状态与备注。
+    /// 一张收据式的卡片写完摘要和各项资料，删除操作单独放在卡片下方。
     @ViewBuilder
     private func detailContent(
         _ presentation: BookkeepingTransactionDetailPresentation
     ) -> some View {
         List {
             Section {
-                transactionSummary(presentation)
-                    .listRowInsets(EdgeInsets(top: 24, leading: 20, bottom: 24, trailing: 20))
-                    .listRowBackground(
-                        HandDrawnBox(cornerRadius: 22, seed: 51)
-                            .stroke(
-                                Color.primary.opacity(0.85),
-                                style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
-                            )
-                            .padding(.horizontal, 2)
-                    )
+                receipt(presentation)
+                    // 方框画在内容自己的背景上；画成系统行底会被行的圆角裁掉四个角。
+                    .listRowInsets(EdgeInsets(top: 8, leading: 2, bottom: 8, trailing: 2))
+                    .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
 
-            Section {
-                LabeledContent(
-                    AccountLocalization.string("bookkeeping.entry.type", locale: locale),
-                    value: presentation.entryType.localizedTitle(locale: locale)
-                )
-                .ledgerRow(seed: 52)
-                .accessibilityIdentifier("bookkeeping-detail-type")
-
-                LabeledContent(
-                    AccountLocalization.string(
-                        "bookkeeping.search.detail.category",
-                        locale: locale
-                    ),
-                    value: presentation.categoryTitle
-                )
-                .ledgerRow(seed: 53, showsRule: false)
-                .accessibilityIdentifier("bookkeeping-detail-category")
-            }
-
-            Section {
-                LabeledContent(
-                    AccountLocalization.string(
-                        "bookkeeping.search.detail.account",
-                        locale: locale
-                    ),
-                    value: presentation.accountName ?? accountStatusText(
-                        presentation.accountState
-                    )
-                )
-                .ledgerRow(seed: 54)
-                .accessibilityIdentifier("bookkeeping-detail-account")
-
-                LabeledContent(
-                    AccountLocalization.string(
-                        "bookkeeping.search.detail.account_status",
-                        locale: locale
-                    ),
-                    value: accountStatusText(presentation.accountState)
-                )
-                .ledgerRow(seed: 55, showsRule: false)
-                .accessibilityIdentifier("bookkeeping-detail-account-status")
-            }
-
-            if let note = presentation.note {
-                Section {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(
-                            AccountLocalization.string(
-                                "account.detail.note",
-                                locale: locale
-                            )
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        Text(note)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .ledgerRow(seed: 56, showsRule: false)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier("bookkeeping-detail-note")
-                }
-            }
             if presentation.canEdit {
                 Section {
                     Button(role: .destructive) {
@@ -237,6 +169,7 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                     } label: {
                         Label(AccountLocalization.string("bookkeeping.delete.action", locale: locale), systemImage: "trash")
                             .foregroundStyle(Color(.ledgerRed))
+                            .frame(maxWidth: .infinity)
                     }
                     .ledgerRow(seed: 57, showsRule: false)
                     .accessibilityIdentifier("bookkeeping-detail-delete")
@@ -246,6 +179,68 @@ private struct BookkeepingTransactionDetailQueryContent: View {
         .listStyle(.insetGrouped)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("bookkeeping-detail-content")
+    }
+
+    /// 收据卡片：上半是摘要，一条细线之后逐行列出类型、分类、账户和备注。
+    private func receipt(
+        _ presentation: BookkeepingTransactionDetailPresentation
+    ) -> some View {
+        VStack(spacing: 20) {
+            transactionSummary(presentation)
+
+            HandDrawnRule(seed: 52)
+                .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                .frame(height: 3)
+                .accessibilityHidden(true)
+
+            VStack(spacing: 12) {
+                LedgerField(
+                    title: AccountLocalization.string("bookkeeping.entry.type", locale: locale),
+                    value: presentation.entryType.localizedTitle(locale: locale)
+                )
+                .accessibilityIdentifier("bookkeeping-detail-type")
+
+                LedgerField(
+                    title: AccountLocalization.string("bookkeeping.search.detail.category", locale: locale),
+                    value: presentation.categoryTitle
+                )
+                .accessibilityIdentifier("bookkeeping-detail-category")
+
+                LedgerField(
+                    title: AccountLocalization.string("bookkeeping.search.detail.account", locale: locale),
+                    value: presentation.accountName ?? accountStatusText(presentation.accountState)
+                )
+                .accessibilityIdentifier("bookkeeping-detail-account")
+
+                // 账户正常时这一行只会写"正常"，没有信息量；只在停用、删除等异常状态下出现。
+                if presentation.accountState != .active {
+                    LedgerField(
+                        title: AccountLocalization.string("bookkeeping.search.detail.account_status", locale: locale),
+                        value: accountStatusText(presentation.accountState)
+                    )
+                    .accessibilityIdentifier("bookkeeping-detail-account-status")
+                }
+
+                if let note = presentation.note {
+                    LedgerField(
+                        title: AccountLocalization.string("account.detail.note", locale: locale),
+                        value: note
+                    )
+                    .accessibilityIdentifier("bookkeeping-detail-note")
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 24)
+        .padding(.bottom, 20)
+        .frame(maxWidth: .infinity)
+        .background {
+            HandDrawnBox(cornerRadius: 22, seed: 51)
+                .stroke(
+                    Color.primary.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                )
+        }
     }
 
     /// 收据式摘要突出交易名称和带收支方向的金额，同时保留字段语义供辅助功能读取。
