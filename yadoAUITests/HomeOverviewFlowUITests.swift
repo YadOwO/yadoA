@@ -179,7 +179,7 @@ final class HomeOverviewFlowUITests: XCTestCase {
         app.buttons["home-add-expense"].tap()
 
         XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 3))
-        let income = app.segmentedControls["bookkeeping-category-entry-type"].buttons["Income"]
+        let income = app.buttons["bookkeeping-category-entry-type-income"]
         XCTAssertTrue(income.waitForExistence(timeout: 2))
         income.tap()
 

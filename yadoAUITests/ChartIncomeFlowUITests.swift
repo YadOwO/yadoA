@@ -10,11 +10,9 @@ final class ChartIncomeFlowUITests: XCTestCase {
         let summary = app.staticTexts["chart-summary-card"]
         XCTAssertTrue(summary.waitForExistence(timeout: 3))
         XCTAssertTrue(summary.label.contains("12.50"))
-        let types = app.segmentedControls["chart-entry-type-picker"]
-        let periods = app.segmentedControls["chart-period-picker"]
         let selectedMonth = app.buttons["chart-time-selector"].label
 
-        types.buttons["Income"].tap()
+        app.buttons["chart-entry-type-picker-income"].tap()
         XCTAssertTrue(summary.label.contains("Income overview"))
         XCTAssertTrue(summary.label.contains("100.00"))
         XCTAssertFalse(summary.label.contains("12.50"))
@@ -22,18 +20,18 @@ final class ChartIncomeFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Daily income"].exists)
         attachScreenshot(of: app, name: "Income month - English")
 
-        periods.buttons["Week"].tap()
+        app.buttons["chart-period-picker-week"].tap()
         XCTAssertTrue(summary.label.contains("100.00"))
         XCTAssertTrue(app.staticTexts["Daily income"].exists)
-        periods.buttons["Year"].tap()
+        app.buttons["chart-period-picker-year"].tap()
         XCTAssertTrue(summary.label.contains("100.00"))
         XCTAssertTrue(app.staticTexts["Monthly income"].exists)
-        periods.buttons["Month"].tap()
+        app.buttons["chart-period-picker-month"].tap()
         app.buttons["Previous period"].tap()
         let previousMonth = app.buttons["chart-time-selector"].label
         XCTAssertNotEqual(previousMonth, selectedMonth)
         XCTAssertTrue(summary.label.contains("0.00"))
-        types.buttons["Expense"].tap()
+        app.buttons["chart-entry-type-picker-expense"].tap()
         XCTAssertEqual(app.buttons["chart-time-selector"].label, previousMonth)
         XCTAssertTrue(summary.label.contains("Spending overview"))
         XCTAssertTrue(summary.label.contains("0.00"))
@@ -51,9 +49,8 @@ final class ChartIncomeFlowUITests: XCTestCase {
         ]
         app.launch()
         app.tabBars.buttons["图表"].tap()
-        let types = app.segmentedControls["chart-entry-type-picker"]
-        XCTAssertTrue(types.waitForExistence(timeout: 3))
-        types.buttons["收入"].tap()
+        XCTAssertTrue(app.buttons["chart-entry-type-picker-income"].waitForExistence(timeout: 3))
+        app.buttons["chart-entry-type-picker-income"].tap()
         let summary = app.staticTexts["chart-summary-card"]
         XCTAssertTrue(summary.waitForExistence(timeout: 3))
         XCTAssertTrue(summary.label.contains("收入概览"))

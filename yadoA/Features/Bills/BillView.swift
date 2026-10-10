@@ -25,13 +25,17 @@ struct BillView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                Picker(AccountLocalization.string("bill.period.label", locale: locale), selection: $period) {
-                    ForEach(BillPeriod.allCases) { period in
-                        Text(period.title(locale: locale)).tag(period)
+                LedgerSwitch(
+                    label: AccountLocalization.string("bill.period.label", locale: locale),
+                    selection: $period,
+                    options: BillPeriod.allCases.map {
+                        .init(
+                            value: $0,
+                            title: $0.title(locale: locale),
+                            identifier: "bill-period-picker-\($0.rawValue)"
+                        )
                     }
-                }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("bill-period-picker")
+                )
 
                 // 年份选择放进汇总框的标题行；该行高度固定，切换月/年账单时下方内容不会上下跳动。
                 BillSummaryCard(totals: totals, period: period, positiveBalanceIsRed: positiveBalanceIsRed) {

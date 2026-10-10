@@ -64,30 +64,21 @@ struct BookkeepingSearchTimeFilterView: View {
     var body: some View {
         Form {
             Section {
-                Picker(
-                    AccountLocalization.string(
-                        "bookkeeping.search.filter.mode",
-                        locale: locale
-                    ),
-                    selection: $selectionMode
-                ) {
-                    Text(
-                        AccountLocalization.string(
-                            "bookkeeping.search.filter.all",
-                            locale: locale
+                LedgerSwitch(
+                    label: AccountLocalization.string("bookkeeping.search.filter.mode", locale: locale),
+                    selection: $selectionMode,
+                    options: SelectionMode.allCases.map {
+                        .init(
+                            value: $0,
+                            title: AccountLocalization.string(
+                                "bookkeeping.search.filter.\($0.rawValue)",
+                                locale: locale
+                            ),
+                            identifier: "bookkeeping-search-filter-mode-\($0.rawValue)"
                         )
-                    )
-                    .tag(SelectionMode.all)
-                    Text(
-                        AccountLocalization.string(
-                            "bookkeeping.search.filter.custom",
-                            locale: locale
-                        )
-                    )
-                    .tag(SelectionMode.custom)
-                }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("bookkeeping-search-filter-mode")
+                    }
+                )
+                .frame(maxWidth: .infinity)
                 .onChange(of: selectionMode) { oldValue, newValue in
                     guard oldValue == .all, newValue == .custom else { return }
                     let today = Self.today(calendar: calendar)

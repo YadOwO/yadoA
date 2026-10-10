@@ -7,34 +7,34 @@ final class CategoryBreakdownFlowUITests: XCTestCase {
     func testInheritsFiltersAndNavigatesBack() throws {
         let app = launchExportFixtureInEnglish()
         app.tabBars.buttons["Charts"].tap()
-        app.segmentedControls["chart-entry-type-picker"].buttons["Income"].tap()
-        app.segmentedControls["chart-period-picker"].buttons["Year"].tap()
+        app.buttons["chart-entry-type-picker-income"].tap()
+        app.buttons["chart-period-picker-year"].tap()
         let originalPeriod = app.staticTexts["chart-time-selector"].label
         let entry = app.buttons["chart-category-breakdown-entry"]
         XCTAssertTrue(entry.waitForExistence(timeout: 5), app.debugDescription)
         entry.tap()
 
         XCTAssertTrue(app.navigationBars["Category breakdown"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.segmentedControls["chart-entry-type-picker"].buttons["Income"].isSelected)
-        XCTAssertTrue(app.segmentedControls["chart-period-picker"].buttons["Year"].isSelected)
+        XCTAssertTrue(app.buttons["chart-entry-type-picker-income"].isSelected)
+        XCTAssertTrue(app.buttons["chart-period-picker-year"].isSelected)
         XCTAssertEqual(app.staticTexts["chart-time-selector"].label, originalPeriod)
         let total = app.descendants(matching: .any)["category-breakdown-total"].firstMatch
         XCTAssertTrue(total.label.contains("100.00"))
         XCTAssertTrue(app.buttons["category-breakdown-legend-income.salary"].value as? String != nil)
 
-        app.segmentedControls["chart-period-picker"].buttons["Week"].tap()
+        app.buttons["chart-period-picker-week"].tap()
         XCTAssertTrue(total.label.contains("100.00"))
-        app.segmentedControls["chart-period-picker"].buttons["Month"].tap()
+        app.buttons["chart-period-picker-month"].tap()
         app.buttons["Previous period"].tap()
         XCTAssertTrue(app.staticTexts["category-breakdown-empty"].exists)
         XCTAssertTrue(total.label.contains("0.00"))
         app.buttons["Next period"].tap()
-        app.segmentedControls["chart-entry-type-picker"].buttons["Expense"].tap()
+        app.buttons["chart-entry-type-picker-expense"].tap()
         XCTAssertTrue(total.label.contains("12.50"))
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.buttons["chart-category-breakdown-entry"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.segmentedControls["chart-entry-type-picker"].buttons["Income"].isSelected)
-        XCTAssertTrue(app.segmentedControls["chart-period-picker"].buttons["Year"].isSelected)
+        XCTAssertTrue(app.buttons["chart-entry-type-picker-income"].isSelected)
+        XCTAssertTrue(app.buttons["chart-period-picker-year"].isSelected)
     }
 
     /// 多分类数据覆盖图例点选和浅深色截图；使用隔离内存账本。

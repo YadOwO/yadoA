@@ -9,12 +9,11 @@ final class BillFlowUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Bills"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["bill-year-selector"].exists)
         XCTAssertTrue(app.staticTexts["bill-summary-balance"].label.contains("87.50"))
-        let picker = app.segmentedControls["bill-period-picker"]
-        picker.buttons["Yearly"].tap()
+        app.buttons["bill-period-picker-yearly"].tap()
         XCTAssertFalse(app.buttons["bill-year-selector"].exists)
         XCTAssertTrue(app.staticTexts["All-time balance"].exists)
         XCTAssertTrue(app.staticTexts["bill-summary-balance"].label.contains("87.50"))
-        picker.buttons["Monthly"].tap()
+        app.buttons["bill-period-picker-monthly"].tap()
         XCTAssertTrue(app.buttons["bill-year-selector"].exists)
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.buttons["home-bills"].waitForExistence(timeout: 3))
@@ -35,9 +34,9 @@ final class BillFlowUITests: XCTestCase {
         let selectedYear = option.label
         option.tap()
         XCTAssertEqual(selector.value as? String, selectedYear)
-        app.segmentedControls["bill-period-picker"].buttons["Yearly"].tap()
+        app.buttons["bill-period-picker-yearly"].tap()
         XCTAssertFalse(selector.exists)
-        app.segmentedControls["bill-period-picker"].buttons["Monthly"].tap()
+        app.buttons["bill-period-picker-monthly"].tap()
         XCTAssertEqual(selector.value as? String, selectedYear)
     }
 
@@ -47,7 +46,7 @@ final class BillFlowUITests: XCTestCase {
         app.buttons["home-bills"].tap()
         XCTAssertTrue(app.staticTexts["No bills yet"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["bill-summary-balance"].label.contains("0.00"))
-        app.segmentedControls["bill-period-picker"].buttons["Yearly"].tap()
+        app.buttons["bill-period-picker-yearly"].tap()
         XCTAssertTrue(app.staticTexts["No bills yet"].exists)
         XCTAssertFalse(app.buttons["bill-year-selector"].exists)
     }
@@ -75,7 +74,7 @@ final class BillFlowUITests: XCTestCase {
                 app.swipeUp()
                 attachScreenshot(of: app, name: "Bills - Accessibility rows")
             } else {
-                app.segmentedControls["bill-period-picker"].buttons["年账单"].tap()
+                app.buttons["bill-period-picker-yearly"].tap()
                 XCTAssertFalse(app.buttons["bill-year-selector"].exists)
                 attachScreenshot(of: app, name: "Bills - Yearly Chinese")
             }

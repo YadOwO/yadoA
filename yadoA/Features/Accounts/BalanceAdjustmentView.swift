@@ -199,20 +199,23 @@ struct BalanceAdjustmentView: View {
             )
             .accessibilityIdentifier("balance-adjustment-sign")
         } else {
-            Picker(
-                AccountLocalization.string(
-                    "account.balance_adjustment.sign",
-                    locale: locale
-                ),
-                selection: signBinding
-            ) {
-                Text(signTitle(.positive))
-                    .tag(BalanceAdjustmentSign.positive)
-                Text(signTitle(.negative))
-                    .tag(BalanceAdjustmentSign.negative)
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("balance-adjustment-sign")
+            LedgerSwitch(
+                label: AccountLocalization.string("account.balance_adjustment.sign", locale: locale),
+                selection: signBinding,
+                options: [
+                    .init(
+                        value: BalanceAdjustmentSign.positive,
+                        title: signTitle(.positive),
+                        identifier: "balance-adjustment-sign-positive"
+                    ),
+                    .init(
+                        value: BalanceAdjustmentSign.negative,
+                        title: signTitle(.negative),
+                        identifier: "balance-adjustment-sign-negative"
+                    )
+                ]
+            )
+            .frame(maxWidth: .infinity)
         }
     }
 

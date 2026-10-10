@@ -35,8 +35,7 @@ struct CategoryBreakdownView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                ChartEntryTypePicker(selection: $entryType)
-                ChartPeriodPicker(selection: $period)
+                ChartFilterSwitches(entryType: $entryType, period: $period)
                 ChartTimeSelector(
                     chart: chart,
                     onSelectPrevious: { shiftPeriod(by: -1, chart: chart) },

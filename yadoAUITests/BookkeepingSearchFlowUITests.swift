@@ -40,7 +40,7 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
         let app = launchBookkeepingSearchFixtureInEnglish()
         openSearch(in: app)
         app.buttons["bookkeeping-search-filter"].tap()
-        app.segmentedControls.buttons["Custom range"].tap()
+        app.buttons["bookkeeping-search-filter-mode-custom"].tap()
         app.buttons["bookkeeping-search-filter-confirm"].tap()
         let searchField = app.searchFields.firstMatch
         searchField.tap()
@@ -93,7 +93,7 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
         XCTAssertTrue(filterButton.waitForExistence(timeout: 2))
         XCTAssertEqual(filterButton.value as? String, "Any time")
         app.buttons["bookkeeping-search-filter"].tap()
-        app.segmentedControls.buttons["Custom range"].tap()
+        app.buttons["bookkeeping-search-filter-mode-custom"].tap()
         XCTAssertTrue(app.datePickers["bookkeeping-search-filter-start"].exists)
         XCTAssertTrue(app.datePickers["bookkeeping-search-filter-end"].exists)
         app.buttons["bookkeeping-search-filter-confirm"].tap()

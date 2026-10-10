@@ -23,8 +23,8 @@ final class BookkeepingTransactionMutationUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Edit Transaction"].waitForNonExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["bookkeeping-detail-title"].label.contains("Search legacy title"))
         app.buttons["bookkeeping-detail-edit"].tap()
-        XCTAssertTrue(app.segmentedControls["expense-edit-type"].waitForExistence(timeout: 3))
-        app.segmentedControls["expense-edit-type"].buttons["Income"].tap()
+        XCTAssertTrue(app.buttons["expense-edit-type-income"].waitForExistence(timeout: 3))
+        app.buttons["expense-edit-type-income"].tap()
         app.buttons["expense-edit-category"].tap()
         let refund = app.buttons["income-category-refund"]
         XCTAssertTrue(refund.waitForExistence(timeout: 3))

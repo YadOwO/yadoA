@@ -43,16 +43,17 @@ struct ChartView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                ChartEntryTypePicker(selection: Binding(
-                    get: { selectedEntryType },
-                    set: { entryType in
-                        // 切换收支时保留当前显示日期，便于比较同一周期。
-                        selectAnchorDate(chart.anchorDate)
-                        selectedEntryType = entryType
-                    }
-                ))
-
-                ChartPeriodPicker(selection: $selectedPeriod)
+                ChartFilterSwitches(
+                    entryType: Binding(
+                        get: { selectedEntryType },
+                        set: { entryType in
+                            // 切换收支时保留当前显示日期，便于比较同一周期。
+                            selectAnchorDate(chart.anchorDate)
+                            selectedEntryType = entryType
+                        }
+                    ),
+                    period: $selectedPeriod
+                )
 
                 ChartTimeSelector(
                     chart: chart,
@@ -145,7 +146,33 @@ struct ChartView: View {
     }
 }
 
-/// 图表页顶部的支出、收入分段选择器。
+/// 图表页顶部的两组切换：左边是较大的"支出 / 收入"，右边是较小的"周 / 月 / 年"。
+///
+/// 两组用字号区分主次并排成一行；辅助功能字号等放不下的情况改为上下两行。
+struct ChartFilterSwitches: View {
+    /// 当前选中的收支类型。
+    @Binding var entryType: BookkeepingEntryType
+
+    /// 当前选中的图表周期。
+    @Binding var period: ChartPeriod
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                ChartEntryTypePicker(selection: $entryType)
+                Spacer(minLength: 12)
+                ChartPeriodPicker(selection: $period)
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                ChartEntryTypePicker(selection: $entryType)
+                ChartPeriodPicker(selection: $period)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// 图表页顶部的支出、收入切换。
 struct ChartEntryTypePicker: View {
     @Environment(\.locale) private var locale
 
@@ -153,21 +180,18 @@ struct ChartEntryTypePicker: View {
     @Binding var selection: BookkeepingEntryType
 
     var body: some View {
-        Picker(
-            AccountLocalization.string("bookkeeping.entry.type", locale: locale),
-            selection: $selection
-        ) {
-            ForEach(BookkeepingEntryType.allCases) { entryType in
-                Text(entryType.localizedTitle(locale: locale))
-                    .tag(entryType)
-            }
-        }
-        .pickerStyle(.segmented)
-        .accessibilityIdentifier("chart-entry-type-picker")
+        LedgerSwitch(
+            label: AccountLocalization.string("bookkeeping.entry.type", locale: locale),
+            selection: $selection,
+            options: BookkeepingEntryType.ledgerSwitchOptions(
+                identifier: "chart-entry-type-picker",
+                locale: locale
+            )
+        )
     }
 }
 
-/// 图表页顶部的周、月、年分段选择器。
+/// 图表页顶部的周、月、年切换。
 struct ChartPeriodPicker: View {
     @Environment(\.locale) private var locale
 
@@ -175,17 +199,18 @@ struct ChartPeriodPicker: View {
     @Binding var selection: ChartPeriod
 
     var body: some View {
-        Picker(
-            AccountLocalization.string("chart.period.accessibility", locale: locale),
-            selection: $selection
-        ) {
-            ForEach(ChartPeriod.allCases) { period in
-                Text(period.title(locale: locale))
-                    .tag(period)
-            }
-        }
-        .pickerStyle(.segmented)
-        .accessibilityIdentifier("chart-period-picker")
+        LedgerSwitch(
+            label: AccountLocalization.string("chart.period.accessibility", locale: locale),
+            selection: $selection,
+            options: ChartPeriod.allCases.map {
+                .init(
+                    value: $0,
+                    title: $0.title(locale: locale),
+                    identifier: "chart-period-picker-\($0.rawValue)"
+                )
+            },
+            size: .compact
+        )
     }
 }
 

@@ -328,7 +328,8 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
 
     /// 可选备注，内容多时向下换行。
     private var noteRow: some View {
-        fieldRow("expense.entry.note") {
+        // 多行输入框的基线取在最后一行，按基线对齐会让右边掉下去；同字号下顶对齐即首行对齐。
+        fieldRow("expense.entry.note", alignment: .top) {
             TextField(
                 text("expense.entry.note.placeholder"),
                 text: Binding(
@@ -406,10 +407,10 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
         .multilineTextAlignment(.leading)
     }
 
-    /// 使用系统分段选择器切换支出与收入方向。
+    /// 票据上方手写的"支出 / 收入"两个词，切换记账方向。
     private var entryTypePicker: some View {
-        Picker(
-            text("bookkeeping.entry.type"),
+        LedgerSwitch(
+            label: text("bookkeeping.entry.type"),
             selection: Binding(
                 get: { flow.formEntryType },
                 set: { entryType in
@@ -421,15 +422,13 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
                         isPresentingCategorySelection = true
                     }
                 }
+            ),
+            options: BookkeepingEntryType.ledgerSwitchOptions(
+                identifier: configuration.typeIdentifier,
+                locale: locale
             )
-        ) {
-            ForEach(BookkeepingEntryType.allCases) { entryType in
-                Text(entryType.localizedTitle(locale: locale))
-                    .tag(entryType)
-            }
-        }
-        .pickerStyle(.segmented)
-        .accessibilityIdentifier(configuration.typeIdentifier)
+        )
+        .frame(maxWidth: .infinity)
     }
 
     /// 不阻断保存的余额提醒，以及保留草稿后的失败反馈。
@@ -680,20 +679,17 @@ private struct BookkeepingCategorySelectionView<Category: BookkeepingCategoryPre
         NavigationStack {
             ScrollView {
                 VStack(spacing: 22) {
-                    Picker(
-                        AccountLocalization.string("bookkeeping.entry.type", locale: locale),
+                    LedgerSwitch(
+                        label: AccountLocalization.string("bookkeeping.entry.type", locale: locale),
                         selection: Binding(
                             get: { entryType },
                             set: onSelectEntryType
+                        ),
+                        options: BookkeepingEntryType.ledgerSwitchOptions(
+                            identifier: "bookkeeping-category-entry-type",
+                            locale: locale
                         )
-                    ) {
-                        ForEach(BookkeepingEntryType.allCases) { entryType in
-                            Text(entryType.localizedTitle(locale: locale))
-                                .tag(entryType)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .accessibilityIdentifier("bookkeeping-category-entry-type")
+                    )
 
                     LazyVGrid(columns: columns, spacing: 22) {
                         ForEach(categories) { category in
