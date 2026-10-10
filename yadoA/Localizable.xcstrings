@@ -4907,23 +4907,6 @@
         }
       }
     },
-    "home.details.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Details"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "明细"
-          }
-        }
-      }
-    },
     "home.transaction.edit" : {
       "extractionState" : "manual",
       "localizations" : {
