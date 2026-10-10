@@ -201,6 +201,26 @@ enum AccountListState {
 
 }
 
+extension View {
+    /// 让账户相关的列表行直接落在纸面上：去掉系统行底和分隔线，在行底画一条账本细线。
+    ///
+    /// - Parameters:
+    ///   - seed: 细线的笔迹种子，同一行每次画成同一个样子。
+    ///   - showsRule: 一段里的最后一行传 `false`，不画线。
+    func accountLedgerRow(seed: UInt64, showsRule: Bool = true) -> some View {
+        listRowBackground(
+            HandDrawnRule(seed: seed)
+                .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                .frame(height: 3)
+                .frame(maxHeight: .infinity, alignment: .bottom)
+                .padding(.horizontal, 2)
+                .opacity(showsRule ? 1 : 0)
+        )
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: 9, leading: 2, bottom: 9, trailing: 2))
+    }
+}
+
 /// 应用根账户列表，根据 SwiftData 查询结果切换空状态与列表状态。
 struct AccountListView: View {
     @Environment(\.locale) private var locale
@@ -287,7 +307,7 @@ struct AccountListView: View {
         }
     }
 
-    /// 非空状态下使用原生 SwiftUI List 展示账户；汇总仍保持独立卡片外观。
+    /// 非空状态下使用原生 SwiftUI List 展示账户；汇总是手绘方框，账户行直接写在纸面上。
     private func accountList(_ accounts: [Account]) -> some View {
         let summary = AccountSummaryPresentation.summary(for: accounts, locale: locale)
         let defaultAccountID = BookkeepingPreference.resolvedAccountID(
@@ -298,7 +318,7 @@ struct AccountListView: View {
         return List {
             AccountSummaryCard(presentation: summary)
                 .listRowInsets(
-                    EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16)
+                    EdgeInsets(top: 12, leading: 2, bottom: 8, trailing: 2)
                 )
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -313,6 +333,11 @@ struct AccountListView: View {
                     NavigationLink(value: AccountsRoute.detail(account.id)) {
                         AccountListRow(presentation: presentation)
                     }
+                    .navigationLinkIndicatorVisibility(.hidden)
+                    .accountLedgerRow(
+                        seed: account.id.handDrawnSeed,
+                        showsRule: account.id != accounts.last?.id
+                    )
                     .accessibilityIdentifier("account-list-row-\(account.id.uuidString)")
                 }
             }
@@ -353,7 +378,7 @@ private struct AccountSummaryCard: View {
                 .foregroundStyle(.secondary)
 
                 Text(presentation.formattedNetAssets)
-                    .font(.largeTitle.weight(.bold))
+                    .font(.system(.largeTitle, design: .serif, weight: .medium))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
@@ -364,9 +389,6 @@ private struct AccountSummaryCard: View {
                     title: AccountLocalization.string("account.summary.assets", locale: locale),
                     amount: presentation.formattedAssets
                 )
-
-                Divider()
-                    .frame(height: 34)
 
                 AccountSummaryMetric(
                     title: AccountLocalization.string(
@@ -379,10 +401,12 @@ private struct AccountSummaryCard: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        .background {
+            HandDrawnBox(cornerRadius: 22, seed: 21)
+                .stroke(
+                    Color.primary.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                )
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
@@ -401,7 +425,7 @@ private struct AccountSummaryMetric: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Text(amount)
-                .font(.body.weight(.semibold))
+                .font(.system(.title3, design: .serif, weight: .medium))
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
@@ -466,7 +490,7 @@ struct AccountListRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Text(presentation.formattedAmount)
-                .font(.body.monospacedDigit())
+                .font(.system(.body, design: .serif).monospacedDigit())
         }
         .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .ignore)

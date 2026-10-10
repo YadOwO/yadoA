@@ -320,6 +320,15 @@ private struct AccountDetailQueryContent: View {
             Section {
                 accountSummary(account: account, presentation: presentation)
                     .listRowInsets(EdgeInsets(top: 20, leading: 20, bottom: 20, trailing: 20))
+                    .listRowBackground(
+                        HandDrawnBox(cornerRadius: 22, seed: 23)
+                            .stroke(
+                                Color.primary.opacity(0.85),
+                                style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                            )
+                            .padding(.horizontal, 2)
+                    )
+                    .listRowSeparator(.hidden)
             }
 
             Section {
@@ -328,6 +337,7 @@ private struct AccountDetailQueryContent: View {
                         AccountLocalization.string("account.detail.type", locale: locale),
                         value: presentation.typeTitle
                     )
+                    .accountLedgerRow(seed: 31)
                     .accessibilityIdentifier("account-detail-type")
 
                     if let institution = presentation.institution {
@@ -335,6 +345,7 @@ private struct AccountDetailQueryContent: View {
                             AccountLocalization.string("account.detail.institution", locale: locale),
                             value: institution
                         )
+                        .accountLedgerRow(seed: 32)
                         .accessibilityIdentifier("account-detail-institution")
                     }
 
@@ -347,6 +358,7 @@ private struct AccountDetailQueryContent: View {
                                 locale: locale
                             )
                         )
+                        .accountLedgerRow(seed: 33)
                         .accessibilityIdentifier("account-detail-last-four-digits")
                     }
 
@@ -357,12 +369,14 @@ private struct AccountDetailQueryContent: View {
                                 .foregroundStyle(.secondary)
                             Text(note)
                         }
+                        .accountLedgerRow(seed: 34)
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("account-detail-note")
                     }
                 } label: {
                     Text(AccountLocalization.string("account.detail.information", locale: locale))
                 }
+                .accountLedgerRow(seed: 30)
             }
 
             if !presentation.isActive {
@@ -375,6 +389,7 @@ private struct AccountDetailQueryContent: View {
                             systemImage: "arrow.uturn.backward"
                         )
                     }
+                    .accountLedgerRow(seed: 35, showsRule: false)
                     .accessibilityIdentifier("account-detail-restore")
                 }
             }
@@ -389,30 +404,49 @@ private struct AccountDetailQueryContent: View {
                     )
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .accountLedgerRow(seed: 36, showsRule: false)
                     .accessibilityIdentifier("account-detail-transaction-history-empty")
                 } else {
                     ForEach(historyRows) { presentation in
-                        if presentation.canOpenBookkeepingDetail {
-                            // 详情也会出现在设置和账户管理的导航栈中，直接目标无需依赖 Tab 路由注册。
-                            NavigationLink {
-                                BookkeepingTransactionDetailView(transactionID: presentation.id)
-                                    .secondaryPage()
-                            } label: {
+                        Group {
+                            if presentation.canOpenBookkeepingDetail {
+                                // 详情也会出现在设置和账户管理的导航栈中，直接目标无需依赖 Tab 路由注册。
+                                NavigationLink {
+                                    BookkeepingTransactionDetailView(transactionID: presentation.id)
+                                        .secondaryPage()
+                                } label: {
+                                    AccountTransactionHistoryRow(presentation: presentation)
+                                }
+                                .navigationLinkIndicatorVisibility(.hidden)
+                                .accessibilityIdentifier("account-transaction-detail-\(presentation.id.uuidString)")
+                            } else {
                                 AccountTransactionHistoryRow(presentation: presentation)
                             }
-                            .accessibilityIdentifier("account-transaction-detail-\(presentation.id.uuidString)")
-                        } else {
-                            AccountTransactionHistoryRow(presentation: presentation)
                         }
+                        .accountLedgerRow(
+                            seed: presentation.id.handDrawnSeed,
+                            showsRule: presentation.id != historyRows.last?.id
+                        )
                     }
                 }
             } header: {
-                Text(
-                    AccountLocalization.string(
-                        "account.detail.history.title",
-                        locale: locale
+                // 与首页日期标题同样的写法：衬线标题下压一条重线。
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(
+                        AccountLocalization.string(
+                            "account.detail.history.title",
+                            locale: locale
+                        )
                     )
-                )
+                    .font(.system(.callout, design: .serif, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .textCase(nil)
+                    HandDrawnRule(seed: 37)
+                        .stroke(Color.primary.opacity(0.6), style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+                        .frame(height: 3)
+                        .accessibilityHidden(true)
+                }
+                .listRowInsets(EdgeInsets(top: 0, leading: 2, bottom: 2, trailing: 2))
             }
         }
         .listStyle(.insetGrouped)
@@ -471,7 +505,7 @@ private struct AccountDetailQueryContent: View {
             HStack(alignment: .top, spacing: 12) {
                 AccountIconView(presentation: presentation.icon)
                     .frame(width: 52, height: 52)
-                    .background(Color(uiColor: .tertiarySystemGroupedBackground), in: .rect(cornerRadius: 14))
+                    .background(Color.accentColor.opacity(0.08), in: HandDrawnBlob(seed: presentation.id.handDrawnSeed))
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(presentation.name)
@@ -510,7 +544,7 @@ private struct AccountDetailQueryContent: View {
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
                 Text(presentation.formattedAmount)
-                    .font(.system(.largeTitle, design: .rounded, weight: .semibold).monospacedDigit())
+                    .font(.system(.largeTitle, design: .serif, weight: .medium).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .accessibilityLabel(presentation.amountAccessibilityLabel)
@@ -593,7 +627,7 @@ private struct AccountTransactionHistoryRow: View {
 
             if let balanceTransition = presentation.balanceTransition {
                 Text(balanceTransition)
-                    .font(.subheadline.monospacedDigit())
+                    .font(.system(.subheadline, design: .serif).monospacedDigit())
                     .foregroundStyle(.secondary)
             }
 
@@ -621,7 +655,7 @@ private struct AccountTransactionHistoryRow: View {
     /// 已带明确正负方向的本地化 CNY 金额。
     private var amount: some View {
         Text(presentation.formattedAmount)
-            .font(.body.monospacedDigit())
+            .font(.system(.body, design: .serif).monospacedDigit())
     }
 }
 
