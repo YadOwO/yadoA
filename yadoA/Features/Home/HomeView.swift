@@ -32,9 +32,8 @@ struct HomeView: View {
                     Button {
                         isProfilePresented = true
                     } label: {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.title2.weight(.regular))
-                            .foregroundStyle(Color.accentColor)
+                        // 与旁边的账单图标同为线稿，放在同一块玻璃里轻重一致。
+                        Image(systemName: "person.crop.circle")
                     }
                     .accessibilityLabel(AccountLocalization.string("profile.title", locale: locale))
                     .accessibilityIdentifier("home-profile")
@@ -90,14 +89,14 @@ private struct HomeQueryContent: View {
                     monthPresentation: monthPresentation,
                     areAmountsVisible: $areAmountsVisible
                 )
-                if dynamicTypeSize.isAccessibilitySize || verticalSizeClass == .compact {
-                    // 大字号与紧凑高度下汇总独立滚动，给原有月份手势列表保留空间。
+                // 大字号与紧凑高度下汇总可能很高，不适合压在明细上方。
+                let usesStackedHeader = dynamicTypeSize.isAccessibilitySize || verticalSizeClass == .compact
+                if usesStackedHeader {
+                    // 此时汇总独立滚动，给原有月份手势列表保留空间。
                     ScrollView {
                         header
                     }
                     .frame(maxHeight: geometry.size.height * 0.5)
-                } else {
-                    header
                 }
 
                 HomeOverviewList(
@@ -110,6 +109,8 @@ private struct HomeQueryContent: View {
                         selectedMonth = month
                     }
                 )
+                // 常规布局下汇总作为明细的顶部栏：流水从它下方滑过并在边缘柔和淡出，而不是被一刀切掉。
+                .modifier(HomeTopBar(isEnabled: !usesStackedHeader) { header })
             }
         }
         .paperPage()
@@ -182,6 +183,47 @@ extension HomeQueryContent {
     }
 }
 
+/// 把汇总挂为明细列表的顶部栏。
+///
+/// iOS 26 使用系统的 `safeAreaBar`，由滚动边缘效果处理内容淡出；
+/// 更早的系统用 `safeAreaInset` 加一层向下渐隐的纸色底得到相近的效果。
+private struct HomeTopBar<Bar: View>: ViewModifier {
+    /// 是否启用顶部栏；关闭时不占用任何空间。
+    let isEnabled: Bool
+
+    /// 顶部栏内容。
+    @ViewBuilder let bar: () -> Bar
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content
+                .safeAreaBar(edge: .top, spacing: 0) {
+                    if isEnabled {
+                        bar()
+                    }
+                }
+                .scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            content.safeAreaInset(edge: .top, spacing: 0) {
+                if isEnabled {
+                    bar().background {
+                        // 上方是实的纸色，靠近明细的一小段渐隐，让流水滑入时不出现硬边。
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color(.paperBackground), location: 0),
+                                .init(color: Color(.paperBackground), location: 0.86),
+                                .init(color: Color(.paperBackground).opacity(0), location: 1)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// 导航栏中部的月份入口，点击后打开月份选择。
 private struct HomeMonthSelectorButton: View {
     @Environment(\.locale) private var locale
@@ -196,7 +238,7 @@ private struct HomeMonthSelectorButton: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Text(formattedMonth)
-                    .font(.headline)
+                    .font(.system(.headline, design: .serif))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Image(systemName: "chevron.down")
@@ -261,15 +303,24 @@ private struct HomeOverviewHeader: View {
         .padding(.leading, 20)
         .padding(.trailing, 10)
         .padding(.vertical, 14)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: .rect(cornerRadius: 22))
+        // 汇总不垫灰色卡片，用一笔画成的墨线框圈出来；框内铺纸色，流水从下方滑过时不会透上来。
+        .background {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color(.paperBackground))
+            HandDrawnBox(cornerRadius: 22, seed: 7)
+                .stroke(
+                    Color.primary.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                )
+        }
         .padding(.horizontal, 20)
         .padding(.top, 8)
-        .padding(.bottom, 4)
+        .padding(.bottom, 16)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("home-fixed-header")
     }
 
-    /// 金额显隐开关；视觉圆形较小，点击区域保持 44pt。
+    /// 金额显隐开关；只保留图标本身，点击区域保持 44pt。
     private var visibilityButton: some View {
         Button {
             withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
@@ -280,8 +331,6 @@ private struct HomeOverviewHeader: View {
                 .font(.system(size: 15))
                 .foregroundStyle(.secondary)
                 .contentTransition(.symbolEffect(.replace))
-                .frame(width: 34, height: 34)
-                .background(Color(uiColor: .tertiarySystemGroupedBackground), in: Circle())
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
@@ -331,17 +380,16 @@ private struct HomeSummaryColumn: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: isIncome ? "arrow.down.left" : "arrow.up.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 20, height: 20)
-                    .background(Color.primary.opacity(0.06), in: Circle())
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
                 Text(title)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
             Text(isVisible ? formattedAmount : AccountLocalization.string("home.summary.mask", locale: locale))
-                .font(.system(.title2, design: .rounded, weight: .semibold).monospacedDigit())
+                // 金额用衬线数字，像账本上写下的数目。
+                .font(.system(.title, design: .serif, weight: .medium).monospacedDigit())
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
                 .contentTransition(.numericText())
@@ -364,17 +412,18 @@ private struct HomeSummaryColumn: View {
     }
 }
 
-/// 首页主要操作，悬浮在明细上方；新系统显示玻璃效果，iOS 18 用实色按钮加投影表达悬浮层级。
+/// 首页主要操作，悬浮在明细上方；新系统是透明玻璃加墨色文字，iOS 18 用材质底加投影表达悬浮层级。
 private struct HomeAddTransactionButton: View {
     @Environment(\.locale) private var locale
 
     var body: some View {
         if #available(iOS 26, *) {
-            entryLink.buttonStyle(.glassProminent)
+            entryLink.buttonStyle(.glass)
         } else {
             entryLink
-                .buttonStyle(.borderedProminent)
-                .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+                .buttonStyle(.bordered)
+                .background(.regularMaterial, in: Capsule())
+                .shadow(color: .black.opacity(0.14), radius: 10, y: 4)
         }
     }
 
@@ -385,7 +434,7 @@ private struct HomeAddTransactionButton: View {
                 .font(.headline)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 5)
-                .onAccentForeground()
+                .foregroundStyle(.primary)
         }
         .controlSize(.large)
         .buttonBorderShape(.capsule)
@@ -438,12 +487,19 @@ private struct HomeOverviewList: View {
                             Section {
                                 ForEach(day.rows) { row in
                                     HomeOverviewRow(row: row, isHighlighted: row.id == highlightedTransactionID)
-                                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                                        .listRowBackground(Color(uiColor: .secondarySystemGroupedBackground))
-                                        .alignmentGuide(.listRowSeparatorLeading) { _ in 52 }
+                                        .listRowInsets(EdgeInsets(top: 9, leading: 2, bottom: 9, trailing: 2))
+                                        // 流水直接写在纸上：不垫卡片，行与行之间是一条手画的账本横线。
+                                        .listRowBackground(
+                                            HomeLedgerRule(
+                                                seed: row.id.handDrawnSeed,
+                                                isHidden: row.id == day.rows.last?.id
+                                            )
+                                        )
+                                        .listRowSeparator(.hidden)
                                 }
                             } header: {
                                 HomeOverviewDayHeader(day: day)
+                                    .listRowInsets(EdgeInsets(top: 0, leading: 2, bottom: 2, trailing: 2))
                             }
                         }
                     }
@@ -456,7 +512,7 @@ private struct HomeOverviewList: View {
                         .listRowSeparator(.hidden)
                 }
                 .listStyle(.insetGrouped)
-                .listSectionSpacing(16)
+                .listSectionSpacing(22)
                 .contentMargins(.top, 0, for: .scrollContent)
                 .scrollContentBackground(.hidden)
                 .scrollBounceBehavior(.always)
@@ -565,6 +621,25 @@ private struct HomeOverviewList: View {
     }
 }
 
+/// 流水行底部的账本横线，作为行背景使用；每条线的起伏由流水标识决定。
+private struct HomeLedgerRule: View {
+    /// 笔迹种子。
+    let seed: UInt64
+
+    /// 当天最后一条流水下方不画线，留给下一天的日期标题。
+    let isHidden: Bool
+
+    var body: some View {
+        HandDrawnRule(seed: seed)
+            .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+            .frame(height: 3)
+            .frame(maxHeight: .infinity, alignment: .bottom)
+            // 与日期标题下的墨线左右对齐。
+            .padding(.horizontal, 2)
+            .opacity(isHidden ? 0 : 1)
+    }
+}
+
 /// 首页原生列表中的日期分组标题。
 private struct HomeOverviewDayHeader: View {
     @Environment(\.locale) private var locale
@@ -573,21 +648,28 @@ private struct HomeOverviewDayHeader: View {
     let day: HomeOverviewDayPresentation
 
     var body: some View {
-        // 优先单行展示以节省高度；较长语言或大字号放不下时改为两行。
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                dateLabel
-                Spacer(minLength: 0)
-                summaryLabel.lineLimit(1)
+        VStack(spacing: 7) {
+            // 优先单行展示以节省高度；较长语言或大字号放不下时改为两行。
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    dateLabel
+                    Spacer(minLength: 0)
+                    summaryLabel.lineLimit(1)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    dateLabel
+                    summaryLabel
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            VStack(alignment: .leading, spacing: 4) {
-                dateLabel
-                summaryLabel
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // 每一天像账本上新起的一栏，日期下面压一条较重的墨线。
+            HandDrawnRule(seed: UInt64(truncatingIfNeeded: day.transactionDay))
+                .stroke(Color.primary.opacity(0.6), style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+                .frame(height: 3)
+                .accessibilityHidden(true)
         }
         .foregroundStyle(.secondary)
-        .padding(.vertical, 2)
+        .padding(.top, 2)
         .textCase(nil)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("home-day-\(day.transactionDay)")
@@ -597,7 +679,7 @@ private struct HomeOverviewDayHeader: View {
     private var dateLabel: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(day.formattedDate)
-                .font(.subheadline.weight(.medium))
+                .font(.system(.callout, design: .serif, weight: .medium))
                 .foregroundStyle(.primary)
             Text(day.formattedWeekday)
                 .font(.caption)
@@ -660,9 +742,10 @@ private struct HomeOverviewRow: View {
                         .opacity(isMarked ? 1 : 0)
                 }
                 .frame(width: 38, height: 38)
+                // 图标垫在随手涂出的色块上，每条流水的色块形状各不相同。
                 .background(
                     isMarked ? Color(.ledgerRed).opacity(0.12) : Color.accentColor.opacity(0.08),
-                    in: .rect(cornerRadius: 12)
+                    in: HandDrawnBlob(seed: row.id.handDrawnSeed)
                 )
                 .accessibilityHidden(true)
 
@@ -684,7 +767,7 @@ private struct HomeOverviewRow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                     Text(row.formattedAmount)
-                        .font(.system(.body, design: .rounded, weight: .semibold).monospacedDigit())
+                        .font(.system(.body, design: .serif).monospacedDigit())
                         .foregroundStyle(isMarked ? Color(.ledgerRed) : Color.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
@@ -694,6 +777,8 @@ private struct HomeOverviewRow: View {
             .frame(minHeight: 44)
         }
         .buttonStyle(.plain)
+        // 整行都可点，纸面上不再逐行重复系统的右箭头。
+        .navigationLinkIndicatorVisibility(.hidden)
         .task(id: isHighlighted) {
             await playHighlight()
         }

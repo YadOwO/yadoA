@@ -13,7 +13,7 @@ enum HomeMonthPickerPresentation {
     }
 }
 
-/// 首页月份选择 Sheet，允许选择任意可表达的自然月。
+/// 月份选择 Sheet，使用系统背景并固定为半屏，允许选择任意可表达的自然月。
 struct HomeMonthPickerView: View {
     @Environment(\.locale) private var locale
 
@@ -69,9 +69,8 @@ struct HomeMonthPickerView: View {
                 .accessibilityIdentifier("home-month-picker-confirm")
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
-        .paperPage()
     }
 }
 
