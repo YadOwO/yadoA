@@ -118,7 +118,11 @@ struct AppTabView: View {
 
             Tab(value: AppTab.charts) {
                 NavigationStack {
-                    ChartView()
+                    ChartView {
+                        // 记账入口只在首页导航栈里，切过去后直接进入记账页。
+                        selectedTab = .home
+                        homePath = [.expenseEntry]
+                    }
                 }
             } label: {
                 Label(AppTab.charts.title(locale: locale), systemImage: AppTab.charts.symbolName)

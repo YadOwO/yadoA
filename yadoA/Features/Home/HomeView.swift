@@ -477,7 +477,7 @@ private struct HomeOverviewList: View {
                         // 空状态不走 List：分组列表自带的边距和末尾留白会让内容高出可视区，产生多余的滚动。
                         // 内容刚好不超过可视高度，只保留边界回弹用于切换月份。
                         ScrollView {
-                            HomeEmptyState()
+                            HomeEmptyState(isLedgerEmpty: monthNavigator.availableMonths.isEmpty)
                                 .frame(
                                     maxWidth: .infinity,
                                     minHeight: max(0, containerGeometry.size.height - 2)
@@ -839,6 +839,9 @@ extension HomeOverviewRow {
 private struct HomeEmptyState: View {
     @Environment(\.locale) private var locale
 
+    /// 整个账本是否还没有任何收支；为真时文案指向下方的记账按钮，否则只说明当前月份为空。
+    let isLedgerEmpty: Bool
+
     var body: some View {
         ContentUnavailableView {
             // 沿用系统空状态的排版，只把图标换成手绘小票。
@@ -848,7 +851,10 @@ private struct HomeEmptyState: View {
                 HandDrawnSlipIllustration()
             }
         } description: {
-            Text(AccountLocalization.string("home.details.empty.message", locale: locale))
+            Text(AccountLocalization.string(
+                isLedgerEmpty ? "home.details.empty.first.message" : "home.details.empty.message",
+                locale: locale
+            ))
         }
         .accessibilityIdentifier("home-details-empty")
     }

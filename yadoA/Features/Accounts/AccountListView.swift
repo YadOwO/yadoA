@@ -263,10 +263,12 @@ struct AccountListView: View {
     /// 干净存储唯一的主要添加入口。
     private var emptyContent: some View {
         ContentUnavailableView {
-            Label(
-                AccountLocalization.string("account.list.empty.title", locale: locale),
-                systemImage: "tray"
-            )
+            // 与首页、账单空状态一致的排版，图标换成手绘卡片。
+            Label {
+                Text(AccountLocalization.string("account.list.empty.title", locale: locale))
+            } icon: {
+                HandDrawnCardIllustration()
+            }
         } description: {
             Text(AccountLocalization.string("account.list.empty.message", locale: locale))
         } actions: {

@@ -2201,6 +2201,57 @@
         }
       }
     },
+    "chart.empty.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Charts Yet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有图表"
+          }
+        }
+      }
+    },
+    "chart.empty.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a few transactions and your income and spending trends will show up here."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记下几笔收支后，这里会画出你的收支走势。"
+          }
+        }
+      }
+    },
+    "home.details.empty.first.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap Add Transaction below to record your first entry."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点下方的“记一笔”，写下第一笔收支。"
+          }
+        }
+      }
+    },
     "account.list.empty.message" : {
       "extractionState" : "manual",
       "localizations" : {
