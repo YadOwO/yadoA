@@ -45,7 +45,8 @@ final class AccountListFlowUITests: XCTestCase {
         XCTAssertTrue(management.waitForExistence(timeout: 2))
         management.tap()
         XCTAssertTrue(app.buttons["account-management-choose-default"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.buttons["account-management-deactivated"].exists)
+        // 没有已停用账户时不显示入口。
+        XCTAssertFalse(app.buttons["account-management-deactivated"].exists)
         app.buttons["account-management-close"].tap()
 
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))

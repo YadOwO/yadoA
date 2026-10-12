@@ -12,6 +12,11 @@ struct AccountManagementView: View {
     @State private var isPresentingDefaultSelection = false
     @State private var isPresentingCreation = false
 
+    /// 已停用账户的数量；为 0 时隐藏入口。
+    private var deactivatedAccountCount: Int {
+        queriedAccounts.count { !$0.isActive }
+    }
+
     var body: some View {
         let accounts = AccountListPresentation.sorted(queriedAccounts)
         let defaultAccountID = BookkeepingPreference.resolvedAccountID(
@@ -77,24 +82,27 @@ struct AccountManagementView: View {
                 DataImportEntryView(container: modelContext.container)
             }
 
-            LedgerCard(seed: 119) {
-                NavigationLink {
-                    DeactivatedAccountListView()
-                } label: {
-                    HStack(spacing: 12) {
-                        Label(
-                            AccountLocalization.string("account.deactivated.title", locale: locale),
-                            systemImage: "archivebox"
-                        )
-                        .labelStyle(.titleAndIcon)
-                        Spacer(minLength: 8)
-                        Text(queriedAccounts.filter { !$0.isActive }.count.formatted())
-                            .foregroundStyle(.secondary)
-                        LedgerChevron()
+            // 没有已停用账户时不显示入口卡片。
+            if deactivatedAccountCount > 0 {
+                LedgerCard(seed: 119) {
+                    NavigationLink {
+                        DeactivatedAccountListView()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Label(
+                                AccountLocalization.string("account.deactivated.title", locale: locale),
+                                systemImage: "archivebox"
+                            )
+                            .labelStyle(.titleAndIcon)
+                            Spacer(minLength: 8)
+                            Text(deactivatedAccountCount.formatted())
+                                .foregroundStyle(.secondary)
+                            LedgerChevron()
+                        }
+                        .ledgerCardRow()
                     }
-                    .ledgerCardRow()
+                    .accessibilityIdentifier("account-management-deactivated")
                 }
-                .accessibilityIdentifier("account-management-deactivated")
             }
         }
         .buttonStyle(.plain)

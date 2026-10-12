@@ -34,6 +34,21 @@ final class LocalDataResetService {
         self.beforeSave = beforeSave
     }
 
+    /// 账本里是否还有可清除的内容（账户或流水）。
+    ///
+    /// 只剩默认记账账户偏好时视为没有数据：偏好指向的账户已不存在，对用户不可见。
+    ///
+    /// - Throws: 读取失败时抛出 `LocalDataResetError.resetFailed`。
+    func hasData() throws -> Bool {
+        let context = container.makeManualSaveContext()
+        do {
+            return try context.fetchCount(FetchDescriptor<Account>()) > 0
+                || context.fetchCount(FetchDescriptor<AccountTransaction>()) > 0
+        } catch {
+            throw LocalDataResetError.resetFailed
+        }
+    }
+
     /// 删除全部账户、流水和记账偏好。
     ///
     /// - Throws: 读取或保存失败时抛出 `LocalDataResetError.resetFailed`，

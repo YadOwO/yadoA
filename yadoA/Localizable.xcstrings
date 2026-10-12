@@ -3000,6 +3000,40 @@
         }
       }
     },
+    "profile.reset.empty.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing to Erase"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有数据可以清除"
+          }
+        }
+      }
+    },
+    "profile.reset.empty.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You don't have any accounts or transactions yet."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "现在还没有任何账户和流水。"
+          }
+        }
+      }
+    },
     "account.management.no_candidate" : {
       "extractionState" : "manual",
       "localizations" : {

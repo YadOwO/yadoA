@@ -2,6 +2,8 @@ import SwiftData
 import SwiftUI
 
 /// “清除所有数据”入口及其破坏性确认、失败和完成反馈；清除前会留下可撤销的快照。
+///
+/// 账本本来就是空的时候不进入确认流程，直接提示没有数据可以清除。
 struct DataResetEntryView: View {
     @Environment(\.locale) private var locale
 
@@ -11,6 +13,8 @@ struct DataResetEntryView: View {
     @State private var isPresentingConfirmation = false
     @State private var isPresentingSuccess = false
     @State private var isPresentingFailure = false
+    /// 账本为空时点击入口展示的“没有数据”提示。
+    @State private var isPresentingEmpty = false
     /// 本次清除是否留下了可撤销的快照；账本原本为空时没有。
     @State private var canUndoReset = false
 
@@ -21,7 +25,7 @@ struct DataResetEntryView: View {
 
     var body: some View {
         Button {
-            isPresentingConfirmation = true
+            beginReset()
         } label: {
             Label(text("profile.reset.title"), systemImage: "trash")
         }
@@ -47,6 +51,23 @@ struct DataResetEntryView: View {
         }
         .alert(text("profile.reset.error"), isPresented: $isPresentingFailure) {
             Button(text("common.close"), role: .cancel) {}
+        }
+        .alert(text("profile.reset.empty.title"), isPresented: $isPresentingEmpty) {
+            Button(text("common.close"), role: .cancel) {}
+                .accessibilityIdentifier("profile-reset-empty-close")
+        } message: {
+            Text(text("profile.reset.empty.message"))
+        }
+    }
+
+    /// 点击入口：有数据才进入破坏性确认，没有数据直接说明无需清除。
+    private func beginReset() {
+        // 读不出数量时按有数据处理，交给确认后的清除流程报告失败。
+        let hasData = (try? LocalDataResetService(container: container).hasData()) ?? true
+        if hasData {
+            isPresentingConfirmation = true
+        } else {
+            isPresentingEmpty = true
         }
     }
 

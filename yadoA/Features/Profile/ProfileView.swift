@@ -31,16 +31,20 @@ struct ProfileView: View {
                     }
                     .accessibilityIdentifier("profile-default-account")
 
-                    rowDivider
+                    // 没有已停用账户时整行（含分隔线）不显示。
+                    if deactivatedAccountCount > 0 {
+                        rowDivider
 
-                    NavigationLink {
-                        DeactivatedAccountListView()
-                    } label: {
-                        row(
-                            "account.deactivated.title",
-                            symbol: "archivebox",
-                            value: accounts.filter { !$0.isActive }.count.formatted()
-                        )
+                        NavigationLink {
+                            DeactivatedAccountListView()
+                        } label: {
+                            row(
+                                "account.deactivated.title",
+                                symbol: "archivebox",
+                                value: deactivatedAccountCount.formatted()
+                            )
+                        }
+                        .accessibilityIdentifier("profile-deactivated-accounts")
                     }
                 }
 
@@ -148,6 +152,11 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity)
         .padding(.top, 24)
         .padding(.bottom, 8)
+    }
+
+    /// 已停用账户的数量；为 0 时隐藏入口。
+    private var deactivatedAccountCount: Int {
+        accounts.count { !$0.isActive }
     }
 
     /// 显示当前生效的默认账户，保持与记账入口相同的解析规则。
