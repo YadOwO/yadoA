@@ -1,16 +1,18 @@
 # 截图记账预设
 
-[添加 yadoA 截图记账](https://www.icloud.com/shortcuts/adf5ca5c26d8471596bbc6f09d57c8d9)
+[添加芽豆资产截图记账](https://www.icloud.com/shortcuts/adf5ca5c26d8471596bbc6f09d57c8d9)
 
-预设包含两个动作：系统「截屏」，然后调用 yadoA 的 `ScreenshotBookkeepingIntent`。
+> 待办：上面的 iCloud 模板发布时名称仍是「yadoA 截图记账」。需在快捷指令 App 中改名为「芽豆资产截图记账」并重新生成共享链接，再更新此处和 App 中的 URL。
+
+预设包含两个动作：系统「截屏」，然后调用芽豆资产（工程名 yadoA）的 `ScreenshotBookkeepingIntent`。
 第二步的 `screenshot` 参数已连接到第一步输出。用户只需确认添加，再到系统设置绑定「轻点背面」。
 
 - `ScreenshotBookkeeping.plist`：从已发布的 iCloud 模板下载的可读源文件。
-- `yadoA 截图记账.shortcut`：同一模板的苹果签名文件，使用「任何人」导入模式。
+- `芽豆资产截图记账.shortcut`：同一模板的苹果签名文件，使用「任何人」导入模式。
 - App 入口：`yadoA/Features/Shortcuts/ScreenshotShortcutTemplate.swift`。
 
-模板依赖已安装并包含该 Intent 的 iOS 版 yadoA，Bundle ID 为 `com.yado.yadoA`。
-未安装 yadoA 的 Mac 会将第二步显示为未知动作；不要因此删除或替换该动作。
+模板依赖已安装并包含该 Intent 的 iOS 版芽豆资产，Bundle ID 为 `com.yado.yadoA`。
+未安装芽豆资产的 Mac 会将第二步显示为未知动作；不要因此删除或替换该动作。
 当前已核对线上模板的两个动作、Intent 标识和图片连接，真机完整执行仍需验证。
 
 后续修改动作或参数时，应重新签名、导入并生成 iCloud 共享链接，再更新 App 中的 URL 和这里的两个模板文件。

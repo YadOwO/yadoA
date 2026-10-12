@@ -126,6 +126,8 @@ struct ProfileView: View {
                     DataUndoEntryView(container: modelContext.container) { rowDivider }
                         .labelStyle(ProfileExportLabelStyle())
                 }
+
+                versionFooter
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
@@ -139,16 +141,18 @@ struct ProfileView: View {
         }
     }
 
-    /// 本地应用没有登录身份，头像仅作视觉标识，不暗示可编辑的在线账户。
+    /// 本地应用没有登录身份，页头不放头像，改用产品标记与名称作为品牌露出。
     private var profileHeader: some View {
         VStack(spacing: 14) {
-            Image(systemName: "person.crop.circle.fill")
-                .font(.system(size: 88, weight: .light))
-                .foregroundStyle(Color.accentColor)
+            Image(.brandMark)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 88, height: 88)
                 .accessibilityHidden(true)
 
-            Text(verbatim: "yadoA")
+            Text(text("app.name"))
                 .font(.system(.title2, design: .serif, weight: .semibold))
+                .accessibilityIdentifier("profile-app-name")
 
             Text(text("profile.local_data"))
                 .font(.subheadline)
@@ -157,6 +161,24 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity)
         .padding(.top, 24)
         .padding(.bottom, 8)
+    }
+
+    /// 页面末尾的版本落款，便于反馈问题时确认所用版本。
+    private var versionFooter: some View {
+        Text(AccountLocalization.formatted("profile.version", value: Self.appVersion, locale: locale))
+            .font(.system(.footnote, design: .serif))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("profile-version")
+    }
+
+    /// 营销版本号与构建号，形如 `1.0 (1)`；缺少构建号时只显示版本号。
+    private static var appVersion: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        guard let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String, !build.isEmpty else {
+            return version
+        }
+        return "\(version) (\(build))"
     }
 
     /// 已停用账户的数量；为 0 时隐藏入口。

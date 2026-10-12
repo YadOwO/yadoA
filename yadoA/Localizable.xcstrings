@@ -160,13 +160,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open yadoA with an image to enter a transaction manually. Use Take Screenshot before this action."
+            "value": "Open Yado Asset with an image to enter a transaction manually. Use Take Screenshot before this action."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "接收截图并打开 yadoA 手动记账。请在此动作前添加“截屏”。"
+            "value": "接收截图并打开芽豆资产手动记账。请在此动作前添加“截屏”。"
           }
         }
       }
@@ -415,13 +415,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "In Settings, follow this path and choose “yadoA 截图记账”."
+            "value": "In Settings, follow this path and choose “芽豆资产截图记账”."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在系统设置中按下方路径，选择“yadoA 截图记账”。"
+            "value": "在系统设置中按下方路径，选择“芽豆资产截图记账”。"
           }
         }
       }
@@ -2598,13 +2598,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This isn't a valid yadoA backup, or the file is damaged."
+            "value" : "This isn't a valid Yado Asset backup, or the file is damaged."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这不是有效的 yadoA 备份文件，或文件已损坏。"
+            "value" : "这不是有效的芽豆资产备份文件，或文件已损坏。"
           }
         }
       }
@@ -2615,13 +2615,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This backup was created by a newer version of yadoA. Update the app, then try again."
+            "value" : "This backup was created by a newer version of Yado Asset. Update the app, then try again."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这份备份由更新版本的 yadoA 生成，请先升级 App 再恢复。"
+            "value" : "这份备份由更新版本的芽豆资产生成，请先升级 App 再恢复。"
           }
         }
       }
@@ -6246,6 +6246,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "后四位，可选"
+          }
+        }
+      }
+    },
+    "app.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado Asset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆资产"
+          }
+        }
+      }
+    },
+    "profile.version" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "版本 %@"
           }
         }
       }

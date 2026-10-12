@@ -8,7 +8,7 @@
 			<key>UTTypeIdentifier</key>
 			<string>com.yado.yadoA.backup</string>
 			<key>UTTypeDescription</key>
-			<string>yadoA Backup</string>
+			<string>Yado Asset Backup</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.json</string>
