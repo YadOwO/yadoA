@@ -74,6 +74,7 @@ struct AccountManagementView: View {
 
             LedgerCard(seed: 118) {
                 DataExportEntryView(container: modelContext.container)
+                DataImportEntryView(container: modelContext.container)
             }
 
             LedgerCard(seed: 119) {

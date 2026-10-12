@@ -47,6 +47,11 @@ struct ProfileView: View {
                 settingsSection("profile.section.data") {
                     DataExportEntryView(container: modelContext.container)
                         .labelStyle(ProfileExportLabelStyle())
+
+                    rowDivider
+
+                    DataImportEntryView(container: modelContext.container)
+                        .labelStyle(ProfileExportLabelStyle())
                 }
 
                 settingsSection("shortcut.screenshot.section") {
@@ -221,7 +226,7 @@ private struct ProfileSettingsLabelStyle: LabelStyle {
         .modelContainer(for: [Account.self, AccountTransaction.self, BookkeepingPreference.self], inMemory: true)
 }
 
-/// 将导出行的留白纳入 Button 标签，使整张卡片均可点击。
+/// 将导出与恢复行的留白纳入 Button 标签，使整行均可点击。
 private struct ProfileExportLabelStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         Label(configuration)

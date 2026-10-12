@@ -44,6 +44,21 @@ extension XCTestCase {
         return app
     }
 
+    /// 使用数据导出夹具作为现有数据，并启用备份恢复夹具替代系统文件选择器。
+    @MainActor
+    func launchImportFixtureInEnglish() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "--ui-testing-in-memory",
+            "--ui-testing-export-fixture",
+            "--ui-testing-import-fixture",
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US"
+        ]
+        app.launch()
+        return app
+    }
+
     /// 使用记账搜索专用夹具和固定英文环境启动应用。
     @MainActor
     func launchBookkeepingSearchFixtureInEnglish() -> XCUIApplication {
