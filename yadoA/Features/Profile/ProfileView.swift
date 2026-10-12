@@ -1,9 +1,8 @@
 import SwiftData
 import SwiftUI
 
-/// 个人设置入口：以分组卡片承载账户、备份、语言与外观等本机偏好。
+/// “我的”Tab 根页面：以分组卡片承载账户、备份、语言与外观等本机偏好。
 struct ProfileView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
     @Environment(\.modelContext) private var modelContext
     @Query private var accounts: [Account]
@@ -39,6 +38,7 @@ struct ProfileView: View {
 
                         NavigationLink {
                             DeactivatedAccountListView()
+                                .secondaryPage()
                         } label: {
                             row(
                                 "account.deactivated.title",
@@ -102,6 +102,7 @@ struct ProfileView: View {
                 settingsSection("shortcut.screenshot.section") {
                     NavigationLink {
                         ScreenshotShortcutSetupView()
+                            .secondaryPage()
                     } label: {
                         row("shortcut.screenshot.title", symbol: "viewfinder", value: "")
                     }
@@ -133,17 +134,6 @@ struct ProfileView: View {
         .paperPage()
         .navigationTitle(text("profile.title"))
         .navigationBarTitleDisplayMode(.inline)
-        .preferredColorScheme(appearance.colorScheme)
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark")
-                        .font(.body.weight(.semibold))
-                }
-                .accessibilityLabel(text("common.close"))
-                .accessibilityIdentifier("profile-close")
-            }
-        }
         .sheet(isPresented: $isDefaultSelectionPresented) {
             NavigationStack { DefaultAccountSelectionView() }
         }

@@ -12,8 +12,8 @@ enum AppTab: String, CaseIterable, Hashable {
     /// 本地账户管理入口。
     case accounts
 
-    /// 跨账户记账搜索入口，使用系统原生搜索 Tab 外观。
-    case search
+    /// “我的”入口：承载账户、显示、备份等本机设置。
+    case profile
 
     /// 用户未选择启动页面时默认展示记账页。
     static let initial: AppTab = .home
@@ -27,8 +27,8 @@ enum AppTab: String, CaseIterable, Hashable {
             "app.tab.charts"
         case .accounts:
             "account.list.title"
-        case .search:
-            "bookkeeping.search.title"
+        case .profile:
+            "profile.title"
         }
     }
 
@@ -41,17 +41,17 @@ enum AppTab: String, CaseIterable, Hashable {
             "chart.bar.xaxis"
         case .accounts:
             "creditcard"
-        case .search:
-            "magnifyingglass"
+        case .profile:
+            "person.crop.circle"
         }
     }
 
-    /// 按启动页面重排底部导航：启动页面排第一，其余保持原有相对顺序，搜索始终在最后。
+    /// 按启动页面重排底部导航：启动页面排第一，其余保持原有相对顺序，“我的”始终在最右。
     ///
     /// - Parameter first: 用户选择的启动页面对应的 Tab。
     /// - Returns: 底部导航从左到右的 Tab 顺序。
     static func ordered(startingWith first: AppTab) -> [AppTab] {
-        guard first != .search else { return allCases }
+        guard first != .profile else { return allCases }
         return [first] + allCases.filter { $0 != first }
     }
 
@@ -69,6 +69,9 @@ enum HomeRoute: Hashable {
     /// 新增支出页面。
     case expenseEntry
 
+    /// 跨账户记账搜索页面；搜索只针对记账流水，因此归在记账页下。
+    case search
+
     /// 统一收支详情入口。
     case transactionDetail(UUID)
 }
@@ -82,29 +85,21 @@ enum AccountsRoute: Hashable {
     case transactionDetail(UUID)
 }
 
-/// 搜索导航栈支持的二级页面。
-enum SearchRoute: Hashable {
-    /// 指定流水的详情页面。
-    case transactionDetail(UUID)
-}
-
-/// 应用根级导航，Tab 外观与搜索入口布局跟随系统版本。
+/// 应用根级导航：记账、图表、账户与“我的”四个一级入口。
 struct AppTabView: View {
     @Environment(\.locale) private var locale
     @Environment(\.modelContext) private var modelContext
-    /// 用户选择的启动页面；对应 Tab 排在底部导航第一位，修改后立即重排。
+    /// 用户选择的启动页面；对应 Tab 排在底部导航第一位，修改后立即重建并重排。
     @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
     /// 冷启动时落在用户选择的启动页面；之后在设置里修改不会打断当前所在 Tab。
     @State private var selectedTab: AppTab = AppStartPage.stored().tab
     @State private var homePath: [HomeRoute] = []
     @State private var accountsPath: [AccountsRoute] = []
-    @State private var searchPath: [SearchRoute] = []
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            // 以 Tab 自身作为稳定标识，重排时保留各导航栈与已弹出的设置页。
             ForEach(AppTab.ordered(startingWith: startPage.tab), id: \.self) { tab in
-                Tab(value: tab, role: tab == .search ? .search : nil) {
+                Tab(value: tab) {
                     content(for: tab)
                 } label: {
                     Label(tab.title(locale: locale), systemImage: tab.symbolName)
@@ -112,6 +107,9 @@ struct AppTabView: View {
             }
         }
         .tabBarMinimizeOnScrollDownIfAvailable()
+        // 系统 Tab Bar 原地重排时图标与标题会错位，顺序变化时整体重建；
+        // 各导航路径保存在本视图，重建后仍然保留。
+        .id(startPage)
     }
 
     /// 各一级 Tab 的根页面及其导航栈。
@@ -132,6 +130,11 @@ struct AppTabView: View {
                                     container: modelContext.container
                                 )
                                 try repository.save(draft)
+                            }
+                            .secondaryPage()
+                        case .search:
+                            BookkeepingSearchView { transactionID in
+                                homePath.append(.transactionDetail(transactionID))
                             }
                             .secondaryPage()
                         case let .transactionDetail(transactionID):
@@ -162,18 +165,9 @@ struct AppTabView: View {
                         }
                     }
             }
-        case .search:
-            NavigationStack(path: $searchPath) {
-                BookkeepingSearchView { transactionID in
-                    searchPath.append(.transactionDetail(transactionID))
-                }
-                .navigationDestination(for: SearchRoute.self) { route in
-                    switch route {
-                    case let .transactionDetail(transactionID):
-                        BookkeepingTransactionDetailView(transactionID: transactionID)
-                            .secondaryPage()
-                    }
-                }
+        case .profile:
+            NavigationStack {
+                ProfileView()
             }
         }
     }

@@ -58,18 +58,15 @@ final class yadoAUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
         XCTAssertEqual(app.tabBars.buttons.element(boundBy: 0).label, "Ledger")
 
-        app.buttons["home-profile"].tap()
+        app.tabBars.buttons["Profile"].tap()
         let startPage = app.buttons["profile-start-page"]
         XCTAssertTrue(startPage.waitForExistence(timeout: 3))
         startPage.tap()
         app.buttons["Accounts"].firstMatch.tap()
 
-        // 重排 Tab 不应关掉正在展示的设置页。
+        // 重排 Tab 后仍停留在“我的”页面。
         XCTAssertTrue(startPage.waitForExistence(timeout: 3))
         XCTAssertTrue(startPage.label.contains("Accounts"))
-        app.buttons["profile-close"].tap()
-
-        XCTAssertTrue(app.navigationBars["Ledger"].waitForExistence(timeout: 3))
         XCTAssertEqual(app.tabBars.buttons.element(boundBy: 0).label, "Accounts")
         XCTAssertEqual(app.tabBars.buttons.element(boundBy: 1).label, "Ledger")
         XCTAssertEqual(app.tabBars.buttons.count, 4)

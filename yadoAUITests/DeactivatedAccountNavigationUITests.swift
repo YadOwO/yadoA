@@ -2,11 +2,11 @@ import XCTest
 
 /// 验证设置中的停用账户列表只压入对应详情，返回后仍停留在原列表。
 final class DeactivatedAccountNavigationUITests: XCTestCase {
-    /// 设置弹层中的停用账户流水可以打开详情并返回原账户。
+    /// “我的”页面中的停用账户流水可以打开详情并返回原账户。
     @MainActor
     func testProfileArchivedTransactionOpensAndReturns() throws {
         let app = launchBookkeepingSearchFixtureInEnglish()
-        let profile = app.buttons["home-profile"]
+        let profile = app.tabBars.buttons["Profile"]
         XCTAssertTrue(profile.waitForExistence(timeout: 5))
         profile.tap()
         app.staticTexts["Deactivated accounts"].tap()
@@ -57,7 +57,7 @@ final class DeactivatedAccountNavigationUITests: XCTestCase {
     func testProfileArchivedAccountOpensDetailsAndReturnsToOriginalList() throws {
         let app = launchExportFixtureInEnglish()
 
-        let profile = app.buttons["home-profile"]
+        let profile = app.tabBars.buttons["Profile"]
         XCTAssertTrue(profile.waitForExistence(timeout: 5))
         profile.tap()
         app.staticTexts["Deactivated accounts"].tap()

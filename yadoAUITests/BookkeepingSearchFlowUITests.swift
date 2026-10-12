@@ -1,13 +1,13 @@
 import XCTest
 
-/// 根级搜索入口、实时搜索、时间筛选和只读详情的 UI 自动化覆盖。
+/// 记账页搜索入口、实时搜索、时间筛选和只读详情的 UI 自动化覆盖。
 final class BookkeepingSearchFlowUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
 
     @MainActor
-    func testSearchTabOpensSearchPage() throws {
+    func testHomeSearchEntryOpensSearchPage() throws {
         let app = launchBookkeepingSearchFixtureInEnglish()
 
         XCTAssertEqual(app.tabBars.buttons.count, 4)
@@ -174,8 +174,6 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
             NSPredicate(format: "identifier BEGINSWITH 'bookkeeping-search-result-'")
         ).firstMatch
         XCTAssertTrue(result.waitForExistence(timeout: 3))
-        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
-        XCTAssertTrue(app.tabBars.firstMatch.isHittable)
         result.tap()
 
         XCTAssertTrue(app.navigationBars["Transaction Details"].waitForExistence(timeout: 3))
@@ -194,7 +192,10 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
         XCTAssertTrue(app.textFields["expense-edit-title"].exists)
         app.buttons["expense-edit-cancel"].tap()
 
+        // 详情返回搜索页，再返回记账页后 Tab Bar 才重新出现。
         app.navigationBars["Transaction Details"].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Search"].waitForExistence(timeout: 3))
+        app.navigationBars["Search"].buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
         XCTAssertEqual(app.tabBars.buttons.count, 4)
     }
@@ -229,9 +230,13 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
 
     @MainActor
     private func openSearch(in app: XCUIApplication) {
-        let searchTab = app.tabBars.buttons["Search"]
-        XCTAssertTrue(searchTab.waitForExistence(timeout: 3))
-        searchTab.tap()
+        let searchEntry = app.buttons["home-search"]
+        XCTAssertTrue(searchEntry.waitForExistence(timeout: 3))
+        searchEntry.tap()
         XCTAssertTrue(app.navigationBars["Search"].waitForExistence(timeout: 3))
+        XCTAssertTrue(
+            app.tabBars.firstMatch.waitForNonExistence(timeout: 3),
+            "搜索是记账页的二级页面，不应继续展示 Tab Bar"
+        )
     }
 }

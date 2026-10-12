@@ -8,35 +8,26 @@ struct HomeView: View {
     /// 用户最近一次选择的收支汇总显隐状态。
     @AppStorage("home.summary.amountsVisible") private var areAmountsVisible = false
 
-    /// 首页头像打开个人设置页。
-    @State private var isProfilePresented = false
-
     var body: some View {
         HomeQueryContent(areAmountsVisible: $areAmountsVisible)
             .navigationTitle(AppTab.home.title(locale: locale))
             // 标题仅供返回按钮和辅助功能使用，导航栏中部由月份入口占据。
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $isProfilePresented) {
-                NavigationStack {
-                    ProfileView()
-                }
-            }
             .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(value: HomeRoute.search) {
+                        Label(
+                            AccountLocalization.string("bookkeeping.search.title", locale: locale),
+                            systemImage: "magnifyingglass"
+                        )
+                    }
+                    .accessibilityIdentifier("home-search")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(value: HomeRoute.bills) {
                         Label(AccountLocalization.string("bill.title", locale: locale), systemImage: "doc.text")
                     }
                     .accessibilityIdentifier("home-bills")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isProfilePresented = true
-                    } label: {
-                        // 与旁边的账单图标同为线稿，放在同一块玻璃里轻重一致。
-                        Image(systemName: "person.crop.circle")
-                    }
-                    .accessibilityLabel(AccountLocalization.string("profile.title", locale: locale))
-                    .accessibilityIdentifier("home-profile")
                 }
             }
     }

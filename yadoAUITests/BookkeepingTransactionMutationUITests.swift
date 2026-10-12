@@ -86,7 +86,8 @@ final class BookkeepingTransactionMutationUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Transaction Details"].exists)
         delete.tap()
         confirmation.buttons["Delete Transaction"].tap()
-        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
+        // 删除后回到搜索页；搜索是二级页面，此时不展示 Tab Bar。
+        XCTAssertTrue(app.navigationBars["Search"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["No matching entries"].waitForExistence(timeout: 3))
     }
 
@@ -120,7 +121,9 @@ final class BookkeepingTransactionMutationUITests: XCTestCase {
     /// 打开只有一条匹配记录的搜索详情，避免依赖随机 UUID。
     @MainActor
     private func openSearchFixtureDetail(in app: XCUIApplication) {
-        app.tabBars.buttons["Search"].tap()
+        let searchEntry = app.buttons["home-search"]
+        XCTAssertTrue(searchEntry.waitForExistence(timeout: 3))
+        searchEntry.tap()
         let field = app.searchFields.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 3))
         field.tap()
