@@ -58,8 +58,23 @@ private struct StartPageDecoration: ViewModifier {
     /// 垫纸相对汇总框向右下错开的距离。
     private static let backingOffset = CGSize(width: 6, height: 7)
 
+    /// 缝线距离汇总框边缘的内缩量。
+    private static let stitchInset: CGFloat = 6
+
     func body(content: Content) -> some View {
         content
+            // 沿框内侧走一圈淡淡的缝线，像账本封皮的包边；比墨线框轻得多，不构成第二道边。
+            .overlay {
+                HandDrawnBox(cornerRadius: max(0, cornerRadius - Self.stitchInset), seed: seed &+ 2)
+                    .stroke(
+                        Color.accentColor.opacity(0.28),
+                        style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [3, 6])
+                    )
+                    .padding(Self.stitchInset)
+                    .opacity(isEnabled ? 1 : 0)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
             // 左上角贴一段胶带，一半压在框上、一半落在纸面上。
             .overlay(alignment: .topLeading) {
                 tape(seed: seed, angle: -5).offset(x: 22, y: -9)

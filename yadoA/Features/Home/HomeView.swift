@@ -551,21 +551,15 @@ private struct HomeOverviewList: View {
         .overlay(alignment: interaction.pull?.direction == .earlier ? .bottom : .top) {
             if let pull = interaction.pull,
                let month = targetMonth(for: pull.direction) {
-                Label {
-                    Text(AccountLocalization.formatted(
+                HomeMonthPullHint(
+                    text: AccountLocalization.formatted(
                         pull.isReady ? "home.month.pull.release" : "home.month.pull.continue",
                         value: month.formatted(locale: locale, calendar: calendar),
                         locale: locale
-                    ))
-                } icon: {
-                    Image(systemName: pull.direction == .later ? "arrow.down" : "arrow.up")
-                        .rotationEffect(.degrees(pull.isReady ? 180 : 0))
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(.regularMaterial, in: Capsule())
+                    ),
+                    direction: pull.direction,
+                    isReady: pull.isReady
+                )
                 .padding(8)
                 .padding(.bottom, pull.direction == .earlier ? bottomClearance : 0)
                 .allowsHitTesting(false)
@@ -622,6 +616,52 @@ private struct HomeOverviewList: View {
         case .earlier: return monthNavigator.earlierMonth(from: selectedMonth)
         case .later: return monthNavigator.laterMonth(from: selectedMonth)
         }
+    }
+}
+
+/// 边界拉动时的换月提示：像写在纸边的一行批注，不垫系统材质胶囊。
+///
+/// 未到阈值时是淡色小字；拉过阈值后字迹变实、箭头掉头，并在字下划出一条墨线，表示松手即可翻页。
+/// 顶部下拉与底部上拉共用这一个样式，只有箭头方向不同。
+private struct HomeMonthPullHint: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// 已本地化的提示文案，包含目标月份。
+    let text: String
+
+    /// 拉动方向，决定箭头朝向。
+    let direction: HomeMonthScrollInteraction.Direction
+
+    /// 是否已拉过阈值，松手即切换月份。
+    let isReady: Bool
+
+    var body: some View {
+        VStack(spacing: 3) {
+            HStack(spacing: 6) {
+                Image(systemName: direction == .later ? "arrow.down" : "arrow.up")
+                    .font(.caption.weight(.medium))
+                    .rotationEffect(.degrees(isReady ? 180 : 0))
+                    .accessibilityHidden(true)
+                Text(text)
+                    .font(.system(.footnote, design: .serif))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .foregroundStyle(isReady ? Color.primary : Color.secondary)
+
+            // 墨线从左向右划出，与日期标题下的重线同一种笔迹。
+            HandDrawnRule(seed: direction == .later ? 31 : 37)
+                .trim(from: 0, to: isReady ? 1 : 0)
+                .stroke(Color.primary.opacity(0.6), style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+                .frame(height: 3)
+                .accessibilityHidden(true)
+        }
+        .fixedSize()
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        // 垫一块与页面同色的纸，提示压到流水上时仍然清楚，落在空白处则看不出底。
+        .background(Color(.paperBackground).opacity(0.92), in: Capsule())
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isReady)
     }
 }
 
