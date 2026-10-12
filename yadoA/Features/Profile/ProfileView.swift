@@ -15,6 +15,8 @@ struct ProfileView: View {
     @AppStorage(AppLanguage.storageKey) private var language: AppLanguage = .system
     /// 与窗口根部共享外观偏好，修改后立即同步亮暗色。
     @AppStorage(AppAppearance.storageKey) private var appearance: AppAppearance = .system
+    /// 启动页面偏好：底部导航顺序立即更新，落点在下次冷启动时生效。
+    @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
     /// 默认账户选择沿用现有独立弹层流程。
     @State private var isDefaultSelectionPresented = false
 
@@ -72,6 +74,19 @@ struct ProfileView: View {
                         row("profile.appearance.title", symbol: "circle.lefthalf.filled", value: text(appearance.titleLocalizationKey))
                     }
                     .accessibilityIdentifier("profile-appearance")
+
+                    rowDivider
+
+                    Menu {
+                        Picker(text("profile.start_page.title"), selection: $startPage) {
+                            ForEach(AppStartPage.allCases) { option in
+                                Text(text(option.titleLocalizationKey)).tag(option)
+                            }
+                        }
+                    } label: {
+                        row("profile.start_page.title", symbol: "house", value: text(startPage.titleLocalizationKey))
+                    }
+                    .accessibilityIdentifier("profile-start-page")
 
                     rowDivider
 

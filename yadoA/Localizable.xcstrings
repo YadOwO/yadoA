@@ -18,6 +18,23 @@
         }
       }
     },
+    "profile.start_page.title" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open on Launch"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启动页面"
+          }
+        }
+      }
+    },
     "profile.appearance.title" : {
       "extractionState": "manual",
       "localizations": {
@@ -1082,13 +1099,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Show home amounts"
+            "value": "Show ledger amounts"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "显示首页金额"
+            "value": "显示记账页金额"
           }
         }
       }
@@ -3907,13 +3924,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home"
+            "value" : "Ledger"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "首页"
+            "value" : "记账"
           }
         }
       }

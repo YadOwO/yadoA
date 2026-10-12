@@ -74,7 +74,7 @@ final class HomeOverviewFlowUITests: XCTestCase {
     func testFixtureShowsHomeDataAndMonthPickerCanCancel() throws {
         let app = launchHomeFixtureInEnglish()
 
-        XCTAssertTrue(app.navigationBars["Home"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Ledger"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["home-month-selector"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["home-summary-visibility"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 3))

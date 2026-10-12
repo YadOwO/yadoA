@@ -43,13 +43,36 @@ final class yadoAUITests: XCTestCase {
     func testAppStartsOnHomeAndCanSwitchToAccounts() throws {
         let app = launchIsolatedAppInEnglish()
 
-        XCTAssertTrue(app.navigationBars["Home"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Ledger"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.otherElements["home-details-empty"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["account-list-empty-add"].exists)
 
         openAccountsTab(in: app)
 
         XCTAssertTrue(app.buttons["account-list-empty-add"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testChoosingAccountsAsStartPageMovesItsTabFirst() throws {
+        let app = launchIsolatedAppInEnglish()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
+        XCTAssertEqual(app.tabBars.buttons.element(boundBy: 0).label, "Ledger")
+
+        app.buttons["home-profile"].tap()
+        let startPage = app.buttons["profile-start-page"]
+        XCTAssertTrue(startPage.waitForExistence(timeout: 3))
+        startPage.tap()
+        app.buttons["Accounts"].firstMatch.tap()
+
+        // 重排 Tab 不应关掉正在展示的设置页。
+        XCTAssertTrue(startPage.waitForExistence(timeout: 3))
+        XCTAssertTrue(startPage.label.contains("Accounts"))
+        app.buttons["profile-close"].tap()
+
+        XCTAssertTrue(app.navigationBars["Ledger"].waitForExistence(timeout: 3))
+        XCTAssertEqual(app.tabBars.buttons.element(boundBy: 0).label, "Accounts")
+        XCTAssertEqual(app.tabBars.buttons.element(boundBy: 1).label, "Ledger")
+        XCTAssertEqual(app.tabBars.buttons.count, 4)
     }
 
     @MainActor

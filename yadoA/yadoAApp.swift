@@ -26,6 +26,8 @@ struct yadoAApp: App {
                     : try AccountDataContainer.inMemory()
                 // 最近搜索存在 UserDefaults 里，隔离启动时清掉，避免上一次自动化的搜索词串进来。
                 UserDefaults.standard.removeObject(forKey: BookkeepingSearchHistory.storageKey)
+                // 启动页面偏好同样存在 UserDefaults 里，隔离启动时恢复为记账页，保证自动化落点与 Tab 顺序稳定。
+                UserDefaults.standard.removeObject(forKey: AppStartPage.storageKey)
                 if ProcessInfo.processInfo.arguments.contains("--ui-testing-home-fixture") {
                     if ProcessInfo.processInfo.arguments.contains("--ui-testing-reset-home-summary-visibility") {
                         UserDefaults.standard.set(false, forKey: "home.summary.amountsVisible")

@@ -58,6 +58,39 @@ enum AppAppearance: String, CaseIterable, Identifiable {
     }
 }
 
+/// 应用启动后首先展示的一级页面偏好；决定冷启动落点，并让对应 Tab 排在底部导航第一位。
+enum AppStartPage: String, CaseIterable, Identifiable {
+    /// 启动后进入记账页。
+    case home
+    /// 启动后进入账户列表。
+    case accounts
+
+    /// 在本机保存的启动页面偏好键。
+    static let storageKey = "app.display.startPage"
+
+    /// 选择项的稳定标识。
+    var id: String { rawValue }
+
+    /// 启动页面对应的一级 Tab。
+    var tab: AppTab {
+        switch self {
+        case .home: .home
+        case .accounts: .accounts
+        }
+    }
+
+    /// 选择项标题直接沿用对应 Tab 的本地化资源键，保证与底部导航文案一致。
+    var titleLocalizationKey: String { tab.titleLocalizationKey }
+
+    /// 读取已保存的启动页面；未设置或值无法识别时回退到记账页。
+    ///
+    /// - Parameter defaults: 保存偏好的本机存储，测试时可注入隔离实例。
+    /// - Returns: 当前生效的启动页面。
+    static func stored(in defaults: UserDefaults = .standard) -> AppStartPage {
+        defaults.string(forKey: storageKey).flatMap(AppStartPage.init(rawValue:)) ?? .home
+    }
+}
+
 /// 在窗口根部应用显示偏好，使各 Tab 与其弹层共享同一语言和外观。
 struct AppDisplayPreferencesModifier: ViewModifier {
     @Environment(\.locale) private var systemLocale
