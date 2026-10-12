@@ -48,6 +48,139 @@ enum BookkeepingSearchTimeFilter: Equatable, Sendable {
     }
 }
 
+/// 搜索页一点即用的常用时间范围。
+enum BookkeepingSearchTimePreset: String, CaseIterable, Identifiable, Sendable {
+    /// 今天所在的自然月。
+    case thisMonth
+
+    /// 今天所在自然月的上一个月。
+    case lastMonth
+
+    /// 今天所在的自然年。
+    case thisYear
+
+    /// 使用稳定原始值作为标识。
+    var id: String { rawValue }
+
+    /// 筛选条上显示的本地化键。
+    var titleLocalizationKey: String {
+        switch self {
+        case .thisMonth: "bookkeeping.search.preset.this_month"
+        case .lastMonth: "bookkeeping.search.preset.last_month"
+        case .thisYear: "bookkeeping.search.preset.this_year"
+        }
+    }
+
+    /// 以 `today` 为基准算出这段时间的完整业务日闭区间。
+    ///
+    /// 范围覆盖整个月或整年而不是截到今天，提前记下的未来日期流水也能搜到。
+    ///
+    /// - Parameters:
+    ///   - today: 当前时间。
+    ///   - calendar: 提供时区的日历，内部统一按公历计算。
+    /// - Returns: 对应的日期范围；日历无法推算时为 `nil`。
+    func range(today: Date, calendar source: Calendar) -> BookkeepingSearchDateRange? {
+        let calendar = TransactionDay.gregorianCalendar(basedOn: source)
+        let component: Calendar.Component = self == .thisYear ? .year : .month
+        let anchor = self == .lastMonth
+            ? calendar.date(byAdding: .month, value: -1, to: today)
+            : today
+        guard let anchor,
+              let interval = calendar.dateInterval(of: component, for: anchor),
+              let lastDay = calendar.date(byAdding: .day, value: -1, to: interval.end)
+        else {
+            return nil
+        }
+        return BookkeepingSearchDateRange(
+            startDay: TransactionDay.encode(interval.start, calendar: calendar),
+            endDay: TransactionDay.encode(lastDay, calendar: calendar)
+        )
+    }
+}
+
+/// 搜索页已选中的收支方向条件。
+enum BookkeepingSearchEntryFilter: Equatable, Sendable {
+    /// 收入和支出都搜。
+    case all
+
+    /// 只搜支出。
+    case expense
+
+    /// 只搜收入。
+    case income
+
+    /// 当前条件是否不限制收支方向。
+    var isUnbounded: Bool { self == .all }
+
+    /// 判断一笔流水的收支方向是否符合当前条件。
+    func matches(_ entryType: BookkeepingEntryType) -> Bool {
+        switch self {
+        case .all: true
+        case .expense: entryType == .expense
+        case .income: entryType == .income
+        }
+    }
+}
+
+/// 搜索前展示的分类快捷入口。
+struct BookkeepingSearchSuggestion: Identifiable, Equatable, Sendable {
+    /// 当前语言环境下的分类名称，点击后直接作为关键词。
+    let title: String
+
+    /// 分类使用的 SF Symbol 名称。
+    let symbolName: String
+
+    /// 分类名称在建议列表中已去重，可直接作为标识。
+    var id: String { title }
+}
+
+/// 当前搜索结果的笔数与收支合计。
+struct BookkeepingSearchSummary: Equatable, Sendable {
+    /// 匹配的流水笔数。
+    let count: Int
+
+    /// 匹配流水中的收入合计。
+    let incomeTotal: Decimal
+
+    /// 匹配流水中的支出合计（正数）。
+    let expenseTotal: Decimal
+}
+
+/// 最近搜索词的保存规则：最新的排最前，忽略大小写去重，只留最近几条。
+enum BookkeepingSearchHistory {
+    /// 最近搜索词在 `UserDefaults` 中的键。
+    static let storageKey = "bookkeeping.search.recentQueries"
+
+    /// 最多保留的搜索词数量。
+    static let limit = 8
+
+    /// 把存储的文本拆回搜索词列表；搜索栏是单行输入，按换行分隔不会拆坏关键词。
+    static func decode(_ stored: String) -> [String] {
+        stored.split(separator: "\n").map(String.init)
+    }
+
+    /// 把搜索词列表拼成可存储的文本。
+    static func encode(_ queries: [String]) -> String {
+        queries.joined(separator: "\n")
+    }
+
+    /// 记下一次搜索。
+    ///
+    /// - Parameters:
+    ///   - query: 用户刚用过的关键词，首尾空白会被去掉；为空时列表不变。
+    ///   - queries: 现有的最近搜索词，最新的在前。
+    /// - Returns: 更新后的列表。
+    static func adding(_ query: String, to queries: [String]) -> [String] {
+        let cleaned = query
+            .components(separatedBy: .newlines)
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespaces)
+        guard !cleaned.isEmpty else { return queries }
+        let others = queries.filter { $0.caseInsensitiveCompare(cleaned) != .orderedSame }
+        return Array(([cleaned] + others).prefix(limit))
+    }
+}
+
 /// 搜索结果关联账户的只读生命周期状态。
 enum BookkeepingTransactionAccountState: Equatable, Sendable {
     /// 账户存在且仍可用，详情允许显示未来编辑入口。
@@ -89,8 +222,14 @@ struct BookkeepingSearchRowPresentation: Identifiable, Equatable {
     /// 当前语言环境下的真实分类名称。
     let categoryTitle: String
 
+    /// 分类使用的 SF Symbol 名称。
+    let symbolName: String
+
     /// 使用负向金额表示支出的本地化金额。
     let formattedAmount: String
+
+    /// 这一行是否因为金额与关键词相等而被搜到，用于标出金额。
+    let matchesAmount: Bool
 
     /// 该行对应的 `YYYYMMDD` 业务日。
     let transactionDay: Int
@@ -131,7 +270,7 @@ struct BookkeepingSearchDayPresentation: Identifiable, Equatable {
 
 /// 搜索页由已提交条件派生出的三种页面状态。
 enum BookkeepingSearchState: Equatable, Sendable {
-    /// 没有关键词且没有时间条件，等待用户开始搜索。
+    /// 没有关键词，也没有时间和收支方向条件，等待用户开始搜索。
     case initial
 
     /// 已执行条件但没有匹配流水。
@@ -149,14 +288,26 @@ struct BookkeepingSearchPresentation {
     /// 已提交的时间条件。
     let timeFilter: BookkeepingSearchTimeFilter
 
+    /// 已选中的收支方向条件。
+    let entryFilter: BookkeepingSearchEntryFilter
+
     /// 当前条件派生出的页面状态。
     let state: BookkeepingSearchState
 
     /// 按业务日倒序排列的结果分组。
     let dayGroups: [BookkeepingSearchDayPresentation]
 
+    /// 结果的笔数与收支合计；没有结果时为空。
+    let summary: BookkeepingSearchSummary?
+
     /// 初始页中最近有效记账的类别建议，按本地化名称去重且最多展示五项。
-    let suggestedCategories: [String]
+    let suggestions: [BookkeepingSearchSuggestion]
+
+    /// 类别建议的名称列表。
+    var suggestedCategories: [String] { suggestions.map(\.title) }
+
+    /// 初始页最多展示的类别建议数量。
+    static let suggestionLimit = 5
 
     /// 复用首页的跨账户稳定排序描述符，避免查询层出现不同顺序。
     static func descriptor() -> FetchDescriptor<AccountTransaction> {
@@ -194,6 +345,7 @@ struct BookkeepingSearchPresentation {
     ///   - accounts: SwiftData 提供的启用与停用账户快照。
     ///   - query: 用户当前输入的原始关键词。
     ///   - timeFilter: 已提交的业务日条件。
+    ///   - entryFilter: 已选中的收支方向条件。
     ///   - calendar: 提供业务日时区的日历。
     ///   - locale: 提供分类、金额和日期本地化的语言环境。
     init(
@@ -201,6 +353,7 @@ struct BookkeepingSearchPresentation {
         accounts: [Account],
         query: String,
         timeFilter: BookkeepingSearchTimeFilter = .all,
+        entryFilter: BookkeepingSearchEntryFilter = .all,
         calendar sourceCalendar: Calendar = .current,
         locale: Locale = .current
     ) {
@@ -211,14 +364,16 @@ struct BookkeepingSearchPresentation {
         )
         self.normalizedQuery = normalizedQuery
         self.timeFilter = timeFilter
+        self.entryFilter = entryFilter
 
-        guard !normalizedQuery.isEmpty || !timeFilter.isUnbounded else {
+        guard !normalizedQuery.isEmpty || !timeFilter.isUnbounded || !entryFilter.isUnbounded else {
             self.state = .initial
             self.dayGroups = []
-            self.suggestedCategories = Self.categorySuggestions(from: transactions, locale: locale)
+            self.summary = nil
+            self.suggestions = Self.categorySuggestions(from: transactions, locale: locale)
             return
         }
-        self.suggestedCategories = []
+        self.suggestions = []
 
         var accountsByID: [UUID: Account] = [:]
         accountsByID.reserveCapacity(accounts.count)
@@ -246,6 +401,9 @@ struct BookkeepingSearchPresentation {
                 else {
                     return nil
                 }
+                guard entryFilter.matches(searchablePayload.entryType) else {
+                    return nil
+                }
                 let amount = searchablePayload.amount
                 let categoryTitle = searchablePayload.categoryTitle
 
@@ -271,6 +429,9 @@ struct BookkeepingSearchPresentation {
                     amount: amount,
                     entryType: searchablePayload.entryType,
                     categoryTitle: categoryTitle,
+                    // 图标只为通过全部条件的流水解析，不增加被过滤流水的计算。
+                    symbolName: payload.categorySymbolName ?? Self.fallbackSymbolName,
+                    matchesAmount: parsedAmount == amount,
                     accountName: account?.name,
                     accountState: BookkeepingTransactionAccountState(account: account),
                     note: note
@@ -309,6 +470,39 @@ struct BookkeepingSearchPresentation {
         }
         self.dayGroups = dayGroups
         self.state = dayGroups.isEmpty ? .noResults : .results
+        self.summary = dayGroups.isEmpty
+            ? nil
+            : BookkeepingSearchSummary(
+                count: validTransactions.count,
+                incomeTotal: validTransactions.reduce(into: Decimal.zero) { total, item in
+                    if item.entryType == .income { total += item.amount }
+                },
+                expenseTotal: validTransactions.reduce(into: Decimal.zero) { total, item in
+                    if item.entryType == .expense { total += item.amount }
+                }
+            )
+    }
+
+    /// 分类图标缺失时使用的通用图标。
+    private static let fallbackSymbolName = "tag"
+
+    /// 关键词在一段文字里命中的位置，供结果行标出命中的字。
+    ///
+    /// 使用与搜索相同的匹配规则，保证标出来的正是被搜到的部分。
+    ///
+    /// - Parameters:
+    ///   - query: 用户输入的关键词，首尾空白会被去掉。
+    ///   - value: 结果行上显示的分类或备注。
+    ///   - locale: 匹配使用的语言环境。
+    /// - Returns: 首个命中的范围；关键词为空或没有命中时为 `nil`。
+    static func matchRange(of query: String, in value: String, locale: Locale) -> Range<String.Index>? {
+        let cleaned = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return nil }
+        return value.range(
+            of: cleaned,
+            options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+            locale: locale
+        )
     }
 
     /// 按稳定流水 UUID 定向解析详情，不会缺失时降级到其他流水。
@@ -419,6 +613,12 @@ struct BookkeepingSearchPresentation {
         /// 当前语言环境下的分类名称。
         let categoryTitle: String
 
+        /// 分类使用的 SF Symbol 名称。
+        let symbolName: String
+
+        /// 金额是否与关键词解析出的金额相等。
+        let matchesAmount: Bool
+
         /// 关联账户名称；孤立流水为空。
         let accountName: String?
 
@@ -445,8 +645,8 @@ struct BookkeepingSearchPresentation {
     private static func categorySuggestions(
         from transactions: [AccountTransaction],
         locale: Locale
-    ) -> [String] {
-        var titles: [String] = []
+    ) -> [BookkeepingSearchSuggestion] {
+        var suggestions: [BookkeepingSearchSuggestion] = []
         var seenTitles: Set<String> = []
         var categoryTitles: [String: String] = [:]
         let orderedTransactions = AccountTransactionOrdering.sorted(transactions) { $0 }
@@ -460,10 +660,15 @@ struct BookkeepingSearchPresentation {
                   ),
                   seenTitles.insert(searchable.categoryTitle).inserted
             else { continue }
-            titles.append(searchable.categoryTitle)
-            if titles.count == 5 { break }
+            suggestions.append(
+                BookkeepingSearchSuggestion(
+                    title: searchable.categoryTitle,
+                    symbolName: payload.categorySymbolName ?? fallbackSymbolName
+                )
+            )
+            if suggestions.count == suggestionLimit { break }
         }
-        return titles
+        return suggestions
     }
 
     /// 将有效收支载荷转换为搜索语义，排除余额调整。
@@ -522,7 +727,9 @@ struct BookkeepingSearchPresentation {
         return BookkeepingSearchRowPresentation(
             id: transaction.transaction.id,
             categoryTitle: transaction.categoryTitle,
+            symbolName: transaction.symbolName,
             formattedAmount: formattedAmount,
+            matchesAmount: transaction.matchesAmount,
             transactionDay: transaction.transaction.transactionDay,
             formattedDate: formattedDate,
             accountName: transaction.accountName,
@@ -549,11 +756,7 @@ struct BookkeepingSearchPresentation {
 
     /// 使用注入语言环境进行不区分大小写和变音符的包含匹配。
     private static func contains(_ query: String, in value: String, locale: Locale) -> Bool {
-        value.range(
-            of: query,
-            options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
-            locale: locale
-        ) != nil
+        matchRange(of: query, in: value, locale: locale) != nil
     }
 
     /// 将空白可选文本归一为 `nil`，避免脏数据影响匹配和展示。

@@ -170,10 +170,93 @@ struct HandDrawnTrendIllustration: View {
     }
 }
 
+/// 手绘放大镜的各个部分。
+private struct HandDrawnMagnifierShape: Shape {
+    /// 放大镜插画的组成部分。
+    enum Part {
+        /// 墨线画的镜框和手柄。
+        case frame
+        /// 镜片里淡色的一行字迹。
+        case details
+        /// 镜片里被找到、用红笔划出的那一行。
+        case mark
+    }
+
+    /// 当前绘制的部分。
+    let part: Part
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        switch part {
+        case .frame:
+            // 镜框一笔画完，收笔处越过起笔点一小段；手柄另起一笔，略微出头。
+            path.addArc(
+                center: CGPoint(x: 52, y: 44),
+                radius: 27,
+                startAngle: .degrees(-112),
+                endAngle: .degrees(262),
+                clockwise: false
+            )
+            path.move(to: CGPoint(x: 70, y: 63.5))
+            path.addCurve(to: CGPoint(x: 96, y: 87), control1: CGPoint(x: 79, y: 70), control2: CGPoint(x: 87, y: 80))
+        case .details:
+            path.move(to: CGPoint(x: 37, y: 37))
+            path.addCurve(to: CGPoint(x: 64, y: 36.5), control1: CGPoint(x: 46, y: 36), control2: CGPoint(x: 56, y: 38))
+        case .mark:
+            path.move(to: CGPoint(x: 37, y: 50))
+            path.addCurve(to: CGPoint(x: 68, y: 49), control1: CGPoint(x: 47, y: 48.6), control2: CGPoint(x: 58, y: 51))
+        }
+        return HandDrawnIllustrationCanvas.fit(path, in: rect)
+    }
+}
+
+/// 搜索空状态使用的手绘放大镜：墨线画出的镜框，镜片里用账本红划出找到的那一行。
+///
+/// 墨线使用系统主文字色，随浅色、深色外观自动切换；出现时红线会画一遍。
+struct HandDrawnMagnifierIllustration: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// 插画宽度，高度按设计画布比例确定。
+    var width: CGFloat = 112
+
+    /// 红线的书写进度。
+    @State private var markProgress: CGFloat = 0
+
+    var body: some View {
+        let scale = width / HandDrawnIllustrationCanvas.size.width
+        let stroke = StrokeStyle(lineWidth: 3 * scale, lineCap: .round, lineJoin: .round)
+
+        ZStack {
+            HandDrawnMagnifierShape(part: .frame)
+                .stroke(Color.primary, style: stroke)
+            HandDrawnMagnifierShape(part: .details)
+                .stroke(Color.primary.opacity(0.3), style: stroke)
+            HandDrawnMagnifierShape(part: .mark)
+                .trim(from: 0, to: markProgress)
+                .stroke(
+                    Color(.ledgerRed),
+                    style: StrokeStyle(lineWidth: 4 * scale, lineCap: .round, lineJoin: .round)
+                )
+        }
+        .frame(width: width, height: HandDrawnIllustrationCanvas.size.height * scale)
+        .accessibilityHidden(true)
+        .onAppear {
+            if reduceMotion {
+                markProgress = 1
+            } else {
+                withAnimation(.easeInOut(duration: 0.45).delay(0.35)) {
+                    markProgress = 1
+                }
+            }
+        }
+    }
+}
+
 #Preview {
     VStack(spacing: 40) {
         HandDrawnCardIllustration()
         HandDrawnTrendIllustration()
+        HandDrawnMagnifierIllustration()
     }
     .padding(40)
 }

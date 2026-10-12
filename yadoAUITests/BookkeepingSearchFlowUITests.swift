@@ -12,7 +12,9 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
 
         XCTAssertEqual(app.tabBars.buttons.count, 4)
         openSearch(in: app)
-        XCTAssertTrue(app.staticTexts["Search your bookkeeping"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Recent categories"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["bookkeeping-search-type-expense"].exists)
+        XCTAssertTrue(app.buttons["bookkeeping-search-preset-thisMonth"].exists)
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Search landing"
         screenshot.lifetime = .keepAlways
@@ -52,7 +54,8 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
         screenshot.lifetime = .keepAlways
         add(screenshot)
         clearFilter.tap()
-        XCTAssertTrue(app.otherElements["bookkeeping-search-applied-range"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(clearFilter.waitForNonExistence(timeout: 3))
+        XCTAssertEqual(app.buttons["bookkeeping-search-filter"].value as? String, "Any time")
         XCTAssertEqual(app.searchFields.firstMatch.value as? String, "missing entry")
         XCTAssertTrue(app.staticTexts["No entries match “missing entry”."].exists)
     }
@@ -96,10 +99,65 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
         XCTAssertTrue(app.datePickers["bookkeeping-search-filter-end"].exists)
         app.buttons["bookkeeping-search-filter-confirm"].tap()
 
-        XCTAssertTrue(app.otherElements["bookkeeping-search-applied-range"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["bookkeeping-search-range-clear"].exists)
-        app.buttons["bookkeeping-search-range-clear"].tap()
-        XCTAssertTrue(app.staticTexts["Search your bookkeeping"].waitForExistence(timeout: 3))
+        XCTAssertNotEqual(app.buttons["bookkeeping-search-filter"].value as? String, "Any time")
+        app.buttons["bookkeeping-search-filter"].tap()
+        app.buttons["bookkeeping-search-filter-clear"].tap()
+        XCTAssertTrue(app.staticTexts["Recent categories"].waitForExistence(timeout: 3))
+        XCTAssertEqual(app.buttons["bookkeeping-search-filter"].value as? String, "Any time")
+    }
+
+    /// 筛选标签点一下选中并直接出结果，再点一下取消并回到初始页。
+    @MainActor
+    func testFilterChipsToggleResults() throws {
+        let app = launchBookkeepingSearchFixtureInEnglish()
+        openSearch(in: app)
+
+        let expense = app.buttons["bookkeeping-search-type-expense"]
+        XCTAssertTrue(expense.waitForExistence(timeout: 3))
+        expense.tap()
+        XCTAssertTrue(
+            app.buttons.matching(
+                NSPredicate(format: "identifier BEGINSWITH 'bookkeeping-search-result-'")
+            ).firstMatch.waitForExistence(timeout: 3)
+        )
+        XCTAssertTrue(app.staticTexts["bookkeeping-search-summary"].exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Search results with type filter"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+
+        expense.tap()
+        XCTAssertTrue(app.staticTexts["Recent categories"].waitForExistence(timeout: 3))
+    }
+
+    /// 点开过结果的关键词会出现在最近搜索里，点一下即可再次搜索，也可以整体清除。
+    @MainActor
+    func testOpenedQueryAppearsInRecentSearches() throws {
+        let app = launchBookkeepingSearchFixtureInEnglish()
+        openSearch(in: app)
+
+        let searchField = app.searchFields.firstMatch
+        XCTAssertTrue(searchField.waitForExistence(timeout: 3))
+        searchField.tap()
+        searchField.typeText("Archived meal")
+        let result = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'bookkeeping-search-result-'")
+        ).firstMatch
+        XCTAssertTrue(result.waitForExistence(timeout: 3))
+        result.tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        let field = app.searchFields.firstMatch
+        field.tap()
+        field.buttons["Clear text"].tap()
+        let recent = app.buttons["bookkeeping-search-recent-Archived meal"]
+        XCTAssertTrue(recent.waitForExistence(timeout: 3))
+        recent.tap()
+        XCTAssertEqual(app.searchFields.firstMatch.value as? String, "Archived meal")
+
+        app.searchFields.firstMatch.buttons["Clear text"].tap()
+        app.buttons["bookkeeping-search-recent-clear"].tap()
+        XCTAssertTrue(recent.waitForNonExistence(timeout: 3))
     }
 
     @MainActor

@@ -134,7 +134,7 @@ struct ScreenshotShortcutSetupView: View {
     /// 系统设置路径的面包屑；空间不足时自动换行，朗读时合并为一句。
     private var backTapPath: some View {
         let names = Self.backTapPathKeys.map(text)
-        return ScreenshotShortcutFlowLayout(spacing: 6) {
+        return LedgerFlowLayout(spacing: 6) {
             ForEach(Array(names.enumerated()), id: \.offset) { index, name in
                 HStack(spacing: 6) {
                     Text(name)
@@ -333,66 +333,6 @@ private struct ScreenshotShortcutIllustration: View {
                 reduceMotion ? nil : .easeOut(duration: 1.4).repeatForever(autoreverses: false).delay(delay),
                 value: isPulsing
             )
-    }
-}
-
-/// 按行排列子视图，宽度不足时换行；用于长度随语言变化的设置路径。
-private struct ScreenshotShortcutFlowLayout: Layout {
-    /// 同一行内及行与行之间的间距。
-    var spacing: CGFloat
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? .infinity
-        let rows = arrange(subviews, in: width)
-        return CGSize(
-            width: proposal.width ?? rows.map(\.width).max() ?? 0,
-            height: rows.last.map { $0.y + $0.height } ?? 0
-        )
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        for row in arrange(subviews, in: bounds.width) {
-            var x = bounds.minX
-            for index in row.indices {
-                let size = subviews[index].sizeThatFits(.unspecified)
-                subviews[index].place(
-                    at: CGPoint(x: x, y: bounds.minY + row.y + (row.height - size.height) / 2),
-                    proposal: ProposedViewSize(size)
-                )
-                x += size.width + spacing
-            }
-        }
-    }
-
-    /// 一行内的子视图下标及该行的位置和尺寸。
-    private struct Row {
-        var indices: [Int] = []
-        var y: CGFloat = 0
-        var width: CGFloat = 0
-        var height: CGFloat = 0
-    }
-
-    /// 按可用宽度把子视图依次分配到各行。
-    private func arrange(_ subviews: Subviews, in width: CGFloat) -> [Row] {
-        var rows: [Row] = []
-        var current = Row()
-        for index in subviews.indices {
-            let size = subviews[index].sizeThatFits(.unspecified)
-            let needed = current.indices.isEmpty ? size.width : current.width + spacing + size.width
-            if needed > width, !current.indices.isEmpty {
-                rows.append(current)
-                current = Row(y: current.y + current.height + spacing)
-                current.indices = [index]
-                current.width = size.width
-                current.height = size.height
-            } else {
-                current.indices.append(index)
-                current.width = needed
-                current.height = max(current.height, size.height)
-            }
-        }
-        if !current.indices.isEmpty { rows.append(current) }
-        return rows
     }
 }
 

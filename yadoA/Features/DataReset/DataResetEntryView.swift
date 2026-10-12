@@ -79,6 +79,8 @@ struct DataResetEntryView: View {
             try undoService.perform(.reset) {
                 try LocalDataResetService(container: container).eraseAll()
             }
+            // 最近搜索词来自已被清除的记账内容，一并清掉；它不属于备份数据，撤销也不会带回来。
+            UserDefaults.standard.removeObject(forKey: BookkeepingSearchHistory.storageKey)
             canUndoReset = undoService.availableSnapshot()?.operation == .reset
             isPresentingSuccess = true
         } catch {

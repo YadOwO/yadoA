@@ -24,6 +24,8 @@ struct yadoAApp: App {
                         storage: .inMemory
                     )
                     : try AccountDataContainer.inMemory()
+                // 最近搜索存在 UserDefaults 里，隔离启动时清掉，避免上一次自动化的搜索词串进来。
+                UserDefaults.standard.removeObject(forKey: BookkeepingSearchHistory.storageKey)
                 if ProcessInfo.processInfo.arguments.contains("--ui-testing-home-fixture") {
                     if ProcessInfo.processInfo.arguments.contains("--ui-testing-reset-home-summary-visibility") {
                         UserDefaults.standard.set(false, forKey: "home.summary.amountsVisible")

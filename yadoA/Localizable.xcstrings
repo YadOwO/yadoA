@@ -3034,6 +3034,159 @@
         }
       }
     },
+    "bookkeeping.search.preset.this_month" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This month"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本月"
+          }
+        }
+      }
+    },
+    "bookkeeping.search.preset.last_month" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last month"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上月"
+          }
+        }
+      }
+    },
+    "bookkeeping.search.preset.this_year" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This year"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今年"
+          }
+        }
+      }
+    },
+    "bookkeeping.search.summary.count" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld found"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "共 %lld 笔"
+          }
+        }
+      }
+    },
+    "bookkeeping.search.summary.expense" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expense %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支出 %@"
+          }
+        }
+      }
+    },
+    "bookkeeping.search.summary.income" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Income %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收入 %@"
+          }
+        }
+      }
+    },
+    "bookkeeping.search.recent.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent searches"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近搜索"
+          }
+        }
+      }
+    },
+    "bookkeeping.search.recent.clear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除"
+          }
+        }
+      }
+    },
+    "bookkeeping.search.filters.clear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear filters"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除筛选"
+          }
+        }
+      }
+    },
     "account.management.no_candidate" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4622,13 +4775,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No entries match within this date range. Try a different range or clear the date filter."
+            "value" : "Nothing matches with the current filters. Try clearing them."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此时间范围内没有匹配的记账，试试其他时间范围或清除日期筛选。"
+            "value" : "当前筛选条件下没有匹配的记账，试试清除筛选。"
           }
         }
       }
@@ -4758,13 +4911,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Custom range"
+            "value" : "Custom dates"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "自定义范围"
+            "value" : "自定义日期"
           }
         }
       }
@@ -4877,13 +5030,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search income and expenses across all accounts by category, amount, or note. You can also choose a date range."
+            "value" : "Search income and expenses across all accounts by category, note, or amount. Use the tags above to narrow by type or date."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "按类别、金额或备注搜索所有账户的收支记录，也可以只选择时间范围。"
+            "value" : "可以按类别、备注或金额搜索所有账户的收支，也可以用上面的标签只看某类收支或某段时间。"
           }
         }
       }
@@ -4962,13 +5115,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search by category"
+            "value" : "Recent categories"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "按类别搜索"
+            "value" : "最近记过的类别"
           }
         }
       }
