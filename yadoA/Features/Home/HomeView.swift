@@ -472,50 +472,53 @@ private struct HomeOverviewList: View {
     var body: some View {
         GeometryReader { containerGeometry in
             ScrollViewReader { scrollProxy in
-                List {
+                Group {
                     if monthPresentation.isEmpty {
-                        HomeEmptyState()
-                            .frame(
-                                maxWidth: .infinity,
-                                minHeight: max(0, containerGeometry.size.height - 2)
-                            )
-                            .listRowInsets(EdgeInsets())
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
+                        // 空状态不走 List：分组列表自带的边距和末尾留白会让内容高出可视区，产生多余的滚动。
+                        // 内容刚好不超过可视高度，只保留边界回弹用于切换月份。
+                        ScrollView {
+                            HomeEmptyState()
+                                .frame(
+                                    maxWidth: .infinity,
+                                    minHeight: max(0, containerGeometry.size.height - 2)
+                                )
+                        }
                     } else {
-                        ForEach(monthPresentation.dayGroups) { day in
-                            Section {
-                                ForEach(day.rows) { row in
-                                    HomeOverviewRow(row: row, isHighlighted: row.id == highlightedTransactionID)
-                                        .listRowInsets(EdgeInsets(top: 9, leading: 2, bottom: 9, trailing: 2))
-                                        // 流水直接写在纸上：不垫卡片，行与行之间是一条手画的账本横线。
-                                        .listRowBackground(
-                                            HomeLedgerRule(
-                                                seed: row.id.handDrawnSeed,
-                                                isHidden: row.id == day.rows.last?.id
+                        List {
+                            ForEach(monthPresentation.dayGroups) { day in
+                                Section {
+                                    ForEach(day.rows) { row in
+                                        HomeOverviewRow(row: row, isHighlighted: row.id == highlightedTransactionID)
+                                            .listRowInsets(EdgeInsets(top: 9, leading: 2, bottom: 9, trailing: 2))
+                                            // 流水直接写在纸上：不垫卡片，行与行之间是一条手画的账本横线。
+                                            .listRowBackground(
+                                                HomeLedgerRule(
+                                                    seed: row.id.handDrawnSeed,
+                                                    isHidden: row.id == day.rows.last?.id
+                                                )
                                             )
-                                        )
-                                        .listRowSeparator(.hidden)
+                                            .listRowSeparator(.hidden)
+                                    }
+                                } header: {
+                                    HomeOverviewDayHeader(day: day)
+                                        .listRowInsets(EdgeInsets(top: 0, leading: 2, bottom: 2, trailing: 2))
                                 }
-                            } header: {
-                                HomeOverviewDayHeader(day: day)
-                                    .listRowInsets(EdgeInsets(top: 0, leading: 2, bottom: 2, trailing: 2))
                             }
+
+                            // 末尾留白计入内容高度，最后一条流水可以完整滚到悬浮按钮上方。
+                            Color.clear
+                                .frame(height: bottomClearance)
+                                .listRowInsets(EdgeInsets())
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
                         }
                     }
-
-                    // 末尾留白计入内容高度，最后一条流水可以完整滚到悬浮按钮上方。
-                    Color.clear
-                        .frame(height: bottomClearance)
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
                 }
                 .listStyle(.insetGrouped)
                 .listSectionSpacing(22)
                 .contentMargins(.top, 0, for: .scrollContent)
                 .scrollContentBackground(.hidden)
-                .scrollBounceBehavior(.always)
+                .scrollBounceBehavior(allowsBoundaryBounce ? .always : .basedOnSize)
                 .accessibilityIdentifier("home-details-scroll")
                 .onScrollGeometryChange(for: HomeMonthScrollInteraction.Pull?.self) { geometry in
                     pull(for: geometry)
@@ -593,6 +596,12 @@ private struct HomeOverviewList: View {
               })
         else { return nil }
         return highlightedTransactionID
+    }
+
+    /// 是否保留边界回弹：有流水的月份始终回弹；空月份只有存在可切换的相邻月份时才回弹，否则完全静止。
+    private var allowsBoundaryBounce: Bool {
+        guard monthPresentation.isEmpty else { return true }
+        return targetMonth(for: .earlier) != nil || targetMonth(for: .later) != nil
     }
 
     /// 仅在确实存在目标月份时提供越过阈值的触觉反馈。
