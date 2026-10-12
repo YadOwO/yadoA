@@ -127,7 +127,7 @@ struct ProfileView: View {
                         .labelStyle(ProfileExportLabelStyle())
                 }
 
-                versionFooter
+                brandFooter
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
@@ -141,18 +141,16 @@ struct ProfileView: View {
         }
     }
 
-    /// 本地应用没有登录身份，页头不放头像，改用产品标记与名称作为品牌露出。
+    /// 页头留给用户自己的头像与名称；目前没有登录身份，先用通用头像和占位名称，不放产品品牌。
     private var profileHeader: some View {
         VStack(spacing: 14) {
-            Image(.brandMark)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 88, height: 88)
+            Image(systemName: "person.crop.circle.fill")
+                .font(.system(size: 88, weight: .light))
+                .foregroundStyle(Color.accentColor)
                 .accessibilityHidden(true)
 
-            Text(text("app.name"))
+            Text(text("profile.user.placeholder"))
                 .font(.system(.title2, design: .serif, weight: .semibold))
-                .accessibilityIdentifier("profile-app-name")
 
             Text(text("profile.local_data"))
                 .font(.subheadline)
@@ -163,13 +161,26 @@ struct ProfileView: View {
         .padding(.bottom, 8)
     }
 
-    /// 页面末尾的版本落款，便于反馈问题时确认所用版本。
-    private var versionFooter: some View {
-        Text(AccountLocalization.formatted("profile.version", value: Self.appVersion, locale: locale))
-            .font(.system(.footnote, design: .serif))
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity)
-            .accessibilityIdentifier("profile-version")
+    /// 页面末尾的品牌落款：产品标记、名称与版本号，像账本封底的印记，不与页头的用户信息争位置。
+    private var brandFooter: some View {
+        VStack(spacing: 6) {
+            Image(.brandMark)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 40, height: 40)
+                .accessibilityHidden(true)
+
+            Text(text("app.name"))
+                .font(.system(.subheadline, design: .serif, weight: .medium))
+                .accessibilityIdentifier("profile-app-name")
+
+            Text(AccountLocalization.formatted("profile.version", value: Self.appVersion, locale: locale))
+                .font(.system(.caption, design: .serif))
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("profile-version")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 12)
     }
 
     /// 营销版本号与构建号，形如 `1.0 (1)`；缺少构建号时只显示版本号。

@@ -6267,6 +6267,23 @@
         }
       }
     },
+    "profile.user.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My Ledger"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的账本"
+          }
+        }
+      }
+    },
     "profile.version" : {
       "extractionState" : "manual",
       "localizations" : {
