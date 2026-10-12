@@ -2575,6 +2575,108 @@
         }
       }
     },
+    "profile.reset.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erase all data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除所有数据"
+          }
+        }
+      }
+    },
+    "profile.reset.confirm.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erase all data?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除所有数据吗？"
+          }
+        }
+      }
+    },
+    "profile.reset.confirm.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All accounts, transactions, and the default account setting on this device will be permanently deleted. This can't be undone, so consider exporting a backup first. Language and appearance settings are kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这台设备上的全部账户、流水和默认账户设置将被永久删除，且无法撤销，建议先导出备份。语言、外观等显示设置不受影响。"
+          }
+        }
+      }
+    },
+    "profile.reset.confirm.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erase"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除"
+          }
+        }
+      }
+    },
+    "profile.reset.success.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All data erased"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据已清除"
+          }
+        }
+      }
+    },
+    "profile.reset.error" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your data couldn't be erased and was not changed. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除失败，现有数据未被修改，请重试。"
+          }
+        }
+      }
+    },
     "account.management.no_candidate" : {
       "extractionState" : "manual",
       "localizations" : {

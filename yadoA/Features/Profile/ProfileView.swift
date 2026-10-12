@@ -44,25 +44,6 @@ struct ProfileView: View {
                     }
                 }
 
-                settingsSection("profile.section.data") {
-                    DataExportEntryView(container: modelContext.container)
-                        .labelStyle(ProfileExportLabelStyle())
-
-                    rowDivider
-
-                    DataImportEntryView(container: modelContext.container)
-                        .labelStyle(ProfileExportLabelStyle())
-                }
-
-                settingsSection("shortcut.screenshot.section") {
-                    NavigationLink {
-                        ScreenshotShortcutSetupView()
-                    } label: {
-                        row("shortcut.screenshot.title", symbol: "viewfinder", value: "")
-                    }
-                    .accessibilityIdentifier("profile-screenshot-shortcut")
-                }
-
                 settingsSection("profile.section.display") {
                     Menu {
                         Picker(text("profile.language.title"), selection: $language) {
@@ -97,6 +78,30 @@ struct ProfileView: View {
                     .padding(.horizontal, 20)
                     .padding(.vertical, 14)
                     .accessibilityIdentifier("profile-show-amounts")
+                }
+
+                settingsSection("shortcut.screenshot.section") {
+                    NavigationLink {
+                        ScreenshotShortcutSetupView()
+                    } label: {
+                        row("shortcut.screenshot.title", symbol: "viewfinder", value: "")
+                    }
+                    .accessibilityIdentifier("profile-screenshot-shortcut")
+                }
+
+                settingsSection("profile.section.data") {
+                    DataExportEntryView(container: modelContext.container)
+                        .labelStyle(ProfileExportLabelStyle())
+
+                    rowDivider
+
+                    DataImportEntryView(container: modelContext.container)
+                        .labelStyle(ProfileExportLabelStyle())
+
+                    rowDivider
+
+                    DataResetEntryView(container: modelContext.container)
+                        .labelStyle(ProfileExportLabelStyle(color: .red))
                 }
             }
             .buttonStyle(.plain)
@@ -207,6 +212,9 @@ struct ProfileView: View {
 
 /// 统一个人页图标宽度，使用系统线性图标和主文字色。
 private struct ProfileSettingsLabelStyle: LabelStyle {
+    /// 图标与标题的颜色；破坏性操作使用红色。
+    var color: Color = .primary
+
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 14) {
             configuration.icon
@@ -217,7 +225,7 @@ private struct ProfileSettingsLabelStyle: LabelStyle {
                 .font(.body)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .foregroundStyle(.primary)
+        .foregroundStyle(color)
     }
 }
 
@@ -226,11 +234,14 @@ private struct ProfileSettingsLabelStyle: LabelStyle {
         .modelContainer(for: [Account.self, AccountTransaction.self, BookkeepingPreference.self], inMemory: true)
 }
 
-/// 将导出与恢复行的留白纳入 Button 标签，使整行均可点击。
+/// 将数据分组各行的留白纳入 Button 标签，使整行均可点击。
 private struct ProfileExportLabelStyle: LabelStyle {
+    /// 图标与标题的颜色；破坏性操作使用红色。
+    var color: Color = .primary
+
     func makeBody(configuration: Configuration) -> some View {
         Label(configuration)
-            .labelStyle(ProfileSettingsLabelStyle())
+            .labelStyle(ProfileSettingsLabelStyle(color: color))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.vertical, 18)
