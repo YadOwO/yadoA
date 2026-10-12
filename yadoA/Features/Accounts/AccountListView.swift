@@ -345,6 +345,9 @@ struct AccountListView: View {
 private struct AccountSummaryCard: View {
     @Environment(\.locale) private var locale
 
+    /// 用户选择的启动页面；账户页是启动页时汇总卡片才带装饰。
+    @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
+
     let presentation: AccountSummaryPresentation
 
     var body: some View {
@@ -384,12 +387,16 @@ private struct AccountSummaryCard: View {
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
+            // 框内铺纸色，启动页装饰的垫纸只从框的右下边缘露出来。
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color(.paperBackground))
             HandDrawnBox(cornerRadius: 22, seed: 21)
                 .stroke(
                     Color.primary.opacity(0.85),
                     style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
                 )
         }
+        .startPageDecoration(isEnabled: startPage == .accounts, cornerRadius: 22, seed: 21)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityIdentifier("account-list-summary-card")

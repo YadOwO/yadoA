@@ -260,6 +260,9 @@ private struct HomeOverviewHeader: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    /// 用户选择的启动页面；记账页是启动页时汇总框才带装饰。
+    @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
+
     /// 当前月份的已本地化展示数据。
     let monthPresentation: HomeOverviewMonthPresentation
 
@@ -304,6 +307,7 @@ private struct HomeOverviewHeader: View {
                     style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
                 )
         }
+        .startPageDecoration(isEnabled: startPage == .home, cornerRadius: 22, seed: 7)
         .padding(.horizontal, 20)
         .padding(.top, 8)
         .padding(.bottom, 16)
