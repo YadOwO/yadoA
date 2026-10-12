@@ -2496,13 +2496,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Restoring replaces all accounts and transactions currently on this device. This can't be undone."
+            "value" : "Your current accounts and transactions will be replaced by this backup."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "恢复后，这台设备上现有的全部账户和流水将被这份备份替换，且无法撤销。"
+            "value" : "恢复后，现在的账户和流水会被这份备份替换。"
           }
         }
       }
@@ -2615,13 +2615,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The backup couldn't be restored. Your existing data was not changed. Please try again."
+            "value" : "The restore didn't work. Your data hasn't changed. Please try again."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "恢复失败，现有数据未被修改，请重试。"
+            "value" : "恢复没有成功，数据没有变化，请重试。"
           }
         }
       }
@@ -2666,13 +2666,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "All accounts, transactions, and the default account setting on this device will be permanently deleted. This can't be undone, so consider exporting a backup first. Language and appearance settings are kept."
+            "value" : "All accounts and transactions will be deleted. Settings like language and appearance stay the same.\n\nChanged your mind? You can undo this here within %1$lld days. After %1$lld days the data is gone for good."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这台设备上的全部账户、流水和默认账户设置将被永久删除，且无法撤销，建议先导出备份。语言、外观等显示设置不受影响。"
+            "value" : "所有账户和流水都会被删除，语言、外观等设置不受影响。\n\n如果后悔了，%1$lld 天内可以在这里撤销；超过 %1$lld 天就找不回了。"
           }
         }
       }
@@ -2717,13 +2717,285 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your data couldn't be erased and was not changed. Please try again."
+            "value" : "Erasing didn't work. Your data hasn't changed. Please try again."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "清除失败，现有数据未被修改，请重试。"
+            "value" : "清除没有成功，数据没有变化，请重试。"
+          }
+        }
+      }
+    },
+    "account.management.import.undo_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restored the wrong backup? You can undo it within %lld days in Profile → Data."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果恢复错了，%lld 天内可以在「我的 → 数据」里撤销。"
+          }
+        }
+      }
+    },
+    "profile.reset.success.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changed your mind? Tap “Undo last erase” within %lld days to get your data back."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果后悔了，%lld 天内点「撤销上次清除」就能把数据找回来。"
+          }
+        }
+      }
+    },
+    "profile.undo.title.restore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo last restore"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤销上次恢复"
+          }
+        }
+      }
+    },
+    "profile.undo.title.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo last erase"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤销上次清除"
+          }
+        }
+      }
+    },
+    "profile.undo.deadline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Available until %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@前可以撤销"
+          }
+        }
+      }
+    },
+    "profile.undo.confirm.title.restore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo the last restore?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤销上次恢复吗？"
+          }
+        }
+      }
+    },
+    "profile.undo.confirm.title.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo the last erase?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤销上次清除吗？"
+          }
+        }
+      }
+    },
+    "profile.undo.confirm.message.restore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your ledger goes back to how it was before the restore (%1$lld accounts, %2$lld transactions).\n\nAnything you added or changed after the restore will be lost."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账本会回到恢复之前的样子（账户 %1$lld 个，流水 %2$lld 条）。\n\n恢复之后新记的账和改动会丢失。"
+          }
+        }
+      }
+    },
+    "profile.undo.confirm.message.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The erased data comes back (%1$lld accounts, %2$lld transactions).\n\nAnything you added or changed after erasing will be lost."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "被清除的数据会回来（账户 %1$lld 个，流水 %2$lld 条）。\n\n清除之后新记的账和改动会丢失。"
+          }
+        }
+      }
+    },
+    "profile.undo.confirm.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤销"
+          }
+        }
+      }
+    },
+    "profile.undo.success.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已撤销"
+          }
+        }
+      }
+    },
+    "profile.undo.success.message.restore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your ledger is back to how it was before the restore."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账本已经回到恢复之前的样子。"
+          }
+        }
+      }
+    },
+    "profile.undo.success.message.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your erased data is back."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "被清除的数据已经回来了。"
+          }
+        }
+      }
+    },
+    "profile.undo.error.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't undo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法撤销"
+          }
+        }
+      }
+    },
+    "profile.undo.error.expired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More than %lld days have passed, so this can no longer be undone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已经超过 %lld 天，无法撤销了。"
+          }
+        }
+      }
+    },
+    "profile.undo.error.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The undo didn't work. Your data hasn't changed. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤销没有成功，数据没有变化，请重试。"
           }
         }
       }

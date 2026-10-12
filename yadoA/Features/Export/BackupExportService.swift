@@ -93,6 +93,16 @@ final class BackupExportService {
         return fileURL
     }
 
+    /// 读取并校验当前全部业务数据，返回不落盘的备份信封。
+    ///
+    /// 供撤销快照等应用内用途复用导出的一致性读取与完整性校验。
+    ///
+    /// - Returns: 以当前时间源为导出时间的完整备份信封。
+    /// - Throws: 任一流水校验失败时抛出 `BackupExportError`。
+    func makeSnapshot() throws -> BackupFile {
+        try makeBackup(exportedAt: now())
+    }
+
     /// 删除分享面板关闭后的导出文件；尽力而为，失败不向调用方抛错。
     func removeExportedFile(at url: URL) {
         try? fileManager.removeItem(at: url)

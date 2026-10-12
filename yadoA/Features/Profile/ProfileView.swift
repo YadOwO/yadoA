@@ -102,6 +102,9 @@ struct ProfileView: View {
 
                     DataResetEntryView(container: modelContext.container)
                         .labelStyle(ProfileExportLabelStyle(color: .red))
+
+                    DataUndoEntryView(container: modelContext.container) { rowDivider }
+                        .labelStyle(ProfileExportLabelStyle())
                 }
             }
             .buttonStyle(.plain)

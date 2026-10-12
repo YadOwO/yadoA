@@ -10,9 +10,15 @@ struct DataImportEntryView: View {
 
     /// 使用当前应用容器创建恢复流程。
     init(container: ModelContainer) {
+        let service = BackupImportService(container: container)
+        let undoService = DataUndoService(container: container)
         _flow = StateObject(
             wrappedValue: DataImportFlow(
-                service: BackupImportService(container: container)
+                prepareAction: { try service.prepare(from: $0) },
+                // 替换前先存一份撤销快照；快照存不下来就不恢复，现有数据保持原样。
+                restoreAction: { plan in
+                    try undoService.perform(.restore) { try service.restore(plan) }
+                }
             )
         )
     }
@@ -84,7 +90,7 @@ struct DataImportEntryView: View {
             }
             .accessibilityIdentifier("account-management-import-done")
         } message: { plan in
-            Text(summary(for: plan))
+            Text(summary(for: plan) + "\n\n" + undoHint)
         }
     }
 
@@ -103,10 +109,23 @@ struct DataImportEntryView: View {
         )
     }
 
-    /// 确认提示正文：备份摘要；本地已有数据时追加整体替换警告。
+    /// 确认提示正文：备份摘要；本地已有数据时追加整体替换说明，最后说明可以撤销。
     private func confirmationMessage(for plan: BackupImportPlan) -> String {
-        guard plan.replacesExistingData else { return summary(for: plan) }
-        return summary(for: plan) + "\n\n" + text("account.management.import.confirm.replace_warning")
+        var parts = [summary(for: plan)]
+        if plan.replacesExistingData {
+            parts.append(text("account.management.import.confirm.replace_warning"))
+        }
+        parts.append(undoHint)
+        return parts.joined(separator: "\n\n")
+    }
+
+    /// 恢复后多少天内、在哪里可以撤销的说明。
+    private var undoHint: String {
+        String(
+            format: text("account.management.import.undo_hint"),
+            locale: locale,
+            DataUndoPolicy.retentionDays
+        )
     }
 
     /// 备份导出时间与记录数量的本地化摘要。
