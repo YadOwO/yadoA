@@ -22,6 +22,8 @@ struct ProfileView: View {
     @State private var isDefaultSelectionPresented = false
     /// 退出登录前的二次确认。
     @State private var isSignOutConfirmationPresented = false
+    /// 修改个人资料弹层，打开时携带当时的资料快照。
+    @State private var editingProfile: AccountProfile?
 
     var body: some View {
         ScrollView {
@@ -156,6 +158,13 @@ struct ProfileView: View {
         .sheet(isPresented: $isDefaultSelectionPresented) {
             NavigationStack { DefaultAccountSelectionView() }
         }
+        .sheet(item: $editingProfile) { profile in
+            ProfileEditView(profile: profile)
+        }
+        .task(id: authStore.isAuthenticated) {
+            // 进入页面或登录状态变化时拉一次最新资料，其他端改过昵称也能及时同步
+            await authStore.refreshProfile()
+        }
         .alert(text("auth.sign_out.confirm.title"), isPresented: $isSignOutConfirmationPresented) {
             Button(text("auth.sign_out.action"), role: .destructive) {
                 Task { await authStore.signOut() }
@@ -174,17 +183,23 @@ struct ProfileView: View {
     }
 
     /// 页头留给用户自己的头像与名称，不放产品品牌；未登录时显示占位名称和登录入口。
+    ///
+    /// 已登录时头像右下角带铅笔角标，点头像或名称打开修改资料弹层。
     private var profileHeader: some View {
         VStack(spacing: 14) {
-            Image(systemName: "person.crop.circle.fill")
-                .font(.system(size: 88, weight: .light))
-                .foregroundStyle(Color.accentColor)
-                .accessibilityHidden(true)
-
-            Text(headerTitle)
-                .font(.system(.title2, design: .serif, weight: .semibold))
-                .multilineTextAlignment(.center)
-                .accessibilityIdentifier("profile-user-name")
+            // 未登录时不包成按钮，避免禁用态把头像和名称压暗
+            if authStore.isAuthenticated {
+                Button {
+                    editingProfile = authStore.profile ?? AccountProfile()
+                } label: {
+                    profileIdentity
+                        .contentShape(Rectangle())
+                }
+                .accessibilityHint(text("profile.edit.title"))
+                .accessibilityIdentifier("profile-edit-entry")
+            } else {
+                profileIdentity
+            }
 
             Text(text("profile.local_data"))
                 .font(.subheadline)
@@ -197,6 +212,35 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity)
         .padding(.top, 24)
         .padding(.bottom, 8)
+    }
+
+    /// 头像与名称；已登录时头像带铅笔角标。
+    private var profileIdentity: some View {
+        VStack(spacing: 14) {
+            ProfileAvatarView(url: authStore.profile?.avatarURL, size: 96)
+                .overlay(alignment: .bottomTrailing) {
+                    if authStore.isAuthenticated {
+                        editBadge
+                    }
+                }
+
+            Text(headerTitle)
+                .font(.system(.title2, design: .serif, weight: .semibold))
+                .multilineTextAlignment(.center)
+                .accessibilityIdentifier("profile-user-name")
+        }
+    }
+
+    /// 头像右下角的铅笔角标，提示可以修改资料。
+    private var editBadge: some View {
+        Image(systemName: "pencil")
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(.primary)
+            .frame(width: 32, height: 32)
+            .background(Circle().fill(Color(uiColor: .secondarySystemBackground)))
+            .overlay(Circle().strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+            .offset(x: 4, y: 4)
+            .accessibilityHidden(true)
     }
 
     /// 页头名称：已登录时显示账号名称，取不到名称时显示“已登录”；未登录时显示占位名称。

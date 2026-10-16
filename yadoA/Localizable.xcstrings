@@ -6426,6 +6426,348 @@
           }
         }
       }
+    },
+    "profile.edit.title" : {
+      "comment" : "「我的」页头可点击时的无障碍提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Profile"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修改个人资料"
+          }
+        }
+      }
+    },
+    "profile.edit.name.title" : {
+      "comment" : "修改资料弹层：名字输入框标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名字"
+          }
+        }
+      }
+    },
+    "profile.edit.name.placeholder" : {
+      "comment" : "修改资料弹层：名字输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a name"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "填写名字"
+          }
+        }
+      }
+    },
+    "profile.edit.username.title" : {
+      "comment" : "修改资料弹层：用户名输入框标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Username"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用户名"
+          }
+        }
+      }
+    },
+    "profile.edit.username.placeholder" : {
+      "comment" : "修改资料弹层：用户名输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letters, numbers or underscores"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字母、数字或下划线"
+          }
+        }
+      }
+    },
+    "profile.edit.footnote" : {
+      "comment" : "修改资料弹层：输入框下方说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your name appears on the Profile page. Your username is used to sign in, and changing it requires your password."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名字会显示在“我的”页；用户名用于登录，修改时需要验证密码。"
+          }
+        }
+      }
+    },
+    "profile.edit.save" : {
+      "comment" : "修改资料弹层：保存按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Profile"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存个人资料"
+          }
+        }
+      }
+    },
+    "profile.edit.password.title" : {
+      "comment" : "修改用户名前的密码验证弹框标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verify Your Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证密码"
+          }
+        }
+      }
+    },
+    "profile.edit.password.message" : {
+      "comment" : "修改用户名前的密码验证弹框说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter your current password to change your username. Use the new username the next time you sign in."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修改用户名需要输入当前密码。修改后请使用新用户名登录。"
+          }
+        }
+      }
+    },
+    "profile.edit.password.placeholder" : {
+      "comment" : "密码验证弹框的输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码"
+          }
+        }
+      }
+    },
+    "profile.edit.password.confirm" : {
+      "comment" : "密码验证弹框的确认按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verify and Save"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证并保存"
+          }
+        }
+      }
+    },
+    "profile.edit.error.username_taken" : {
+      "comment" : "修改资料失败：用户名重复",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This username is already taken."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该用户名已被使用。"
+          }
+        }
+      }
+    },
+    "profile.edit.error.username_invalid" : {
+      "comment" : "修改资料失败：用户名格式不对",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usernames must start with a letter or underscore and contain only letters, numbers and underscores."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用户名需以字母或下划线开头，只能包含字母、数字和下划线。"
+          }
+        }
+      }
+    },
+    "profile.edit.error.name_too_long" : {
+      "comment" : "修改资料失败：名字过长",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Names can be up to 128 characters."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名字最多 128 个字符。"
+          }
+        }
+      }
+    },
+    "profile.edit.error.wrong_password" : {
+      "comment" : "修改资料失败：密码错误",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incorrect password."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码不正确。"
+          }
+        }
+      }
+    },
+    "profile.edit.error.too_many_attempts" : {
+      "comment" : "修改资料失败：密码尝试过多被锁定",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many attempts. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尝试次数过多，请稍后再试。"
+          }
+        }
+      }
+    },
+    "profile.edit.error.not_allowed" : {
+      "comment" : "修改资料失败：未开放修改或登录已失效",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't make this change right now. Sign in again and retry."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时无法修改，请重新登录后再试。"
+          }
+        }
+      }
+    },
+    "profile.edit.error.network" : {
+      "comment" : "修改资料失败：网络错误",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network unavailable. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网络不可用，请稍后再试。"
+          }
+        }
+      }
+    },
+    "profile.edit.error.unknown" : {
+      "comment" : "修改资料失败：其他错误",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't save. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存失败，请稍后再试。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

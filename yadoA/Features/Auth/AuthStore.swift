@@ -13,8 +13,13 @@ final class AuthStore {
     /// 本地是否持有有效凭证。
     private(set) var isAuthenticated: Bool
 
-    /// 已登录用户的展示名称：优先取昵称，没有时取用户名；未登录或解析失败时为 nil。
-    private(set) var displayName: String?
+    /// 已登录用户的资料；未登录或解析失败时为 nil。
+    private(set) var profile: AccountProfile?
+
+    /// 已登录用户的展示名称：优先取昵称，没有时取用户名；未登录或资料为空时为 nil。
+    var displayName: String? {
+        profile?.displayName
+    }
 
     /// 最近一次登录失败的错误详情；用户主动取消登录不计为错误，界面展示后应调用 `dismissError()` 清除。
     private(set) var errorMessage: String?
@@ -28,7 +33,7 @@ final class AuthStore {
         let client = Self.makeClient()
         self.client = client
         isAuthenticated = client.isAuthenticated
-        displayName = Self.readDisplayName(from: client)
+        profile = Self.readProfile(from: client)
     }
 
     /// 发起登录，弹出 Logto 托管的登录 / 注册页。
@@ -41,10 +46,10 @@ final class AuthStore {
         do {
             try await client.signInWithBrowser(redirectUri: AuthConfig.redirectUri)
             isAuthenticated = true
-            displayName = Self.readDisplayName(from: client)
+            profile = Self.readProfile(from: client)
         } catch {
             isAuthenticated = client.isAuthenticated
-            displayName = Self.readDisplayName(from: client)
+            profile = Self.readProfile(from: client)
             // 用户点了关闭不是异常，不必打扰
             errorMessage = Self.isUserCancellation(error) ? nil : Self.describe(error)
         }
@@ -60,7 +65,65 @@ final class AuthStore {
         // 返回值仅表示“撤销远端 refresh token 失败”，本地凭证此时已清空，可安全忽略
         await client.signOut()
         isAuthenticated = client.isAuthenticated
-        displayName = nil
+        profile = nil
+    }
+
+    /// 从 Logto 拉取最新资料，覆盖登录时 ID token 里的快照。
+    ///
+    /// ID token 只记录登录那一刻的资料，在其他端改过昵称后需靠这里刷新；
+    /// 失败时静默保留现有资料，不打扰用户。
+    func refreshProfile() async {
+        guard client.isAuthenticated, let userInfo = try? await client.fetchUserInfo() else {
+            return
+        }
+        // 等待期间可能已退出登录，此时不能把资料写回
+        guard isAuthenticated else { return }
+        profile = AccountProfile(
+            name: userInfo.name,
+            username: userInfo.username,
+            avatarURL: userInfo.picture.flatMap(URL.init(string:))
+        )
+    }
+
+    /// 修改昵称和 / 或用户名，成功后立即更新本地资料。
+    ///
+    /// 修改用户名属于敏感操作，Logto 要求先用密码验证身份，因此此时必须传入 `password`。
+    /// - Parameters:
+    ///   - name: 新昵称；外层 nil 表示不修改，内层 nil 表示清空。
+    ///   - username: 新用户名；nil 表示不修改。
+    ///   - password: 修改用户名时用于验证身份的当前密码。
+    /// - Throws: `AccountProfileError`。
+    func updateProfile(name: String??, username: String?, password: String?) async throws {
+        let api = LogtoAccountAPI(endpoint: Self.endpointURL)
+        let accessToken: String
+        do {
+            // 不指定资源时拿到的是访问 Logto 用户接口的 token，SDK 会在过期时自动续期
+            accessToken = try await client.getAccessToken(for: nil)
+        } catch {
+            throw AccountProfileError.notAllowed
+        }
+
+        var verificationID: String?
+        if username != nil {
+            guard let password, !password.isEmpty else {
+                throw AccountProfileError.wrongPassword
+            }
+            verificationID = try await api.verifyPassword(password, accessToken: accessToken)
+        }
+
+        let updated = try await api.updateProfile(
+            name: name,
+            username: username,
+            verificationID: verificationID,
+            accessToken: accessToken
+        )
+        guard isAuthenticated else { return }
+        // 头像当前只读，接口未返回时沿用已有地址
+        profile = AccountProfile(
+            name: updated.name,
+            username: updated.username,
+            avatarURL: updated.avatarURL ?? profile?.avatarURL
+        )
     }
 
     /// 错误提示展示完毕后清除，避免下次进入页面重复弹出。
@@ -78,14 +141,24 @@ final class AuthStore {
         return LogtoClient(useConfig: config)
     }
 
-    /// 从 ID token 中读取展示名称；空白字符串视为缺失。
-    private static func readDisplayName(from client: LogtoClient) -> String? {
+    /// Logto 服务地址；`AuthConfig.endpoint` 已在创建客户端时校验过合法性。
+    private static var endpointURL: URL {
+        guard let url = URL(string: AuthConfig.endpoint) else {
+            preconditionFailure("AuthConfig.endpoint 不是合法 URL：\(AuthConfig.endpoint)")
+        }
+        return url
+    }
+
+    /// 从 ID token 中读取登录时的资料快照，未登录或解析失败时返回 nil。
+    private static func readProfile(from client: LogtoClient) -> AccountProfile? {
         guard client.isAuthenticated, let claims = try? client.getIdTokenClaims() else {
             return nil
         }
-        return [claims.name, claims.username]
-            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .first { !$0.isEmpty }
+        return AccountProfile(
+            name: claims.name,
+            username: claims.username,
+            avatarURL: claims.picture.flatMap(URL.init(string:))
+        )
     }
 
     /// 判断错误是否为用户主动关闭了登录页。
