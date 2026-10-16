@@ -21,3 +21,6 @@ build/
 *.perspectivev3
 *.xcscmblueprint
 *.moved-aside
+
+# Local secrets (OSS avatar upload keys, etc.)
+Config/Secrets.xcconfig

@@ -31,6 +31,7 @@
 		617E5CCE302C24940076C208 /* yadoA.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = yadoA.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		617E5CDB302C24960076C208 /* yadoATests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = yadoATests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		617E5CE5302C24960076C208 /* yadoAUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = yadoAUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		617E5D10302C24960076C208 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -83,6 +84,7 @@
 				617E5CD0302C24940076C208 /* yadoA */,
 				617E5CDE302C24960076C208 /* yadoATests */,
 				617E5CE8302C24960076C208 /* yadoAUITests */,
+				617E5D11302C24960076C208 /* Config */,
 				617E5CCF302C24940076C208 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -95,6 +97,14 @@
 				617E5CE5302C24960076C208 /* yadoAUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		617E5D11302C24960076C208 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				617E5D10302C24960076C208 /* Debug.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -400,6 +410,7 @@
 		};
 		617E5CF0302C24960076C208 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 617E5D10302C24960076C208 /* Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

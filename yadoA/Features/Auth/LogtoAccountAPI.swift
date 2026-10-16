@@ -9,7 +9,7 @@ struct AccountProfile: Equatable, Identifiable {
     var name: String?
     /// 用户名，同时是登录标识；只允许字母、数字和下划线，且不能以数字开头。
     var username: String?
-    /// 头像地址；当前只读，未设置时为 nil。
+    /// 头像地址，指向 OSS 公开访问域名；未设置时为 nil。
     var avatarURL: URL?
 
     /// 页头展示名称：优先昵称，其次用户名；都为空时返回 nil。
@@ -117,16 +117,18 @@ struct LogtoAccountAPI {
         return response.verificationRecordId
     }
 
-    /// 修改昵称和 / 或用户名，只提交有变化的字段。
+    /// 修改昵称、用户名和 / 或头像，只提交有变化的字段。
     ///
     /// - Parameters:
     ///   - name: 新昵称；外层 nil 表示不修改，内层 nil 表示清空。
     ///   - username: 新用户名；nil 表示不修改。修改时必须同时提供 `verificationID`。
+    ///   - avatar: 新头像地址；nil 表示不修改。需在 Logto Account Center 中开启头像字段的编辑权限。
     ///   - verificationID: `verifyPassword` 返回的验证记录 ID。
     /// - Returns: 服务器保存后的最新资料。
     func updateProfile(
         name: String??,
         username: String?,
+        avatar: URL? = nil,
         verificationID: String?,
         accessToken: String
     ) async throws -> AccountProfile {
@@ -136,6 +138,9 @@ struct LogtoAccountAPI {
         }
         if let username {
             body["username"] = username
+        }
+        if let avatar {
+            body["avatar"] = avatar.absoluteString
         }
         var request = try makeRequest(path: "api/my-account", method: "PATCH", body: body, accessToken: accessToken)
         if let verificationID {

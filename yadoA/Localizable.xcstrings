@@ -6535,6 +6535,96 @@
         }
       }
     },
+    "profile.avatar.change" : {
+      "comment" : "修改资料弹层：头像按钮的无障碍标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Avatar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更换头像"
+          }
+        }
+      }
+    },
+    "profile.avatar.error.not_configured" : {
+      "comment" : "头像上传失败：当前构建未配置上传凭证",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avatar upload isn't available in this build."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前版本暂不支持上传头像。"
+          }
+        }
+      }
+    },
+    "profile.avatar.error.invalid_image" : {
+      "comment" : "头像上传失败：选中的文件无法作为图片读取",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This image can't be used. Please choose another one."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取这张图片，请换一张试试。"
+          }
+        }
+      }
+    },
+    "profile.avatar.error.not_signed_in" : {
+      "comment" : "头像上传失败：登录已失效",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your sign-in has expired. Please sign in again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录已失效，请重新登录。"
+          }
+        }
+      }
+    },
+    "profile.avatar.error.upload_failed" : {
+      "comment" : "头像上传失败：存储服务拒绝",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't upload the avatar. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "头像上传失败，请稍后再试。"
+          }
+        }
+      }
+    },
     "profile.edit.save" : {
       "comment" : "修改资料弹层：保存按钮",
       "extractionState" : "manual",

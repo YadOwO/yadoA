@@ -1,9 +1,11 @@
+import PhotosUI
 import SwiftUI
 
 /// 修改个人资料的底部弹层：大头像、名字与用户名两个胶囊输入框、说明文字、保存与取消。
 ///
 /// 只提交有变化的字段；用户名变化时先弹出密码框验证身份（Logto 的要求），再一并保存。
-/// 头像目前只读，暂不提供更换入口。
+/// 点击头像可从相册选图，先在本地预览，点保存时才上传到 OSS 并写回 Logto；
+/// 未配置上传凭证的构建（如 Release）不显示更换入口。
 struct ProfileEditView: View {
     @Environment(\.locale) private var locale
     @Environment(\.dismiss) private var dismiss
@@ -22,6 +24,19 @@ struct ProfileEditView: View {
     @State private var isSaving = false
     /// 最近一次保存失败的原因，显示在保存按钮上方。
     @State private var error: AccountProfileError?
+
+    /// 相册选择器当前选中的图片。
+    @State private var avatarSelection: PhotosPickerItem?
+    /// 新头像处理后的 JPEG 数据，保存时上传；nil 表示头像未修改。
+    @State private var pendingAvatarData: Data?
+    /// 新头像的本地预览。
+    @State private var pendingAvatarPreview: UIImage?
+    /// 本次弹层中已上传成功的头像地址；写回 Logto 失败后重试时直接复用，避免重复上传。
+    @State private var uploadedAvatarURL: URL?
+    /// 是否正在读取和处理选中的图片。
+    @State private var isPreparingAvatar = false
+    /// 最近一次头像处理或上传失败的原因。
+    @State private var avatarError: AvatarUploadError?
 
     /// 弹层内容的实际高度，用作弹层高度，让弹层刚好包住内容而不是铺满全屏。
     @State private var contentHeight: CGFloat = 560
@@ -45,7 +60,7 @@ struct ProfileEditView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                ProfileAvatarView(url: original.avatarURL, size: 112)
+                avatarSection
                     .padding(.top, 32)
                     .padding(.bottom, 24)
 
@@ -78,7 +93,9 @@ struct ProfileEditView: View {
                     .padding(.top, 24)
                     .padding(.horizontal, 12)
 
-                if let message = validationMessage ?? error.map({ text($0.localizationKey) }) {
+                if let message = validationMessage
+                    ?? avatarError.map({ text($0.localizationKey) })
+                    ?? error.map({ text($0.localizationKey) }) {
                     Text(message)
                         .font(.footnote)
                         .foregroundStyle(.red)
@@ -116,6 +133,9 @@ struct ProfileEditView: View {
         .interactiveDismissDisabled(isSaving || hasChanges)
         .onChange(of: name) { error = nil }
         .onChange(of: username) { error = nil }
+        .onChange(of: avatarSelection) { _, item in
+            prepareAvatar(from: item)
+        }
         .alert(text("profile.edit.password.title"), isPresented: $isPasswordPromptPresented) {
             SecureField(text("profile.edit.password.placeholder"), text: $password)
                 .textContentType(.password)
@@ -133,6 +153,49 @@ struct ProfileEditView: View {
     }
 
     // MARK: - 子视图
+
+    /// 头像区域：可更换时包一层相册选择器并显示相机角标，否则只展示。
+    @ViewBuilder
+    private var avatarSection: some View {
+        if authStore.canChangeAvatar {
+            PhotosPicker(selection: $avatarSelection, matching: .images, photoLibrary: .shared()) {
+                avatarImage
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: "camera.fill")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Color(uiColor: .systemBackground))
+                            .frame(width: 32, height: 32)
+                            .background(Circle().fill(Color.primary))
+                            .overlay(Circle().strokeBorder(Color(uiColor: .systemBackground), lineWidth: 2))
+                    }
+                    .overlay {
+                        if isPreparingAvatar {
+                            ProgressView()
+                        }
+                    }
+            }
+            .buttonStyle(.plain)
+            .disabled(isSaving || isPreparingAvatar)
+            .accessibilityLabel(text("profile.avatar.change"))
+            .accessibilityIdentifier("profile-edit-avatar")
+        } else {
+            avatarImage
+        }
+    }
+
+    /// 头像图片：有新选的图片时显示本地预览，否则显示当前头像。
+    @ViewBuilder
+    private var avatarImage: some View {
+        if let pendingAvatarPreview {
+            Image(uiImage: pendingAvatarPreview)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 112, height: 112)
+                .clipShape(Circle())
+        } else {
+            ProfileAvatarView(url: original.avatarURL, size: 112)
+        }
+    }
 
     /// 黑色胶囊主按钮；深色外观下自动反色，保存中显示转圈。
     private var saveButton: some View {
@@ -203,7 +266,7 @@ struct ProfileEditView: View {
 
     /// 是否有未保存的修改。
     private var hasChanges: Bool {
-        nameChange != nil || usernameChange != nil
+        nameChange != nil || usernameChange != nil || pendingAvatarData != nil
     }
 
     /// 本地即可判断的输入问题；没有问题时为 nil。
@@ -217,9 +280,9 @@ struct ProfileEditView: View {
         return nil
     }
 
-    /// 有修改、输入合法且不在保存中时才允许保存。
+    /// 有修改、输入合法、图片已处理完且不在保存中时才允许保存。
     private var canSave: Bool {
-        hasChanges && validationMessage == nil && !isSaving
+        hasChanges && validationMessage == nil && !isSaving && !isPreparingAvatar
     }
 
     // MARK: - 操作
@@ -236,20 +299,63 @@ struct ProfileEditView: View {
         }
     }
 
+    /// 读取并处理相册选中的图片，生成待上传的 JPEG 与本地预览。
+    private func prepareAvatar(from item: PhotosPickerItem?) {
+        guard let item else { return }
+        isPreparingAvatar = true
+        avatarError = nil
+        Task {
+            defer { isPreparingAvatar = false }
+            do {
+                guard let raw = try await item.loadTransferable(type: Data.self) else {
+                    throw AvatarUploadError.invalidImage
+                }
+                // 解码与缩放较耗时，放到后台执行，避免卡住弹层动画
+                let jpeg = try await Task.detached(priority: .userInitiated) {
+                    try AvatarImageProcessor.process(raw)
+                }.value
+                pendingAvatarData = jpeg
+                pendingAvatarPreview = UIImage(data: jpeg)
+                uploadedAvatarURL = nil
+                error = nil
+            } catch let uploadError as AvatarUploadError {
+                avatarError = uploadError
+            } catch {
+                avatarError = .invalidImage
+            }
+        }
+    }
+
     /// 提交修改，成功后关闭弹层，失败时在按钮上方提示原因。
+    ///
+    /// 有新头像时先上传到 OSS，再与昵称、用户名一起写回 Logto。
     private func submit(password: String?) {
         let nameChange = nameChange
         let usernameChange = usernameChange
+        let avatarData = pendingAvatarData
         isSaving = true
         error = nil
+        avatarError = nil
         Task {
             defer {
                 isSaving = false
                 self.password = ""
             }
             do {
-                try await authStore.updateProfile(name: nameChange, username: usernameChange, password: password)
+                var avatarURL = uploadedAvatarURL
+                if let avatarData, avatarURL == nil {
+                    avatarURL = try await authStore.uploadAvatar(jpegData: avatarData)
+                    uploadedAvatarURL = avatarURL
+                }
+                try await authStore.updateProfile(
+                    name: nameChange,
+                    username: usernameChange,
+                    avatar: avatarURL,
+                    password: password
+                )
                 dismiss()
+            } catch let uploadError as AvatarUploadError {
+                avatarError = uploadError
             } catch let profileError as AccountProfileError {
                 error = profileError
             } catch {

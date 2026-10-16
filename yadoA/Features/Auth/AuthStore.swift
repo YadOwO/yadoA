@@ -27,6 +27,14 @@ final class AuthStore {
     /// 是否正在执行登录或退出，用于禁用按钮避免重复触发。
     private(set) var isBusy = false
 
+    /// 头像上传器；凭证来源目前是 Debug 构建注入的本地密钥。
+    private let avatarUploader = AvatarUploader(credentialProvider: BundledOSSCredentialProvider())
+
+    /// 当前构建是否可以更换头像：需已登录且本地配置了上传凭证（仅 Debug 构建）。
+    var canChangeAvatar: Bool {
+        isAuthenticated && BundledOSSCredentialProvider().isAvailable
+    }
+
     private let client: LogtoClient
 
     init() {
@@ -90,15 +98,28 @@ final class AuthStore {
         )
     }
 
-    /// 修改昵称和 / 或用户名，成功后立即更新本地资料。
+    /// 把处理好的头像上传到 OSS，返回公开访问地址；此时尚未写入 Logto 资料。
+    ///
+    /// - Parameter jpegData: `AvatarImageProcessor` 输出的 JPEG 数据。
+    /// - Throws: `AvatarUploadError`。
+    func uploadAvatar(jpegData: Data) async throws -> URL {
+        // sub 是 Logto 用户的稳定 ID，不随改用户名变化，作为头像目录名
+        guard client.isAuthenticated, let userID = try? client.getIdTokenClaims().sub, !userID.isEmpty else {
+            throw AvatarUploadError.notSignedIn
+        }
+        return try await avatarUploader.upload(jpegData: jpegData, userID: userID)
+    }
+
+    /// 修改昵称、用户名和 / 或头像，成功后立即更新本地资料。
     ///
     /// 修改用户名属于敏感操作，Logto 要求先用密码验证身份，因此此时必须传入 `password`。
     /// - Parameters:
     ///   - name: 新昵称；外层 nil 表示不修改，内层 nil 表示清空。
     ///   - username: 新用户名；nil 表示不修改。
+    ///   - avatar: 已上传到 OSS 的新头像地址；nil 表示不修改。
     ///   - password: 修改用户名时用于验证身份的当前密码。
     /// - Throws: `AccountProfileError`。
-    func updateProfile(name: String??, username: String?, password: String?) async throws {
+    func updateProfile(name: String??, username: String?, avatar: URL? = nil, password: String?) async throws {
         let api = LogtoAccountAPI(endpoint: Self.endpointURL)
         let accessToken: String
         do {
@@ -119,15 +140,16 @@ final class AuthStore {
         let updated = try await api.updateProfile(
             name: name,
             username: username,
+            avatar: avatar,
             verificationID: verificationID,
             accessToken: accessToken
         )
         guard isAuthenticated else { return }
-        // 头像当前只读，接口未返回时沿用已有地址
+        // 接口未返回头像时，优先用本次提交的地址，其次沿用已有地址
         profile = AccountProfile(
             name: updated.name,
             username: updated.username,
-            avatarURL: updated.avatarURL ?? profile?.avatarURL
+            avatarURL: updated.avatarURL ?? avatar ?? profile?.avatarURL
         )
     }
 
