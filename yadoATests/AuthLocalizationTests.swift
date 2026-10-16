@@ -27,10 +27,27 @@ struct AuthLocalizationTests {
             "auth.user.signed_in",
             "auth.sign_out.confirm.title",
             "auth.sign_out.confirm.message",
+            "auth.sign_in.headline",
+            "auth.sign_in.password",
+            "auth.sign_in.coming_soon",
+            "auth.sign_in.local_note",
+            "auth.sign_in.success",
         ]
         for key in keys {
             #expect(AccountLocalization.string(key, locale: english) != key)
             #expect(AccountLocalization.string(key, locale: simplifiedChinese) != key)
+        }
+    }
+
+    @Test("第三方登录方式都有中英文文案，连接器 target 不为空")
+    func socialProvidersAreLocalized() {
+        let english = Locale(identifier: "en")
+        let simplifiedChinese = Locale(identifier: "zh-Hans")
+
+        for provider in AuthSocialProvider.allCases {
+            #expect(!provider.connectorTarget.isEmpty)
+            #expect(AccountLocalization.string(provider.titleLocalizationKey, locale: english) != provider.titleLocalizationKey)
+            #expect(AccountLocalization.string(provider.titleLocalizationKey, locale: simplifiedChinese) != provider.titleLocalizationKey)
         }
     }
 }

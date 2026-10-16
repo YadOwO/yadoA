@@ -6768,6 +6768,114 @@
           }
         }
       }
+    },
+    "auth.sign_in.headline" : {
+      "comment" : "登录页衬线大标语",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every entry, clearly kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每一笔，都记得清清楚楚"
+          }
+        }
+      }
+    },
+    "auth.sign_in.local_note" : {
+      "comment" : "登录页底部关于本地账本的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your ledger stays on this device. Signing in won't upload it."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账本仍只保存在这台设备上，登录不会上传"
+          }
+        }
+      }
+    },
+    "auth.sign_in.success" : {
+      "comment" : "登录成功后的过渡标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signed in"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录成功"
+          }
+        }
+      }
+    },
+    "auth.sign_in.social.apple" : {
+      "comment" : "通过 Apple 登录的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue with Apple"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过 Apple 继续"
+          }
+        }
+      }
+    },
+    "auth.sign_in.password" : {
+      "comment" : "登录页账号密码登录按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue with Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用账号密码继续"
+          }
+        }
+      }
+    },
+    "auth.sign_in.coming_soon" : {
+      "comment" : "点击尚未接通的第三方登录时的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This sign-in option is coming soon."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该登录方式即将上线"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

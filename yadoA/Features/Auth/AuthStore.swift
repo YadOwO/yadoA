@@ -37,14 +37,19 @@ final class AuthStore {
     }
 
     /// 发起登录，弹出 Logto 托管的登录 / 注册页。
-    func signIn() async {
+    ///
+    /// - Parameter provider: 指定第三方登录方式时跳过 Logto 的方式选择，直接进入该连接器；nil 时走账号密码页。
+    func signIn(provider: AuthSocialProvider? = nil) async {
         guard !isBusy else { return }
         isBusy = true
         errorMessage = nil
         defer { isBusy = false }
 
         do {
-            try await client.signInWithBrowser(redirectUri: AuthConfig.redirectUri)
+            try await client.signInWithBrowser(
+                redirectUri: AuthConfig.redirectUri,
+                directSignIn: provider.map { LogtoCore.DirectSignInOptions(method: .social, target: $0.connectorTarget) }
+            )
             isAuthenticated = true
             profile = Self.readProfile(from: client)
         } catch {
@@ -165,12 +170,18 @@ final class AuthStore {
     ///
     /// iOS 上 SDK 使用内置网页登录会话，用户关掉登录页时 SDK 抛出
     /// `SignIn(type: .authFailed, innerError: nil)`，这是 SDK 中唯一抛该组合的位置，故可据此识别。
+    /// 但 SDK 1.2.0 的 `LogtoAuthSession.start()` 会把它再包一层 `SignIn(type: .unknownError, innerError: …)`，
+    /// 因此需要沿 `innerError` 逐层向内查找。
     /// 已知局限：页面加载失败时也需要用户手动关闭，同样会被归为取消而不提示。
     private static func isUserCancellation(_ error: Error) -> Bool {
-        guard let signInError = error as? LogtoClientErrors.SignIn else {
-            return false
+        var current: Error? = error
+        while let signInError = current as? LogtoClientErrors.SignIn {
+            if signInError.type == .authFailed && signInError.innerError == nil {
+                return true
+            }
+            current = signInError.innerError
         }
-        return signInError.type == .authFailed && signInError.innerError == nil
+        return false
     }
 
     /// 把错误转成便于排查的详情文本，尽量带上 SDK 的错误类型。

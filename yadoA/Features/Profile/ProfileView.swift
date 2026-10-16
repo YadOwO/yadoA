@@ -24,6 +24,8 @@ struct ProfileView: View {
     @State private var isSignOutConfirmationPresented = false
     /// 修改个人资料弹层，打开时携带当时的资料快照。
     @State private var editingProfile: AccountProfile?
+    /// 是否推入登录 / 注册页。
+    @State private var isSignInPresented = false
 
     var body: some View {
         ScrollView {
@@ -161,6 +163,9 @@ struct ProfileView: View {
         .sheet(item: $editingProfile) { profile in
             ProfileEditView(profile: profile)
         }
+        .navigationDestination(isPresented: $isSignInPresented) {
+            SignInView()
+        }
         .task(id: authStore.isAuthenticated) {
             // 进入页面或登录状态变化时拉一次最新资料，其他端改过昵称也能及时同步
             await authStore.refreshProfile()
@@ -174,11 +179,6 @@ struct ProfileView: View {
             Button(text("common.cancel"), role: .cancel) {}
         } message: {
             Text(text("auth.sign_out.confirm.message"))
-        }
-        .alert(text("auth.sign_in.failed"), isPresented: isSignInErrorPresented) {
-            Button(text("common.close"), role: .cancel) {}
-        } message: {
-            Text(authStore.errorMessage ?? "")
         }
     }
 
@@ -251,20 +251,14 @@ struct ProfileView: View {
         return authStore.displayName ?? text("auth.user.signed_in")
     }
 
-    /// 打开 Logto 登录 / 注册页的入口；进行中显示转圈并禁用，宽度保持不变避免跳动。
+    /// 打开登录 / 注册页的入口；登录方式的选择与进度都在登录页内完成。
     private var signInButton: some View {
         Button {
-            Task { await authStore.signIn() }
+            isSignInPresented = true
         } label: {
-            ZStack {
-                Text(text("auth.sign_in.action"))
-                    .opacity(authStore.isBusy ? 0 : 1)
-                if authStore.isBusy {
-                    ProgressView()
-                }
-            }
-            .font(.body.weight(.medium))
-            .padding(.horizontal, 16)
+            Text(text("auth.sign_in.action"))
+                .font(.body.weight(.medium))
+                .padding(.horizontal, 16)
         }
         .buttonStyle(.borderedProminent)
         .buttonBorderShape(.capsule)
@@ -272,14 +266,6 @@ struct ProfileView: View {
         .disabled(authStore.isBusy)
         .padding(.top, 6)
         .accessibilityIdentifier("profile-sign-in")
-    }
-
-    /// 登录失败提示的显隐，关闭时清除错误以免重复弹出。
-    private var isSignInErrorPresented: Binding<Bool> {
-        Binding(
-            get: { authStore.errorMessage != nil },
-            set: { if !$0 { authStore.dismissError() } }
-        )
     }
 
     /// 页面末尾的品牌落款：产品标记、名称与版本号，像账本封底的印记，不与页头的用户信息争位置。
