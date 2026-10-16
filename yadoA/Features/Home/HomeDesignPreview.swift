@@ -101,6 +101,7 @@ enum HomeDesignPreviewData {
 #Preview("首页 · 中文浅色") {
     let locale = Locale(identifier: "zh-Hans")
     ContentView()
+        .environment(AuthStore())
         .modelContainer(try! HomeDesignPreviewData.makeContainer(locale: locale))
         .environment(\.locale, locale)
         .preferredColorScheme(.light)
@@ -109,6 +110,7 @@ enum HomeDesignPreviewData {
 #Preview("首页 · 中文深色") {
     let locale = Locale(identifier: "zh-Hans")
     ContentView()
+        .environment(AuthStore())
         .modelContainer(try! HomeDesignPreviewData.makeContainer(locale: locale))
         .environment(\.locale, locale)
         .preferredColorScheme(.dark)
@@ -117,6 +119,7 @@ enum HomeDesignPreviewData {
 #Preview("Home · English · Large Type") {
     let locale = Locale(identifier: "en")
     ContentView()
+        .environment(AuthStore())
         .modelContainer(try! HomeDesignPreviewData.makeContainer(locale: locale))
         .environment(\.locale, locale)
         .environment(\.dynamicTypeSize, .accessibility1)
@@ -125,6 +128,7 @@ enum HomeDesignPreviewData {
 
 #Preview("首页 · 空状态") {
     ContentView()
+        .environment(AuthStore())
         .modelContainer(try! HomeDesignPreviewData.makeContainer(isEmpty: true))
         .environment(\.locale, Locale(identifier: "zh-Hans"))
         .preferredColorScheme(.light)

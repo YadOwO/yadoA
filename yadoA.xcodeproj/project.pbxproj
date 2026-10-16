@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		617E5D03302C24960076C208 /* LogtoClient in Frameworks */ = {isa = PBXBuildFile; productRef = 617E5D02302C24960076C208 /* LogtoClient */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		617E5CDC302C24960076C208 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				617E5D03302C24960076C208 /* LogtoClient in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = yadoA;
 			packageProductDependencies = (
+				617E5D02302C24960076C208 /* LogtoClient */,
 			);
 			productName = yadoA;
 			productReference = 617E5CCE302C24940076C208 /* yadoA.app */;
@@ -196,6 +202,9 @@
 			);
 			mainGroup = 617E5CC5302C24940076C208;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				617E5D01302C24960076C208 /* XCRemoteSwiftPackageReference "swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 617E5CCF302C24940076C208 /* Products */;
 			projectDirPath = "";
@@ -575,6 +584,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		617E5D01302C24960076C208 /* XCRemoteSwiftPackageReference "swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/logto-io/swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		617E5D02302C24960076C208 /* LogtoClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 617E5D01302C24960076C208 /* XCRemoteSwiftPackageReference "swift" */;
+			productName = LogtoClient;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 617E5CC6302C24940076C208 /* Project object */;
 }

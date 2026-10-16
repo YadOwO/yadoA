@@ -12,6 +12,8 @@ import SwiftUI
 struct yadoAApp: App {
     /// 仅由 UI 自动化参数显式启用的隔离内存容器；生产启动不会创建它。
     private let uiTestingDataContainer: AccountDataContainer?
+    /// 全局登录状态，注入环境后由“我的”页读取；不参与本地账本的读写。
+    @State private var authStore = AuthStore()
 
     init() {
         #if DEBUG
@@ -70,6 +72,7 @@ struct yadoAApp: App {
                     }
                 }
             }
+            .environment(authStore)
             .modifier(AppDisplayPreferencesModifier())
         }
     }

@@ -6300,6 +6300,132 @@
           }
         }
       }
+    },
+    "auth.section.title" : {
+      "comment" : "「我的」页已登录时的账号分组标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account & Sign-In"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账号与登录"
+          }
+        }
+      }
+    },
+    "auth.sign_in.action" : {
+      "comment" : "「我的」页头未登录时的登录入口按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign In / Sign Up"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录 / 注册"
+          }
+        }
+      }
+    },
+    "auth.sign_in.failed" : {
+      "comment" : "登录失败提示的标题，正文为错误详情",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-In Failed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录失败"
+          }
+        }
+      }
+    },
+    "auth.user.signed_in" : {
+      "comment" : "已登录但账号没有昵称和用户名时的页头名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signed In"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已登录"
+          }
+        }
+      }
+    },
+    "auth.sign_out.action" : {
+      "comment" : "退出登录按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign Out"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退出登录"
+          }
+        }
+      }
+    },
+    "auth.sign_out.confirm.title" : {
+      "comment" : "退出登录二次确认的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退出登录吗？"
+          }
+        }
+      }
+    },
+    "auth.sign_out.confirm.message" : {
+      "comment" : "退出登录二次确认的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your accounts and transactions stay on this device."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退出后，本机的账户和流水会保留。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

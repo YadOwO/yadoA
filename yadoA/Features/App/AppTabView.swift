@@ -175,6 +175,7 @@ struct AppTabView: View {
 
 #Preview {
     AppTabView()
+        .environment(AuthStore())
         .modelContainer(
             for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
             inMemory: true

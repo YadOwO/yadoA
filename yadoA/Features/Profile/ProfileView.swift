@@ -1,10 +1,12 @@
 import SwiftData
 import SwiftUI
 
-/// “我的”Tab 根页面：以分组卡片承载账户、备份、语言与外观等本机偏好。
+/// “我的”Tab 根页面：页头承载登录身份，分组卡片承载账户、备份、语言与外观等本机偏好。
 struct ProfileView: View {
     @Environment(\.locale) private var locale
     @Environment(\.modelContext) private var modelContext
+    /// 全局登录状态；登录与否只影响页头身份和退出入口，不影响本地账本。
+    @Environment(AuthStore.self) private var authStore
     @Query private var accounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
 
@@ -18,6 +20,8 @@ struct ProfileView: View {
     @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
     /// 默认账户选择沿用现有独立弹层流程。
     @State private var isDefaultSelectionPresented = false
+    /// 退出登录前的二次确认。
+    @State private var isSignOutConfirmationPresented = false
 
     var body: some View {
         ScrollView {
@@ -127,6 +131,19 @@ struct ProfileView: View {
                         .labelStyle(ProfileExportLabelStyle())
                 }
 
+                if authStore.isAuthenticated {
+                    settingsSection("auth.section.title") {
+                        Button {
+                            isSignOutConfirmationPresented = true
+                        } label: {
+                            Label(text("auth.sign_out.action"), systemImage: "rectangle.portrait.and.arrow.right")
+                        }
+                        .labelStyle(ProfileExportLabelStyle(color: .red))
+                        .disabled(authStore.isBusy)
+                        .accessibilityIdentifier("profile-sign-out")
+                    }
+                }
+
                 brandFooter
             }
             .buttonStyle(.plain)
@@ -139,9 +156,24 @@ struct ProfileView: View {
         .sheet(isPresented: $isDefaultSelectionPresented) {
             NavigationStack { DefaultAccountSelectionView() }
         }
+        .alert(text("auth.sign_out.confirm.title"), isPresented: $isSignOutConfirmationPresented) {
+            Button(text("auth.sign_out.action"), role: .destructive) {
+                Task { await authStore.signOut() }
+            }
+            .accessibilityIdentifier("profile-sign-out-confirm")
+
+            Button(text("common.cancel"), role: .cancel) {}
+        } message: {
+            Text(text("auth.sign_out.confirm.message"))
+        }
+        .alert(text("auth.sign_in.failed"), isPresented: isSignInErrorPresented) {
+            Button(text("common.close"), role: .cancel) {}
+        } message: {
+            Text(authStore.errorMessage ?? "")
+        }
     }
 
-    /// 页头留给用户自己的头像与名称；目前没有登录身份，先用通用头像和占位名称，不放产品品牌。
+    /// 页头留给用户自己的头像与名称，不放产品品牌；未登录时显示占位名称和登录入口。
     private var profileHeader: some View {
         VStack(spacing: 14) {
             Image(systemName: "person.crop.circle.fill")
@@ -149,16 +181,61 @@ struct ProfileView: View {
                 .foregroundStyle(Color.accentColor)
                 .accessibilityHidden(true)
 
-            Text(text("profile.user.placeholder"))
+            Text(headerTitle)
                 .font(.system(.title2, design: .serif, weight: .semibold))
+                .multilineTextAlignment(.center)
+                .accessibilityIdentifier("profile-user-name")
 
             Text(text("profile.local_data"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+            if !authStore.isAuthenticated {
+                signInButton
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 24)
         .padding(.bottom, 8)
+    }
+
+    /// 页头名称：已登录时显示账号名称，取不到名称时显示“已登录”；未登录时显示占位名称。
+    private var headerTitle: String {
+        guard authStore.isAuthenticated else {
+            return text("profile.user.placeholder")
+        }
+        return authStore.displayName ?? text("auth.user.signed_in")
+    }
+
+    /// 打开 Logto 登录 / 注册页的入口；进行中显示转圈并禁用，宽度保持不变避免跳动。
+    private var signInButton: some View {
+        Button {
+            Task { await authStore.signIn() }
+        } label: {
+            ZStack {
+                Text(text("auth.sign_in.action"))
+                    .opacity(authStore.isBusy ? 0 : 1)
+                if authStore.isBusy {
+                    ProgressView()
+                }
+            }
+            .font(.body.weight(.medium))
+            .padding(.horizontal, 16)
+        }
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
+        .controlSize(.large)
+        .disabled(authStore.isBusy)
+        .padding(.top, 6)
+        .accessibilityIdentifier("profile-sign-in")
+    }
+
+    /// 登录失败提示的显隐，关闭时清除错误以免重复弹出。
+    private var isSignInErrorPresented: Binding<Bool> {
+        Binding(
+            get: { authStore.errorMessage != nil },
+            set: { if !$0 { authStore.dismissError() } }
+        )
     }
 
     /// 页面末尾的品牌落款：产品标记、名称与版本号，像账本封底的印记，不与页头的用户信息争位置。
@@ -281,6 +358,7 @@ private struct ProfileSettingsLabelStyle: LabelStyle {
 
 #Preview {
     NavigationStack { ProfileView() }
+        .environment(AuthStore())
         .modelContainer(for: [Account.self, AccountTransaction.self, BookkeepingPreference.self], inMemory: true)
 }
 
