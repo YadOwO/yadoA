@@ -13,6 +13,7 @@ enum AccountTransactionOrdering {
     }
 
     /// 最新业务日优先；同日按保存时间倒序，时间相同时按 UUID 字符串升序。
+    /// UUID 用于最终判定顺序，避免同一时刻保存的流水在刷新后交换位置。
     nonisolated static func newestFirst(
         _ lhs: AccountTransaction,
         _ rhs: AccountTransaction
