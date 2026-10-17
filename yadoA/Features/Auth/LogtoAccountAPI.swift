@@ -139,6 +139,9 @@ struct LogtoAccountAPI {
         if let username {
             body["username"] = username
         }
+        // TODO: 写入后 iOS 端头像显示正常，但 Logto Console 里该用户头像不显示，尚未排查。
+        // 待查方向：Console 中用户 `avatar` 字段是否真的有值；浏览器直接打开头像地址是否正常；
+        // Console 加载 `avatar.yado1225.top` 图片时是否被防盗链（Referer）、跨域或 CSP 拦截。
         if let avatar {
             body["avatar"] = avatar.absoluteString
         }

@@ -24,6 +24,11 @@ protocol OSSCredentialProviding {
     func credentials() async throws -> OSSCredentials
 }
 
+// TODO: 正式分发（TestFlight / App Store）前改为服务端 STS 签发，替换掉本实现。
+// - 服务端：新建 RAM 角色并授予 `yado-avatars/yadoA/*` 的 PutObject；RAM 用户只允许 `sts:AssumeRole` 该角色
+//   （不要用系统策略 AliyunSTSAssumeRoleAccess）；签发时附加会话策略收窄到 `yadoA/{sub}/*`；接口用 Logto token 鉴权。
+// - iOS：新增一个 `OSSCredentialProviding` 实现，请求签发接口、缓存凭证并在过期前刷新，
+//   在 `AuthStore.avatarUploader` 处替换；签名器已支持 `securityToken`，页面无需改动。
 /// 从 Info.plist 读取 Debug 构建注入的长期 AccessKey。
 ///
 /// 密钥来自未入库的 `Config/Secrets.xcconfig`，仅 Debug 构建会引用；

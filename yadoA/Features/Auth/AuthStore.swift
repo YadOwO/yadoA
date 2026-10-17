@@ -28,6 +28,7 @@ final class AuthStore {
     private(set) var isBusy = false
 
     /// 头像上传器；凭证来源目前是 Debug 构建注入的本地密钥。
+    // TODO: 接入服务端 STS 签发后，把这里换成 STS 凭证来源，详见 `BundledOSSCredentialProvider` 上的说明。
     private let avatarUploader = AvatarUploader(credentialProvider: BundledOSSCredentialProvider())
 
     /// 当前构建是否可以更换头像：需已登录且本地配置了上传凭证（仅 Debug 构建）。
