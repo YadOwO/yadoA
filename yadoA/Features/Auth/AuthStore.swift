@@ -111,16 +111,15 @@ final class AuthStore {
         return try await avatarUploader.upload(jpegData: jpegData, userID: userID)
     }
 
-    /// 修改昵称、用户名和 / 或头像，成功后立即更新本地资料。
+    /// 修改昵称和 / 或头像，成功后立即更新本地资料。
     ///
-    /// 修改用户名属于敏感操作，Logto 要求先用密码验证身份，因此此时必须传入 `password`。
+    /// 用户名同时是登录标识，暂不开放修改（Logto Account Center 中该字段应设为只读）；
+    /// 后续若开放，需由服务端控制修改频率，不走这里直连 Account API。
     /// - Parameters:
     ///   - name: 新昵称；外层 nil 表示不修改，内层 nil 表示清空。
-    ///   - username: 新用户名；nil 表示不修改。
     ///   - avatar: 已上传到 OSS 的新头像地址；nil 表示不修改。
-    ///   - password: 修改用户名时用于验证身份的当前密码。
     /// - Throws: `AccountProfileError`。
-    func updateProfile(name: String??, username: String?, avatar: URL? = nil, password: String?) async throws {
+    func updateProfile(name: String??, avatar: URL? = nil) async throws {
         let api = LogtoAccountAPI(endpoint: Self.endpointURL)
         let accessToken: String
         do {
@@ -130,19 +129,11 @@ final class AuthStore {
             throw AccountProfileError.notAllowed
         }
 
-        var verificationID: String?
-        if username != nil {
-            guard let password, !password.isEmpty else {
-                throw AccountProfileError.wrongPassword
-            }
-            verificationID = try await api.verifyPassword(password, accessToken: accessToken)
-        }
-
         let updated = try await api.updateProfile(
             name: name,
-            username: username,
+            username: nil,
             avatar: avatar,
-            verificationID: verificationID,
+            verificationID: nil,
             accessToken: accessToken
         )
         guard isAuthenticated else { return }

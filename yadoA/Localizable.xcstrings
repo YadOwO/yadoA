@@ -6499,20 +6499,38 @@
         }
       }
     },
-    "profile.edit.username.placeholder" : {
-      "comment" : "修改资料弹层：用户名输入框占位",
+    "profile.edit.username.unset" : {
+      "comment" : "修改资料弹层：账号没有用户名时的占位",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Letters, numbers or underscores"
+            "value" : "Not set"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "字母、数字或下划线"
+            "value" : "未设置"
+          }
+        }
+      }
+    },
+    "profile.edit.username.readonly_hint" : {
+      "comment" : "修改资料弹层：只读用户名的读屏提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used to sign in. Can’t be changed for now."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用于登录，暂不支持修改"
           }
         }
       }
@@ -6524,13 +6542,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your name appears on the Profile page. Your username is used to sign in, and changing it requires your password."
+            "value" : "Your name appears on the Profile page. Your username is used to sign in and can’t be changed for now."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "名字会显示在“我的”页；用户名用于登录，修改时需要验证密码。"
+            "value" : "名字会显示在“我的”页；用户名用于登录，暂不支持修改。"
           }
         }
       }
@@ -6639,78 +6657,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "保存个人资料"
-          }
-        }
-      }
-    },
-    "profile.edit.password.title" : {
-      "comment" : "修改用户名前的密码验证弹框标题",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verify Your Password"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "验证密码"
-          }
-        }
-      }
-    },
-    "profile.edit.password.message" : {
-      "comment" : "修改用户名前的密码验证弹框说明",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter your current password to change your username. Use the new username the next time you sign in."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "修改用户名需要输入当前密码。修改后请使用新用户名登录。"
-          }
-        }
-      }
-    },
-    "profile.edit.password.placeholder" : {
-      "comment" : "密码验证弹框的输入框占位",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Password"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "密码"
-          }
-        }
-      }
-    },
-    "profile.edit.password.confirm" : {
-      "comment" : "密码验证弹框的确认按钮",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verify and Save"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "验证并保存"
           }
         }
       }

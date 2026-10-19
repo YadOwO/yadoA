@@ -51,4 +51,13 @@ struct AccountProfileTests {
             )
         }
     }
+
+    @Test("只读用户名的占位与说明都有中英文文案")
+    func readonlyUsernameTextsAreLocalized() {
+        let keys = ["profile.edit.username.unset", "profile.edit.username.readonly_hint", "profile.edit.footnote"]
+        for key in keys {
+            #expect(AccountLocalization.string(key, locale: Locale(identifier: "en")) != key)
+            #expect(AccountLocalization.string(key, locale: Locale(identifier: "zh-Hans")) != key)
+        }
+    }
 }

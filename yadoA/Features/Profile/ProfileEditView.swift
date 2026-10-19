@@ -1,9 +1,10 @@
 import PhotosUI
 import SwiftUI
 
-/// 修改个人资料的底部弹层：大头像、名字与用户名两个胶囊输入框、说明文字、保存与取消。
+/// 修改个人资料的底部弹层：大头像、名字输入框、只读的用户名、说明文字、保存与取消。
 ///
-/// 只提交有变化的字段；用户名变化时先弹出密码框验证身份（Logto 的要求），再一并保存。
+/// 只提交有变化的字段。用户名同时是登录标识，暂不开放修改，只展示并支持长按复制；
+/// 后续若开放，需由服务端控制修改频率，见 `docs/todos/2026-10-18-auth-profile-todo.md`。
 /// 点击头像可从相册选图，先在本地预览，点保存时才上传到 OSS 并写回 Logto；
 /// 未配置上传凭证的构建（如 Release）不显示更换入口。
 struct ProfileEditView: View {
@@ -16,11 +17,6 @@ struct ProfileEditView: View {
 
     /// 名字输入框内容。
     @State private var name: String
-    /// 用户名输入框内容。
-    @State private var username: String
-    /// 修改用户名时输入的当前密码，仅在验证弹框中使用，保存结束即清空。
-    @State private var password = ""
-    @State private var isPasswordPromptPresented = false
     @State private var isSaving = false
     /// 最近一次保存失败的原因，显示在保存按钮上方。
     @State private var error: AccountProfileError?
@@ -41,20 +37,13 @@ struct ProfileEditView: View {
     /// 弹层内容的实际高度，用作弹层高度，让弹层刚好包住内容而不是铺满全屏。
     @State private var contentHeight: CGFloat = 560
 
-    /// 当前聚焦的输入框，保存时收起键盘。
-    @FocusState private var focusedField: Field?
-
-    /// 弹层中的输入框。
-    private enum Field {
-        case name
-        case username
-    }
+    /// 名字输入框是否聚焦，保存时收起键盘。
+    @FocusState private var isNameFocused: Bool
 
     /// 以当前资料初始化输入框。
     init(profile: AccountProfile) {
         original = profile
         _name = State(initialValue: profile.name ?? "")
-        _username = State(initialValue: profile.username ?? "")
     }
 
     var body: some View {
@@ -68,21 +57,14 @@ struct ProfileEditView: View {
                     field("profile.edit.name.title") {
                         TextField(text("profile.edit.name.placeholder"), text: $name)
                             .textContentType(.nickname)
-                            .submitLabel(.next)
-                            .focused($focusedField, equals: .name)
-                            .onSubmit { focusedField = .username }
+                            .submitLabel(.done)
+                            .focused($isNameFocused)
+                            .onSubmit(save)
                             .accessibilityIdentifier("profile-edit-name")
                     }
 
                     field("profile.edit.username.title") {
-                        TextField(text("profile.edit.username.placeholder"), text: $username)
-                            .textContentType(.username)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .submitLabel(.done)
-                            .focused($focusedField, equals: .username)
-                            .onSubmit(save)
-                            .accessibilityIdentifier("profile-edit-username")
+                        usernameValue
                     }
                 }
 
@@ -132,23 +114,8 @@ struct ProfileEditView: View {
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(isSaving || hasChanges)
         .onChange(of: name) { error = nil }
-        .onChange(of: username) { error = nil }
         .onChange(of: avatarSelection) { _, item in
             prepareAvatar(from: item)
-        }
-        .alert(text("profile.edit.password.title"), isPresented: $isPasswordPromptPresented) {
-            SecureField(text("profile.edit.password.placeholder"), text: $password)
-                .textContentType(.password)
-                .accessibilityIdentifier("profile-edit-password")
-            Button(text("profile.edit.password.confirm")) {
-                submit(password: password)
-            }
-            .accessibilityIdentifier("profile-edit-password-confirm")
-            Button(text("common.cancel"), role: .cancel) {
-                password = ""
-            }
-        } message: {
-            Text(text("profile.edit.password.message"))
         }
     }
 
@@ -195,6 +162,29 @@ struct ProfileEditView: View {
         } else {
             ProfileAvatarView(url: original.avatarURL, size: 112)
         }
+    }
+
+    /// 只读的用户名：与输入框同样的胶囊外观，文字置灰并带锁形图标，表示不可修改；长按可复制。
+    private var usernameValue: some View {
+        HStack(spacing: 12) {
+            if let username = original.username, !username.isEmpty {
+                Text(verbatim: username)
+                    .textSelection(.enabled)
+            } else {
+                Text(text("profile.edit.username.unset"))
+            }
+
+            Spacer(minLength: 0)
+
+            Image(systemName: "lock.fill")
+                .font(.subheadline)
+                .accessibilityHidden(true)
+        }
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(text("profile.edit.username.readonly_hint"))
+        .accessibilityIdentifier("profile-edit-username")
     }
 
     /// 黑色胶囊主按钮；深色外观下自动反色，保存中显示转圈。
@@ -246,11 +236,6 @@ struct ProfileEditView: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// 去掉首尾空白后的用户名。
-    private var trimmedUsername: String {
-        username.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
     /// 名字变化：外层 nil 表示未变，内层 nil 表示清空。
     private var nameChange: String?? {
         let newValue: String? = trimmedName.isEmpty ? nil : trimmedName
@@ -259,23 +244,15 @@ struct ProfileEditView: View {
         return newValue == normalizedOld ? .none : .some(newValue)
     }
 
-    /// 用户名变化：nil 表示未变。
-    private var usernameChange: String? {
-        trimmedUsername == (original.username ?? "") ? nil : trimmedUsername
-    }
-
     /// 是否有未保存的修改。
     private var hasChanges: Bool {
-        nameChange != nil || usernameChange != nil || pendingAvatarData != nil
+        nameChange != nil || pendingAvatarData != nil
     }
 
     /// 本地即可判断的输入问题；没有问题时为 nil。
     private var validationMessage: String? {
         if trimmedName.count > AccountProfile.nameMaxLength {
             return text("profile.edit.error.name_too_long")
-        }
-        if usernameChange != nil, !AccountProfile.isValidUsername(trimmedUsername) {
-            return text("profile.edit.error.username_invalid")
         }
         return nil
     }
@@ -287,16 +264,11 @@ struct ProfileEditView: View {
 
     // MARK: - 操作
 
-    /// 点击保存：改了用户名先要密码，否则直接提交。
+    /// 点击保存：收起键盘后提交。
     private func save() {
         guard canSave else { return }
-        focusedField = nil
-        if usernameChange != nil {
-            password = ""
-            isPasswordPromptPresented = true
-        } else {
-            submit(password: nil)
-        }
+        isNameFocused = false
+        submit()
     }
 
     /// 读取并处理相册选中的图片，生成待上传的 JPEG 与本地预览。
@@ -328,19 +300,15 @@ struct ProfileEditView: View {
 
     /// 提交修改，成功后关闭弹层，失败时在按钮上方提示原因。
     ///
-    /// 有新头像时先上传到 OSS，再与昵称、用户名一起写回 Logto。
-    private func submit(password: String?) {
+    /// 有新头像时先上传到 OSS，再与昵称一起写回 Logto。
+    private func submit() {
         let nameChange = nameChange
-        let usernameChange = usernameChange
         let avatarData = pendingAvatarData
         isSaving = true
         error = nil
         avatarError = nil
         Task {
-            defer {
-                isSaving = false
-                self.password = ""
-            }
+            defer { isSaving = false }
             do {
                 var avatarURL = uploadedAvatarURL
                 if let avatarData, avatarURL == nil {
@@ -349,9 +317,7 @@ struct ProfileEditView: View {
                 }
                 try await authStore.updateProfile(
                     name: nameChange,
-                    username: usernameChange,
-                    avatar: avatarURL,
-                    password: password
+                    avatar: avatarURL
                 )
                 dismiss()
             } catch let uploadError as AvatarUploadError {
