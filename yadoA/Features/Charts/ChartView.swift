@@ -7,6 +7,7 @@ struct ChartView: View {
     @Environment(\.calendar) private var environmentCalendar
     @Environment(\.locale) private var locale
     @Query private var transactions: [AccountTransaction]
+    @Query private var categories: [BookkeepingCategory]
 
     /// 当前展示的收支类型，默认支出。
     @State private var selectedEntryType: BookkeepingEntryType = .expense
@@ -27,6 +28,7 @@ struct ChartView: View {
     init(onAddEntry: @escaping () -> Void = {}) {
         self.onAddEntry = onAddEntry
         _transactions = Query(ChartOverviewPresentation.descriptor())
+        _categories = Query()
     }
 
     var body: some View {
@@ -43,7 +45,8 @@ struct ChartView: View {
             anchorDate: selectedAnchorDate,
             transactions: transactions,
             calendar: environmentCalendar,
-            locale: locale
+            locale: locale,
+            catalog: BookkeepingCategoryCatalog(categories: categories)
         )
 
         Group {

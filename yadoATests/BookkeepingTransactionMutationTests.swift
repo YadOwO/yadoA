@@ -20,7 +20,7 @@ struct BookkeepingTransactionMutationTests {
         ), savedAt: savedAt)
 
         let edit = DiningExpenseEditDraft(
-            id: id, accountID: destination, category: .shopping,
+            id: id, accountID: destination, expenseCategoryKey: ExpenseCategory.shopping.rawValue,
             title: "  书包  ", amountText: "30.50", transactionDay: 20260902, note: "  开学用品  "
         )
         try repository.update(edit)
@@ -54,7 +54,8 @@ struct BookkeepingTransactionMutationTests {
                 let newDirection: BookkeepingEntryType = oldDirection == .expense ? .income : .expense
                 try repository.update(DiningExpenseEditDraft(
                     id: id, accountID: accountID, entryType: newDirection,
-                    category: .travel, incomeCategory: .bonus,
+                    expenseCategoryKey: ExpenseCategory.travel.rawValue,
+                    incomeCategoryKey: IncomeCategory.bonus.rawValue,
                     title: "修正方向", amountText: "30", transactionDay: 20260901
                 ))
                 let increases = (type == .cash) == (newDirection == .income)
@@ -103,7 +104,7 @@ struct BookkeepingTransactionMutationTests {
             BalanceAdjustmentDraft(id: adjustmentID, accountID: accountID, amountText: "500")
         )
         var draft = DiningExpenseEditDraft(
-            id: id, accountID: accountID, category: .travel, title: "改日期",
+            id: id, accountID: accountID, expenseCategoryKey: ExpenseCategory.travel.rawValue, title: "改日期",
             amountText: "20", transactionDay: 20260101, note: " "
         )
         try repository.update(draft)
@@ -197,7 +198,7 @@ struct BookkeepingTransactionMutationTests {
         #expect(draft.id == transaction.id)
         #expect(draft.accountID == transaction.accountID)
         #expect(draft.entryType == .income)
-        #expect(draft.incomeCategory == .bonus)
+        #expect(draft.incomeCategoryKey == IncomeCategory.bonus.rawValue)
         #expect(draft.amount == Decimal(string: "12.34"))
         #expect(draft.transactionDay == 20260915)
         #expect(draft.note == "月度奖金")

@@ -31,7 +31,9 @@ struct BookkeepingTransactionDetailView: View {
                 DiningExpenseQuickEditView(draft: draft) { updatedDraft in
                     // 保存后流水即被改写，先拷贝修改前的首页行，供首页展示从什么改成了什么。
                     let previousRow = transaction(id: updatedDraft.id).flatMap {
-                        HomeOverviewPresentation.row(for: $0, locale: locale, calendar: calendar)
+                        HomeOverviewPresentation.row(
+                            for: $0, locale: locale, calendar: calendar, catalog: currentCatalog()
+                        )
                     }
                     try LocalExpenseRepository(container: modelContext.container).update(updatedDraft)
                     queryRefreshToken = UUID()
@@ -72,7 +74,9 @@ struct BookkeepingTransactionDetailView: View {
     private func deleteTransaction(id: UUID) {
         // 删除后流水对象即失效，先拷贝首页行快照，供首页在原位置画出被划掉的残影。
         let deletedRow = transaction(id: id).flatMap {
-            HomeOverviewPresentation.deletedRow(for: $0, locale: locale, calendar: calendar)
+            HomeOverviewPresentation.deletedRow(
+                for: $0, locale: locale, calendar: calendar, catalog: currentCatalog()
+            )
         }
         do {
             try LocalExpenseRepository(container: modelContext.container).delete(id: id)
@@ -94,6 +98,12 @@ struct BookkeepingTransactionDetailView: View {
         try? modelContext.fetch(BookkeepingSearchPresentation.descriptor(transactionID: id)).first
     }
 
+    /// 从主上下文读取当前分类目录，保证快照中的分类名称与图标与首页一致。
+    private func currentCatalog() -> BookkeepingCategoryCatalog {
+        let categories = (try? modelContext.fetch(FetchDescriptor<BookkeepingCategory>())) ?? []
+        return BookkeepingCategoryCatalog(categories: categories)
+    }
+
     /// 按当前应用语言解析 String Catalog 文案。
     private func text(_ key: String) -> String {
         AccountLocalization.string(key, locale: locale)
@@ -106,6 +116,7 @@ private struct BookkeepingTransactionDetailQueryContent: View {
     @Environment(\.locale) private var locale
     @Query private var transactions: [AccountTransaction]
     @Query private var accounts: [Account]
+    @Query private var categories: [BookkeepingCategory]
 
     /// 导航栈传入的稳定流水标识。
     let transactionID: UUID
@@ -127,6 +138,12 @@ private struct BookkeepingTransactionDetailQueryContent: View {
             BookkeepingSearchPresentation.descriptor(transactionID: transactionID)
         )
         _accounts = Query(BookkeepingSearchPresentation.accountDescriptor())
+        _categories = Query()
+    }
+
+    /// 存储中的分类设置与预置默认值合并后的目录。
+    private var catalog: BookkeepingCategoryCatalog {
+        BookkeepingCategoryCatalog(categories: categories)
     }
 
     var body: some View {
@@ -135,7 +152,8 @@ private struct BookkeepingTransactionDetailQueryContent: View {
             transactions: transactions,
             accounts: accounts,
             calendar: environmentCalendar,
-            locale: locale
+            locale: locale,
+            catalog: catalog
         )
 
         Group {
@@ -157,7 +175,9 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         if let transaction = transactions.first(where: { $0.id == transactionID }),
-                           let draft = DiningExpenseEditDraft(transaction: transaction, locale: locale) {
+                           let draft = DiningExpenseEditDraft(
+                               transaction: transaction, locale: locale, catalog: catalog
+                           ) {
                             onEdit(draft)
                         }
                     } label: {

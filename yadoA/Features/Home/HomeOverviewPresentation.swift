@@ -274,11 +274,13 @@ struct HomeOverviewPresentation {
     ///   - now: 用于选择初始月份的注入日期。
     ///   - calendar: 提供时区和公历规则的日历。
     ///   - locale: 用于月份、日期、星期和行展示的语言环境。
+    ///   - catalog: 解析分类名称与图标使用的分类目录。
     init(
         transactions: [AccountTransaction],
         now: Date = .now,
         calendar sourceCalendar: Calendar = .current,
-        locale: Locale = .current
+        locale: Locale = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
     ) {
         let calendar = TransactionDay.gregorianCalendar(
             basedOn: sourceCalendar,
@@ -292,7 +294,7 @@ struct HomeOverviewPresentation {
                   let month = HomeMonth(value: transaction.transactionDay / 100),
                   let payload = try? transaction.validatedPayload(),
                   let entry = payload.bookkeepingAmount,
-                  let symbolName = payload.categorySymbolName
+                  let symbolName = payload.categorySymbolName(in: catalog)
             else {
                 return nil
             }
@@ -316,6 +318,7 @@ struct HomeOverviewPresentation {
         )
         self.locale = locale
         self.calendar = calendar
+        self.catalog = catalog
     }
 
     /// 生成指定月份的完整展示投影；空月份也会返回可渲染的空状态数据。
@@ -362,7 +365,7 @@ struct HomeOverviewPresentation {
                 calendar: calendar
             )
             var rows = transactions.map {
-                Self.row(for: $0, formattedDate: formattedDate, locale: locale)
+                Self.row(for: $0, formattedDate: formattedDate, locale: locale, catalog: catalog)
             }
             if let deletedRow, deletedRow.transactionDay == transactionDay {
                 let index = transactions.firstIndex { deletedRow.precedes($0.transaction) } ?? rows.endIndex
@@ -409,13 +412,16 @@ struct HomeOverviewPresentation {
     ///   - transaction: 即将删除、仍然有效的原始流水。
     ///   - locale: 标题、金额和日期使用的语言环境。
     ///   - calendar: 日期使用的公历及时区。
+    ///   - catalog: 解析分类名称与图标使用的分类目录。
     /// - Returns: 残影快照；流水不会出现在首页时返回 `nil`。
     static func deletedRow(
         for transaction: AccountTransaction,
         locale: Locale = .current,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
     ) -> HomeOverviewDeletedRow? {
-        guard let row = row(for: transaction, locale: locale, calendar: calendar) else { return nil }
+        guard let row = row(for: transaction, locale: locale, calendar: calendar, catalog: catalog)
+        else { return nil }
         return HomeOverviewDeletedRow(
             row: row,
             transactionDay: transaction.transactionDay,
@@ -429,14 +435,16 @@ struct HomeOverviewPresentation {
     ///   - transaction: 需要转换的原始流水。
     ///   - locale: 标题、金额和日期使用的语言环境。
     ///   - calendar: 日期使用的公历及时区。
+    ///   - catalog: 解析分类名称与图标使用的分类目录。
     /// - Returns: 可展示的首页行；无效日期、损坏载荷和非真实支出返回 `nil`。
     static func row(
         for transaction: AccountTransaction,
         locale: Locale = .current,
-        calendar sourceCalendar: Calendar = .current
+        calendar sourceCalendar: Calendar = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
     ) -> HomeOverviewRowPresentation? {
         guard let payload = try? transaction.validatedPayload(),
-              let symbolName = payload.categorySymbolName,
+              let symbolName = payload.categorySymbolName(in: catalog),
               TransactionDay.date(
                   from: transaction.transactionDay,
                   calendar: sourceCalendar,
@@ -455,7 +463,8 @@ struct HomeOverviewPresentation {
                 locale: locale,
                 calendar: sourceCalendar
             ),
-            locale: locale
+            locale: locale,
+            catalog: catalog
         )
     }
 
@@ -463,14 +472,16 @@ struct HomeOverviewPresentation {
     private static func row(
         for validated: ValidatedTransaction,
         formattedDate: String,
-        locale: Locale
+        locale: Locale,
+        catalog: BookkeepingCategoryCatalog
     ) -> HomeOverviewRowPresentation {
         row(
             for: validated.transaction,
             payload: validated.payload,
             symbolName: validated.symbolName,
             formattedDate: formattedDate,
-            locale: locale
+            locale: locale,
+            catalog: catalog
         )
     }
 
@@ -480,13 +491,15 @@ struct HomeOverviewPresentation {
         payload: AccountTransactionPayload,
         symbolName: String,
         formattedDate: String,
-        locale: Locale
+        locale: Locale,
+        catalog: BookkeepingCategoryCatalog
     ) -> HomeOverviewRowPresentation {
         let historyRow = AccountTransactionHistoryPresentation.row(
             for: transaction,
             payload: payload,
             formattedDate: formattedDate,
-            locale: locale
+            locale: locale,
+            catalog: catalog
         )
         return HomeOverviewRowPresentation(
             id: historyRow.id,
@@ -550,4 +563,7 @@ struct HomeOverviewPresentation {
 
     /// 首页投影使用的固定公历及时区。
     private let calendar: Calendar
+
+    /// 首页投影使用的分类目录。
+    private let catalog: BookkeepingCategoryCatalog
 }

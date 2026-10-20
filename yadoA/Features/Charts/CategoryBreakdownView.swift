@@ -7,6 +7,7 @@ struct CategoryBreakdownView: View {
     @Environment(\.calendar) private var calendar
     @Environment(\.locale) private var locale
     @Query private var transactions: [AccountTransaction]
+    @Query private var categories: [BookkeepingCategory]
 
     /// 当前收支类型、周期与业务日锚点。
     @State private var entryType: BookkeepingEntryType
@@ -21,6 +22,7 @@ struct CategoryBreakdownView: View {
         _period = State(initialValue: period)
         _anchorDay = State(initialValue: anchorDay)
         _transactions = Query(ChartOverviewPresentation.descriptor())
+        _categories = Query()
     }
 
     var body: some View {
@@ -30,7 +32,8 @@ struct CategoryBreakdownView: View {
             anchorDate: TransactionDay.date(from: anchorDay, calendar: calendar, locale: locale),
             transactions: transactions,
             calendar: calendar,
-            locale: locale
+            locale: locale,
+            catalog: BookkeepingCategoryCatalog(categories: categories)
         )
 
         ScrollView {

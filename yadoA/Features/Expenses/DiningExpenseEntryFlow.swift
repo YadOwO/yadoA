@@ -72,14 +72,9 @@ final class DiningExpenseEntryFlow: ObservableObject {
         submissionState == .failed
     }
 
-    /// 供界面展示的已确认分类；新草稿在用户选择前返回 `nil`。
-    var selectedCategory: ExpenseCategory? {
-        hasConfirmedCategory && draft.entryType == .expense ? draft.category : nil
-    }
-
-    /// 供界面展示的已确认收入分类；其他状态返回 `nil`。
-    var selectedIncomeCategory: IncomeCategory? {
-        hasConfirmedCategory && draft.entryType == .income ? draft.incomeCategory : nil
+    /// 当前方向下已确认的分类 key；新草稿在用户选择前返回 `nil`。
+    var selectedCategoryKey: String? {
+        hasConfirmedCategory ? draft.categoryKey : nil
     }
 
     /// 草稿是否已经具备明确分类、有效金额和账户选择。
@@ -129,11 +124,16 @@ final class DiningExpenseEntryFlow: ObservableObject {
         markAsEditing()
     }
 
-    /// 更新支出分类，并在编辑后清除上一次失败提示。
-    func selectCategory(_ category: ExpenseCategory) {
+    /// 选择当前方向下的分类，并在编辑后清除上一次失败提示。
+    ///
+    /// - Parameter key: 用户在分类面板中点选的分类 key。
+    func selectCategory(key: String) {
         guard !isSaving else { return }
         hasConfirmedCategory = true
-        draft.category = category
+        switch draft.entryType {
+        case .expense: draft.expenseCategoryKey = key
+        case .income: draft.incomeCategoryKey = key
+        }
         markAsEditing()
     }
 
@@ -142,14 +142,6 @@ final class DiningExpenseEntryFlow: ObservableObject {
         guard !isSaving, draft.entryType != entryType else { return }
         draft.entryType = entryType
         hasConfirmedCategory = false
-        markAsEditing()
-    }
-
-    /// 更新收入分类，并在编辑后清除上一次失败提示。
-    func selectIncomeCategory(_ category: IncomeCategory) {
-        guard !isSaving else { return }
-        hasConfirmedCategory = true
-        draft.incomeCategory = category
         markAsEditing()
     }
 

@@ -10,6 +10,7 @@ struct BookkeepingSearchView: View {
     @Environment(\.locale) private var locale
     @Query private var transactions: [AccountTransaction]
     @Query private var accounts: [Account]
+    @Query private var categories: [BookkeepingCategory]
 
     /// 系统搜索栏当前实时输入的关键词。
     @State private var query = ""
@@ -37,6 +38,7 @@ struct BookkeepingSearchView: View {
         self.onOpenTransaction = onOpenTransaction
         _transactions = Query(BookkeepingSearchPresentation.descriptor())
         _accounts = Query(BookkeepingSearchPresentation.accountDescriptor())
+        _categories = Query()
     }
 
     var body: some View {
@@ -47,7 +49,8 @@ struct BookkeepingSearchView: View {
             timeFilter: timeFilter,
             entryFilter: entryFilter,
             calendar: environmentCalendar,
-            locale: locale
+            locale: locale,
+            catalog: BookkeepingCategoryCatalog(categories: categories)
         )
 
         // 筛选条放在搜索栏正下方的内容区：正在输入关键词时导航栏按钮会被收起，这里始终点得到。

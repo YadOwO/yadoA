@@ -145,6 +145,14 @@ final class BackupExportService {
             }
         }
 
+        let categories = try context.fetch(FetchDescriptor<BookkeepingCategory>()).sorted { lhs, rhs in
+            if lhs.directionRawValue != rhs.directionRawValue {
+                return lhs.directionRawValue < rhs.directionRawValue
+            }
+            if lhs.sortIndex != rhs.sortIndex { return lhs.sortIndex < rhs.sortIndex }
+            return lhs.key < rhs.key
+        }
+
         let preference = try context.canonicalBookkeepingPreference()
         return BackupFile(
             exportedAt: exportedAt,
@@ -156,7 +164,8 @@ final class BackupExportService {
             transactions: transactions.map(BackupTransaction.init),
             bookkeepingPreference: preference.map {
                 BackupBookkeepingPreference(defaultAccountID: $0.defaultAccountID)
-            }
+            },
+            categories: categories.map(BackupCategory.init)
         )
     }
 

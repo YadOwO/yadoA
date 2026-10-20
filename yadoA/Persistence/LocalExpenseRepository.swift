@@ -26,6 +26,9 @@ enum ExpenseRepositoryError: Error, Equatable {
 
     /// 精确十进制金额计算失败。
     case balanceCalculationFailed
+
+    /// 流水引用的自定义分类不存在或已删除。
+    case categoryUnavailable(String)
 }
 
 /// 在主 actor 上原子保存收支流水和账户金额变化的本地仓库。
@@ -71,6 +74,7 @@ final class LocalExpenseRepository {
         )
         let (account, accountType) = try bookkeepingAccount(id: transaction.accountID, in: modelContext)
         let payload = try transaction.validatedPayload()
+        try requireAvailableCategory(of: payload, in: modelContext)
         guard let (entryType, amount) = payload.bookkeepingAmount else {
             throw AccountTransactionValidationError.invalidPayload
         }
@@ -101,6 +105,7 @@ final class LocalExpenseRepository {
         let (oldAmount, oldEntryType) = try Self.editableAmountAndType(for: transaction)
         let replacement = try draft.validatedTransaction(savedAt: transaction.savedAt)
         let (newAmount, newEntryType) = try Self.editableAmountAndType(for: replacement)
+        try requireAvailableCategory(of: replacement.validatedPayload(), in: modelContext)
         let (source, sourceType) = try bookkeepingAccount(id: transaction.accountID, in: modelContext)
 
         if source.id == replacement.accountID {
@@ -159,6 +164,17 @@ final class LocalExpenseRepository {
             throw ExpenseRepositoryError.unsupportedCurrency(transaction.currencyCode)
         }
         return (amount, entryType)
+    }
+
+    /// 最终写入前确认分类仍可使用，避免记账期间分类在别处被删除。
+    private func requireAvailableCategory(
+        of payload: AccountTransactionPayload,
+        in context: ModelContext
+    ) throws {
+        guard let reference = payload.categoryReference else { return }
+        guard try context.isCategoryAvailable(key: reference.key, direction: reference.direction) else {
+            throw ExpenseRepositoryError.categoryUnavailable(reference.key)
+        }
     }
 
     /// 最终写入前重新校验账户，避免编辑期间停用、删除或类型变化绕过限制。

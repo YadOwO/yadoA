@@ -13,17 +13,18 @@ struct DiningExpenseEntryFlowTests {
             saveAction: { _ in }
         )
         flow.updateAmountText("100", decimalSeparator: ".")
-        flow.selectCategory(.dining)
+        flow.selectCategory(key: ExpenseCategory.dining.rawValue)
 
         flow.selectEntryType(.income)
 
-        #expect(flow.selectedCategory == nil)
-        #expect(flow.selectedIncomeCategory == nil)
+        #expect(flow.selectedCategoryKey == nil)
         #expect(!flow.canSubmit)
 
-        flow.selectIncomeCategory(.salary)
+        flow.selectCategory(key: IncomeCategory.salary.rawValue)
 
-        #expect(flow.selectedIncomeCategory == .salary)
+        #expect(flow.selectedCategoryKey == IncomeCategory.salary.rawValue)
+        #expect(flow.draft.incomeCategoryKey == IncomeCategory.salary.rawValue)
+        #expect(flow.draft.expenseCategoryKey == ExpenseCategory.dining.rawValue)
         #expect(flow.canSubmit)
     }
 
@@ -37,12 +38,12 @@ struct DiningExpenseEntryFlowTests {
 
         flow.updateAmountText("12.50", decimalSeparator: ".")
 
-        #expect(flow.selectedCategory == nil)
+        #expect(flow.selectedCategoryKey == nil)
         #expect(!flow.canSubmit)
 
-        flow.selectCategory(.dining)
+        flow.selectCategory(key: ExpenseCategory.dining.rawValue)
 
-        #expect(flow.selectedCategory == .dining)
+        #expect(flow.selectedCategoryKey == ExpenseCategory.dining.rawValue)
         #expect(flow.canSubmit)
     }
 
@@ -59,12 +60,12 @@ struct DiningExpenseEntryFlowTests {
             saveAction: { _ in }
         )
 
-        #expect(flow.selectedCategory == .dining)
+        #expect(flow.selectedCategoryKey == ExpenseCategory.dining.rawValue)
 
-        flow.selectCategory(.travel)
+        flow.selectCategory(key: ExpenseCategory.travel.rawValue)
 
-        #expect(flow.draft.category == .travel)
-        #expect(flow.selectedCategory == .travel)
+        #expect(flow.draft.expenseCategoryKey == ExpenseCategory.travel.rawValue)
+        #expect(flow.selectedCategoryKey == ExpenseCategory.travel.rawValue)
         #expect(flow.draft.accountID == accountID)
         #expect(flow.draft.amountText == "88.50")
         #expect(flow.draft.note == "周末出行")

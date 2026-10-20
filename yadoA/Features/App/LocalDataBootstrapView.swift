@@ -84,6 +84,8 @@ final class LocalDataBootstrap: ObservableObject {
                 // 生产引导绝不接受临时存储，即使工厂被错误配置。
                 throw LocalDataBootstrapError.ephemeralStoreRejected
             }
+            // 补齐预置分类行；失败不阻断启动，分类目录会用预置默认值兜底，下次写分类时再补。
+            try? LocalCategoryRepository(container: container.modelContainer).ensurePresets()
             dataContainer = container
             phase = .ready
         } catch {

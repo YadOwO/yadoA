@@ -39,7 +39,7 @@ struct BackupExportServiceTests {
                 id: UUID(),
                 accountID: activeID,
                 entryType: .expense,
-                category: .dining,
+                expenseCategoryKey: ExpenseCategory.dining.rawValue,
                 amountText: "1",
                 transactionDay: 20260902
             ),
@@ -50,7 +50,7 @@ struct BackupExportServiceTests {
                 id: UUID(),
                 accountID: activeID,
                 entryType: .income,
-                incomeCategory: .salary,
+                incomeCategoryKey: IncomeCategory.salary.rawValue,
                 amountText: "100",
                 transactionDay: 20260901
             ),

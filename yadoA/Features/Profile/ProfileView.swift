@@ -58,6 +58,16 @@ struct ProfileView: View {
                     }
                 }
 
+                settingsSection("profile.section.bookkeeping") {
+                    NavigationLink {
+                        CategoryManagementView()
+                            .secondaryPage()
+                    } label: {
+                        row("category.management.title", symbol: "square.grid.2x2", value: "")
+                    }
+                    .accessibilityIdentifier("profile-category-management")
+                }
+
                 settingsSection("profile.section.display") {
                     Menu {
                         Picker(text("profile.language.title"), selection: $language) {

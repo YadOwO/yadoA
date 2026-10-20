@@ -18,11 +18,11 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
     /// 修改后的收支方向。
     var entryType: BookkeepingEntryType
 
-    /// 支出方向下使用的分类。
-    var category: ExpenseCategory
+    /// 支出方向下使用的分类 key。
+    var expenseCategoryKey: String
 
-    /// 收入方向下使用的分类。
-    var incomeCategory: IncomeCategory
+    /// 收入方向下使用的分类 key。
+    var incomeCategoryKey: String
 
     /// 用户可编辑的流水标题。
     var title: String
@@ -42,8 +42,8 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
     ///   - id: 需要更新的流水 UUID。
     ///   - accountID: 修改后绑定的启用账户。
     ///   - entryType: 修改后的收入或支出方向。
-    ///   - category: 支出分类。
-    ///   - incomeCategory: 收入分类。
+    ///   - expenseCategoryKey: 支出分类 key。
+    ///   - incomeCategoryKey: 收入分类 key。
     ///   - title: 当前展示标题；旧数据回退到分类默认标题。
     ///   - amountText: 使用英文句点的小数金额字符。
     ///   - transactionDay: 有效的公历业务日。
@@ -52,8 +52,8 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
         id: UUID,
         accountID: UUID,
         entryType: BookkeepingEntryType = .expense,
-        category: ExpenseCategory = .dining,
-        incomeCategory: IncomeCategory = .salary,
+        expenseCategoryKey: String = ExpenseCategory.dining.rawValue,
+        incomeCategoryKey: String = IncomeCategory.salary.rawValue,
         title: String,
         amountText: String,
         transactionDay: Int,
@@ -62,8 +62,8 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
         self.id = id
         self.accountID = accountID
         self.entryType = entryType
-        self.category = category
-        self.incomeCategory = incomeCategory
+        self.expenseCategoryKey = expenseCategoryKey
+        self.incomeCategoryKey = incomeCategoryKey
         self.title = title
         self.amountText = amountText
         self.transactionDay = transactionDay
@@ -71,37 +71,39 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
     }
 
     /// 从合法收入或支出初始化完整草稿；余额调整与损坏数据不进入编辑流程。
-    init?(transaction: AccountTransaction, locale: Locale = .current) {
+    ///
+    /// - Parameters:
+    ///   - transaction: 需要编辑的流水。
+    ///   - locale: 旧数据没有标题时回退分类名称使用的语言环境。
+    ///   - catalog: 解析分类名称和另一方向默认分类使用的分类目录。
+    init?(
+        transaction: AccountTransaction,
+        locale: Locale = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
+    ) {
         guard transaction.currencyCode == "CNY",
               TransactionDay.isValid(transaction.transactionDay),
-              let payload = try? transaction.validatedPayload()
+              let payload = try? transaction.validatedPayload(),
+              let entry = payload.bookkeepingAmount,
+              let reference = payload.categoryReference
         else { return nil }
-        let amount: Decimal
-        let entryType: BookkeepingEntryType
-        var category: ExpenseCategory = .dining
-        var incomeCategory: IncomeCategory = .salary
-        let categoryTitle: String
-        switch payload {
-        case let .expense(value, expenseAmount):
-            entryType = .expense
-            category = value
-            amount = expenseAmount
-            categoryTitle = value.localizedTitle(locale: locale)
-        case let .income(value, incomeAmount):
-            entryType = .income
-            incomeCategory = value
-            amount = incomeAmount
-            categoryTitle = value.localizedTitle(locale: locale)
-        case .balanceAdjustment:
-            return nil
+        // 另一方向使用目录的默认分类，用户在编辑时切换方向也能立即得到可选分类。
+        var expenseCategoryKey = catalog.defaultKey(for: .expense)
+        var incomeCategoryKey = catalog.defaultKey(for: .income)
+        switch reference.direction {
+        case .expense: expenseCategoryKey = reference.key
+        case .income: incomeCategoryKey = reference.key
         }
-        var value = amount
+        let categoryTitle = catalog
+            .resolvedItem(direction: reference.direction, key: reference.key)
+            .title(locale: locale)
+        var value = entry.amount
         self.init(
             id: transaction.id,
             accountID: transaction.accountID,
-            entryType: entryType,
-            category: category,
-            incomeCategory: incomeCategory,
+            entryType: entry.entryType,
+            expenseCategoryKey: expenseCategoryKey,
+            incomeCategoryKey: incomeCategoryKey,
             title: transaction.title ?? categoryTitle,
             amountText: NSDecimalString(&value, Locale(identifier: "en_US_POSIX")),
             transactionDay: transaction.transactionDay,
@@ -115,7 +117,7 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
         let transaction = try AccountTransaction.validating(
             draft: DiningExpenseDraft(
                 id: id, accountID: accountID, entryType: entryType,
-                category: category, incomeCategory: incomeCategory,
+                expenseCategoryKey: expenseCategoryKey, incomeCategoryKey: incomeCategoryKey,
                 amountText: amountText, transactionDay: transactionDay, note: note
             ),
             savedAt: savedAt

@@ -8,11 +8,8 @@ protocol BookkeepingEntryFormFlow: ObservableObject {
     /// 当前收支方向。
     var formEntryType: BookkeepingEntryType { get }
 
-    /// 支出方向下已确认的分类；尚未选择或当前为收入时返回 `nil`。
-    var formExpenseCategory: ExpenseCategory? { get }
-
-    /// 收入方向下已确认的分类；尚未选择或当前为支出时返回 `nil`。
-    var formIncomeCategory: IncomeCategory? { get }
+    /// 当前方向下已确认的分类 key；尚未选择时返回 `nil`。
+    var formCategoryKey: String? { get }
 
     /// 可编辑的流水标题；返回 `nil` 表示这份草稿没有标题字段，页面不展示标题行。
     var formTitle: String? { get }
@@ -41,11 +38,8 @@ protocol BookkeepingEntryFormFlow: ObservableObject {
     /// 切换收支方向。
     func selectEntryType(_ entryType: BookkeepingEntryType)
 
-    /// 选择支出分类。
-    func selectCategory(_ category: ExpenseCategory)
-
-    /// 选择收入分类。
-    func selectIncomeCategory(_ category: IncomeCategory)
+    /// 选择当前方向下的分类。
+    func selectCategory(key: String)
 
     /// 修改标题；没有标题字段的草稿忽略这次输入。
     func updateTitle(_ title: String)
@@ -70,9 +64,7 @@ protocol BookkeepingEntryFormFlow: ObservableObject {
 extension DiningExpenseEntryFlow: BookkeepingEntryFormFlow {
     var formEntryType: BookkeepingEntryType { draft.entryType }
 
-    var formExpenseCategory: ExpenseCategory? { selectedCategory }
-
-    var formIncomeCategory: IncomeCategory? { selectedIncomeCategory }
+    var formCategoryKey: String? { selectedCategoryKey }
 
     var formTitle: String? { nil }
 
@@ -95,12 +87,8 @@ extension DiningExpenseEntryFlow: BookkeepingEntryFormFlow {
 extension DiningExpenseEditFlow: BookkeepingEntryFormFlow {
     var formEntryType: BookkeepingEntryType { draft.entryType }
 
-    var formExpenseCategory: ExpenseCategory? {
-        draft.entryType == .expense ? draft.category : nil
-    }
-
-    var formIncomeCategory: IncomeCategory? {
-        draft.entryType == .income ? draft.incomeCategory : nil
+    var formCategoryKey: String? {
+        draft.entryType == .expense ? draft.expenseCategoryKey : draft.incomeCategoryKey
     }
 
     var formTitle: String? { draft.title }
@@ -119,12 +107,13 @@ extension DiningExpenseEditFlow: BookkeepingEntryFormFlow {
         update { $0.entryType = entryType }
     }
 
-    func selectCategory(_ category: ExpenseCategory) {
-        update { $0.category = category }
-    }
-
-    func selectIncomeCategory(_ category: IncomeCategory) {
-        update { $0.incomeCategory = category }
+    func selectCategory(key: String) {
+        update { draft in
+            switch draft.entryType {
+            case .expense: draft.expenseCategoryKey = key
+            case .income: draft.incomeCategoryKey = key
+            }
+        }
     }
 
     func selectFormAccount(id: UUID) {

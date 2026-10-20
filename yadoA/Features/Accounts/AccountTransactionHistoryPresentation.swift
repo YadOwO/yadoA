@@ -50,11 +50,13 @@ enum AccountTransactionHistoryPresentation {
     ///   - transaction: 已持久化的类型化账户流水。
     ///   - locale: 标题、金额和日期使用的语言环境。
     ///   - calendar: 提供当前时区的日历，展示时统一使用公历。
+    ///   - catalog: 解析分类名称使用的分类目录。
     /// - Returns: 可直接渲染到账户详情的流水行；专属字段缺失时返回 `nil`。
     static func row(
         for transaction: AccountTransaction,
         locale: Locale = .current,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
     ) -> AccountTransactionHistoryRowPresentation? {
         guard let payload = try? transaction.validatedPayload() else { return nil }
         return row(
@@ -65,7 +67,8 @@ enum AccountTransactionHistoryPresentation {
                 locale: locale,
                 calendar: calendar
             ),
-            locale: locale
+            locale: locale,
+            catalog: catalog
         )
     }
 
@@ -76,12 +79,14 @@ enum AccountTransactionHistoryPresentation {
     ///   - payload: 由 `validatedPayload()` 解码出的同一笔流水载荷。
     ///   - formattedDate: 该流水业务日的本地化短日期。
     ///   - locale: 标题和金额使用的语言环境。
+    ///   - catalog: 解析分类名称使用的分类目录。
     /// - Returns: 可直接渲染的流水行。
     static func row(
         for transaction: AccountTransaction,
         payload: AccountTransactionPayload,
         formattedDate: String,
-        locale: Locale
+        locale: Locale,
+        catalog: BookkeepingCategoryCatalog = .presets
     ) -> AccountTransactionHistoryRowPresentation {
         let title: String
         let formattedAmount: String
@@ -90,18 +95,18 @@ enum AccountTransactionHistoryPresentation {
         let canOpenBookkeepingDetail: Bool
 
         switch payload {
-        case let .expense(category, amount):
+        case let .expense(_, amount):
             canOpenBookkeepingDetail = true
             title = transaction.title
-                ?? category.localizedTitle(locale: locale)
+                ?? payload.categoryTitle(locale: locale, catalog: catalog) ?? ""
             formattedAmount = formattedCurrency(-amount, code: transaction.currencyCode, locale: locale)
             balanceTransition = nil
             spokenBalanceTransition = nil
 
-        case let .income(category, amount):
+        case let .income(_, amount):
             canOpenBookkeepingDetail = true
             title = transaction.title
-                ?? category.localizedTitle(locale: locale)
+                ?? payload.categoryTitle(locale: locale, catalog: catalog) ?? ""
             formattedAmount = formattedSignedCurrency(
                 amount,
                 code: transaction.currencyCode,

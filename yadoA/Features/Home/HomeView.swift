@@ -42,6 +42,7 @@ private struct HomeQueryContent: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding private var areAmountsVisible: Bool
     @Query private var transactions: [AccountTransaction]
+    @Query private var categories: [BookkeepingCategory]
 
     /// 当前已提交的月份；首次出现时由投影根据数据初始化。
     @State private var selectedMonth: HomeMonth?
@@ -67,13 +68,15 @@ private struct HomeQueryContent: View {
     init(areAmountsVisible: Binding<Bool>) {
         _areAmountsVisible = areAmountsVisible
         _transactions = Query(HomeOverviewPresentation.descriptor())
+        _categories = Query()
     }
 
     var body: some View {
         let presentation = HomeOverviewPresentation(
             transactions: transactions,
             calendar: environmentCalendar,
-            locale: locale
+            locale: locale,
+            catalog: BookkeepingCategoryCatalog(categories: categories)
         )
         let activeMonth = selectedMonth ?? presentation.initialMonth
         let monthPresentation = presentation.presentation(for: activeMonth, retaining: deletedRow)

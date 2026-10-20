@@ -19,7 +19,7 @@ struct LocalDataResetServiceTests {
                 id: UUID(),
                 accountID: accountID,
                 entryType: .expense,
-                category: .dining,
+                expenseCategoryKey: ExpenseCategory.dining.rawValue,
                 amountText: "1",
                 transactionDay: 20260902
             ),

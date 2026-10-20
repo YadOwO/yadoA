@@ -116,7 +116,7 @@ struct DiningExpenseEditFlowTests {
         flow.update {
             $0.accountID = targetAccount
             $0.entryType = .income
-            $0.incomeCategory = .refund
+            $0.incomeCategoryKey = IncomeCategory.refund.rawValue
             $0.transactionDay = 20260902
             $0.note = "已退回"
         }

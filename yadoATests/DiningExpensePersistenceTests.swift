@@ -24,7 +24,7 @@ struct DiningExpensePersistenceTests {
             let draft = DiningExpenseDraft(
                 accountID: accountID,
                 entryType: .income,
-                incomeCategory: .salary,
+                incomeCategoryKey: IncomeCategory.salary.rawValue,
                 amountText: "20",
                 transactionDay: 20260902
             )
@@ -36,7 +36,7 @@ struct DiningExpensePersistenceTests {
             )
             #expect(
                 try savedTransaction.validatedPayload()
-                    == .income(category: .salary, amount: 20)
+                    == .income(categoryKey: IncomeCategory.salary.rawValue, amount: 20)
             )
             #expect(
                 try account(id: accountID, in: dataContainer.modelContainer)?.balance
@@ -53,7 +53,7 @@ struct DiningExpensePersistenceTests {
         let repository = LocalExpenseRepository(container: dataContainer.modelContainer)
         let draft = DiningExpenseDraft(
             accountID: accountID,
-            category: .travel,
+            expenseCategoryKey: ExpenseCategory.travel.rawValue,
             amountText: "20",
             transactionDay: 20260831
         )
@@ -66,7 +66,7 @@ struct DiningExpensePersistenceTests {
         #expect(savedTransaction.category == .travel)
         #expect(
             try savedTransaction.validatedPayload()
-                == .expense(category: .travel, amount: 20)
+                == .expense(categoryKey: ExpenseCategory.travel.rawValue, amount: 20)
         )
         #expect(
             try account(id: accountID, in: dataContainer.modelContainer)?.balance
@@ -367,7 +367,7 @@ struct DiningExpensePersistenceTests {
                 id: transactionID,
                 accountID: accountID,
                 entryType: .income,
-                incomeCategory: .bonus,
+                incomeCategoryKey: IncomeCategory.bonus.rawValue,
                 amountText: "20",
                 transactionDay: 20260902
             )
@@ -378,7 +378,7 @@ struct DiningExpensePersistenceTests {
                 id: transactionID,
                 accountID: accountID,
                 entryType: .income,
-                incomeCategory: .bonus,
+                incomeCategoryKey: IncomeCategory.bonus.rawValue,
                 title: "季度奖金",
                 amountText: "30",
                 transactionDay: 20260901

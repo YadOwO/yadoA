@@ -50,6 +50,7 @@ struct BookkeepingEntryFormConfiguration {
 struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
     @Environment(\.locale) private var locale
     @Query private var accounts: [Account]
+    @Query private var categories: [BookkeepingCategory]
     @FocusState private var focusedField: FocusedField?
     @ObservedObject private var flow: Flow
     @State private var isPresentingCategorySelection = false
@@ -150,6 +151,12 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
         }
         .task {
             handleInitialPresentationIfNeeded()
+        }
+        .onChange(of: selectedCategoryItem?.replacementKey) { _, replacementKey in
+            // 已选分类在分类管理里被删除时，跟随它的流水一起换到迁移目标，避免保存时引用不存在的分类。
+            if let replacementKey, selectedCategoryItem?.isDeleted == true {
+                flow.selectCategory(key: replacementKey)
+            }
         }
         .paperPage()
     }
@@ -496,65 +503,49 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
 
     // MARK: - 分类
 
+    /// 存储中的分类设置与预置默认值合并后的目录。
+    private var catalog: BookkeepingCategoryCatalog {
+        BookkeepingCategoryCatalog(categories: categories)
+    }
+
     /// 根据当前收支方向展示对应分类面板。
-    @ViewBuilder
     private var categorySelection: some View {
-        switch flow.formEntryType {
-        case .expense:
-            BookkeepingCategorySelectionView(
-                entryType: .expense,
-                categories: ExpenseCategory.allCases,
-                selectedCategory: flow.formExpenseCategory,
-                titleKey: "expense.category.selection.title",
-                accessibilityPrefix: "expense-category",
-                onSelectEntryType: flow.selectEntryType,
-                onSelect: { category in
-                    flow.selectCategory(category)
-                    completeCategorySelection()
-                }
-            )
-        case .income:
-            BookkeepingCategorySelectionView(
-                entryType: .income,
-                categories: IncomeCategory.allCases,
-                selectedCategory: flow.formIncomeCategory,
-                titleKey: "income.category.selection.title",
-                accessibilityPrefix: "income-category",
-                onSelectEntryType: flow.selectEntryType,
-                onSelect: { category in
-                    flow.selectIncomeCategory(category)
-                    completeCategorySelection()
-                }
-            )
-        }
+        let entryType = flow.formEntryType
+        return BookkeepingCategorySelectionView(
+            entryType: entryType,
+            categories: catalog.pickerItems(for: entryType, including: flow.formCategoryKey),
+            selectedKey: flow.formCategoryKey,
+            titleKey: "\(entryType.rawValue).category.selection.title",
+            accessibilityPrefix: "\(entryType.rawValue)-category",
+            onSelectEntryType: flow.selectEntryType,
+            onSelect: { item in
+                flow.selectCategory(key: item.key)
+                completeCategorySelection()
+            }
+        )
     }
 
     /// 当前方向下是否已有确认过的分类。
     private var hasSelectedCategory: Bool {
-        switch flow.formEntryType {
-        case .expense: flow.formExpenseCategory != nil
-        case .income: flow.formIncomeCategory != nil
+        flow.formCategoryKey != nil
+    }
+
+    /// 当前已确认分类在目录中的快照。
+    private var selectedCategoryItem: BookkeepingCategoryItem? {
+        flow.formCategoryKey.map {
+            catalog.resolvedItem(direction: flow.formEntryType, key: $0)
         }
     }
 
     /// 当前分类的系统图标；未选择时使用通用的分类图标。
     private var selectedCategorySymbolName: String {
-        switch flow.formEntryType {
-        case .expense: flow.formExpenseCategory?.symbolName ?? "square.grid.2x2"
-        case .income: flow.formIncomeCategory?.symbolName ?? "square.grid.2x2"
-        }
+        selectedCategoryItem?.symbolName ?? "square.grid.2x2"
     }
 
     /// 当前分类的名称；未选择时提示选择分类。
     private var selectedCategoryTitle: String {
-        switch flow.formEntryType {
-        case .expense:
-            flow.formExpenseCategory?.localizedTitle(locale: locale)
-                ?? text("expense.category.selection.title")
-        case .income:
-            flow.formIncomeCategory?.localizedTitle(locale: locale)
-                ?? text("income.category.selection.title")
-        }
+        selectedCategoryItem?.title(locale: locale)
+            ?? text("\(flow.formEntryType.rawValue).category.selection.title")
     }
 
     /// 完成分类选择后关闭面板；金额还空着时，返回后直接聚焦金额。
@@ -643,18 +634,18 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
 }
 
 /// 票据页面复用的收支分类选择面板。
-private struct BookkeepingCategorySelectionView<Category: BookkeepingCategoryPresentable>: View {
+private struct BookkeepingCategorySelectionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
 
     /// 当前面板对应的收支方向。
     let entryType: BookkeepingEntryType
 
-    /// 当前方向下可选择的全部分类。
-    let categories: [Category]
+    /// 当前方向下可选择的分类，已按用户排序。
+    let categories: [BookkeepingCategoryItem]
 
-    /// 打开面板时已经选中的分类。
-    let selectedCategory: Category?
+    /// 打开面板时已经选中的分类 key。
+    let selectedKey: String?
 
     /// 面板标题使用的本地化键。
     let titleKey: String
@@ -666,7 +657,7 @@ private struct BookkeepingCategorySelectionView<Category: BookkeepingCategoryPre
     let onSelectEntryType: (BookkeepingEntryType) -> Void
 
     /// 用户点击分类后的回调。
-    let onSelect: (Category) -> Void
+    let onSelect: (BookkeepingCategoryItem) -> Void
 
     /// 根据可用宽度自动调整列数，兼顾普通字号和辅助功能字号。
     private let columns = [
@@ -693,6 +684,7 @@ private struct BookkeepingCategorySelectionView<Category: BookkeepingCategoryPre
                         ForEach(categories) { category in
                             categoryButton(category)
                         }
+                        manageButton
                     }
                 }
                 .padding(.horizontal, 20)
@@ -714,32 +706,63 @@ private struct BookkeepingCategorySelectionView<Category: BookkeepingCategoryPre
     }
 
     /// 单个分类：系统图标落在随手涂出的色块上，选中的那个涂成实墨色。
-    private func categoryButton(_ category: Category) -> some View {
-        let isSelected = category == selectedCategory
+    private func categoryButton(_ category: BookkeepingCategoryItem) -> some View {
+        let isSelected = category.key == selectedKey
 
         return Button {
             onSelect(category)
         } label: {
-            VStack(spacing: 8) {
-                Image(systemName: category.symbolName)
-                    .font(.title2.weight(.medium))
-                    .foregroundStyle(isSelected ? Color(.onAccent) : Color.primary)
-                    .frame(width: 56, height: 56)
-                    .background {
-                        HandDrawnBlob(seed: category.rawValue.handDrawnSeed)
-                            .fill(isSelected ? Color.accentColor : Color.primary.opacity(0.08))
-                    }
-
-                Text(category.localizedTitle(locale: locale))
-                    .font(.footnote)
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity, minHeight: 88, alignment: .top)
+            categoryLabel(
+                symbolName: category.symbolName,
+                title: category.title(locale: locale),
+                seed: category.key.handDrawnSeed,
+                isSelected: isSelected
+            )
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .accessibilityIdentifier("\(accessibilityPrefix)-\(category.rawValue)")
+        .accessibilityIdentifier("\(accessibilityPrefix)-\(category.key)")
+    }
+
+    /// 网格末尾的「管理」入口，在面板自己的导航栈里打开分类管理页。
+    private var manageButton: some View {
+        NavigationLink {
+            CategoryManagementView(initialDirection: entryType)
+        } label: {
+            categoryLabel(
+                symbolName: "slider.horizontal.3",
+                title: AccountLocalization.string("category.management.entry", locale: locale),
+                seed: "category-management".handDrawnSeed,
+                isSelected: false
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("\(accessibilityPrefix)-manage")
+    }
+
+    /// 分类按钮与「管理」入口共用的图标加名称样式。
+    private func categoryLabel(
+        symbolName: String,
+        title: String,
+        seed: UInt64,
+        isSelected: Bool
+    ) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: symbolName)
+                .font(.title2.weight(.medium))
+                .foregroundStyle(isSelected ? Color(.onAccent) : Color.primary)
+                .frame(width: 56, height: 56)
+                .background {
+                    HandDrawnBlob(seed: seed)
+                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(0.08))
+                }
+
+            Text(title)
+                .font(.footnote)
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, minHeight: 88, alignment: .top)
     }
 }

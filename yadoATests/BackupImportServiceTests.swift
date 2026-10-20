@@ -38,7 +38,7 @@ struct BackupImportServiceTests {
                 id: UUID(),
                 accountID: activeID,
                 entryType: .expense,
-                category: .dining,
+                expenseCategoryKey: ExpenseCategory.dining.rawValue,
                 amountText: "1.5",
                 transactionDay: 20260902
             ),
@@ -49,7 +49,7 @@ struct BackupImportServiceTests {
                 id: UUID(),
                 accountID: activeID,
                 entryType: .income,
-                incomeCategory: .salary,
+                incomeCategoryKey: IncomeCategory.salary.rawValue,
                 amountText: "100",
                 transactionDay: 20260901
             ),
@@ -87,7 +87,8 @@ struct BackupImportServiceTests {
         formatVersion: Int = BackupFormatVersion.current,
         accounts: [BackupAccount]? = nil,
         transactions: [BackupTransaction] = [],
-        preference: BackupBookkeepingPreference? = nil
+        preference: BackupBookkeepingPreference? = nil,
+        categories: [BackupCategory] = []
     ) -> BackupFile {
         BackupFile(
             formatVersion: formatVersion,
@@ -96,7 +97,8 @@ struct BackupImportServiceTests {
             appBuild: "1",
             accounts: accounts ?? [makeAccount(id: Self.accountID)],
             transactions: transactions,
-            bookkeepingPreference: preference
+            bookkeepingPreference: preference,
+            categories: categories
         )
     }
 
@@ -185,7 +187,7 @@ struct BackupImportServiceTests {
                 id: UUID(),
                 accountID: activeID,
                 entryType: .expense,
-                category: .shopping,
+                expenseCategoryKey: ExpenseCategory.shopping.rawValue,
                 amountText: "50",
                 transactionDay: 20260903
             ),
@@ -317,5 +319,127 @@ struct BackupImportServiceTests {
         let context = container.modelContainer.makeManualSaveContext()
         #expect(try context.fetchCount(FetchDescriptor<Account>()) == 0)
         #expect(try context.fetchCount(FetchDescriptor<AccountTransaction>()) == 0)
+    }
+
+    // MARK: - 分类
+
+    @Test("自定义分类、隐藏、排序、图标覆盖和删除墓碑随备份完整往返")
+    func categoriesRoundTrip() throws {
+        let source = try makeSeededContainer()
+        let categories = LocalCategoryRepository(container: source.modelContainer)
+        let coffee = try categories.create(name: "咖啡", symbolName: "mug", direction: .expense)
+        let removed = try categories.create(name: "旧分类", symbolName: "tag", direction: .expense)
+        try categories.delete(key: removed, direction: .expense, migratingTo: "other")
+        try categories.setHidden(true, key: "pets", direction: .expense)
+        try categories.update(key: "salary", direction: .income, name: nil, symbolName: "dollarsign.circle")
+        try categories.reorder([coffee, "travel"], direction: .expense)
+        let activeID = try #require(try snapshot(of: source).bookkeepingPreference?.defaultAccountID)
+        try LocalExpenseRepository(container: source.modelContainer).save(
+            DiningExpenseDraft(
+                accountID: activeID,
+                expenseCategoryKey: coffee,
+                amountText: "18",
+                transactionDay: 20260905
+            ),
+            savedAt: Date(timeIntervalSince1970: 600)
+        )
+        let original = try snapshot(of: source)
+        #expect(original.categories.contains { $0.key == removed && $0.deletedAt != nil })
+
+        let target = try AccountDataContainer.inMemory()
+        let service = BackupImportService(container: target.modelContainer)
+        try service.restore(try service.prepare(from: try encode(original)))
+        let restored = try snapshot(of: target)
+
+        #expect(restored.categories == original.categories)
+        #expect(restored.transactions == original.transactions)
+        let catalog = BookkeepingCategoryCatalog(
+            categories: try target.modelContainer.makeManualSaveContext()
+                .fetch(FetchDescriptor<BookkeepingCategory>())
+        )
+        #expect(catalog.items(for: .expense).first?.key == coffee)
+        #expect(catalog.hiddenItems(for: .expense).map(\.key) == ["pets"])
+        #expect(catalog.item(direction: .income, key: "salary")?.symbolName == "dollarsign.circle")
+    }
+
+    @Test("备份没有分类数据时，分类恢复为预置默认值")
+    func missingCategoriesRestorePresetDefaults() throws {
+        let container = try makeSeededContainer()
+        let categories = LocalCategoryRepository(container: container.modelContainer)
+        try categories.create(name: "咖啡", symbolName: "mug", direction: .expense)
+        try categories.setHidden(true, key: "pets", direction: .expense)
+        let service = BackupImportService(container: container.modelContainer)
+
+        try service.restore(try service.prepare(from: try encode(makeBackup())))
+
+        let rows = try container.modelContainer.makeManualSaveContext()
+            .fetch(FetchDescriptor<BookkeepingCategory>())
+        #expect(rows.count == BookkeepingCategoryKey.allPresets.count)
+        #expect(rows.allSatisfy { $0.isPreset && !$0.isHidden })
+    }
+
+    @Test("流水引用备份中不存在或已删除的自定义分类时整份拒绝")
+    func rejectsTransactionsWithUnknownCustomCategory() throws {
+        let service = BackupImportService(container: try AccountDataContainer.inMemory().modelContainer)
+        let deletedID = UUID()
+        let deletedKey = BookkeepingCategoryKey.customKey(for: deletedID)
+        let tombstone = BackupCategory(
+            id: deletedID, direction: BookkeepingEntryType.expense.rawValue, key: deletedKey,
+            customName: "旧分类", symbolName: "tag", sortIndex: 20, isHidden: false,
+            updatedAt: Date(timeIntervalSince1970: 40), deletedAt: Date(timeIntervalSince1970: 50),
+            replacementKey: "other"
+        )
+        for key in [BookkeepingCategoryKey.customKey(for: UUID()), deletedKey] {
+            let transaction = BackupTransaction(
+                id: UUID(), accountID: Self.accountID, type: AccountTransactionType.expense.rawValue,
+                category: key, amount: "1", title: nil, balanceBefore: nil, balanceAfter: nil,
+                balanceDelta: nil, currencyCode: "CNY", transactionDay: 20260902, note: nil,
+                savedAt: Date(timeIntervalSince1970: 30)
+            )
+            #expect(throws: BackupImportError.invalidContent) {
+                try service.prepare(from: try encode(makeBackup(transactions: [transaction], categories: [tombstone])))
+            }
+        }
+    }
+
+    @Test("分类记录不合法时整份拒绝")
+    func rejectsInvalidCategories() throws {
+        let service = BackupImportService(container: try AccountDataContainer.inMemory().modelContainer)
+        let customID = UUID()
+        let valid = BackupCategory(
+            id: customID, direction: BookkeepingEntryType.expense.rawValue,
+            key: BookkeepingCategoryKey.customKey(for: customID), customName: "咖啡",
+            symbolName: "mug", sortIndex: 20, isHidden: false,
+            updatedAt: Date(timeIntervalSince1970: 40), deletedAt: nil, replacementKey: nil
+        )
+        let invalidCategories: [BackupCategory] = [
+            // 自定义分类没有名称。
+            BackupCategory(
+                id: valid.id, direction: valid.direction, key: valid.key, customName: "  ",
+                symbolName: valid.symbolName, sortIndex: valid.sortIndex, isHidden: false,
+                updatedAt: valid.updatedAt, deletedAt: nil, replacementKey: nil
+            ),
+            // 未知方向。
+            BackupCategory(
+                id: valid.id, direction: "transfer", key: valid.key, customName: valid.customName,
+                symbolName: valid.symbolName, sortIndex: valid.sortIndex, isHidden: false,
+                updatedAt: valid.updatedAt, deletedAt: nil, replacementKey: nil
+            ),
+            // 预置分类的标识与「方向 + key」不符。
+            BackupCategory(
+                id: UUID(), direction: BookkeepingEntryType.expense.rawValue, key: "dining", customName: nil,
+                symbolName: "fork.knife", sortIndex: 0, isHidden: false,
+                updatedAt: valid.updatedAt, deletedAt: nil, replacementKey: nil
+            )
+        ]
+        for category in invalidCategories {
+            #expect(throws: BackupImportError.invalidContent) {
+                try service.prepare(from: try encode(makeBackup(categories: [category])))
+            }
+        }
+        #expect(throws: BackupImportError.invalidContent) {
+            try service.prepare(from: try encode(makeBackup(categories: [valid, valid])))
+        }
+        _ = try service.prepare(from: try encode(makeBackup(categories: [valid])))
     }
 }

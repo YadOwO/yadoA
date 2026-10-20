@@ -152,6 +152,19 @@ final class BackupImportService {
             }
             staleTransactions.values.forEach(context.delete)
 
+            var staleCategories = Dictionary(
+                try context.fetch(FetchDescriptor<BookkeepingCategory>()).map { ($0.id, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            for category in records.categories {
+                if let existing = staleCategories.removeValue(forKey: category.id) {
+                    existing.overwrite(with: category)
+                } else {
+                    context.insert(category)
+                }
+            }
+            staleCategories.values.forEach(context.delete)
+
             try restorePreference(plan.backup.bookkeepingPreference, in: context)
             try context.saveOrRollback(beforeSave: beforeSave)
         } catch {
@@ -204,6 +217,9 @@ extension BackupImportService {
 
         /// 与备份流水一一对应的流水模型。
         let transactions: [AccountTransaction]
+
+        /// 备份中的分类设置，备份缺少的预置分类以默认值补齐。
+        let categories: [BookkeepingCategory]
     }
 
     /// 校验整份备份并转换为持久化模型；任何一条记录不合法都整体失败。
@@ -241,6 +257,14 @@ extension BackupImportService {
             )
         }
 
+        let categories = try validatedCategories(from: backup.categories)
+        // 流水只能引用预置分类或备份中未删除的自定义分类。
+        let availableCustomKeys = Set(
+            categories
+                .filter { !$0.isPreset && !$0.isTombstoned }
+                .map { "\($0.directionRawValue).\($0.key)" }
+        )
+
         var transactionIDs = Set<UUID>()
         let transactions = try backup.transactions.map { transaction in
             // 流水工厂固定写入 CNY；其他币种若放行会被静默改写，必须拒绝。
@@ -249,8 +273,9 @@ extension BackupImportService {
                   transaction.currencyCode == "CNY"
             else { throw BackupImportError.invalidContent }
 
+            let record: AccountTransaction
             do {
-                return try AccountTransaction.validatingPersistedFields(
+                record = try AccountTransaction.validatingPersistedFields(
                     id: transaction.id,
                     accountID: transaction.accountID,
                     typeRawValue: transaction.type,
@@ -267,8 +292,68 @@ extension BackupImportService {
             } catch {
                 throw BackupImportError.invalidContent
             }
+            if let reference = (try? record.validatedPayload())?.categoryReference,
+               !BookkeepingCategoryKey.isPreset(reference.key, direction: reference.direction),
+               !availableCustomKeys.contains("\(reference.direction.rawValue).\(reference.key)") {
+                throw BackupImportError.invalidContent
+            }
+            return record
         }
-        return ValidatedRecords(accounts: accounts, transactions: transactions)
+        return ValidatedRecords(accounts: accounts, transactions: transactions, categories: categories)
+    }
+
+    /// 校验备份中的分类设置，并为缺少的预置分类补上默认值。
+    ///
+    /// - Parameter backupCategories: 备份中的分类快照。
+    /// - Returns: 尚未插入 context 的分类模型。
+    /// - Throws: 标识重复、方向或 key 不合法、预置分类标识不匹配、自定义分类缺少名称时抛出 `.invalidContent`。
+    private static func validatedCategories(
+        from backupCategories: [BackupCategory]
+    ) throws -> [BookkeepingCategory] {
+        var ids = Set<UUID>()
+        var keys = Set<String>()
+        var categories = try backupCategories.map { category in
+            guard ids.insert(category.id).inserted,
+                  let direction = BookkeepingEntryType(rawValue: category.direction),
+                  BookkeepingCategoryKey.isValid(category.key, direction: direction),
+                  keys.insert("\(direction.rawValue).\(category.key)").inserted,
+                  !category.symbolName.isEmpty
+            else { throw BackupImportError.invalidContent }
+
+            let isPreset = BookkeepingCategoryKey.isPreset(category.key, direction: direction)
+            if isPreset {
+                guard category.id == BookkeepingCategoryKey.presetID(direction: direction, key: category.key),
+                      category.deletedAt == nil
+                else { throw BackupImportError.invalidContent }
+            } else {
+                let name = LocalCategoryRepository.cleanedName(category.customName ?? "")
+                guard !name.isEmpty else { throw BackupImportError.invalidContent }
+            }
+            return BookkeepingCategory(
+                id: category.id,
+                direction: direction,
+                key: category.key,
+                customName: isPreset ? nil : category.customName,
+                symbolName: category.symbolName,
+                sortIndex: category.sortIndex,
+                isHidden: category.isHidden,
+                updatedAt: category.updatedAt,
+                deletedAt: category.deletedAt,
+                replacementKey: category.replacementKey
+            )
+        }
+        for preset in BookkeepingCategoryKey.allPresets where !ids.contains(preset.id) {
+            categories.append(
+                BookkeepingCategory(
+                    id: preset.id,
+                    direction: preset.direction,
+                    key: preset.key,
+                    symbolName: preset.symbolName,
+                    sortIndex: preset.sortIndex
+                )
+            )
+        }
+        return categories
     }
 
     /// 解析可选金额：缺省保持 `nil`，存在但非法时抛错而不是静默丢弃。
@@ -302,6 +387,21 @@ private extension Account {
         createdAt = other.createdAt
         updatedAt = other.updatedAt
         deactivatedAt = other.deactivatedAt
+    }
+}
+
+private extension BookkeepingCategory {
+    /// 用已校验的备份分类覆盖除稳定标识外的全部持久化字段。
+    func overwrite(with other: BookkeepingCategory) {
+        directionRawValue = other.directionRawValue
+        key = other.key
+        customName = other.customName
+        symbolName = other.symbolName
+        sortIndex = other.sortIndex
+        isHidden = other.isHidden
+        updatedAt = other.updatedAt
+        deletedAt = other.deletedAt
+        replacementKey = other.replacementKey
     }
 }
 

@@ -237,6 +237,7 @@ private struct AccountDetailQueryContent: View {
     @Query private var accounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
     @Query private var transactions: [AccountTransaction]
+    @Query private var categories: [BookkeepingCategory]
 
     /// 当前详情页对应的稳定账户 UUID。
     let accountID: UUID
@@ -273,6 +274,7 @@ private struct AccountDetailQueryContent: View {
         self.onRestore = onRestore
         self.onManageLifecycle = onManageLifecycle
         _preferences = Query()
+        _categories = Query()
         _accounts = Query(
             filter: #Predicate<Account> { account in
                 account.id == targetAccountID
@@ -309,10 +311,12 @@ private struct AccountDetailQueryContent: View {
         account: Account,
         presentation: AccountDetailPresentation
     ) -> some View {
+        let catalog = BookkeepingCategoryCatalog(categories: categories)
         let historyRows = transactions.compactMap { transaction in
             AccountTransactionHistoryPresentation.row(
                 for: transaction,
-                locale: locale
+                locale: locale,
+                catalog: catalog
             )
         }
 

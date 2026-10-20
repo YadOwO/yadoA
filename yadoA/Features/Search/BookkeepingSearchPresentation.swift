@@ -348,6 +348,7 @@ struct BookkeepingSearchPresentation {
     ///   - entryFilter: 已选中的收支方向条件。
     ///   - calendar: 提供业务日时区的日历。
     ///   - locale: 提供分类、金额和日期本地化的语言环境。
+    ///   - catalog: 解析分类名称与图标使用的分类目录，含自定义分类。
     init(
         transactions: [AccountTransaction],
         accounts: [Account],
@@ -355,7 +356,8 @@ struct BookkeepingSearchPresentation {
         timeFilter: BookkeepingSearchTimeFilter = .all,
         entryFilter: BookkeepingSearchEntryFilter = .all,
         calendar sourceCalendar: Calendar = .current,
-        locale: Locale = .current
+        locale: Locale = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
     ) {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let calendar = TransactionDay.gregorianCalendar(
@@ -370,7 +372,11 @@ struct BookkeepingSearchPresentation {
             self.state = .initial
             self.dayGroups = []
             self.summary = nil
-            self.suggestions = Self.categorySuggestions(from: transactions, locale: locale)
+            self.suggestions = Self.categorySuggestions(
+                from: transactions,
+                locale: locale,
+                catalog: catalog
+            )
             return
         }
         self.suggestions = []
@@ -396,6 +402,7 @@ struct BookkeepingSearchPresentation {
                       let searchablePayload = Self.searchablePayload(
                           from: payload,
                           locale: locale,
+                          catalog: catalog,
                           categoryTitles: &categoryTitles
                       )
                 else {
@@ -430,7 +437,7 @@ struct BookkeepingSearchPresentation {
                     entryType: searchablePayload.entryType,
                     categoryTitle: categoryTitle,
                     // 图标只为通过全部条件的流水解析，不增加被过滤流水的计算。
-                    symbolName: payload.categorySymbolName ?? Self.fallbackSymbolName,
+                    symbolName: payload.categorySymbolName(in: catalog) ?? Self.fallbackSymbolName,
                     matchesAmount: parsedAmount == amount,
                     accountName: account?.name,
                     accountState: BookkeepingTransactionAccountState(account: account),
@@ -511,7 +518,8 @@ struct BookkeepingSearchPresentation {
         transactions: [AccountTransaction],
         accounts: [Account],
         calendar sourceCalendar: Calendar = .current,
-        locale: Locale = .current
+        locale: Locale = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
     ) -> BookkeepingTransactionDetailPresentation? {
         guard let transaction = transactions.first(where: { $0.id == transactionID }) else {
             return nil
@@ -521,7 +529,8 @@ struct BookkeepingSearchPresentation {
             for: transaction,
             account: account,
             calendar: sourceCalendar,
-            locale: locale
+            locale: locale,
+            catalog: catalog
         )
     }
 
@@ -530,7 +539,8 @@ struct BookkeepingSearchPresentation {
         for transaction: AccountTransaction,
         account: Account?,
         calendar sourceCalendar: Calendar = .current,
-        locale: Locale = .current
+        locale: Locale = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
     ) -> BookkeepingTransactionDetailPresentation? {
         let calendar = TransactionDay.gregorianCalendar(
             basedOn: sourceCalendar,
@@ -551,9 +561,10 @@ struct BookkeepingSearchPresentation {
         guard let searchablePayload = searchablePayload(
             from: payload,
             locale: locale,
+            catalog: catalog,
             categoryTitles: &categoryTitles
         ),
-        let categorySymbolName = payload.categorySymbolName
+        let categorySymbolName = payload.categorySymbolName(in: catalog)
         else {
             return nil
         }
@@ -644,7 +655,8 @@ struct BookkeepingSearchPresentation {
     /// 从最近的有效收支记录提取类别，保证每个建议都能通过现有关键词搜索找到结果。
     private static func categorySuggestions(
         from transactions: [AccountTransaction],
-        locale: Locale
+        locale: Locale,
+        catalog: BookkeepingCategoryCatalog
     ) -> [BookkeepingSearchSuggestion] {
         var suggestions: [BookkeepingSearchSuggestion] = []
         var seenTitles: Set<String> = []
@@ -656,6 +668,7 @@ struct BookkeepingSearchPresentation {
                   let searchable = searchablePayload(
                       from: payload,
                       locale: locale,
+                      catalog: catalog,
                       categoryTitles: &categoryTitles
                   ),
                   seenTitles.insert(searchable.categoryTitle).inserted
@@ -663,7 +676,7 @@ struct BookkeepingSearchPresentation {
             suggestions.append(
                 BookkeepingSearchSuggestion(
                     title: searchable.categoryTitle,
-                    symbolName: payload.categorySymbolName ?? fallbackSymbolName
+                    symbolName: payload.categorySymbolName(in: catalog) ?? fallbackSymbolName
                 )
             )
             if suggestions.count == suggestionLimit { break }
@@ -676,10 +689,12 @@ struct BookkeepingSearchPresentation {
     /// - Parameters:
     ///   - payload: 已校验的流水载荷。
     ///   - locale: 分类名称使用的语言环境。
+    ///   - catalog: 解析分类名称使用的分类目录。
     ///   - categoryTitles: 按分类标识缓存的本地化名称，批量搜索时每个分类只解析一次。
     private static func searchablePayload(
         from payload: AccountTransactionPayload,
         locale: Locale,
+        catalog: BookkeepingCategoryCatalog,
         categoryTitles: inout [String: String]
     ) -> SearchablePayload? {
         guard let entry = payload.bookkeepingAmount,
@@ -690,7 +705,7 @@ struct BookkeepingSearchPresentation {
         let categoryTitle: String
         if let cachedTitle = categoryTitles[categoryID] {
             categoryTitle = cachedTitle
-        } else if let title = payload.categoryTitle(locale: locale) {
+        } else if let title = payload.categoryTitle(locale: locale, catalog: catalog) {
             categoryTitles[categoryID] = title
             categoryTitle = title
         } else {

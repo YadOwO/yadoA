@@ -25,7 +25,7 @@ struct AccountTransactionModelTests {
             Issue.record("收入流水未解码为收入载荷")
             return
         }
-        #expect(actualCategory == category)
+        #expect(actualCategory == category.rawValue)
         #expect(actualAmount == 88)
     }
 
@@ -49,7 +49,7 @@ struct AccountTransactionModelTests {
             Issue.record("支出流水未解码为支出载荷")
             return
         }
-        #expect(actualCategory == category)
+        #expect(actualCategory == category.rawValue)
         #expect(actualAmount == amount)
     }
 

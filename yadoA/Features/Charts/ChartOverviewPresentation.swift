@@ -148,6 +148,7 @@ struct ChartOverviewPresentation: Equatable {
     ///   - now: 没有显式锚点时用于选择初始周期的当前日期。
     ///   - calendar: 提供时区和周起始规则的日历。
     ///   - locale: 用于周期、横轴和金额展示的语言环境。
+    ///   - catalog: 分类排行解析名称与图标使用的分类目录。
     init(
         period: ChartPeriod,
         entryType: BookkeepingEntryType = .expense,
@@ -155,7 +156,8 @@ struct ChartOverviewPresentation: Equatable {
         transactions: [AccountTransaction],
         now: Date = .now,
         calendar sourceCalendar: Calendar = .current,
-        locale: Locale = .current
+        locale: Locale = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
     ) {
         let calendar = Self.chartCalendar(
             basedOn: sourceCalendar,
@@ -204,8 +206,8 @@ struct ChartOverviewPresentation: Equatable {
             .compactMap { categoryID, transactions in
                 // 分类名称与图标按分类解析一次，不随流水数量增长。
                 guard let payload = transactions.first?.payload,
-                      let title = payload.categoryTitle(locale: locale),
-                      let symbolName = payload.categorySymbolName
+                      let title = payload.categoryTitle(locale: locale, catalog: catalog),
+                      let symbolName = payload.categorySymbolName(in: catalog)
                 else { return nil }
                 return CategoryRankingItem(
                     id: categoryID,

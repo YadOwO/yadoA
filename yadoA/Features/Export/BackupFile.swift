@@ -43,6 +43,9 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
     /// canonical 默认记账账户偏好；为 `nil` 表示存储中还没有偏好记录。
     let bookkeepingPreference: BackupBookkeepingPreference?
 
+    /// 全部分类设置，包含预置分类的排序、隐藏和图标覆盖，自定义分类以及删除墓碑。
+    let categories: [BackupCategory]
+
     /// 从完整业务快照构造备份信封。
     init(
         formatVersion: Int = BackupFormatVersion.current,
@@ -51,7 +54,8 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
         appBuild: String,
         accounts: [BackupAccount],
         transactions: [BackupTransaction],
-        bookkeepingPreference: BackupBookkeepingPreference?
+        bookkeepingPreference: BackupBookkeepingPreference?,
+        categories: [BackupCategory] = []
     ) {
         self.formatVersion = formatVersion
         self.exportedAt = exportedAt
@@ -60,6 +64,7 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
         self.accounts = accounts
         self.transactions = transactions
         self.bookkeepingPreference = bookkeepingPreference
+        self.categories = categories
     }
 
     /// 从备份 JSON 解码信封。
@@ -78,6 +83,7 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
             BackupBookkeepingPreference.self,
             forKey: .bookkeepingPreference
         )
+        categories = try container.decodeIfPresent([BackupCategory].self, forKey: .categories) ?? []
     }
 }
 
@@ -332,6 +338,108 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
     }
 }
 
+/// 备份中的分类设置快照；字段与 `BookkeepingCategory` 的持久化列一一镜像。
+nonisolated struct BackupCategory: Codable, Equatable, Sendable {
+    /// 分类行的稳定标识；预置分类由「方向 + key」派生。
+    let id: UUID
+
+    /// `BookkeepingEntryType.rawValue`。
+    let direction: String
+
+    /// 流水引用的分类 key。
+    let key: String
+
+    /// 自定义分类名称；预置分类为 `nil`。
+    let customName: String?
+
+    /// 分类图标。
+    let symbolName: String
+
+    /// 同方向内的展示顺序。
+    let sortIndex: Int
+
+    /// 是否在记账面板中隐藏。
+    let isHidden: Bool
+
+    /// 最近一次修改时间。
+    let updatedAt: Date
+
+    /// 删除时间；非空表示墓碑。
+    let deletedAt: Date?
+
+    /// 删除时流水迁往的分类 key。
+    let replacementKey: String?
+
+    /// 从持久化分类生成值快照。
+    init(_ category: BookkeepingCategory) {
+        id = category.id
+        direction = category.directionRawValue
+        key = category.key
+        customName = category.customName
+        symbolName = category.symbolName
+        sortIndex = category.sortIndex
+        isHidden = category.isHidden
+        updatedAt = category.updatedAt
+        deletedAt = category.deletedAt
+        replacementKey = category.replacementKey
+    }
+
+    /// 成员逐一初始化，供测试构造精确夹具。
+    init(
+        id: UUID,
+        direction: String,
+        key: String,
+        customName: String?,
+        symbolName: String,
+        sortIndex: Int,
+        isHidden: Bool,
+        updatedAt: Date,
+        deletedAt: Date?,
+        replacementKey: String?
+    ) {
+        self.id = id
+        self.direction = direction
+        self.key = key
+        self.customName = customName
+        self.symbolName = symbolName
+        self.sortIndex = sortIndex
+        self.isHidden = isHidden
+        self.updatedAt = updatedAt
+        self.deletedAt = deletedAt
+        self.replacementKey = replacementKey
+    }
+
+    /// 编码分类快照；所有字段都写入，`nil` 可选值以 JSON `null` 保留。
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id.backupJSONString, forKey: .id)
+        try container.encode(direction, forKey: .direction)
+        try container.encode(key, forKey: .key)
+        try container.encode(customName, forKey: .customName)
+        try container.encode(symbolName, forKey: .symbolName)
+        try container.encode(sortIndex, forKey: .sortIndex)
+        try container.encode(isHidden, forKey: .isHidden)
+        try container.encode(updatedAt, forKey: .updatedAt)
+        try container.encode(deletedAt, forKey: .deletedAt)
+        try container.encode(replacementKey, forKey: .replacementKey)
+    }
+
+    /// 从备份 JSON 解码分类快照；身份字段严格解码，其余字段缺省时使用安全默认值。
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        direction = try container.decode(String.self, forKey: .direction)
+        key = try container.decode(String.self, forKey: .key)
+        customName = try container.decodeIfPresent(String.self, forKey: .customName)
+        symbolName = try container.decodeIfPresent(String.self, forKey: .symbolName) ?? ""
+        sortIndex = try container.decodeIfPresent(Int.self, forKey: .sortIndex) ?? 0
+        isHidden = try container.decodeIfPresent(Bool.self, forKey: .isHidden) ?? false
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
+        deletedAt = try container.decodeIfPresent(Date.self, forKey: .deletedAt)
+        replacementKey = try container.decodeIfPresent(String.self, forKey: .replacementKey)
+    }
+}
+
 /// 备份中的默认记账账户偏好。
 ///
 /// 三种状态通过信封与键值组合表达：信封键缺省表示无偏好记录；
@@ -375,6 +483,7 @@ extension BackupFile {
         case accounts
         case transactions
         case bookkeepingPreference
+        case categories
     }
 }
 
@@ -411,6 +520,22 @@ extension BackupTransaction {
         case transactionDay
         case note
         case savedAt
+    }
+}
+
+extension BackupCategory {
+    /// 分类快照的稳定 JSON 键名。
+    enum CodingKeys: String, CodingKey {
+        case id
+        case direction
+        case key
+        case customName
+        case symbolName
+        case sortIndex
+        case isHidden
+        case updatedAt
+        case deletedAt
+        case replacementKey
     }
 }
 
