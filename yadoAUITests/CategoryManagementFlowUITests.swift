@@ -61,16 +61,18 @@ final class CategoryManagementFlowUITests: XCTestCase {
         XCTAssertFalse(app.buttons["category-edit-save"].isEnabled)
     }
 
-    /// 预置分类左滑只有「隐藏」，隐藏后移入「已隐藏」区并可恢复。
+    /// 预置分类左滑有「删除」和「隐藏」，隐藏后移入「已隐藏」区并可恢复。
     @MainActor
     func testHidingPresetMovesItToHiddenSection() throws {
         let app = launchHomeFixtureInEnglish()
         openCategoryManagement(in: app)
 
-        let pets = app.buttons["category-row-pets"]
+        // 预置分类不可编辑，行不是按钮。
+        let pets = app.descendants(matching: .any)["category-row-pets"]
         XCTAssertTrue(pets.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["category-row-pets"].exists, "预置分类不应进入编辑页")
         pets.swipeLeft()
-        XCTAssertFalse(app.buttons["Delete"].exists, "预置分类不应提供删除")
+        XCTAssertTrue(app.buttons["Delete"].waitForExistence(timeout: 3), "预置分类也可以删除")
         app.buttons["Hide"].tap()
 
         let restore = app.buttons["category-unhide-pets"]

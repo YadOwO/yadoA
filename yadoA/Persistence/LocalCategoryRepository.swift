@@ -18,11 +18,11 @@ enum CategoryRepositoryError: Error, Equatable {
     /// 指定方向下找不到该分类，或分类已删除。
     case categoryNotFound(String)
 
-    /// 预置分类不能改名或删除。
+    /// 预置分类的名称和图标固定，不能修改。
     case presetNotEditable(String)
 
-    /// 「其他」分类不能隐藏。
-    case otherNotHideable
+    /// 「其他」是删除迁移的兜底分类，不能隐藏或删除。
+    case otherNotRemovable
 
     /// 名称不符合规则。
     case invalidName(CategoryNameIssue)
@@ -127,20 +127,20 @@ final class LocalCategoryRepository {
         return key
     }
 
-    /// 修改分类名称和图标；预置分类只能换图标，名称必须传 `nil`。
+    /// 修改自定义分类的名称和图标；预置分类的名称和图标固定，不能修改。
     ///
     /// - Parameters:
-    ///   - key: 要修改的分类 key。
+    ///   - key: 要修改的自定义分类 key。
     ///   - direction: 收支方向。
-    ///   - name: 自定义分类的新名称；预置分类传 `nil`。
+    ///   - name: 新名称。
     ///   - symbolName: 新图标。
     ///   - locale: 判断重名时使用的语言环境。
     ///   - now: 注入的修改时间。
-    /// - Throws: 分类不存在、试图给预置分类改名、名称或图标不合法、保存失败时抛出错误。
+    /// - Throws: 分类不存在、试图修改预置分类、名称或图标不合法、保存失败时抛出错误。
     func update(
         key: String,
         direction: BookkeepingEntryType,
-        name: String?,
+        name: String,
         symbolName: String,
         locale: Locale = .current,
         now: Date = .now
@@ -151,23 +151,20 @@ final class LocalCategoryRepository {
         guard let row = rows.first(where: { $0.key == key && !$0.isTombstoned }) else {
             throw CategoryRepositoryError.categoryNotFound(key)
         }
+        guard !row.isPreset else { throw CategoryRepositoryError.presetNotEditable(key) }
         guard !symbolName.isEmpty else { throw CategoryRepositoryError.invalidSymbol }
 
-        if row.isPreset {
-            guard name == nil else { throw CategoryRepositoryError.presetNotEditable(key) }
-        } else if let name {
-            let cleanedName = Self.cleanedName(name)
-            if let issue = Self.nameIssue(
-                cleanedName,
-                direction: direction,
-                excludingKey: key,
-                catalog: catalog(of: rows),
-                locale: locale
-            ) {
-                throw CategoryRepositoryError.invalidName(issue)
-            }
-            row.customName = cleanedName
+        let cleanedName = Self.cleanedName(name)
+        if let issue = Self.nameIssue(
+            cleanedName,
+            direction: direction,
+            excludingKey: key,
+            catalog: catalog(of: rows),
+            locale: locale
+        ) {
+            throw CategoryRepositoryError.invalidName(issue)
         }
+        row.customName = cleanedName
         row.symbolName = symbolName
         row.updatedAt = now
         try context.saveOrRollback(beforeSave: beforeSave)
@@ -188,7 +185,7 @@ final class LocalCategoryRepository {
         now: Date = .now
     ) throws {
         if isHidden, key == BookkeepingCategoryKey.other {
-            throw CategoryRepositoryError.otherNotHideable
+            throw CategoryRepositoryError.otherNotRemovable
         }
         let context = container.makeManualSaveContext()
         _ = try insertMissingPresets(in: context)
@@ -255,29 +252,30 @@ final class LocalCategoryRepository {
         return try context.fetchCount(Self.transactionDescriptor(key: key, direction: direction))
     }
 
-    /// 删除一个自定义分类，并把引用它的流水迁到目标分类；全部修改一次保存。
+    /// 删除一个分类（预置或自定义，「其他」除外），并把引用它的流水迁到目标分类；全部修改一次保存。
     ///
-    /// 分类行不做物理删除，而是写入删除时间和迁移目标作为墓碑，为以后的同步预留。
+    /// 分类行不做物理删除，而是写入删除时间和迁移目标作为墓碑，为以后的同步预留；
+    /// 预置分类的墓碑也让启动补齐不会把它重新加回来。
     ///
     /// - Parameters:
-    ///   - key: 要删除的自定义分类 key。
+    ///   - key: 要删除的分类 key。
     ///   - direction: 收支方向。
     ///   - targetKey: 流水迁往的分类；没有流水时也必须是合法目标。
     ///   - now: 注入的删除时间。
-    /// - Throws: 分类不存在、试图删除预置分类、目标不合法或保存失败时抛出错误。
+    /// - Throws: 分类不存在、试图删除「其他」、目标不合法或保存失败时抛出错误。
     func delete(
         key: String,
         direction: BookkeepingEntryType,
         migratingTo targetKey: String,
         now: Date = .now
     ) throws {
+        guard key != BookkeepingCategoryKey.other else { throw CategoryRepositoryError.otherNotRemovable }
         let context = container.makeManualSaveContext()
         _ = try insertMissingPresets(in: context)
         let rows = try categories(direction: direction, in: context)
         guard let row = rows.first(where: { $0.key == key && !$0.isTombstoned }) else {
             throw CategoryRepositoryError.categoryNotFound(key)
         }
-        guard !row.isPreset else { throw CategoryRepositoryError.presetNotEditable(key) }
         guard targetKey != key,
               rows.contains(where: { $0.key == targetKey && !$0.isTombstoned && !$0.isHidden })
         else {
@@ -395,22 +393,24 @@ final class LocalCategoryRepository {
 }
 
 extension ModelContext {
-    /// 判断收支流水引用的分类是否仍可使用：预置分类始终可用，自定义分类必须存在且未删除。
+    /// 判断收支流水引用的分类是否仍可使用：已删除的分类不可用；
+    /// 预置分类即使还没有存储行也可用，自定义分类必须存在。
     ///
     /// - Parameters:
     ///   - key: 流水引用的分类 key。
     ///   - direction: 收支方向。
     func isCategoryAvailable(key: String, direction: BookkeepingEntryType) throws -> Bool {
-        if BookkeepingCategoryKey.isPreset(key, direction: direction) { return true }
         let directionRawValue = direction.rawValue
         let categoryKey = key
         let descriptor = FetchDescriptor<BookkeepingCategory>(
             predicate: #Predicate<BookkeepingCategory> { category in
                 category.directionRawValue == directionRawValue
                     && category.key == categoryKey
-                    && category.deletedAt == nil
             }
         )
-        return try fetchCount(descriptor) > 0
+        guard let row = try fetch(descriptor).first else {
+            return BookkeepingCategoryKey.isPreset(key, direction: direction)
+        }
+        return !row.isTombstoned
     }
 }

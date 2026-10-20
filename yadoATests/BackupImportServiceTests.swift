@@ -323,7 +323,7 @@ struct BackupImportServiceTests {
 
     // MARK: - 分类
 
-    @Test("自定义分类、隐藏、排序、图标覆盖和删除墓碑随备份完整往返")
+    @Test("自定义分类、隐藏、排序和删除墓碑（含预置分类）随备份完整往返")
     func categoriesRoundTrip() throws {
         let source = try makeSeededContainer()
         let categories = LocalCategoryRepository(container: source.modelContainer)
@@ -331,7 +331,7 @@ struct BackupImportServiceTests {
         let removed = try categories.create(name: "旧分类", symbolName: "tag", direction: .expense)
         try categories.delete(key: removed, direction: .expense, migratingTo: "other")
         try categories.setHidden(true, key: "pets", direction: .expense)
-        try categories.update(key: "salary", direction: .income, name: nil, symbolName: "dollarsign.circle")
+        try categories.delete(key: "partTime", direction: .income, migratingTo: "other")
         try categories.reorder([coffee, "travel"], direction: .expense)
         let activeID = try #require(try snapshot(of: source).bookkeepingPreference?.defaultAccountID)
         try LocalExpenseRepository(container: source.modelContainer).save(
@@ -359,7 +359,8 @@ struct BackupImportServiceTests {
         )
         #expect(catalog.items(for: .expense).first?.key == coffee)
         #expect(catalog.hiddenItems(for: .expense).map(\.key) == ["pets"])
-        #expect(catalog.item(direction: .income, key: "salary")?.symbolName == "dollarsign.circle")
+        #expect(catalog.item(direction: .income, key: "partTime")?.isDeleted == true)
+        #expect(!catalog.items(for: .income).contains { $0.key == "partTime" })
     }
 
     @Test("备份没有分类数据时，分类恢复为预置默认值")
@@ -378,7 +379,7 @@ struct BackupImportServiceTests {
         #expect(rows.allSatisfy { $0.isPreset && !$0.isHidden })
     }
 
-    @Test("流水引用备份中不存在或已删除的自定义分类时整份拒绝")
+    @Test("流水引用备份中不存在或已删除的分类（含预置分类）时整份拒绝")
     func rejectsTransactionsWithUnknownCustomCategory() throws {
         let service = BackupImportService(container: try AccountDataContainer.inMemory().modelContainer)
         let deletedID = UUID()
@@ -389,7 +390,14 @@ struct BackupImportServiceTests {
             updatedAt: Date(timeIntervalSince1970: 40), deletedAt: Date(timeIntervalSince1970: 50),
             replacementKey: "other"
         )
-        for key in [BookkeepingCategoryKey.customKey(for: UUID()), deletedKey] {
+        let deletedPreset = BackupCategory(
+            id: BookkeepingCategoryKey.presetID(direction: .expense, key: "pets"),
+            direction: BookkeepingEntryType.expense.rawValue, key: "pets",
+            customName: nil, symbolName: ExpenseCategory.pets.symbolName, sortIndex: 11, isHidden: false,
+            updatedAt: Date(timeIntervalSince1970: 40), deletedAt: Date(timeIntervalSince1970: 50),
+            replacementKey: "other"
+        )
+        for key in [BookkeepingCategoryKey.customKey(for: UUID()), deletedKey, "pets"] {
             let transaction = BackupTransaction(
                 id: UUID(), accountID: Self.accountID, type: AccountTransactionType.expense.rawValue,
                 category: key, amount: "1", title: nil, balanceBefore: nil, balanceAfter: nil,
@@ -397,7 +405,9 @@ struct BackupImportServiceTests {
                 savedAt: Date(timeIntervalSince1970: 30)
             )
             #expect(throws: BackupImportError.invalidContent) {
-                try service.prepare(from: try encode(makeBackup(transactions: [transaction], categories: [tombstone])))
+                try service.prepare(from: try encode(
+                    makeBackup(transactions: [transaction], categories: [tombstone, deletedPreset])
+                ))
             }
         }
     }
@@ -430,6 +440,13 @@ struct BackupImportServiceTests {
                 id: UUID(), direction: BookkeepingEntryType.expense.rawValue, key: "dining", customName: nil,
                 symbolName: "fork.knife", sortIndex: 0, isHidden: false,
                 updatedAt: valid.updatedAt, deletedAt: nil, replacementKey: nil
+            ),
+            // 「其他」是删除迁移的兜底分类，不能被标记删除。
+            BackupCategory(
+                id: BookkeepingCategoryKey.presetID(direction: .expense, key: "other"),
+                direction: BookkeepingEntryType.expense.rawValue, key: "other", customName: nil,
+                symbolName: "ellipsis.circle", sortIndex: 15, isHidden: false,
+                updatedAt: valid.updatedAt, deletedAt: valid.updatedAt, replacementKey: "dining"
             )
         ]
         for category in invalidCategories {

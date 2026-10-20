@@ -27,7 +27,7 @@ enum ExpenseRepositoryError: Error, Equatable {
     /// 精确十进制金额计算失败。
     case balanceCalculationFailed
 
-    /// 流水引用的自定义分类不存在或已删除。
+    /// 流水引用的分类不存在或已删除。
     case categoryUnavailable(String)
 }
 

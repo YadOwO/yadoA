@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import yadoA
 
@@ -48,13 +49,13 @@ struct BookkeepingCategoryCatalogTests {
         #expect(catalog.defaultKey(for: .income) == "salary")
     }
 
-    @Test("存储的排序、隐藏、图标覆盖和自定义分类生效，墓碑不出现在列表中")
+    @Test("存储的排序、隐藏和自定义分类生效，墓碑不出现在列表中")
     func storedSettingsOverrideDefaults() {
         let customKey = BookkeepingCategoryKey.customKey(for: UUID())
         let deletedKey = BookkeepingCategoryKey.customKey(for: UUID())
         let catalog = BookkeepingCategoryCatalog(items: [
             item(.expense, "dining", sortIndex: 5, isHidden: true),
-            item(.expense, "shopping", symbol: "handbag", sortIndex: -1),
+            item(.expense, "shopping", sortIndex: -1),
             item(.expense, customKey, name: "咖啡", symbol: "cup.and.saucer", sortIndex: 0),
             item(.expense, deletedKey, name: "旧分类", sortIndex: 1, isDeleted: true, replacementKey: "other")
         ])
@@ -65,7 +66,6 @@ struct BookkeepingCategoryCatalogTests {
         #expect(!keys.contains(deletedKey))
         #expect(catalog.visibleItems(for: .expense).allSatisfy { !$0.isHidden })
         #expect(catalog.hiddenItems(for: .expense).map(\.key) == ["dining"])
-        #expect(catalog.item(direction: .expense, key: "shopping")?.symbolName == "handbag")
         #expect(catalog.item(direction: .expense, key: customKey)?.title(locale: english) == "咖啡")
         #expect(catalog.defaultKey(for: .expense) == "shopping")
 
@@ -97,7 +97,7 @@ struct BookkeepingCategoryCatalogTests {
         #expect(resolved.direction == .income)
     }
 
-    @Test("「其他」不能隐藏，预置分类不能改名或删除")
+    @Test("「其他」不能隐藏或删除，预置分类可以删除但不能编辑")
     func capabilityFlags() {
         let catalog = BookkeepingCategoryCatalog.presets
         let other = catalog.item(direction: .expense, key: "other")
@@ -105,12 +105,34 @@ struct BookkeepingCategoryCatalogTests {
         let custom = item(.expense, BookkeepingCategoryKey.customKey(for: UUID()), name: "咖啡")
 
         #expect(other?.canHide == false)
+        #expect(other?.canDelete == false)
+        #expect(other?.canEdit == false)
         #expect(dining?.canHide == true)
-        #expect(dining?.canRename == false)
-        #expect(dining?.canDelete == false)
-        #expect(custom.canRename)
+        #expect(dining?.canDelete == true)
+        #expect(dining?.canEdit == false)
+        #expect(custom.canEdit)
         #expect(custom.canDelete)
         #expect(custom.canHide)
+    }
+
+    @Test("预置分类的名称和图标固定，忽略存储行里的值")
+    func presetIgnoresStoredNameAndSymbol() throws {
+        // SwiftData 模型需要先有加载过该类型的容器才能实例化。
+        let container = try AccountDataContainer.inMemory().modelContainer
+        let row = BookkeepingCategory(
+            id: BookkeepingCategoryKey.presetID(direction: .expense, key: "dining"),
+            direction: .expense,
+            key: "dining",
+            customName: "吃饭",
+            symbolName: "handbag",
+            sortIndex: 0
+        )
+        ModelContext(container).insert(row)
+        let dining = try #require(BookkeepingCategoryItem(category: row))
+
+        #expect(dining.customName == nil)
+        #expect(dining.symbolName == ExpenseCategory.dining.symbolName)
+        #expect(dining.title(locale: english) == ExpenseCategory.dining.localizedTitle(locale: english))
     }
 
     @Test("收支载荷接受自定义 key，拒绝格式错误或方向不符的 key")

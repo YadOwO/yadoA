@@ -43,7 +43,7 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
     /// canonical 默认记账账户偏好；为 `nil` 表示存储中还没有偏好记录。
     let bookkeepingPreference: BackupBookkeepingPreference?
 
-    /// 全部分类设置，包含预置分类的排序、隐藏和图标覆盖，自定义分类以及删除墓碑。
+    /// 全部分类设置，包含预置分类的排序、隐藏状态，自定义分类以及删除墓碑。
     let categories: [BackupCategory]
 
     /// 从完整业务快照构造备份信封。

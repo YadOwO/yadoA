@@ -1,9 +1,9 @@
 import SwiftData
 import SwiftUI
 
-/// 新增或编辑一个分类。
+/// 新增或编辑一个自定义分类。
 ///
-/// 自定义分类可以改名和换图标；预置分类的名称只读，并直接写明「可以换图标或隐藏」。
+/// 预置分类的名称和图标固定，管理页不会为它们打开这个页面。
 /// 名称规则在输入时实时提示，同时禁用保存，不等点了保存才报错。
 struct CategoryEditView: View {
     @Environment(\.modelContext) private var modelContext
@@ -42,15 +42,9 @@ struct CategoryEditView: View {
         return nil
     }
 
-    /// 是否为预置分类，预置分类的名称只读。
-    private var isPreset: Bool {
-        editingItem?.isPreset ?? false
-    }
-
-    /// 当前名称不满足的规则；预置分类不校验名称。
+    /// 当前名称不满足的规则。
     private var nameIssue: CategoryNameIssue? {
-        guard !isPreset else { return nil }
-        return LocalCategoryRepository.nameIssue(
+        LocalCategoryRepository.nameIssue(
             name,
             direction: route.direction,
             excludingKey: editingItem?.key,
@@ -73,17 +67,11 @@ struct CategoryEditView: View {
             }
 
             Section {
-                if let editingItem, isPreset {
-                    Text(editingItem.title(locale: locale))
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("category-edit-name-readonly")
-                } else {
-                    TextField(
-                        text("category.edit.name.placeholder"),
-                        text: $name
-                    )
-                    .accessibilityIdentifier("category-edit-name")
-                }
+                TextField(
+                    text("category.edit.name.placeholder"),
+                    text: $name
+                )
+                .accessibilityIdentifier("category-edit-name")
             } header: {
                 Text(text("category.edit.name"))
             } footer: {
@@ -141,28 +129,23 @@ struct CategoryEditView: View {
             .accessibilityHidden(true)
     }
 
-    /// 名称下方的说明：预置分类说明能做什么，自定义分类显示字数和实时校验结果。
-    @ViewBuilder
+    /// 名称下方的字数和实时校验结果。
     private var nameFooter: some View {
-        if isPreset {
-            Text(text("category.edit.preset.hint"))
-        } else {
-            let count = LocalCategoryRepository.cleanedName(name).count
-            HStack(alignment: .firstTextBaseline) {
-                if let message = issueMessage {
-                    Text(message)
-                        .foregroundStyle(Color(.ledgerRed))
-                        .accessibilityIdentifier("category-edit-name-issue")
-                }
-                Spacer()
-                Text(verbatim: "\(count)/\(LocalCategoryRepository.nameLengthLimit)")
-                    .monospacedDigit()
-                    .foregroundStyle(
-                        count > LocalCategoryRepository.nameLengthLimit
-                            ? AnyShapeStyle(Color(.ledgerRed))
-                            : AnyShapeStyle(.secondary)
-                    )
+        let count = LocalCategoryRepository.cleanedName(name).count
+        return HStack(alignment: .firstTextBaseline) {
+            if let message = issueMessage {
+                Text(message)
+                    .foregroundStyle(Color(.ledgerRed))
+                    .accessibilityIdentifier("category-edit-name-issue")
             }
+            Spacer()
+            Text(verbatim: "\(count)/\(LocalCategoryRepository.nameLengthLimit)")
+                .monospacedDigit()
+                .foregroundStyle(
+                    count > LocalCategoryRepository.nameLengthLimit
+                        ? AnyShapeStyle(Color(.ledgerRed))
+                        : AnyShapeStyle(.secondary)
+                )
         }
     }
 
@@ -204,7 +187,7 @@ struct CategoryEditView: View {
                 try repository.update(
                     key: item.key,
                     direction: item.direction,
-                    name: item.isPreset ? nil : name,
+                    name: name,
                     symbolName: symbolName,
                     locale: locale
                 )

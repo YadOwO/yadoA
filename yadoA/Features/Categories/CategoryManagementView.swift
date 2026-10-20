@@ -6,7 +6,7 @@ enum CategoryEditorRoute: Identifiable, Hashable {
     /// 在指定方向下新增自定义分类。
     case create(BookkeepingEntryType)
 
-    /// 编辑已有分类；预置分类只能换图标。
+    /// 编辑自定义分类；预置分类的名称和图标固定，不会进入编辑页。
     case edit(BookkeepingCategoryItem)
 
     /// Sheet 使用的稳定标识。
@@ -28,7 +28,7 @@ enum CategoryEditorRoute: Identifiable, Hashable {
 
 /// 一次删除请求：被删除的分类及引用它的流水笔数。
 struct CategoryDeletionRequest: Identifiable, Hashable {
-    /// 要删除的自定义分类。
+    /// 要删除的分类，预置或自定义均可。
     let item: BookkeepingCategoryItem
 
     /// 引用该分类的流水笔数；为零时只需二次确认，不需要选择迁移目标。
@@ -40,8 +40,8 @@ struct CategoryDeletionRequest: Identifiable, Hashable {
 
 /// 分类管理页：支出、收入分类的新增、编辑、排序、隐藏和删除。
 ///
-/// 规则限制都在界面上直接表达：预置分类左滑只有「隐藏」，自定义分类左滑是「删除」，
-/// 「其他」没有左滑操作并在行内说明用途，避免用户点了没反应才发现做不了。
+/// 规则限制都在界面上直接表达：只有自定义分类显示进入编辑的箭头，预置分类在行内标明「不可修改」；
+/// 除「其他」外都能左滑删除或隐藏，「其他」没有左滑操作并在行内说明原因，避免用户点了没反应才发现做不了。
 struct CategoryManagementView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.locale) private var locale
@@ -191,35 +191,42 @@ struct CategoryManagementView: View {
 
     // MARK: - 行
 
-    /// 可见分类：点击进入编辑；左滑按分类类型给出「删除」或「隐藏」。
+    /// 可见分类：自定义分类点击进入编辑；左滑给出「删除」和「隐藏」，「其他」没有左滑操作。
     private func visibleRow(_ item: BookkeepingCategoryItem) -> some View {
-        Button {
-            guard !editMode.isEditing else { return }
-            editorRoute = .edit(item)
-        } label: {
-            CategoryRowLabel(item: item, subtitle: subtitle(for: item))
-        }
-        .buttonStyle(.plain)
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            if item.canDelete {
-                Button(role: .destructive) {
-                    requestDeletion(of: item)
-                } label: {
-                    Label(text("category.delete.action"), systemImage: "trash")
+        visibleRowContent(item)
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                if item.canDelete {
+                    deleteButton(item)
                 }
-            } else if item.canHide {
-                Button {
-                    setHidden(true, item: item)
-                } label: {
-                    Label(text("category.hide.action"), systemImage: "eye.slash")
+                if item.canHide {
+                    Button {
+                        setHidden(true, item: item)
+                    } label: {
+                        Label(text("category.hide.action"), systemImage: "eye.slash")
+                    }
+                    .tint(.gray)
                 }
-                .tint(.gray)
             }
-        }
-        .accessibilityIdentifier("category-row-\(item.key)")
+            .accessibilityIdentifier("category-row-\(item.key)")
     }
 
-    /// 已隐藏分类：行尾直接给出「恢复」，不用左滑也能找到。
+    /// 可见分类的行内容：只有可编辑的自定义分类是按钮并显示箭头，预置分类只展示。
+    @ViewBuilder
+    private func visibleRowContent(_ item: BookkeepingCategoryItem) -> some View {
+        if item.canEdit {
+            Button {
+                guard !editMode.isEditing else { return }
+                editorRoute = .edit(item)
+            } label: {
+                CategoryRowLabel(item: item, subtitle: subtitle(for: item))
+            }
+            .buttonStyle(.plain)
+        } else {
+            CategoryRowLabel(item: item, subtitle: subtitle(for: item), showsChevron: false)
+        }
+    }
+
+    /// 已隐藏分类：行尾直接给出「恢复」，不用左滑也能找到；左滑仍可删除。
     private func hiddenRow(_ item: BookkeepingCategoryItem) -> some View {
         HStack {
             CategoryRowLabel(item: item, subtitle: nil, showsChevron: false)
@@ -230,10 +237,24 @@ struct CategoryManagementView: View {
             .buttonStyle(.bordered)
             .accessibilityIdentifier("category-unhide-\(item.key)")
         }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if item.canDelete {
+                deleteButton(item)
+            }
+        }
         .accessibilityIdentifier("category-hidden-row-\(item.key)")
     }
 
-    /// 行内的补充说明：「其他」说明它的兜底用途，其余预置分类标明是系统分类。
+    /// 左滑的「删除」按钮。
+    private func deleteButton(_ item: BookkeepingCategoryItem) -> some View {
+        Button(role: .destructive) {
+            requestDeletion(of: item)
+        } label: {
+            Label(text("category.delete.action"), systemImage: "trash")
+        }
+    }
+
+    /// 行内的补充说明：「其他」说明它的兜底用途，其余预置分类标明是不可修改的系统分类。
     private func subtitle(for item: BookkeepingCategoryItem) -> String? {
         if item.isOther { return text("category.other.hint") }
         if item.isPreset { return text("category.preset.badge") }

@@ -7021,13 +7021,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap a category to edit it. Swipe left to delete a custom category or hide a built-in one. Tap Sort to reorder."
+            "value" : "Tap a custom category to edit it. Swipe left to delete or hide a category. Tap Sort to reorder."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "点击分类可编辑。左滑可删除自定义分类、隐藏系统分类；点「排序」后可拖动调整顺序。"
+            "value" : "点击自定义分类可编辑。左滑可删除或隐藏分类；点「排序」后可拖动调整顺序。"
           }
         }
       }
@@ -7106,13 +7106,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Built-in"
+            "value" : "Built-in · can't be edited"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "系统分类"
+            "value" : "系统分类，不可修改"
           }
         }
       }
@@ -7123,13 +7123,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Receives entries from deleted categories"
+            "value" : "Receives entries from deleted categories. Can't be deleted or hidden."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "用于接收被删除分类的流水"
+            "value" : "用于接收被删除分类的流水，不能删除或隐藏"
           }
         }
       }
@@ -7334,23 +7334,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "分类名称"
-          }
-        }
-      }
-    },
-    "category.edit.preset.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Built-in categories can't be renamed. You can change the icon or hide them."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "系统分类不可改名，可以更换图标或隐藏。"
           }
         }
       }

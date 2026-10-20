@@ -32,14 +32,14 @@ struct BookkeepingCategoryItem: Identifiable, Hashable, Sendable {
     /// 是否为预置分类。
     var isPreset: Bool { BookkeepingCategoryKey.isPreset(key, direction: direction) }
 
-    /// 是否为该方向的「其他」分类；它是删除迁移的兜底目标，不能隐藏。
+    /// 是否为该方向的「其他」分类；它是删除迁移的兜底目标，不能删除或隐藏。
     var isOther: Bool { key == BookkeepingCategoryKey.other }
 
-    /// 只有自定义分类可以改名。
-    var canRename: Bool { !isPreset }
+    /// 只有自定义分类可以改名和换图标；预置分类的名称和图标固定。
+    var canEdit: Bool { !isPreset }
 
-    /// 只有自定义分类可以删除。
-    var canDelete: Bool { !isPreset }
+    /// 除「其他」外都可以删除，预置分类也可以。
+    var canDelete: Bool { !isOther }
 
     /// 除「其他」外都可以隐藏。
     var canHide: Bool { !isOther }
@@ -68,16 +68,18 @@ struct BookkeepingCategoryItem: Identifiable, Hashable, Sendable {
     }
 
     /// 由持久化分类生成快照；方向未知的损坏记录返回 `nil`。
+    ///
+    /// 预置分类的名称和图标固定，始终使用默认值，忽略存储行里的值。
     init?(category: BookkeepingCategory) {
         guard let direction = category.direction,
               BookkeepingCategoryKey.isValid(category.key, direction: direction)
         else { return nil }
-        let isPreset = BookkeepingCategoryKey.isPreset(category.key, direction: direction)
+        let preset = BookkeepingCategoryKey.preset(direction: direction, key: category.key)
         self.init(
             direction: direction,
             key: category.key,
-            customName: isPreset ? nil : category.customName,
-            symbolName: category.symbolName,
+            customName: preset == nil ? category.customName : nil,
+            symbolName: preset?.symbolName ?? category.symbolName,
             sortIndex: category.sortIndex,
             isHidden: category.isHidden,
             isDeleted: category.isTombstoned,

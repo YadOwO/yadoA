@@ -4,7 +4,7 @@ import SwiftData
 
 /// SwiftData 中持久化的一条收支分类设置。
 ///
-/// 预置分类与自定义分类共用这张表：预置分类只保存排序、隐藏和图标覆盖，
+/// 预置分类与自定义分类共用这张表：预置分类只保存排序、隐藏和删除状态，
 /// 名称来自 String Catalog；自定义分类额外保存用户输入的名称。
 /// 流水通过 `key` 引用分类，删除分类时保留墓碑记录，为以后的多设备同步预留迁移目标。
 @Model
@@ -21,7 +21,7 @@ final class BookkeepingCategory {
     /// 自定义分类的用户名称；预置分类为 `nil`，名称走本地化。
     var customName: String?
 
-    /// 分类使用的 SF Symbol 名称；预置分类可被用户覆盖。
+    /// 分类使用的 SF Symbol 名称；预置分类固定使用默认图标，这里只是镜像默认值。
     var symbolName: String
 
     /// 同一方向内的展示顺序，数值越小越靠前。

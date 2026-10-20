@@ -82,24 +82,50 @@ struct LocalCategoryRepositoryTests {
         #expect(row.symbolName == "cup.and.saucer")
     }
 
-    @Test("预置分类只能换图标，不能改名或删除；「其他」不能隐藏")
+    @Test("预置分类不能改名或换图标；「其他」不能隐藏或删除")
     func presetRestrictions() throws {
         let container = try AccountDataContainer.inMemory().modelContainer
         let repository = LocalCategoryRepository(container: container)
-
-        try repository.update(key: "dining", direction: .expense, name: nil, symbolName: "takeoutbag.and.cup.and.straw")
-        #expect(try catalog(in: container).item(direction: .expense, key: "dining")?.symbolName
-            == "takeoutbag.and.cup.and.straw")
 
         #expect(throws: CategoryRepositoryError.presetNotEditable("dining")) {
             try repository.update(key: "dining", direction: .expense, name: "吃饭", symbolName: "fork.knife")
         }
         #expect(throws: CategoryRepositoryError.presetNotEditable("dining")) {
-            try repository.delete(key: "dining", direction: .expense, migratingTo: "other")
+            try repository.update(
+                key: "dining", direction: .expense, name: "餐饮", symbolName: "takeoutbag.and.cup.and.straw"
+            )
         }
-        #expect(throws: CategoryRepositoryError.otherNotHideable) {
+        #expect(throws: CategoryRepositoryError.otherNotRemovable) {
             try repository.setHidden(true, key: "other", direction: .expense)
         }
+        #expect(throws: CategoryRepositoryError.otherNotRemovable) {
+            try repository.delete(key: "other", direction: .income, migratingTo: "salary")
+        }
+        let dining = try #require(try catalog(in: container).item(direction: .expense, key: "dining"))
+        #expect(dining.symbolName == ExpenseCategory.dining.symbolName)
+        #expect(!dining.canEdit)
+        #expect(dining.canDelete)
+    }
+
+    @Test("删除预置分类：流水迁走、补齐预置不会加回来、同名可以重新创建为自定义分类")
+    func deletePresetCategory() throws {
+        let container = try AccountDataContainer.inMemory().modelContainer
+        let repository = LocalCategoryRepository(container: container)
+        let transaction = try insertExpense(categoryKey: "pets", in: container)
+
+        try repository.delete(key: "pets", direction: .expense, migratingTo: "other")
+        try repository.ensurePresets()
+
+        let stored = try ModelContext(container).fetch(FetchDescriptor<AccountTransaction>())
+        #expect(stored.first { $0.id == transaction.id }?.categoryRawValue == "other")
+        let current = try catalog(in: container)
+        #expect(!current.items(for: .expense).contains { $0.key == "pets" })
+        #expect(current.item(direction: .expense, key: "pets")?.isDeleted == true)
+        #expect(try categories(in: container).filter { $0.key == "pets" }.count == 1)
+
+        let petName = ExpenseCategory.pets.localizedTitle(locale: chinese)
+        let key = try repository.create(name: petName, symbolName: "dog", direction: .expense, locale: chinese)
+        #expect(BookkeepingCategoryKey.isCustom(key))
     }
 
     @Test("隐藏后不出现在记账面板，历史流水照常展示；恢复后回到面板")
@@ -187,7 +213,7 @@ struct LocalCategoryRepositoryTests {
         #expect(try categories(in: container).first { $0.key == key }?.isTombstoned == false)
     }
 
-    @Test("记账时拒绝引用已删除的自定义分类，预置分类无需存储行也可记账")
+    @Test("记账时拒绝引用已删除的分类，预置分类无需存储行也可记账")
     func expenseRepositoryRequiresAvailableCategory() throws {
         let container = try AccountDataContainer.inMemory().modelContainer
         let accountID = try insertAccount(in: container)
@@ -209,6 +235,12 @@ struct LocalCategoryRepositoryTests {
                 accountID: accountID, expenseCategoryKey: key, amountText: "10", transactionDay: 20261020
             ))
         }
+        try categoryRepository.delete(key: "dining", direction: .expense, migratingTo: "other")
+        #expect(throws: ExpenseRepositoryError.categoryUnavailable("dining")) {
+            try expenseRepository.save(DiningExpenseDraft(
+                accountID: accountID, amountText: "10", transactionDay: 20261020
+            ))
+        }
         let unknown = BookkeepingCategoryKey.customKey(for: UUID())
         #expect(throws: ExpenseRepositoryError.categoryUnavailable(unknown)) {
             try expenseRepository.save(DiningExpenseDraft(
@@ -223,12 +255,13 @@ struct LocalCategoryRepositoryTests {
         let repository = LocalCategoryRepository(container: container)
         try repository.create(name: "咖啡", symbolName: "mug", direction: .expense, locale: chinese)
         try repository.setHidden(true, key: "pets", direction: .expense)
+        try repository.delete(key: "travel", direction: .expense, migratingTo: "other")
 
         try LocalDataResetService(container: container).eraseAll()
 
         let rows = try categories(in: container)
         #expect(rows.count == BookkeepingCategoryKey.allPresets.count)
-        #expect(rows.allSatisfy { $0.isPreset && !$0.isHidden })
+        #expect(rows.allSatisfy { $0.isPreset && !$0.isHidden && !$0.isTombstoned })
     }
 
     // MARK: - 夹具

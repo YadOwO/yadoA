@@ -9,7 +9,7 @@ origin: docs/brainstorms/2026-10-20-category-management-requirements.md
 
 ## Summary
 
-新增持久化模型 `BookkeepingCategory`，用来保存分类的排序、隐藏状态、图标覆盖和自定义分类。流水依旧只存一个字符串 key，所有展示层改为通过分类目录（catalog）把 key 解析成名称和图标。schema 升到 V6。App 还没有上线，不考虑存量用户的数据迁移和旧备份兼容。
+新增持久化模型 `BookkeepingCategory`，用来保存分类的排序、隐藏状态、删除墓碑和自定义分类。流水依旧只存一个字符串 key，所有展示层改为通过分类目录（catalog）把 key 解析成名称和图标。schema 升到 V6。App 还没有上线，不考虑存量用户的数据迁移和旧备份兼容。
 
 ---
 
@@ -94,8 +94,8 @@ origin: docs/brainstorms/2026-10-20-category-management-requirements.md
 
 - **方法：** `create`、`rename`、`changeSymbol`、`setHidden`、`move(direction:from:to:)`、`delete(key:migratingTo:)`、`transactionCount(key:)`、`validateName`。
 - **约束：**
-  - 预置分类不能改名或删除；
-  - 「其他」不能隐藏；
+  - 预置分类的名称和图标固定，不能修改，但可以删除；
+  - 「其他」不能隐藏或删除；
   - 迁移目标必须是同方向、未隐藏、未删除的分类，且不能是被删除的分类本身；
   - 新建的分类排在最后。
 - **约定：** 沿用 `Local*Repository` 的写法：`@MainActor`、使用新的 manual-save context、提供 `beforeSave` 故障注入点、只 save 一次。

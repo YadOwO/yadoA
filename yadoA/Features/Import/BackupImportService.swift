@@ -258,10 +258,10 @@ extension BackupImportService {
         }
 
         let categories = try validatedCategories(from: backup.categories)
-        // 流水只能引用预置分类或备份中未删除的自定义分类。
-        let availableCustomKeys = Set(
+        // 流水只能引用未删除的分类；缺少的预置分类已在上一步补齐，所以这里覆盖全部可用分类。
+        let availableKeys = Set(
             categories
-                .filter { !$0.isPreset && !$0.isTombstoned }
+                .filter { !$0.isTombstoned }
                 .map { "\($0.directionRawValue).\($0.key)" }
         )
 
@@ -293,8 +293,7 @@ extension BackupImportService {
                 throw BackupImportError.invalidContent
             }
             if let reference = (try? record.validatedPayload())?.categoryReference,
-               !BookkeepingCategoryKey.isPreset(reference.key, direction: reference.direction),
-               !availableCustomKeys.contains("\(reference.direction.rawValue).\(reference.key)") {
+               !availableKeys.contains("\(reference.direction.rawValue).\(reference.key)") {
                 throw BackupImportError.invalidContent
             }
             return record
@@ -304,9 +303,12 @@ extension BackupImportService {
 
     /// 校验备份中的分类设置，并为缺少的预置分类补上默认值。
     ///
+    /// 预置分类的名称和图标固定，恢复时统一写回默认图标，不采用备份里的值。
+    ///
     /// - Parameter backupCategories: 备份中的分类快照。
     /// - Returns: 尚未插入 context 的分类模型。
-    /// - Throws: 标识重复、方向或 key 不合法、预置分类标识不匹配、自定义分类缺少名称时抛出 `.invalidContent`。
+    /// - Throws: 标识重复、方向或 key 不合法、预置分类标识不匹配、「其他」被标记删除、
+    ///   自定义分类缺少名称时抛出 `.invalidContent`。
     private static func validatedCategories(
         from backupCategories: [BackupCategory]
     ) throws -> [BookkeepingCategory] {
@@ -320,10 +322,11 @@ extension BackupImportService {
                   !category.symbolName.isEmpty
             else { throw BackupImportError.invalidContent }
 
-            let isPreset = BookkeepingCategoryKey.isPreset(category.key, direction: direction)
-            if isPreset {
-                guard category.id == BookkeepingCategoryKey.presetID(direction: direction, key: category.key),
-                      category.deletedAt == nil
+            let preset = BookkeepingCategoryKey.preset(direction: direction, key: category.key)
+            if let preset {
+                // 「其他」是删除迁移的兜底目标，必须始终可用。
+                guard category.id == preset.id,
+                      category.deletedAt == nil || category.key != BookkeepingCategoryKey.other
                 else { throw BackupImportError.invalidContent }
             } else {
                 let name = LocalCategoryRepository.cleanedName(category.customName ?? "")
@@ -333,8 +336,8 @@ extension BackupImportService {
                 id: category.id,
                 direction: direction,
                 key: category.key,
-                customName: isPreset ? nil : category.customName,
-                symbolName: category.symbolName,
+                customName: preset == nil ? category.customName : nil,
+                symbolName: preset?.symbolName ?? category.symbolName,
                 sortIndex: category.sortIndex,
                 isHidden: category.isHidden,
                 updatedAt: category.updatedAt,
