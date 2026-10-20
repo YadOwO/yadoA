@@ -120,6 +120,57 @@ struct HomeOverviewRowPresentation: Identifiable, Equatable {
     let accessibilityLabel: String
 }
 
+/// 一笔流水修改前后在首页行上可见字段的差异，决定修改提示动画里哪些地方要"划掉旧值、写上新值"。
+struct HomeOverviewRowRevision: Equatable {
+    /// 修改前的首页行快照。
+    let previous: HomeOverviewRowPresentation
+
+    /// 修改后的首页行。
+    let current: HomeOverviewRowPresentation
+
+    /// 分类图标是否变化。
+    var isSymbolChanged: Bool { previous.symbolName != current.symbolName }
+
+    /// 标题（自定义标题或分类名）是否变化。
+    var isTitleChanged: Bool { previous.title != current.title }
+
+    /// 备注是否变化，包括新增或清空备注。
+    var isNoteChanged: Bool { previous.note != current.note }
+
+    /// 带收支方向的金额是否变化；收支类型切换时符号变化也算。
+    var isAmountChanged: Bool { previous.formattedAmount != current.formattedAmount }
+
+    /// 行上是否有任何可见变化；只改了账户或同月日期时为 `false`。
+    var hasVisibleChanges: Bool {
+        isSymbolChanged || isTitleChanged || isNoteChanged || isAmountChanged
+    }
+}
+
+/// 刚被删除的流水在首页的行快照，用于在原位置短暂画出被划掉的残影。
+///
+/// 删除后流水对象已失效，因此在删除前把展示内容和排序键一并拷贝下来。
+struct HomeOverviewDeletedRow: Equatable {
+    /// 删除前的首页行展示数据。
+    let row: HomeOverviewRowPresentation
+
+    /// 被删除流水的 `YYYYMMDD` 业务日，决定残影所在的日期分组。
+    let transactionDay: Int
+
+    /// 被删除流水的保存时间，用于在同日流水中还原原来的位置。
+    let savedAt: Date
+
+    /// 当前快照是否应排在指定流水之前，与 `AccountTransactionOrdering.newestFirst` 的同日规则一致。
+    ///
+    /// - Parameter transaction: 同一业务日内仍然存在的流水。
+    /// - Returns: 残影应排在该流水之前时返回 `true`。
+    func precedes(_ transaction: AccountTransaction) -> Bool {
+        if savedAt != transaction.savedAt {
+            return savedAt > transaction.savedAt
+        }
+        return row.id.uuidString < transaction.id.uuidString
+    }
+}
+
 /// 首页按业务日分组的明细展示数据。
 struct HomeOverviewDayPresentation: Identifiable, Equatable {
     /// 分组使用的 `YYYYMMDD` 业务日。
@@ -269,17 +320,32 @@ struct HomeOverviewPresentation {
 
     /// 生成指定月份的完整展示投影；空月份也会返回可渲染的空状态数据。
     ///
-    /// - Parameter month: 要展示的自然年月，可以是任意有效月份。
+    /// - Parameters:
+    ///   - month: 要展示的自然年月，可以是任意有效月份。
+    ///   - deletedRow: 需要在原位置保留残影的已删除流水；只插入明细行，不计入任何汇总。
     /// - Returns: 月份标题、精确汇总和按日明细。
-    func presentation(for month: HomeMonth) -> HomeOverviewMonthPresentation {
+    func presentation(
+        for month: HomeMonth,
+        retaining deletedRow: HomeOverviewDeletedRow? = nil
+    ) -> HomeOverviewMonthPresentation {
         let monthTransactions = validTransactions.filter { $0.month == month }
         let groupedTransactions = Dictionary(grouping: monthTransactions, by: \.transaction.transactionDay)
+        // 查询尚未刷新时被删流水仍在结果里，不再重复插入残影；残影所在日期可能已没有其他流水，此时仍要为它保留日期分组。
+        let deletedRow = deletedRow.flatMap { candidate in
+            HomeMonth(value: candidate.transactionDay / 100) == month
+                && !monthTransactions.contains { $0.transaction.id == candidate.row.id }
+                ? candidate : nil
+        }
+        var transactionDays = Set(groupedTransactions.keys)
+        if let deletedRow {
+            transactionDays.insert(deletedRow.transactionDay)
+        }
         let weekdayFormatter = BookkeepingDateFormatting.formatter(
             template: "EEEE",
             locale: locale,
             calendar: calendar
         )
-        let dayGroups = groupedTransactions.keys.sorted(by: >).compactMap {
+        let dayGroups = transactionDays.sorted(by: >).compactMap {
             transactionDay -> HomeOverviewDayPresentation? in
             guard let date = TransactionDay.date(
                 from: transactionDay,
@@ -295,8 +361,12 @@ struct HomeOverviewPresentation {
                 locale: locale,
                 calendar: calendar
             )
-            let rows = transactions.map {
+            var rows = transactions.map {
                 Self.row(for: $0, formattedDate: formattedDate, locale: locale)
+            }
+            if let deletedRow, deletedRow.transactionDay == transactionDay {
+                let index = transactions.firstIndex { deletedRow.precedes($0.transaction) } ?? rows.endIndex
+                rows.insert(deletedRow.row, at: index)
             }
             let incomeTotal = transactions.reduce(into: Decimal.zero) { total, transaction in
                 if transaction.entryType == .income {
@@ -330,6 +400,26 @@ struct HomeOverviewPresentation {
             incomeTotal: incomeTotal,
             expenseTotal: expenseTotal,
             dayGroups: dayGroups
+        )
+    }
+
+    /// 在删除前为一笔流水生成首页残影快照。
+    ///
+    /// - Parameters:
+    ///   - transaction: 即将删除、仍然有效的原始流水。
+    ///   - locale: 标题、金额和日期使用的语言环境。
+    ///   - calendar: 日期使用的公历及时区。
+    /// - Returns: 残影快照；流水不会出现在首页时返回 `nil`。
+    static func deletedRow(
+        for transaction: AccountTransaction,
+        locale: Locale = .current,
+        calendar: Calendar = .current
+    ) -> HomeOverviewDeletedRow? {
+        guard let row = row(for: transaction, locale: locale, calendar: calendar) else { return nil }
+        return HomeOverviewDeletedRow(
+            row: row,
+            transactionDay: transaction.transactionDay,
+            savedAt: transaction.savedAt
         )
     }
 

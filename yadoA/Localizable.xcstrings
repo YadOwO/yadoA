@@ -5944,6 +5944,23 @@
         }
       }
     },
+    "home.transaction.deleted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已删除：%@"
+          }
+        }
+      }
+    },
     "home.month.selector.accessibility" : {
       "extractionState" : "manual",
       "localizations" : {

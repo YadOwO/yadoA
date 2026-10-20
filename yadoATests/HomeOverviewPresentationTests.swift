@@ -293,6 +293,108 @@ struct HomeOverviewPresentationTests {
         #expect(presentation.dayGroups[0].rows[0].title == "工作午餐")
     }
 
+    @Test("修改前后逐项对比图标、标题、备注和金额")
+    func revisionDetectsChangedFields() throws {
+        let id = UUID()
+        let accountID = UUID()
+        let locale = Locale(identifier: "zh-Hans")
+        let before = try #require(HomeOverviewPresentation.row(
+            for: try dining(id: id, accountID: accountID, amount: "12", transactionDay: 20260813, note: "午餐"),
+            locale: locale,
+            calendar: utcCalendar
+        ))
+        let after = try #require(HomeOverviewPresentation.row(
+            for: try AccountTransaction.validatingExpense(
+                id: id,
+                accountID: accountID,
+                category: .travel,
+                amount: 30,
+                transactionDay: 20260813
+            ),
+            locale: locale,
+            calendar: utcCalendar
+        ))
+
+        let revision = HomeOverviewRowRevision(previous: before, current: after)
+        #expect(revision.isSymbolChanged)
+        #expect(revision.isTitleChanged)
+        #expect(revision.isNoteChanged)
+        #expect(revision.isAmountChanged)
+        #expect(revision.hasVisibleChanges)
+
+        let unchanged = HomeOverviewRowRevision(previous: after, current: after)
+        #expect(!unchanged.hasVisibleChanges)
+    }
+
+    @Test("删除残影插回同日原位置且不计入汇总")
+    func retainsDeletedRowAtOriginalPositionWithoutTotals() throws {
+        let accountID = UUID()
+        let baseSavedAt = Date(timeIntervalSince1970: 1_786_608_000)
+        let newer = try dining(
+            id: UUID(), accountID: accountID, amount: "3", transactionDay: 20260813,
+            savedAt: baseSavedAt.addingTimeInterval(300)
+        )
+        let deleted = try dining(
+            id: UUID(), accountID: accountID, amount: "5", transactionDay: 20260813,
+            savedAt: baseSavedAt.addingTimeInterval(200)
+        )
+        let older = try dining(
+            id: UUID(), accountID: accountID, amount: "7", transactionDay: 20260813,
+            savedAt: baseSavedAt.addingTimeInterval(100)
+        )
+        let deletedRow = try #require(
+            HomeOverviewPresentation.deletedRow(
+                for: deleted,
+                locale: Locale(identifier: "zh-Hans"),
+                calendar: utcCalendar
+            )
+        )
+        let month = try #require(HomeMonth(year: 2026, month: 8))
+        let presentation = HomeOverviewPresentation(
+            transactions: [newer, older],
+            now: try #require(date(year: 2026, month: 8, day: 20)),
+            calendar: utcCalendar,
+            locale: Locale(identifier: "zh-Hans")
+        ).presentation(for: month, retaining: deletedRow)
+
+        #expect(presentation.dayGroups[0].rows.map(\.id) == [newer.id, deleted.id, older.id])
+        #expect(presentation.dayGroups[0].expenseTotal == 10)
+        #expect(presentation.expenseTotal == 10)
+    }
+
+    @Test("删除残影所在日期没有其他流水时仍保留日期分组，查询未刷新时不重复插入")
+    func retainsDeletedRowDayGroupAndAvoidsDuplicates() throws {
+        let accountID = UUID()
+        let remaining = try dining(id: UUID(), accountID: accountID, amount: "3", transactionDay: 20260813)
+        let deleted = try dining(id: UUID(), accountID: accountID, amount: "5", transactionDay: 20260812)
+        let deletedRow = try #require(
+            HomeOverviewPresentation.deletedRow(for: deleted, locale: Locale(identifier: "zh-Hans"), calendar: utcCalendar)
+        )
+        let month = try #require(HomeMonth(year: 2026, month: 8))
+        let otherMonth = try #require(HomeMonth(year: 2026, month: 7))
+        let now = try #require(date(year: 2026, month: 8, day: 20))
+
+        let afterDeletion = HomeOverviewPresentation(
+            transactions: [remaining],
+            now: now,
+            calendar: utcCalendar,
+            locale: Locale(identifier: "zh-Hans")
+        )
+        let retained = afterDeletion.presentation(for: month, retaining: deletedRow)
+        #expect(retained.dayGroups.map(\.transactionDay) == [20260813, 20260812])
+        #expect(retained.dayGroups[1].rows.map(\.id) == [deleted.id])
+        #expect(retained.dayGroups[1].expenseTotal == 0)
+        #expect(afterDeletion.presentation(for: otherMonth, retaining: deletedRow).isEmpty)
+
+        let beforeRefresh = HomeOverviewPresentation(
+            transactions: [remaining, deleted],
+            now: now,
+            calendar: utcCalendar,
+            locale: Locale(identifier: "zh-Hans")
+        ).presentation(for: month, retaining: deletedRow)
+        #expect(beforeRefresh.dayGroups[1].rows.map(\.id) == [deleted.id])
+    }
+
     /// 构造使用固定排序键的餐饮流水。
     private func dining(
         id: UUID,
