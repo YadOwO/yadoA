@@ -23,9 +23,9 @@ topic: auth-profile
 
 ## 功能缺陷
 
-- [ ] **会话失效后界面仍显示已登录**
-  - `AuthStore.isAuthenticated` 只看本地是否有凭证；refresh token 被撤销、用户被删除时，`refreshProfile` 静默失败，直到保存资料才报“不允许修改”。
-  - 处理：在刷新资料、获取 access token 时识别 `invalid_grant` 一类错误，清除本地凭证并提示重新登录。
+- [x] **会话失效后界面仍显示已登录**（2026-10-20 随语音记账完成）
+  - `refreshProfile` 与 `accessTokenForAIService` 遇到 `invalid_grant` / `invalid_target` 或缺少 refresh token 时清除本地凭证，界面回到未登录。
+  - `updateProfile` 仍只报“不允许修改”，未接入同样的清理。
 - [ ] **回到前台不刷新资料**
   - 目前只在“我的”页 `.task(id: isAuthenticated)` 时刷新；监听 `scenePhase` 变为 `.active` 时也调用 `refreshProfile()`。
 - [ ] **社交登录用户的身份验证**

@@ -29,6 +29,13 @@ struct HomeView: View {
                     }
                     .accessibilityIdentifier("home-bills")
                 }
+                // 悬浮按钮留给语音记账，手动记一笔放在导航栏最右侧
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(value: HomeRoute.expenseEntry) {
+                        Label(AccountLocalization.string("expense.entry.action", locale: locale), systemImage: "plus")
+                    }
+                    .accessibilityIdentifier("home-add-expense")
+                }
             }
     }
 }
@@ -50,17 +57,17 @@ private struct HomeQueryContent: View {
     /// 是否展示月份选择 Sheet。
     @State private var isMonthPickerPresented = false
 
-    /// 悬浮记账按钮占用的底部高度，列表末尾据此留白，保证最后一条流水能滚到按钮上方。
+    /// 悬浮麦克风按钮占用的底部高度，列表末尾据此留白，保证最后一条流水能滚到按钮上方。
     @State private var addButtonClearance: CGFloat = 76
 
     /// 首页当前是否在导航栈顶部可见；被记账页盖住时不消费新流水提示。
     @State private var isVisible = false
 
-    /// 正在播放变更提示的那一行，提示结束后清空。
-    @State private var rowMark: HomeRowMark?
+    /// 正在播放变更提示的行，每条提示结束后各自移除；语音记账一次可能有多条。
+    @State private var rowMarks: [HomeRowMark] = []
 
-    /// 刚删除、仍在原位置画出残影的流水内容，残影收起后清空。
-    @State private var deletedRow: HomeOverviewDeletedRow?
+    /// 刚删除、仍在原位置画出残影的流水内容，残影收起后各自移除。
+    @State private var deletedRows: [HomeOverviewDeletedRow] = []
 
     /// 刚新增、修改或删除成功的流水提示通道。
     private let recentEntryHighlight = HomeRecentEntryHighlight.shared
@@ -79,7 +86,7 @@ private struct HomeQueryContent: View {
             catalog: BookkeepingCategoryCatalog(categories: categories)
         )
         let activeMonth = selectedMonth ?? presentation.initialMonth
-        let monthPresentation = presentation.presentation(for: activeMonth, retaining: deletedRow)
+        let monthPresentation = presentation.presentation(for: activeMonth, retaining: deletedRows)
 
         GeometryReader { geometry in
             VStack(spacing: 0) {
@@ -101,7 +108,7 @@ private struct HomeQueryContent: View {
                     monthPresentation: monthPresentation,
                     monthNavigator: HomeMonthNavigator(availableMonths: presentation.availableMonths),
                     selectedMonth: activeMonth,
-                    rowMark: rowMark,
+                    rowMarks: rowMarks,
                     bottomClearance: addButtonClearance,
                     onSelectMonth: { month in
                         selectedMonth = month
@@ -112,15 +119,11 @@ private struct HomeQueryContent: View {
             }
         }
         .paperPage()
-        // 按钮悬浮在明细之上且不带整条底栏；居中放置以避开右侧的金额列。
+        // 麦克风悬浮在明细之上且不带整条底栏；居中放置以避开右侧的金额列，对话条出现在它上方。
         .overlay(alignment: .bottom) {
-            HomeAddTransactionButton()
-                .padding(.vertical, 12)
-                .onGeometryChange(for: CGFloat.self) { proxy in
-                    proxy.size.height
-                } action: { height in
-                    addButtonClearance = height
-                }
+            VoiceBookkeepingDock { height in
+                addButtonClearance = height
+            }
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -167,13 +170,24 @@ extension HomeQueryContent {
     /// 删除残影从出现、划掉到停留结束的时长，之后把这一行从列表中收起。
     private static let deletedRowLifetime: Duration = .milliseconds(1600)
 
-    /// 首页可见时取走刚变更的流水：切到它所在的月份，新增标红写对勾、修改划掉旧值换上新值、删除划掉后收起。
+    /// 首页可见时取走刚变更的流水：切到第一条所在的月份，新增标红写对勾、修改划掉旧值换上新值、删除划掉后收起。
     private func showRecentEntryHighlightIfNeeded() {
-        guard isVisible, let entry = recentEntryHighlight.consume() else { return }
+        guard isVisible else { return }
+        let entries = recentEntryHighlight.consume()
+        guard let first = entries.first else { return }
 
-        if let month = HomeMonth(value: entry.transactionDay / 100) {
+        if let month = HomeMonth(value: first.transactionDay / 100) {
             selectedMonth = month
         }
+        for entry in entries {
+            show(entry)
+        }
+    }
+
+    /// 为一条流水变更播放提示，到期后只移除这一条，不影响同时播放的其他提示。
+    private func show(_ entry: HomeRecentEntryHighlight.Entry) {
+        // 同一笔流水的旧提示让位给新提示
+        rowMarks.removeAll { $0.transactionID == entry.id }
         switch entry.change {
         case .added, .updated:
             let kind: HomeRowMark.Kind
@@ -183,26 +197,23 @@ extension HomeQueryContent {
                 kind = .added
             }
             let mark = HomeRowMark(transactionID: entry.id, kind: kind)
-            rowMark = mark
+            rowMarks.append(mark)
             Task {
                 try? await Task.sleep(for: Self.highlightLifetime)
-                if rowMark == mark {
-                    rowMark = nil
-                }
+                rowMarks.removeAll { $0 == mark }
             }
         case let .deleted(row):
             let mark = HomeRowMark(transactionID: entry.id, kind: .deleted)
-            rowMark = mark
-            deletedRow = row
+            rowMarks.append(mark)
+            deletedRows.removeAll { $0.row.id == row.row.id }
+            deletedRows.append(row)
             Task {
                 try? await Task.sleep(for: Self.deletedRowLifetime)
-                guard deletedRow == row else { return }
+                guard deletedRows.contains(row) else { return }
                 // 收起使用列表原生的删除动画；减少动态效果时直接移除。
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
-                    deletedRow = nil
-                    if rowMark == mark {
-                        rowMark = nil
-                    }
+                    deletedRows.removeAll { $0 == row }
+                    rowMarks.removeAll { $0 == mark }
                 }
             }
         }
@@ -442,36 +453,6 @@ private struct HomeSummaryColumn: View {
     }
 }
 
-/// 首页主要操作，悬浮在明细上方；新系统是透明玻璃加墨色文字，iOS 18 用材质底加投影表达悬浮层级。
-private struct HomeAddTransactionButton: View {
-    @Environment(\.locale) private var locale
-
-    var body: some View {
-        if #available(iOS 26, *) {
-            entryLink.buttonStyle(.glass)
-        } else {
-            entryLink
-                .buttonStyle(.bordered)
-                .background(.regularMaterial, in: Capsule())
-                .shadow(color: .black.opacity(0.14), radius: 10, y: 4)
-        }
-    }
-
-    /// 沿用原有记账路由和本地化标题，整颗胶囊均为点击区域。
-    private var entryLink: some View {
-        NavigationLink(value: HomeRoute.expenseEntry) {
-            Label(AccountLocalization.string("expense.entry.action", locale: locale), systemImage: "plus")
-                .font(.headline)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 5)
-                .foregroundStyle(.primary)
-        }
-        .controlSize(.large)
-        .buttonBorderShape(.capsule)
-        .accessibilityIdentifier("home-add-expense")
-    }
-}
-
 /// 当前月份的独立明细滚动区域。
 private struct HomeOverviewList: View {
     @Environment(\.locale) private var locale
@@ -490,8 +471,8 @@ private struct HomeOverviewList: View {
     /// 当前已提交月份。
     let selectedMonth: HomeMonth
 
-    /// 正在播放变更提示的那一行；为空时所有行保持默认样式。
-    let rowMark: HomeRowMark?
+    /// 正在播放变更提示的行；为空时所有行保持默认样式。
+    let rowMarks: [HomeRowMark]
 
     /// 悬浮记账按钮占用的底部高度，用于列表末尾留白和上拉提示避让。
     let bottomClearance: CGFloat
@@ -520,7 +501,7 @@ private struct HomeOverviewList: View {
                                     ForEach(day.rows) { row in
                                         HomeOverviewRow(
                                             row: row,
-                                            mark: rowMark?.transactionID == row.id ? rowMark?.kind : nil
+                                            mark: rowMarks.last { $0.transactionID == row.id }?.kind
                                         )
                                             .listRowInsets(EdgeInsets(top: 9, leading: 2, bottom: 9, trailing: 2))
                                             // 流水直接写在纸上：不垫卡片，行与行之间是一条手画的账本横线。
@@ -615,14 +596,13 @@ private struct HomeOverviewList: View {
         }
     }
 
-    /// 需要提示的变更流水（标红行或删除残影）已出现在当前月份明细中时返回其标识，否则为 `nil`。
+    /// 需要提示的变更流水（标红行或删除残影）中第一条已出现在当前月份明细里的标识，没有时为 `nil`。
     private var highlightScrollTarget: UUID? {
-        guard let target = rowMark?.transactionID,
-              monthPresentation.dayGroups.contains(where: { day in
-                  day.rows.contains { $0.id == target }
-              })
-        else { return nil }
-        return target
+        rowMarks.lazy.map(\.transactionID).first { target in
+            monthPresentation.dayGroups.contains { day in
+                day.rows.contains { $0.id == target }
+            }
+        }
     }
 
     /// 是否保留边界回弹：有流水的月份始终回弹；空月份只有存在可切换的相邻月份时才回弹，否则完全静止。
@@ -808,6 +788,9 @@ private struct HomeRowMark: Equatable {
 
     /// 提示类型。
     let kind: Kind
+
+    /// 每次提示的唯一标识；同一笔流水连续两次相同提示时，旧提示到期不会误删新提示。
+    let token = UUID()
 }
 
 /// 修改提示的播放阶段。
@@ -1135,6 +1118,7 @@ private struct HomeEmptyState: View {
     NavigationStack {
         HomeView()
     }
+    .environment(AuthStore())
     .modelContainer(
         for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
         inMemory: true

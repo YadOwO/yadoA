@@ -1,7 +1,9 @@
 import Foundation
 import Observation
 
-/// 记录刚新增、修改或删除成功的那一笔流水，供首页回到前台时在列表里播放对应的提示动画。
+/// 记录刚新增、修改或删除成功的流水，供首页回到前台时在列表里播放对应的提示动画。
+///
+/// 一次可以登记多条：语音记账一句话可能同时新增、修改好几笔。
 ///
 /// 新增会让对应行短暂标红并写出对勾；修改会把改动的旧值划掉、换成新值；删除会在原位置留下一行被划掉的残影，随后收起。
 /// 普通记账、截图记账和流水详情分属不同的展示容器，无法共享 SwiftUI 环境，因此使用进程内单例传递。
@@ -43,19 +45,20 @@ final class HomeRecentEntryHighlight {
     /// 超过该时长仍未被首页展示的提示不再生效，避免用户很久之后回到首页时突然跳月份。
     private static let lifetime: TimeInterval = 30
 
-    /// 尚未被首页展示的流水变更。
-    private(set) var pending: Entry?
+    /// 尚未被首页展示的流水变更，按登记顺序排列。
+    private(set) var pending: [Entry] = []
 
     private init() {}
 
-    /// 新增或修改保存成功后登记这笔流水。
+    /// 新增或修改保存成功后登记这笔流水；同一笔流水尚未展示的旧提示会被替换。
     ///
     /// - Parameters:
     ///   - id: 流水的 UUID。
     ///   - transactionDay: 保存后的 `YYYYMMDD` 记账日。
     ///   - change: 变更类型，默认为新增。
     func mark(id: UUID, transactionDay: Int, change: Entry.Change = .added) {
-        pending = Entry(id: id, transactionDay: transactionDay, change: change, savedAt: .now)
+        pending.removeAll { $0.id == id }
+        pending.append(Entry(id: id, transactionDay: transactionDay, change: change, savedAt: .now))
     }
 
     /// 删除成功后登记被删除流水的行快照。
@@ -65,12 +68,13 @@ final class HomeRecentEntryHighlight {
         mark(id: deletedRow.row.id, transactionDay: deletedRow.transactionDay, change: .deleted(deletedRow))
     }
 
-    /// 取走待展示的提示；每条提示只会被展示一次。
+    /// 取走全部待展示的提示；每条提示只会被展示一次。
     ///
-    /// - Returns: 仍在有效期内的流水变更，没有或已过期时返回 `nil`。
-    func consume() -> Entry? {
-        guard let entry = pending else { return nil }
-        pending = nil
-        return Date.now.timeIntervalSince(entry.savedAt) <= Self.lifetime ? entry : nil
+    /// - Returns: 仍在有效期内的流水变更，按登记顺序排列；没有或都已过期时为空。
+    func consume() -> [Entry] {
+        guard !pending.isEmpty else { return [] }
+        let entries = pending
+        pending = []
+        return entries.filter { Date.now.timeIntervalSince($0.savedAt) <= Self.lifetime }
     }
 }

@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Yado Asset uses the microphone to hear what you say for voice entry.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Yado Asset uses Apple speech recognition to turn what you say into text for recording income and expenses. Your audio is never sent to Yado servers.</string>
 	<key>OSSAvatarAccessKeyID</key>
 	<string>$(OSS_AVATAR_ACCESS_KEY_ID)</string>
 	<key>OSSAvatarAccessKeySecret</key>

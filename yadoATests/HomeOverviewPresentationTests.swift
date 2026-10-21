@@ -355,11 +355,38 @@ struct HomeOverviewPresentationTests {
             now: try #require(date(year: 2026, month: 8, day: 20)),
             calendar: utcCalendar,
             locale: Locale(identifier: "zh-Hans")
-        ).presentation(for: month, retaining: deletedRow)
+        ).presentation(for: month, retaining: [deletedRow])
 
         #expect(presentation.dayGroups[0].rows.map(\.id) == [newer.id, deleted.id, older.id])
         #expect(presentation.dayGroups[0].expenseTotal == 10)
         #expect(presentation.expenseTotal == 10)
+    }
+
+    @Test("同一天删除多笔时，每条残影都回到删除前的位置")
+    func retainsMultipleDeletedRowsInOriginalOrder() throws {
+        let accountID = UUID()
+        let base = Date(timeIntervalSince1970: 1_000)
+        let newest = try dining(id: UUID(), accountID: accountID, amount: "1", transactionDay: 20260813, savedAt: base.addingTimeInterval(400))
+        let deletedNewer = try dining(id: UUID(), accountID: accountID, amount: "2", transactionDay: 20260813, savedAt: base.addingTimeInterval(300))
+        let middle = try dining(id: UUID(), accountID: accountID, amount: "3", transactionDay: 20260813, savedAt: base.addingTimeInterval(200))
+        let deletedOlder = try dining(id: UUID(), accountID: accountID, amount: "4", transactionDay: 20260813, savedAt: base.addingTimeInterval(100))
+        let deletedOldest = try dining(id: UUID(), accountID: accountID, amount: "5", transactionDay: 20260813, savedAt: base)
+        let deletedRows = try [deletedOlder, deletedNewer, deletedOldest].map { transaction in
+            try #require(HomeOverviewPresentation.deletedRow(for: transaction, locale: Locale(identifier: "zh-Hans"), calendar: utcCalendar))
+        }
+        let month = try #require(HomeMonth(year: 2026, month: 8))
+
+        let presentation = HomeOverviewPresentation(
+            transactions: [newest, middle],
+            now: try #require(date(year: 2026, month: 8, day: 20)),
+            calendar: utcCalendar,
+            locale: Locale(identifier: "zh-Hans")
+        ).presentation(for: month, retaining: deletedRows)
+
+        #expect(presentation.dayGroups[0].rows.map(\.id) == [
+            newest.id, deletedNewer.id, middle.id, deletedOlder.id, deletedOldest.id,
+        ])
+        #expect(presentation.expenseTotal == 4)
     }
 
     @Test("删除残影所在日期没有其他流水时仍保留日期分组，查询未刷新时不重复插入")
@@ -380,18 +407,18 @@ struct HomeOverviewPresentationTests {
             calendar: utcCalendar,
             locale: Locale(identifier: "zh-Hans")
         )
-        let retained = afterDeletion.presentation(for: month, retaining: deletedRow)
+        let retained = afterDeletion.presentation(for: month, retaining: [deletedRow])
         #expect(retained.dayGroups.map(\.transactionDay) == [20260813, 20260812])
         #expect(retained.dayGroups[1].rows.map(\.id) == [deleted.id])
         #expect(retained.dayGroups[1].expenseTotal == 0)
-        #expect(afterDeletion.presentation(for: otherMonth, retaining: deletedRow).isEmpty)
+        #expect(afterDeletion.presentation(for: otherMonth, retaining: [deletedRow]).isEmpty)
 
         let beforeRefresh = HomeOverviewPresentation(
             transactions: [remaining, deleted],
             now: now,
             calendar: utcCalendar,
             locale: Locale(identifier: "zh-Hans")
-        ).presentation(for: month, retaining: deletedRow)
+        ).presentation(for: month, retaining: [deletedRow])
         #expect(beforeRefresh.dayGroups[1].rows.map(\.id) == [deleted.id])
     }
 

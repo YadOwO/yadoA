@@ -48,12 +48,12 @@ final class HomeOverviewFlowUITests: XCTestCase {
         wait(for: [changed], timeout: 2)
     }
 
-    /// List 的辅助功能边框包含底部安全区，手势只能从记账按钮上方的可见明细区域开始。
+    /// List 的辅助功能边框包含底部安全区，手势只能从麦克风按钮上方的可见明细区域开始。
     @MainActor
     private func listCoordinate(in app: XCUIApplication, list: XCUIElement, fraction: CGFloat) -> XCUICoordinate {
         let frame = list.frame
         let top = frame.minY + 12
-        let bottom = min(frame.maxY, app.buttons["home-add-expense"].frame.minY - 20)
+        let bottom = min(frame.maxY, app.buttons["voice-mic"].frame.minY - 20)
         return list.coordinate(withNormalizedOffset: .zero).withOffset(
             CGVector(dx: frame.width * 0.5, dy: top - frame.minY + (bottom - top) * fraction)
         )
@@ -78,6 +78,7 @@ final class HomeOverviewFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["home-month-selector"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["home-summary-visibility"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["voice-mic"].exists)
         XCTAssertFalse(app.otherElements["home-details-empty"].exists)
 
         app.buttons["home-month-selector"].tap()

@@ -325,22 +325,21 @@ struct HomeOverviewPresentation {
     ///
     /// - Parameters:
     ///   - month: 要展示的自然年月，可以是任意有效月份。
-    ///   - deletedRow: 需要在原位置保留残影的已删除流水；只插入明细行，不计入任何汇总。
+    ///   - deletedRows: 需要在原位置保留残影的已删除流水；只插入明细行，不计入任何汇总。
     /// - Returns: 月份标题、精确汇总和按日明细。
     func presentation(
         for month: HomeMonth,
-        retaining deletedRow: HomeOverviewDeletedRow? = nil
+        retaining deletedRows: [HomeOverviewDeletedRow] = []
     ) -> HomeOverviewMonthPresentation {
         let monthTransactions = validTransactions.filter { $0.month == month }
         let groupedTransactions = Dictionary(grouping: monthTransactions, by: \.transaction.transactionDay)
         // 查询尚未刷新时被删流水仍在结果里，不再重复插入残影；残影所在日期可能已没有其他流水，此时仍要为它保留日期分组。
-        let deletedRow = deletedRow.flatMap { candidate in
+        let deletedRows = deletedRows.filter { candidate in
             HomeMonth(value: candidate.transactionDay / 100) == month
                 && !monthTransactions.contains { $0.transaction.id == candidate.row.id }
-                ? candidate : nil
         }
         var transactionDays = Set(groupedTransactions.keys)
-        if let deletedRow {
+        for deletedRow in deletedRows {
             transactionDays.insert(deletedRow.transactionDay)
         }
         let weekdayFormatter = BookkeepingDateFormatting.formatter(
@@ -367,8 +366,15 @@ struct HomeOverviewPresentation {
             var rows = transactions.map {
                 Self.row(for: $0, formattedDate: formattedDate, locale: locale, catalog: catalog)
             }
-            if let deletedRow, deletedRow.transactionDay == transactionDay {
-                let index = transactions.firstIndex { deletedRow.precedes($0.transaction) } ?? rows.endIndex
+            // 多条残影按保存时间从新到旧依次插入，每条都插到第一条比它旧的真实流水之前，同日顺序与删除前一致
+            let dayDeletedRows = deletedRows
+                .filter { $0.transactionDay == transactionDay }
+                .sorted { $0.savedAt > $1.savedAt }
+            for deletedRow in dayDeletedRows {
+                let index = rows.firstIndex { row in
+                    transactions.first { $0.transaction.id == row.id }.map { deletedRow.precedes($0.transaction) }
+                        ?? false
+                } ?? rows.endIndex
                 rows.insert(deletedRow.row, at: index)
             }
             let incomeTotal = transactions.reduce(into: Decimal.zero) { total, transaction in

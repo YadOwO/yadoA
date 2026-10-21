@@ -85,9 +85,14 @@ final class AuthStore {
     /// 从 Logto 拉取最新资料，覆盖登录时 ID token 里的快照。
     ///
     /// ID token 只记录登录那一刻的资料，在其他端改过昵称后需靠这里刷新；
-    /// 失败时静默保留现有资料，不打扰用户。
+    /// 网络等临时失败时静默保留现有资料；凭证已失效（被撤销、用户被删除）时清除本地凭证，界面回到未登录。
     func refreshProfile() async {
-        guard client.isAuthenticated, let userInfo = try? await client.fetchUserInfo() else {
+        guard client.isAuthenticated else { return }
+        let userInfo: LogtoCore.UserInfoResponse
+        do {
+            userInfo = try await client.fetchUserInfo()
+        } catch {
+            await clearCredentialsIfRevoked(error)
             return
         }
         // 等待期间可能已退出登录，此时不能把资料写回
@@ -97,6 +102,23 @@ final class AuthStore {
             username: userInfo.username,
             avatarURL: userInfo.picture.flatMap(URL.init(string:))
         )
+    }
+
+    /// 获取调用 AI 交互服务的 access token；SDK 会缓存并在过期时用 refresh token 续期。
+    ///
+    /// - Returns: 面向 `AuthConfig.aiServiceResource` 的 access token。
+    /// - Throws: 未登录时抛出 `AIServiceAuthError.notSignedIn`；凭证已失效时清除本地凭证并抛出
+    ///   `AIServiceAuthError.sessionExpired`；网络等其他失败抛出 `AIServiceAuthError.unavailable`。
+    func accessTokenForAIService() async throws -> String {
+        guard client.isAuthenticated else { throw AIServiceAuthError.notSignedIn }
+        do {
+            return try await client.getAccessToken(for: AuthConfig.aiServiceResource)
+        } catch {
+            if await clearCredentialsIfRevoked(error) {
+                throw AIServiceAuthError.sessionExpired
+            }
+            throw AIServiceAuthError.unavailable
+        }
     }
 
     /// 把处理好的头像上传到 OSS，返回公开访问地址；此时尚未写入 Logto 资料。
@@ -152,9 +174,69 @@ final class AuthStore {
 
     // MARK: - 私有方法
 
+    /// 凭证已失效时清除本地凭证并回到未登录状态；网络等临时失败不处理。
+    ///
+    /// - Parameter error: 获取 token 或刷新资料时 SDK 抛出的错误。
+    /// - Returns: 是否判定为凭证失效并已清除。
+    @discardableResult
+    private func clearCredentialsIfRevoked(_ error: Error) async -> Bool {
+        guard Self.isCredentialRevoked(error) else { return false }
+        // 远端 refresh token 已不可用，撤销失败可以忽略；SDK 会先清空本地凭证
+        await client.signOut()
+        isAuthenticated = client.isAuthenticated
+        profile = nil
+        return true
+    }
+
+    /// 判断错误是否表示本地凭证已不可用，需要重新登录。
+    ///
+    /// - 本地没有 refresh token；
+    /// - Logto token 接口返回 400，且错误为 `invalid_grant`（refresh token 过期、被撤销或用户被删除）
+    ///   或 `invalid_target`（登录时没有申请所需的 API resource，例如新增 resource 前已登录的设备）。
+    ///
+    /// 资料接口的错误会把 token 错误包在 `innerError` 里，因此沿 `innerError` 逐层查找。
+    static func isCredentialRevoked(_ error: Error) -> Bool {
+        var current: Error? = error
+        while let error = current {
+            if let tokenError = error as? LogtoClientErrors.AccessToken {
+                if tokenError.type == .noRefreshTokenFound { return true }
+                current = tokenError.innerError
+            } else if let userInfoError = error as? LogtoClientErrors.UserInfo {
+                current = userInfoError.innerError
+            } else if case let .withCode(code, _, data)? = error as? LogtoErrors.Response {
+                return isRevokedTokenResponse(statusCode: code, body: data)
+            } else {
+                return false
+            }
+        }
+        return false
+    }
+
+    /// 判断 Logto token 接口的错误响应是否表示凭证已不可用。
+    ///
+    /// - Parameters:
+    ///   - statusCode: HTTP 状态码。
+    ///   - body: 响应体；标准 OAuth 格式为 `{ "error": "invalid_grant" }`，Logto 也可能返回
+    ///     `{ "code": "oidc.invalid_grant" }`。
+    /// - Returns: 400 且错误为 `invalid_grant` 或 `invalid_target` 时返回 `true`。
+    static func isRevokedTokenResponse(statusCode: Int, body: Data?) -> Bool {
+        guard statusCode == 400,
+              let body,
+              let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any]
+        else { return false }
+        let errorCodes = [object["error"], object["code"]].compactMap { $0 as? String }
+        return errorCodes.contains { code in
+            code.hasSuffix("invalid_grant") || code.hasSuffix("invalid_target")
+        }
+    }
+
     private static func makeClient() -> LogtoClient {
         // LogtoConfig 仅在 endpoint 不是合法 URL 时抛错，属于配置写错，应尽早暴露
-        guard let config = try? LogtoConfig(endpoint: AuthConfig.endpoint, appId: AuthConfig.appId) else {
+        guard let config = try? LogtoConfig(
+            endpoint: AuthConfig.endpoint,
+            appId: AuthConfig.appId,
+            resources: [AuthConfig.aiServiceResource]
+        ) else {
             preconditionFailure("AuthConfig.endpoint 不是合法 URL：\(AuthConfig.endpoint)")
         }
         return LogtoClient(useConfig: config)
@@ -208,4 +290,16 @@ final class AuthStore {
         }
         return "\(signInError.type.rawValue): \(innerError.localizedDescription)"
     }
+}
+
+/// 获取 AI 交互服务 access token 时的错误。
+enum AIServiceAuthError: Error, Equatable {
+    /// 当前未登录。
+    case notSignedIn
+
+    /// 登录已失效，本地凭证已清除，需要重新登录。
+    case sessionExpired
+
+    /// 网络等临时原因导致暂时无法获取 token。
+    case unavailable
 }

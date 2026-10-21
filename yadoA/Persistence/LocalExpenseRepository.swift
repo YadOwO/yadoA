@@ -102,8 +102,65 @@ final class LocalExpenseRepository {
         guard let transaction = try modelContext.transaction(id: draft.id) else {
             throw ExpenseRepositoryError.transactionNotFound(draft.id)
         }
-        let (oldAmount, oldEntryType) = try Self.editableAmountAndType(for: transaction)
         let replacement = try draft.validatedTransaction(savedAt: transaction.savedAt)
+        try replace(transaction, with: replacement, in: modelContext)
+        try modelContext.saveOrRollback(beforeSave: beforeSave)
+    }
+
+    /// 在同一个 context 中依次执行一批收支变更，全部成功后保存一次；任一步失败则整体回滚。
+    ///
+    /// 每一步都走与新增、修改、删除相同的账户、分类、金额校验和余额联动。
+    /// 语音记账逐条执行工具调用，以及撤销一轮语音改动时都使用它，保证不会只写入或撤销一半。
+    ///
+    /// - Parameter mutations: 按顺序执行的变更；后面的变更能看到前面变更的结果。
+    /// - Throws: 任一变更不符合约束或保存失败时抛出对应错误，此时没有任何变更生效。
+    func apply(_ mutations: [BookkeepingEntryMutation]) throws {
+        let modelContext = container.makeManualSaveContext()
+        for mutation in mutations {
+            switch mutation {
+            case let .insert(snapshot):
+                guard try !modelContext.containsTransaction(id: snapshot.id) else {
+                    throw ExpenseRepositoryError.duplicateID(snapshot.id)
+                }
+                let transaction = try snapshot.validatedTransaction()
+                let (account, accountType) = try Self.bookkeepingAccount(id: transaction.accountID, in: modelContext)
+                try requireAvailableCategory(of: transaction.validatedPayload(), in: modelContext)
+                account.balance = try Self.updatedBalance(
+                    account.balance, by: snapshot.amount,
+                    effect: accountType.expenseBalanceEffect, entryType: snapshot.entryType
+                )
+                modelContext.insert(transaction)
+            case let .replace(snapshot):
+                guard let transaction = try modelContext.transaction(id: snapshot.id) else {
+                    throw ExpenseRepositoryError.transactionNotFound(snapshot.id)
+                }
+                try replace(transaction, with: snapshot.validatedTransaction(), in: modelContext)
+            case let .delete(id):
+                guard let transaction = try modelContext.transaction(id: id) else {
+                    throw ExpenseRepositoryError.transactionNotFound(id)
+                }
+                try Self.deleteTransactionsReversingBalances([transaction], in: modelContext)
+            }
+        }
+        try modelContext.saveOrRollback(beforeSave: beforeSave)
+    }
+
+    /// 用已校验的替换值改写一笔收支，并修正新旧账户的余额；不保存。
+    ///
+    /// 撤销旧收支影响，再应用新收支影响；同一账户只施加净差额。
+    /// 始终从当前余额修正，业务日不承担余额重放，既有调整快照保持原样。
+    ///
+    /// - Parameters:
+    ///   - transaction: 已从 `modelContext` 读取的待修改流水。
+    ///   - replacement: 尚未插入 context 的替换值，`id` 与 `savedAt` 不会被采用。
+    ///   - modelContext: 调用方的 manual-save context。
+    /// - Throws: 流水不可编辑、账户不可用、分类不可用或金额计算失败时抛出错误。
+    private func replace(
+        _ transaction: AccountTransaction,
+        with replacement: AccountTransaction,
+        in modelContext: ModelContext
+    ) throws {
+        let (oldAmount, oldEntryType) = try Self.editableAmountAndType(for: transaction)
         let (newAmount, newEntryType) = try Self.editableAmountAndType(for: replacement)
         try requireAvailableCategory(of: replacement.validatedPayload(), in: modelContext)
         let (source, sourceType) = try Self.bookkeepingAccount(id: transaction.accountID, in: modelContext)
@@ -133,7 +190,6 @@ final class LocalExpenseRepository {
         transaction.amount = replacement.amount
         transaction.transactionDay = replacement.transactionDay
         transaction.note = replacement.note
-        try modelContext.saveOrRollback(beforeSave: beforeSave)
     }
 
     /// 原子删除一笔收支，并撤销其对当前账户余额的影响；不允许删除调整快照。

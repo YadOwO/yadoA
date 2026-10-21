@@ -16,4 +16,13 @@ enum AuthConfig {
     /// scheme 必须全小写：SDK 内部会对 scheme 调用 `lowercased()`，
     /// 若写成 Bundle ID 原样的 `com.yado.yadoA`，回调将无法匹配。
     static let redirectUri = "com.yado.yadoa://callback"
+
+    /// AI 交互服务（yado_ai）在 Logto 中注册的 API resource 标识；调用 AI 接口时请求它的 access token。
+    ///
+    /// 登录时必须一并申请该 resource，否则 refresh token 无法换取它的 access token；
+    /// 新增 resource 前已登录的设备需要重新登录一次。
+    static let aiServiceResource = "https://api.yado1225.top/ai"
+
+    /// AI 交互服务的地址（不含路径）。
+    static let aiServiceEndpoint = "https://ai-api.yado1225.top"
 }

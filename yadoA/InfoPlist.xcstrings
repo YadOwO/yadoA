@@ -48,6 +48,42 @@
           }
         }
       }
+    },
+    "NSMicrophoneUsageDescription" : {
+      "comment" : "Permission prompt for voice bookkeeping.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado Asset uses the microphone to hear what you say for voice entry."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆资产在语音记账时使用麦克风收听你说的话。"
+          }
+        }
+      }
+    },
+    "NSSpeechRecognitionUsageDescription" : {
+      "comment" : "Permission prompt for voice bookkeeping.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado Asset uses Apple speech recognition to turn what you say into text for recording income and expenses. Your audio is never sent to Yado servers."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆资产使用 Apple 语音识别把你说的话转成文字，用来记录收支；录音不会发送到芽豆的服务器。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
