@@ -67,6 +67,18 @@ struct VoiceBookkeepingDock: View {
             }
         }
         .padding(.horizontal, 16)
+        // 铺满首页内容区，卡片外的空白处才能接住点击；空白处本身不参与命中，卡片不显示时不影响列表
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .background {
+            if isOutsideTapDismissEnabled {
+                // 卡片外的任何触摸只用来关闭卡片：松手即关，列表不会被点开或滚动
+                Color.clear
+                    .contentShape(Rectangle())
+                    .gesture(DragGesture(minimumDistance: 0).onEnded { _ in endSession() })
+                    .accessibilityHidden(true)
+                    .accessibilityIdentifier("voice-card-dismiss-area")
+            }
+        }
         .animation(.easeOut(duration: 0.2), value: isCardVisible)
         .animation(.easeOut(duration: 0.2), value: input.isRecording)
         .animation(.easeOut(duration: 0.2), value: session?.latestTurn)
@@ -82,8 +94,12 @@ struct VoiceBookkeepingDock: View {
             }
             // 账户、分类只能在别的页面修改，回到记账页时会重新执行这里
             contextualStrings = session?.currentContext().contextualStrings ?? []
+            input.prepareRecognizer(locale: locale, contextualStrings: contextualStrings)
         }
-        .onChange(of: locale) { _, newValue in session?.locale = newValue }
+        .onChange(of: locale) { _, newValue in
+            session?.locale = newValue
+            input.prepareRecognizer(locale: newValue, contextualStrings: contextualStrings)
+        }
         .onChange(of: calendar) { _, newValue in session?.calendar = newValue }
         // 一次性提示展示一会儿后自动消失；换了新提示时重新计时
         .task(id: input.transientHint) {
@@ -156,6 +172,11 @@ struct VoiceBookkeepingDock: View {
     /// 是否显示会话卡片：正在说，或本次会话已经有内容。
     private var isCardVisible: Bool {
         input.isRecording || input.isFinishing || session?.isActive == true
+    }
+
+    /// 点卡片外是否关闭卡片：卡片显示且手指没按着麦克风时生效，避免按住说话时另一根手指误触关掉会话。
+    private var isOutsideTapDismissEnabled: Bool {
+        isCardVisible && !input.isPressing
     }
 
     // MARK: - 动作

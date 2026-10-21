@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 麦克风上方唯一的语音记账卡片：本次会话的每一轮和正在说的这句话的实时转写都在这里。
 ///
-/// 内容超过最大高度时在卡片里滚动，有新内容时自动滚到底部。
+/// 内容超过最大高度时在卡片里滚动，有新内容时自动滚到底部；用户正在拖动或惯性滚动时不抢，停下后再滚。
 struct VoiceSessionCard: View {
     @Environment(\.locale) private var locale
 
@@ -33,6 +33,12 @@ struct VoiceSessionCard: View {
     /// 卡片内容的实际高度，用来让卡片在最大高度以内贴合内容。
     @State private var contentHeight: CGFloat = 0
 
+    /// 用户是否正在拖动卡片内容或内容还在惯性滚动；期间不自动滚动，避免和手指抢位置。
+    @State private var isUserScrolling = false
+
+    /// 用户滚动期间来了新内容，等滚动停下后再滚到底部。
+    @State private var hasPendingScrollToBottom = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             header
@@ -47,9 +53,23 @@ struct VoiceSessionCard: View {
                 }
                 .frame(height: min(contentHeight, Self.maxScrollHeight))
                 .scrollBounceBehavior(.basedOnSize)
-                // 新的一轮、转写变长或结果出来时内容都会变高，统一据此滚到底部
+                // 新的一轮、转写变长、结果或候选项出来时内容高度都会变化，统一据此滚到底部
                 .onChange(of: contentHeight) {
+                    guard !isUserScrolling else {
+                        hasPendingScrollToBottom = true
+                        return
+                    }
                     proxy.scrollTo(Self.bottomID, anchor: .bottom)
+                }
+                .onScrollPhaseChange { _, phase in
+                    // 自动滚动自身是 animating，不算用户滚动
+                    isUserScrolling = phase == .tracking || phase == .interacting || phase == .decelerating
+                    guard !isUserScrolling, hasPendingScrollToBottom else { return }
+                    hasPendingScrollToBottom = false
+                    // 用户刚停手，用动画滚过去，不要瞬间跳走
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        proxy.scrollTo(Self.bottomID, anchor: .bottom)
+                    }
                 }
             }
         }

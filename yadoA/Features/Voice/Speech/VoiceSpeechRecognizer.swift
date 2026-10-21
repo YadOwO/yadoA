@@ -24,6 +24,9 @@ protocol VoiceSpeechRecognizing: AnyObject {
     /// 截至目前的转写文字。
     var transcript: String { get }
 
+    /// 提前准备下一次识别要用的模型，按下后不用再等加载；不会打开麦克风。
+    func prepare(locale: Locale, contextualStrings: [String])
+
     /// 开始收音并识别；只在空闲时生效。
     func start(locale: Locale, contextualStrings: [String]) async throws
 
@@ -71,6 +74,18 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
     /// 后台下载识别模型的任务；同一时间只下载一次。
     private var assetInstallTask: Task<Void, Never>?
 
+    /// 预热时用的语言和专有名词；按下时两者一致才能直接用预热好的识别实现。
+    private struct PreparationKey: Equatable {
+        let locale: Locale
+        let contextualStrings: [String]
+    }
+
+    /// 正在预热或已预热好的识别实现，结果为空表示当前语言用不了 `SpeechAnalyzer`；按下时取走，用一次就作废。
+    private var preparation: (key: PreparationKey, task: Task<VoiceSpeechBackend?, Never>)?
+
+    /// 最近一次预热的条件，说完一句后据此为下一句重新预热。
+    private var lastPreparationKey: PreparationKey?
+
     /// 每次开始识别或取消时递增：丢弃上一次识别迟到的转写回调，
     /// 也让被取消的启动、收尾在异步返回后不再改动状态。
     private var generation = 0
@@ -95,6 +110,35 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
         guard await AVAudioApplication.requestRecordPermission() else { return .denied }
         let status = await VoiceSpeechAuthorization.request()
         return status == .authorized ? .granted : .denied
+    }
+
+    /// 提前创建识别实现并加载模型，按下后直接使用，第一段文字不用等模型加载。
+    ///
+    /// 只有 iOS 26 且该语言模型已安装时才有效果；模型未安装时顺便在后台下载。条件没变时重复调用不会重复加载。
+    ///
+    /// - Parameters:
+    ///   - locale: 识别语言。
+    ///   - contextualStrings: 需要优先识别的专有名词。
+    func prepare(locale: Locale, contextualStrings: [String]) {
+        guard #available(iOS 26, *) else { return }
+        let key = PreparationKey(locale: locale, contextualStrings: contextualStrings)
+        lastPreparationKey = key
+        guard preparation?.key != key else { return }
+        // 条件变了，旧的那份没有开始识别，直接丢掉即可
+        preparation?.task.cancel()
+        let task = Task { [weak self] () -> VoiceSpeechBackend? in
+            switch await AnalyzerSpeechBackend.availability(locale: locale, contextualStrings: contextualStrings) {
+            case let .ready(backend):
+                await backend.prepare()
+                return backend
+            case let .needsAssets(supportedLocale):
+                self?.installAssetsInBackground(locale: supportedLocale)
+                return nil
+            case .unsupported:
+                return nil
+            }
+        }
+        preparation = (key, task)
     }
 
     /// 开始收音并识别。
@@ -191,10 +235,22 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
         state = .idle
         transcript = ""
         VoiceAudioCapture.deactivateSession()
+        // 每个识别实现只能用一次，说完一句就为下一句预热
+        if let lastPreparationKey {
+            prepare(locale: lastPreparationKey.locale, contextualStrings: lastPreparationKey.contextualStrings)
+        }
     }
 
-    /// 选择识别实现：iOS 26 模型已安装时用 `SpeechAnalyzer`，否则用 `SFSpeechRecognizer`。
+    /// 选择识别实现：优先用预热好的；否则 iOS 26 模型已安装时用 `SpeechAnalyzer`，再否则用 `SFSpeechRecognizer`。
     private func makeBackend(locale: Locale, contextualStrings: [String]) async throws -> VoiceSpeechBackend {
+        if let preparation, preparation.key == PreparationKey(locale: locale, contextualStrings: contextualStrings) {
+            // 取走后立即作废，下一句不会拿到已经用过的识别实现
+            self.preparation = nil
+            // 还在加载时等它加载完，比从头再加载一份快
+            if let backend = await preparation.task.value {
+                return backend
+            }
+        }
         if #available(iOS 26, *) {
             switch await AnalyzerSpeechBackend.availability(locale: locale, contextualStrings: contextualStrings) {
             case let .ready(backend):

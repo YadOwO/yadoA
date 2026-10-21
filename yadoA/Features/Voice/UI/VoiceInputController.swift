@@ -107,6 +107,16 @@ final class VoiceInputController {
         !isPressing && recognizer.state != .idle
     }
 
+    /// 进入记账页时提前加载识别模型，按下后马上就能边说边出字；还没授权时不做，免得在用户同意前就准备识别。
+    ///
+    /// - Parameters:
+    ///   - locale: 识别语言。
+    ///   - contextualStrings: 需要优先识别的专有名词。
+    func prepareRecognizer(locale: Locale, contextualStrings: [String]) {
+        guard permission() == .granted else { return }
+        recognizer.prepare(locale: locale, contextualStrings: contextualStrings)
+    }
+
     /// 手指按下：按住满 `holdDelay` 才开始收音。
     ///
     /// - Parameters:

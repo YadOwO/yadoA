@@ -129,9 +129,16 @@ nonisolated final class AnalyzerSpeechBackend: VoiceSpeechBackend, @unchecked Se
     private var finalizedText = ""
     private var volatileText = ""
 
+    /// 加载模型的任务；预热和开始识别可能同时调用 `prepare()`，共用同一次加载。
+    private var prepareTask: Task<Void, Never>?
+
     private init(transcriber: SpeechTranscriber, contextualStrings: [String]) {
         self.transcriber = transcriber
-        self.analyzer = SpeechAnalyzer(modules: [transcriber])
+        // 用完后让系统多留一会儿模型，连续说几句时不用每句都重新加载
+        self.analyzer = SpeechAnalyzer(
+            modules: [transcriber],
+            options: SpeechAnalyzer.Options(priority: .userInitiated, modelRetention: .lingering)
+        )
         self.contextualStrings = contextualStrings
     }
 
@@ -187,19 +194,38 @@ nonisolated final class AnalyzerSpeechBackend: VoiceSpeechBackend, @unchecked Se
         )
     }
 
-    @concurrent func start(onPartial: @escaping @Sendable (String) -> Void) async throws {
-        let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
-        let (stream, continuation) = AsyncStream.makeStream(of: AnalyzerInput.self)
-        lock.withLock {
-            analyzerFormat = format
-            inputContinuation = continuation
+    /// 提前确定音频格式、设置专有名词并把识别模型载入内存，之后 `start` 不用再等模型加载，按下就能边说边出字。
+    ///
+    /// 可重复调用，只加载一次；加载失败时 `start` 照常开始，由系统在收到音频时再加载。
+    @concurrent func prepare() async {
+        let task: Task<Void, Never> = lock.withLock {
+            if let prepareTask { return prepareTask }
+            let task = Task { await self.loadModel() }
+            prepareTask = task
+            return task
         }
+        await task.value
+    }
+
+    /// 实际的加载工作，只由 `prepare()` 调用一次。
+    @concurrent private func loadModel() async {
+        let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
+        lock.withLock { analyzerFormat = format }
         if !contextualStrings.isEmpty {
             let context = AnalysisContext()
             context.contextualStrings[.general] = contextualStrings
             // 专有名词只是提高识别率，设置失败不影响识别
             try? await analyzer.setContext(context)
         }
+        // 预加载失败不影响识别，只是第一段文字出来得晚一些
+        try? await analyzer.prepareToAnalyze(in: format)
+    }
+
+    @concurrent func start(onPartial: @escaping @Sendable (String) -> Void) async throws {
+        // 已预热时立即返回
+        await prepare()
+        let (stream, continuation) = AsyncStream.makeStream(of: AnalyzerInput.self)
+        lock.withLock { inputContinuation = continuation }
         let transcriber = transcriber
         let task = Task { [weak self] in
             do {

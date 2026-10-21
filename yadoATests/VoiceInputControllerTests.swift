@@ -210,18 +210,37 @@ struct VoiceInputControllerTests {
         #expect(!fixture.controller.isFinishing)
     }
 
+    @Test("已授权时进入记账页就预热识别模型")
+    func preparesRecognizerWhenGranted() {
+        let fixture = Fixture()
+
+        fixture.controller.prepareRecognizer(locale: Fixture.locale, contextualStrings: ["招行"])
+
+        #expect(fixture.recognizer.preparedStrings == [["招行"]])
+        #expect(fixture.recognizer.startCount == 0)
+    }
+
+    @Test("还没授权或已拒绝时不预热识别模型", arguments: [VoiceSpeechPermission.notDetermined, .denied])
+    func skipsPreparationWithoutPermission(permission: VoiceSpeechPermission) {
+        let fixture = Fixture(permission: permission)
+
+        fixture.controller.prepareRecognizer(locale: Fixture.locale, contextualStrings: ["招行"])
+
+        #expect(fixture.recognizer.preparedStrings.isEmpty)
+    }
+
     // MARK: - 辅助
 
-    /// 一次测试使用的假识别器与交互逻辑；权限视为已授权，默认不等按住时长。
+    /// 一次测试使用的假识别器与交互逻辑；权限默认视为已授权，默认不等按住时长。
     @MainActor
     private final class Fixture {
         let recognizer: FakeSpeechRecognizer
         let controller: VoiceInputController
 
-        init(holdDelay: Duration = .zero) {
+        init(holdDelay: Duration = .zero, permission: VoiceSpeechPermission = .granted) {
             let recognizer = FakeSpeechRecognizer()
             self.recognizer = recognizer
-            controller = VoiceInputController(recognizer: recognizer, permission: { .granted }, holdDelay: holdDelay)
+            controller = VoiceInputController(recognizer: recognizer, permission: { permission }, holdDelay: holdDelay)
         }
 
         /// 识别与提示使用的语言。
@@ -282,6 +301,13 @@ private final class FakeSpeechRecognizer: VoiceSpeechRecognizing {
 
     /// 是否有松手后还在等待最终文字的收尾。
     var hasPendingStop: Bool { stopContinuation != nil }
+
+    /// 每次预热收到的专有名词，用于确认预热是否被调用。
+    private(set) var preparedStrings: [[String]] = []
+
+    func prepare(locale: Locale, contextualStrings: [String]) {
+        preparedStrings.append(contextualStrings)
+    }
 
     func start(locale: Locale, contextualStrings: [String]) async throws {
         guard state == .idle else { return }
