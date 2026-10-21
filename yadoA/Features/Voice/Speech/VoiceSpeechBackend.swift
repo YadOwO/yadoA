@@ -185,13 +185,12 @@ nonisolated final class AnalyzerSpeechBackend: VoiceSpeechBackend, @unchecked Se
         }
     }
 
+    /// 创建实时转写模块。
+    ///
+    /// 用系统为实时转写准备的预设：除中间结果外还偏向响应速度，按住期间尽快出字；松手后的最终结果照常校正。
+    /// 只开 `.volatileResults` 时中间结果要攒更长的音频才给出，记账这种两三秒的短句容易松手后才出字。
     private static func makeTranscriber(locale: Locale) -> SpeechTranscriber {
-        SpeechTranscriber(
-            locale: locale,
-            transcriptionOptions: [],
-            reportingOptions: [.volatileResults],
-            attributeOptions: []
-        )
+        SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
     }
 
     /// 提前确定音频格式、设置专有名词并把识别模型载入内存，之后 `start` 不用再等模型加载，按下就能边说边出字。
@@ -313,17 +312,35 @@ nonisolated final class VoiceAudioCapture: @unchecked Sendable {
     /// 引擎是否正在采集；只在队列上读写，松手和收尾可能先后关闭，重复关闭时直接跳过。
     private var isRunning = false
 
+    private let lock = NSLock()
+
+    /// 是否已经关闭；在调用关闭的线程上立即置位，不等队列。
+    ///
+    /// 打开可能晚于关闭才排进队列（例如按下后很快松手，打开所在的子任务还没执行），
+    /// 这时队列上的停止会因为引擎还没启动而直接跳过；打开前检查这个标记，已关闭就不再打开麦克风。
+    /// 每次采集都新建一个实例，关闭后不会再打开。
+    private var isClosed = false
+
     /// 激活音频会话并开始采集，持续把音频交给中转；在后台队列执行，不阻塞调用方所在线程。
     ///
+    /// 已经调用过关闭时不做任何事，既不激活音频会话也不打开麦克风。
+    ///
     /// - Parameter relay: 接收音频的中转；识别实现还没就绪时由它暂存。
+    /// - Returns: 是否真的打开了麦克风；打开前已关闭时为 false。
     /// - Throws: 音频会话配置失败（例如正在通话）、没有可用的麦克风输入或引擎启动失败时抛出错误。
-    func open(feeding relay: VoiceAudioRelay) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+    @discardableResult
+    func open(feeding relay: VoiceAudioRelay) async throws -> Bool {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
             Self.queue.async {
+                // 在队列上检查：此后才置位的关闭，它的停止排在本次打开之后，仍能关掉麦克风
+                guard !self.lock.withLock({ self.isClosed }) else {
+                    continuation.resume(returning: false)
+                    return
+                }
                 do {
                     try Self.activateSession()
                     try self.start(feeding: relay)
-                    continuation.resume()
+                    continuation.resume(returning: true)
                 } catch {
                     continuation.resume(throwing: error)
                 }
@@ -333,6 +350,7 @@ nonisolated final class VoiceAudioCapture: @unchecked Sendable {
 
     /// 停止采集；在后台队列执行，返回后不会再有新的音频送出。
     func close() async {
+        markClosed()
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             Self.queue.async {
                 self.stopEngine()
@@ -343,6 +361,7 @@ nonisolated final class VoiceAudioCapture: @unchecked Sendable {
 
     /// 停止采集，不等待完成；用于取消。之后排队的释放会话仍在它之后执行。
     func closeInBackground() {
+        markClosed()
         Self.queue.async {
             self.stopEngine()
         }
@@ -363,6 +382,11 @@ nonisolated final class VoiceAudioCapture: @unchecked Sendable {
         try session.setCategory(.record, mode: .measurement, options: .duckOthers)
         try session.setAllowHapticsAndSystemSoundsDuringRecording(true)
         try session.setActive(true, options: .notifyOthersOnDeactivation)
+    }
+
+    /// 标记已关闭，阻止之后才排进队列的打开。
+    private func markClosed() {
+        lock.withLock { isClosed = true }
     }
 
     /// 停止音频引擎并移除采集；只在队列上调用，可重复调用。

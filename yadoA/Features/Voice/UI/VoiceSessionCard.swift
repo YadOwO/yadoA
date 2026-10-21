@@ -27,11 +27,11 @@ struct VoiceSessionCard: View {
     /// 滚动区域的最大高度，超出部分在卡片里滚动查看；一般一句话就能记完，不会用满。
     private static let maxScrollHeight: CGFloat = 300
 
-    /// 滚动区域底部的锚点。
-    private static let bottomID = "voice-card-bottom"
-
     /// 卡片内容的实际高度，用来让卡片在最大高度以内贴合内容。
     @State private var contentHeight: CGFloat = 0
+
+    /// 卡片内的滚动位置；用滚到底边而不是滚到某个锚点视图，不依赖锚点的布局时机。
+    @State private var scrollPosition = ScrollPosition(edge: .bottom)
 
     /// 用户是否正在拖动卡片内容或内容还在惯性滚动；期间不自动滚动，避免和手指抢位置。
     @State private var isUserScrolling = false
@@ -42,39 +42,56 @@ struct VoiceSessionCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             header
-            ScrollViewReader { proxy in
-                ScrollView {
-                    content
-                        .onGeometryChange(for: CGFloat.self) { proxy in
-                            proxy.size.height
-                        } action: { height in
-                            contentHeight = height
-                        }
-                }
-                .frame(height: min(contentHeight, Self.maxScrollHeight))
-                .scrollBounceBehavior(.basedOnSize)
-                // 新的一轮、转写变长、结果或候选项出来时内容高度都会变化，统一据此滚到底部
-                .onChange(of: contentHeight) {
-                    guard !isUserScrolling else {
-                        hasPendingScrollToBottom = true
-                        return
+            ScrollView {
+                content
+                    .onGeometryChange(for: CGFloat.self) { proxy in
+                        proxy.size.height
+                    } action: { height in
+                        contentHeight = height
                     }
-                    proxy.scrollTo(Self.bottomID, anchor: .bottom)
+            }
+            .frame(height: min(contentHeight, Self.maxScrollHeight))
+            .scrollBounceBehavior(.basedOnSize)
+            .scrollPosition($scrollPosition)
+            // 以滚动视图实际生效的内容和可视高度为准：新的一轮、转写变长、结果或候选项出来，
+            // 以及卡片长到最大高度时都会变化。内容自身的高度回调早于滚动视图更新尺寸，那时滚动会停在旧的底部。
+            .onScrollGeometryChange(for: VoiceCardScrollExtent.self) { geometry in
+                VoiceCardScrollExtent(content: geometry.contentSize.height, container: geometry.containerSize.height)
+            } action: { _, _ in
+                guard !isUserScrolling else {
+                    hasPendingScrollToBottom = true
+                    return
                 }
-                .onScrollPhaseChange { _, phase in
-                    // 自动滚动自身是 animating，不算用户滚动
-                    isUserScrolling = phase == .tracking || phase == .interacting || phase == .decelerating
-                    guard !isUserScrolling, hasPendingScrollToBottom else { return }
-                    hasPendingScrollToBottom = false
-                    // 用户刚停手，用动画滚过去，不要瞬间跳走
-                    withAnimation(.easeOut(duration: 0.25)) {
-                        proxy.scrollTo(Self.bottomID, anchor: .bottom)
-                    }
-                }
+                scrollToBottom(animated: false)
+            }
+            .onScrollPhaseChange { _, phase in
+                // 自动滚动自身是 animating，不算用户滚动
+                isUserScrolling = phase == .tracking || phase == .interacting || phase == .decelerating
+                guard !isUserScrolling, hasPendingScrollToBottom else { return }
+                hasPendingScrollToBottom = false
+                // 用户刚停手，用动画滚过去，不要瞬间跳走
+                scrollToBottom(animated: true)
+            }
+            // 按住麦克风开始新的一句：用户此时的注意力在这句话上，即使之前往上翻过也直接回到底部
+            .onChange(of: input.isRecording) { _, isRecording in
+                guard isRecording else { return }
+                hasPendingScrollToBottom = false
+                scrollToBottom(animated: true)
             }
         }
         .padding(.top, 6)
         .voiceFloatingSurface(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    /// 滚到卡片底部；等本轮布局提交后再滚，确保滚到的是新内容的底部。
+    ///
+    /// - Parameter animated: 是否带动画；内容持续增长（实时转写）时不带，避免动画互相打断。
+    private func scrollToBottom(animated: Bool) {
+        Task { @MainActor in
+            withAnimation(animated ? .easeOut(duration: 0.25) : nil) {
+                scrollPosition.scrollTo(edge: .bottom)
+            }
+        }
     }
 
     /// 标题与结束按钮。
@@ -122,9 +139,6 @@ struct VoiceSessionCard: View {
                     isCancelArmed: input.isCancelArmed
                 )
             }
-            Color.clear
-                .frame(height: 0)
-                .id(Self.bottomID)
         }
         .padding(.horizontal, 14)
         .padding(.bottom, 14)
@@ -290,4 +304,13 @@ private struct VoiceUserBubble: View {
             .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .frame(maxWidth: .infinity, alignment: .trailing)
     }
+}
+
+/// 卡片滚动区域的内容高度与可视高度，任一变化都要重新贴底。
+private struct VoiceCardScrollExtent: Equatable {
+    /// 内容高度。
+    let content: CGFloat
+
+    /// 可视高度。
+    let container: CGFloat
 }

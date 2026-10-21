@@ -45,6 +45,33 @@ struct VoiceAudioRelayTests {
     }
 }
 
+/// 打开可能晚于关闭才排进队列：按下后很快松手或取消时，迟到的打开不能再把麦克风打开。
+///
+/// 只覆盖已关闭的分支，不会激活音频会话或真的打开麦克风。
+@Suite("麦克风采集的关闭时序")
+struct VoiceAudioCaptureTests {
+    @Test("松手先于打开排进队列时，迟到的打开不再打开麦克风")
+    func openAfterBackgroundCloseIsSkipped() async throws {
+        let capture = VoiceAudioCapture()
+
+        // 模拟 stopCapture() / cancel() 先于打开执行
+        capture.closeInBackground()
+        let isOpened = try await capture.open(feeding: VoiceAudioRelay())
+
+        #expect(!isOpened)
+    }
+
+    @Test("等待关闭完成后再打开，同样不会打开麦克风")
+    func openAfterCloseIsSkipped() async throws {
+        let capture = VoiceAudioCapture()
+
+        await capture.close()
+        let isOpened = try await capture.open(feeding: VoiceAudioRelay())
+
+        #expect(!isOpened)
+    }
+}
+
 /// 只记录收到的音频帧数的假识别实现。
 private nonisolated final class RecordingSpeechBackend: VoiceSpeechBackend, @unchecked Sendable {
     private let lock = NSLock()

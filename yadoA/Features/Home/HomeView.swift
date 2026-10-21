@@ -69,6 +69,9 @@ private struct HomeQueryContent: View {
     /// 刚删除、仍在原位置画出残影的流水内容，残影收起后各自移除。
     @State private var deletedRows: [HomeOverviewDeletedRow] = []
 
+    /// 最近一批变更要定位到的流水；每批新建一次，同一笔流水再次变更也会重新定位，到期后清除。
+    @State private var scrollRequest: HomeScrollRequest?
+
     /// 刚新增、修改或删除成功的流水提示通道。
     private let recentEntryHighlight = HomeRecentEntryHighlight.shared
 
@@ -109,6 +112,7 @@ private struct HomeQueryContent: View {
                     monthNavigator: HomeMonthNavigator(availableMonths: presentation.availableMonths),
                     selectedMonth: activeMonth,
                     rowMarks: rowMarks,
+                    scrollRequest: scrollRequest,
                     bottomClearance: addButtonClearance,
                     onSelectMonth: { month in
                         selectedMonth = month
@@ -137,14 +141,16 @@ private struct HomeQueryContent: View {
                 selectedMonth = presentation.initialMonth
             }
             isVisible = true
-            showRecentEntryHighlightIfNeeded()
+            // 从别的页面返回，带动画滚动会和返回转场叠加
+            showRecentEntryHighlightIfNeeded(animated: false)
         }
         .onDisappear {
             isVisible = false
         }
         // 截图记账以全屏模态盖在首页之上，关闭时不会再次触发 onAppear，需要直接响应登记。
+        // 语音记账在首页上直接改数据，也走这里，此时用户正看着列表，滚动带动画。
         .onChange(of: recentEntryHighlight.pending) { _, _ in
-            showRecentEntryHighlightIfNeeded()
+            showRecentEntryHighlightIfNeeded(animated: true)
         }
         .sheet(isPresented: $isMonthPickerPresented) {
             NavigationStack {
@@ -170,17 +176,31 @@ extension HomeQueryContent {
     /// 删除残影从出现、划掉到停留结束的时长，之后把这一行从列表中收起。
     private static let deletedRowLifetime: Duration = .milliseconds(1600)
 
-    /// 首页可见时取走刚变更的流水：切到第一条所在的月份，新增标红写对勾、修改划掉旧值换上新值、删除划掉后收起。
-    private func showRecentEntryHighlightIfNeeded() {
+    /// 首页可见时取走刚变更的流水：切到第一条所在的月份并把它滚到汇总下方，新增标红写对勾、修改划掉旧值换上新值、删除划掉后收起。
+    ///
+    /// - Parameter animated: 是否带动画滚动；切换了月份时列表是新建的，总是直接定位。
+    private func showRecentEntryHighlightIfNeeded(animated: Bool) {
         guard isVisible else { return }
         let entries = recentEntryHighlight.consume()
         guard let first = entries.first else { return }
 
+        var switchesMonth = false
         if let month = HomeMonth(value: first.transactionDay / 100) {
+            switchesMonth = month != selectedMonth
             selectedMonth = month
         }
         for entry in entries {
             show(entry)
+        }
+        // 一批有多条时定位到第一条
+        let request = HomeScrollRequest(transactionID: first.id, isAnimated: animated && !switchesMonth && !reduceMotion)
+        scrollRequest = request
+        Task {
+            try? await Task.sleep(for: Self.highlightLifetime)
+            // 到期后不再定位，之后切月份、列表重建时不会又跳回这一笔
+            if scrollRequest == request {
+                scrollRequest = nil
+            }
         }
     }
 
@@ -474,6 +494,9 @@ private struct HomeOverviewList: View {
     /// 正在播放变更提示的行；为空时所有行保持默认样式。
     let rowMarks: [HomeRowMark]
 
+    /// 需要定位的变更流水；所在行出现在当前月份明细里时滚到汇总下方。
+    let scrollRequest: HomeScrollRequest?
+
     /// 悬浮记账按钮占用的底部高度，用于列表末尾留白和上拉提示避让。
     let bottomClearance: CGFloat
 
@@ -553,12 +576,15 @@ private struct HomeOverviewList: View {
                         onSelectMonth(month)
                     }
                 }
-                // 变更流水所在行进入当前月份数据后滚到可见位置；查询刷新可能晚于返回首页，因此同时观察行是否已出现。
-                .onChange(of: highlightScrollTarget, initial: true) { _, target in
-                    guard let target else { return }
-                    // 等列表完成本轮布局后再滚动，不带动画以免与返回转场叠加。
+                // 变更流水所在行进入当前月份数据后，把它滚到列表可视区顶部，也就是汇总卡片正下方，
+                // 下方的语音卡片不会挡住它；查询刷新可能晚于登记提示，因此同时观察行是否已出现。
+                .onChange(of: resolvedScrollRequest, initial: true) { _, request in
+                    guard let request else { return }
+                    // 等列表完成本轮布局后再滚动
                     Task { @MainActor in
-                        scrollProxy.scrollTo(target, anchor: .center)
+                        withAnimation(request.isAnimated ? .easeInOut(duration: 0.35) : nil) {
+                            scrollProxy.scrollTo(request.transactionID, anchor: .top)
+                        }
                     }
                 }
                 // 每个月从顶部开始，避免原生回弹与 scrollTo 动画争夺偏移。
@@ -596,13 +622,14 @@ private struct HomeOverviewList: View {
         }
     }
 
-    /// 需要提示的变更流水（标红行或删除残影）中第一条已出现在当前月份明细里的标识，没有时为 `nil`。
-    private var highlightScrollTarget: UUID? {
-        rowMarks.lazy.map(\.transactionID).first { target in
-            monthPresentation.dayGroups.contains { day in
-                day.rows.contains { $0.id == target }
-            }
-        }
+    /// 已出现在当前月份明细里（含删除残影）的定位请求，行还没出现时为 `nil`。
+    private var resolvedScrollRequest: HomeScrollRequest? {
+        guard let scrollRequest,
+              monthPresentation.dayGroups.contains(where: { day in
+                  day.rows.contains { $0.id == scrollRequest.transactionID }
+              })
+        else { return nil }
+        return scrollRequest
     }
 
     /// 是否保留边界回弹：有流水的月份始终回弹；空月份只有存在可切换的相邻月份时才回弹，否则完全静止。
@@ -790,6 +817,18 @@ private struct HomeRowMark: Equatable {
     let kind: Kind
 
     /// 每次提示的唯一标识；同一笔流水连续两次相同提示时，旧提示到期不会误删新提示。
+    let token = UUID()
+}
+
+/// 一次把变更流水滚到汇总下方的请求。
+private struct HomeScrollRequest: Equatable {
+    /// 要定位的流水标识。
+    let transactionID: UUID
+
+    /// 是否带动画滚动。
+    let isAnimated: Bool
+
+    /// 每次请求的唯一标识；同一笔流水再次变更时也算新的请求。
     let token = UUID()
 }
 

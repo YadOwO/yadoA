@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import Observation
+import OSLog
 import Speech
 
 /// 语音识别所需权限的状态。
@@ -70,6 +71,9 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
 
     private var backend: VoiceSpeechBackend?
     private var capture: VoiceAudioCapture?
+
+    /// 本次识别的耗时打点，排查「按住期间不出字」时看各阶段卡在哪里。
+    private var timing: VoiceSpeechTiming?
 
     /// 后台下载识别模型的任务；同一时间只下载一次。
     private var assetInstallTask: Task<Void, Never>?
@@ -143,8 +147,8 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
 
     /// 开始收音并识别。
     ///
-    /// 按下就打开麦克风，同时加载识别模型；加载期间的音频由 `VoiceAudioRelay` 暂存，
-    /// 模型就绪后补送，之后实时识别、边说边出字。
+    /// 按下后打开麦克风和准备识别同时进行；识别就绪前的音频由 `VoiceAudioRelay` 暂存，
+    /// 就绪后补送，之后实时识别、边说边出字。
     /// 启动期间被 `cancel()` 取消时，在下一个异步返回点停下，关闭麦克风并释放已创建的识别。
     ///
     /// - Parameters:
@@ -160,23 +164,35 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
         let capture = VoiceAudioCapture()
         let relay = VoiceAudioRelay()
         var startedBackend: VoiceSpeechBackend?
+        let timing = VoiceSpeechTiming()
+        self.timing = timing
         do {
             // 先记下，启动期间 cancel() 才能关掉麦克风；关闭排在打开之后，再释放音频会话
             self.capture = capture
-            // 在后台队列打开麦克风，主线程先把「正在听」的界面画出来
-            try await capture.open(feeding: relay)
-            try ensureCurrent(startGeneration)
+            // 在后台队列打开麦克风，与下面准备识别同时进行，谁先好都不等对方；先到的音频由中转暂存。
+            // 打开可能晚于松手或取消才排进队列，由采集器记住已关闭、不再打开，见 `VoiceAudioCapture.open`
+            async let micOpened: Void = {
+                let isOpened = try await capture.open(feeding: relay)
+                timing.log(isOpened ? "mic opened" : "mic skipped, released before opening")
+            }()
             let backend = try await makeBackend(locale: locale, contextualStrings: contextualStrings)
             try ensureCurrent(startGeneration)
             startedBackend = backend
             try await backend.start { [weak self] text in
                 Task { @MainActor [weak self] in
                     guard let self, self.generation == startGeneration, self.state != .idle else { return }
+                    if self.transcript.isEmpty, !text.isEmpty {
+                        timing.log("first partial")
+                    }
                     self.transcript = text
                 }
             }
             try ensureCurrent(startGeneration)
+            // 麦克风还没打开也可以先接上，打开后音频直接实时送入识别
             relay.connect(to: backend)
+            timing.log("recognizer ready (\(type(of: backend)))")
+            try await micOpened
+            try ensureCurrent(startGeneration)
             self.backend = backend
             state = .recording
         } catch {
@@ -185,6 +201,7 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
             // 被取消时 cancel() 已经复位，之后可能已开始新的一次识别，不能再改动共享状态
             if generation == startGeneration {
                 self.capture = nil
+                self.timing = nil
                 VoiceAudioCapture.deactivateSession()
                 state = .idle
             }
@@ -195,6 +212,7 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
     /// 松手时立即关闭麦克风，不等启动完成；启动期间已采集的音频仍在中转里，启动完成后照常补送识别。
     func stopCapture() {
         guard state == .starting || state == .recording else { return }
+        timing?.log("released, started: \(state == .recording), has partial: \(!transcript.isEmpty)")
         // 关闭排在打开之后，打开还没完成时也会在打开后立即关掉
         capture?.closeInBackground()
     }
@@ -210,6 +228,7 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
         let text = await backend.finish()
         // 收尾期间被取消：cancel() 已经复位，丢弃结果
         guard generation == stopGeneration else { return "" }
+        timing?.log("final result")
         let result = text.isEmpty ? transcript : text
         reset()
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -232,6 +251,7 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
     private func reset() {
         capture = nil
         backend = nil
+        timing = nil
         state = .idle
         transcript = ""
         VoiceAudioCapture.deactivateSession()
@@ -295,5 +315,22 @@ nonisolated enum VoiceSpeechAuthorization {
                 continuation.resume(returning: status)
             }
         }
+    }
+}
+
+/// 一次识别各阶段距按下开始的耗时，写入系统日志（分类 `VoiceSpeech`），只记阶段和毫秒数，不记识别文字。
+nonisolated final class VoiceSpeechTiming: Sendable {
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "yadoA", category: "VoiceSpeech")
+
+    /// 开始识别的时刻。
+    private let startedAt = ContinuousClock.now
+
+    /// 记录一个阶段。
+    ///
+    /// - Parameter stage: 阶段名称。
+    func log(_ stage: String) {
+        let elapsed = ContinuousClock.now - startedAt
+        let milliseconds = elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000
+        Self.logger.debug("\(stage, privacy: .public): \(milliseconds, privacy: .public) ms")
     }
 }
