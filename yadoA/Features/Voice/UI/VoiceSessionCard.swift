@@ -30,68 +30,108 @@ struct VoiceSessionCard: View {
     /// 卡片内容的实际高度，用来让卡片在最大高度以内贴合内容。
     @State private var contentHeight: CGFloat = 0
 
-    /// 卡片内的滚动位置；用滚到底边而不是滚到某个锚点视图，不依赖锚点的布局时机。
-    @State private var scrollPosition = ScrollPosition(edge: .bottom)
+    /// 最近一次完成布局的真实滚动几何，用来确认最新内容确实已完整露出。
+    @State private var scrollGeometry = VoiceCardScrollGeometry()
 
     /// 用户是否正在拖动卡片内容或内容还在惯性滚动；期间不自动滚动，避免和手指抢位置。
     @State private var isUserScrolling = false
 
-    /// 用户滚动期间来了新内容，等滚动停下后再滚到底部。
-    @State private var hasPendingScrollToBottom = false
+    /// 是否跟随最新内容；手动翻阅时暂停，任何内容或布局更新都会恢复，拖动期间等停手再执行。
+    @State private var followsLatestContent = true
+
+    /// 内容末尾的稳定锚点，放在明细、操作按钮和底部留白之后。
+    private enum ScrollTarget: Hashable {
+        case bottom
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             header
-            ScrollView {
-                content
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        content
+                        Color.clear
+                            .frame(height: 1)
+                            .id(ScrollTarget.bottom)
+                            .accessibilityHidden(true)
+                    }
                     .onGeometryChange(for: CGFloat.self) { proxy in
                         proxy.size.height
                     } action: { height in
                         contentHeight = height
                     }
-            }
-            .frame(height: min(contentHeight, Self.maxScrollHeight))
-            .scrollBounceBehavior(.basedOnSize)
-            .scrollPosition($scrollPosition)
-            // 以滚动视图实际生效的内容和可视高度为准：新的一轮、转写变长、结果或候选项出来，
-            // 以及卡片长到最大高度时都会变化。内容自身的高度回调早于滚动视图更新尺寸，那时滚动会停在旧的底部。
-            .onScrollGeometryChange(for: VoiceCardScrollExtent.self) { geometry in
-                VoiceCardScrollExtent(content: geometry.contentSize.height, container: geometry.containerSize.height)
-            } action: { _, _ in
-                guard !isUserScrolling else {
-                    hasPendingScrollToBottom = true
-                    return
                 }
-                scrollToBottom(animated: false)
-            }
-            .onScrollPhaseChange { _, phase in
-                // 自动滚动自身是 animating，不算用户滚动
-                isUserScrolling = phase == .tracking || phase == .interacting || phase == .decelerating
-                guard !isUserScrolling, hasPendingScrollToBottom else { return }
-                hasPendingScrollToBottom = false
-                // 用户刚停手，用动画滚过去，不要瞬间跳走
-                scrollToBottom(animated: true)
-            }
-            // 按住麦克风开始新的一句：用户此时的注意力在这句话上，即使之前往上翻过也直接回到底部
-            .onChange(of: input.isRecording) { _, isRecording in
-                guard isRecording else { return }
-                hasPendingScrollToBottom = false
-                scrollToBottom(animated: true)
+                .frame(height: min(contentHeight, Self.maxScrollHeight))
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
+                .defaultScrollAnchor(.bottom, for: .initialOffset)
+                .onScrollGeometryChange(for: VoiceCardScrollGeometry.self) { geometry in
+                    VoiceCardScrollGeometry(
+                        contentHeight: geometry.contentSize.height,
+                        containerHeight: geometry.containerSize.height,
+                        offsetY: geometry.contentOffset.y,
+                        topInset: geometry.contentInsets.top,
+                        bottomInset: geometry.contentInsets.bottom
+                    )
+                } action: { old, new in
+                    scrollGeometry = new
+                    if new.hasDifferentLayout(from: old) {
+                        followsLatestContent = true
+                    }
+                    // 同时检查真实偏移；系统后续布局若又改变了位置，会再次校正，而不是把发出请求当成完成。
+                    scrollToBottom(using: proxy, geometry: new)
+                }
+                // 文字或状态替换未必改变高度，仍需恢复跟随最新内容。
+                .onChange(of: scrollContent, initial: true) { _, _ in
+                    followsLatestContent = true
+                    scrollToBottom(using: proxy, geometry: scrollGeometry)
+                }
+                .onScrollPhaseChange { _, phase in
+                    let wasUserScrolling = isUserScrolling
+                    isUserScrolling = phase == .tracking || phase == .interacting || phase == .decelerating
+                    if isUserScrolling, !wasUserScrolling {
+                        followsLatestContent = false
+                    } else if !isUserScrolling {
+                        scrollToBottom(using: proxy, geometry: scrollGeometry)
+                    }
+                }
+                // 对话的内容高度和滚动位置必须在同一次布局中落定，不能继承外层显隐、录音或结果动画。
+                .transaction { transaction in
+                    transaction.animation = nil
+                    transaction.disablesAnimations = true
+                }
             }
         }
         .padding(.top, 6)
         .voiceFloatingSurface(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
-    /// 滚到卡片底部；等本轮布局提交后再滚，确保滚到的是新内容的底部。
+    /// 布局完成后滚到真正的内容末尾；已经贴底就不再发出请求，避免滚动反馈循环。
     ///
-    /// - Parameter animated: 是否带动画；内容持续增长（实时转写）时不带，避免动画互相打断。
-    private func scrollToBottom(animated: Bool) {
-        Task { @MainActor in
-            withAnimation(animated ? .easeOut(duration: 0.25) : nil) {
-                scrollPosition.scrollTo(edge: .bottom)
-            }
+    /// - Parameters:
+    ///   - proxy: 当前滚动区域的命令入口，每次调用都定位末尾锚点。
+    ///   - geometry: 当前已生效的内容尺寸、可视高度和偏移。
+    private func scrollToBottom(using proxy: ScrollViewProxy, geometry: VoiceCardScrollGeometry) {
+        guard followsLatestContent, !isUserScrolling, geometry.containerHeight > 0, !geometry.isAtBottom else { return }
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            proxy.scrollTo(ScrollTarget.bottom, anchor: .bottom)
         }
+    }
+
+    /// 完整的显示内容；任何一轮、实时转写或交互状态更新，都统一请求贴底。
+    private var scrollContent: VoiceCardScrollContent {
+        VoiceCardScrollContent(
+            turns: session?.turns ?? [],
+            isProcessing: session?.isProcessing == true,
+            transcript: input.recognizer.transcript,
+            isRecording: input.isRecording,
+            isFinishing: input.isFinishing,
+            isCancelArmed: input.isCancelArmed,
+            locale: locale
+        )
     }
 
     /// 标题与结束按钮。
@@ -306,11 +346,60 @@ private struct VoiceUserBubble: View {
     }
 }
 
-/// 卡片滚动区域的内容高度与可视高度，任一变化都要重新贴底。
-private struct VoiceCardScrollExtent: Equatable {
+/// 卡片实际展示的数据快照，补足同高度内容更新时不会触发布局回调的情况。
+private struct VoiceCardScrollContent: Equatable {
+    /// 全部轮次，包括处理中、回复、追问、失败、流水变更及撤销状态。
+    let turns: [VoiceSession.Turn]
+
+    /// 控制候选项与撤销操作是否可用。
+    let isProcessing: Bool
+
+    /// 正在识别的文字。
+    let transcript: String
+
+    /// 是否正在收音。
+    let isRecording: Bool
+
+    /// 是否正在等待最终识别结果。
+    let isFinishing: Bool
+
+    /// 是否展示松手取消提示。
+    let isCancelArmed: Bool
+
+    /// 提示与结果使用的语言。
+    let locale: Locale
+}
+
+/// 卡片完成布局后的滚动几何；包含真实偏移，才能验证滚动请求执行后的最终位置。
+struct VoiceCardScrollGeometry: Equatable {
     /// 内容高度。
-    let content: CGFloat
+    var contentHeight: CGFloat = 0
 
     /// 可视高度。
-    let container: CGFloat
+    var containerHeight: CGFloat = 0
+
+    /// 当前纵向偏移。
+    var offsetY: CGFloat = 0
+
+    /// 顶部内容边距。
+    var topInset: CGFloat = 0
+
+    /// 底部内容边距。
+    var bottomInset: CGFloat = 0
+
+    /// 真正的底部偏移；短内容的顶部和底部是同一位置。
+    var bottomOffset: CGFloat {
+        max(-topInset, contentHeight - containerHeight + bottomInset)
+    }
+
+    /// 是否已经完整露出最后一项，允许 1 pt 以内的取整误差。
+    var isAtBottom: Bool {
+        abs(offsetY - bottomOffset) <= 1
+    }
+
+    /// 内容、容器或边距变化时恢复贴底；仅手动改变偏移不会中断历史翻阅。
+    func hasDifferentLayout(from other: Self) -> Bool {
+        contentHeight != other.contentHeight || containerHeight != other.containerHeight
+            || topInset != other.topInset || bottomInset != other.bottomInset
+    }
 }

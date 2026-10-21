@@ -81,7 +81,6 @@ struct VoiceBookkeepingDock: View {
         }
         .animation(.easeOut(duration: 0.2), value: isCardVisible)
         .animation(.easeOut(duration: 0.2), value: input.isRecording)
-        .animation(.easeOut(duration: 0.2), value: session?.latestTurn)
         .animation(.easeOut(duration: 0.2), value: input.transientHint)
         .task {
             if session == nil {
