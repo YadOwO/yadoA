@@ -145,6 +145,53 @@ struct DiningExpenseEditFlowTests {
         #expect(!flow.canSubmit)
         await flow.submit {}
     }
+
+    @Test("草稿分类随流水删除后撤销选择，重新选择前不能提交")
+    func clearedCategoryRequiresReselectionBeforeSubmit() async {
+        let original = DiningExpenseEditDraft(
+            id: UUID(), accountID: UUID(), title: "午餐",
+            amountText: "20", transactionDay: 20260901
+        )
+        var attempts: [DiningExpenseEditDraft] = []
+        let flow = DiningExpenseEditFlow(draft: original) { attempts.append($0) }
+        flow.selectCategory(key: "custom-pet")
+
+        flow.clearCategory()
+        #expect(flow.formCategoryKey == nil)
+        #expect(!flow.canSubmit)
+        await flow.submit {}
+        #expect(attempts.isEmpty)
+
+        // 另一方向不受影响；切回来仍需重新选择。
+        flow.selectEntryType(.income)
+        #expect(flow.formCategoryKey == IncomeCategory.salary.rawValue)
+        #expect(flow.canSubmit)
+        flow.selectEntryType(.expense)
+        #expect(flow.formCategoryKey == nil)
+
+        flow.selectCategory(key: ExpenseCategory.dining.rawValue)
+        #expect(flow.formCategoryKey == ExpenseCategory.dining.rawValue)
+        await flow.submit {}
+        #expect(attempts.count == 1)
+        #expect(attempts[0].expenseCategoryKey == ExpenseCategory.dining.rawValue)
+    }
+
+    @Test("所编辑的流水被删除后不能再提交")
+    func removedTransactionPreventsSubmission() async {
+        let flow = DiningExpenseEditFlow(draft: DiningExpenseEditDraft(
+            id: UUID(), accountID: UUID(), title: "午餐",
+            amountText: "20", transactionDay: 20260901
+        )) { _ in
+            Issue.record("流水已删除时不应进入保存动作")
+        }
+        #expect(flow.canSubmit)
+
+        flow.markTransactionRemoved()
+
+        #expect(flow.isEntryRemoved)
+        #expect(!flow.canSubmit)
+        await flow.submit {}
+    }
 }
 
 @MainActor

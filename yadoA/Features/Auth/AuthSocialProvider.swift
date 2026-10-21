@@ -6,6 +6,11 @@ import Foundation
 /// 账号密码登录不在此列，它始终显示在登录页按钮区的最后一个。
 enum AuthSocialProvider: String, CaseIterable, Identifiable {
     /// 通过 Apple 登录。
+    ///
+    /// 走 Logto 的 Apple 网页连接器（Services ID + 密钥），授权页由 SDK 用 `ASWebAuthenticationSession` 打开，
+    /// 因此 App 本身无需开启 Sign in with Apple capability。Apple 账号整个 Logto 租户共用，
+    /// 同一 Apple ID 在 yado 各产品里登录得到的是同一个 Logto 用户（同一个 `sub`）。
+    /// 注意：Apple 只在首次授权时返回邮箱和姓名，用户可能选择隐藏邮箱，也可能没有昵称，界面需容忍资料为空。
     case apple
 
     var id: String { rawValue }
@@ -19,7 +24,7 @@ enum AuthSocialProvider: String, CaseIterable, Identifiable {
     /// 并在“登录体验”中启用后，再把这里改为 `true`。
     var isConnected: Bool {
         switch self {
-        case .apple: false
+        case .apple: true
         }
     }
 

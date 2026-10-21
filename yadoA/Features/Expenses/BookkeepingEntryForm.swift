@@ -152,10 +152,14 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
         .task {
             handleInitialPresentationIfNeeded()
         }
-        .onChange(of: selectedCategoryItem?.replacementKey) { _, replacementKey in
-            // 已选分类在分类管理里被删除时，跟随它的流水一起换到迁移目标，避免保存时引用不存在的分类。
-            if let replacementKey, selectedCategoryItem?.isDeleted == true {
+        .onChange(of: selectedCategoryItem?.isDeleted) { _, isDeleted in
+            // 已选分类在分类管理里被删除时：流水迁走了就跟随迁移目标，流水一并删除了就撤销选择，
+            // 避免保存时引用已删除的分类。
+            guard isDeleted == true else { return }
+            if let replacementKey = selectedCategoryItem?.replacementKey {
                 flow.selectCategory(key: replacementKey)
+            } else {
+                flow.clearCategory()
             }
         }
         .paperPage()
@@ -436,7 +440,7 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// 不阻断保存的余额提醒，以及保留草稿后的失败反馈。
+    /// 不阻断保存的余额提醒、流水已被删除的提示，以及保留草稿后的失败反馈。
     @ViewBuilder
     private var inlineFeedback: some View {
         if showsInsufficientBalanceWarning {
@@ -447,6 +451,14 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
             .font(.footnote)
             .foregroundStyle(.orange)
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+
+        if flow.isEntryRemoved {
+            Label(text("expense.edit.removed"), systemImage: "exclamationmark.circle.fill")
+                .font(.footnote)
+                .foregroundStyle(Color(.ledgerRed))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("\(configuration.identifierPrefix)-removed")
         }
 
         if flow.hasSaveError {
@@ -513,7 +525,7 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
         let entryType = flow.formEntryType
         return BookkeepingCategorySelectionView(
             entryType: entryType,
-            categories: catalog.pickerItems(for: entryType, including: flow.formCategoryKey),
+            categories: catalog.items(for: entryType),
             selectedKey: flow.formCategoryKey,
             titleKey: "\(entryType.rawValue).category.selection.title",
             accessibilityPrefix: "\(entryType.rawValue)-category",

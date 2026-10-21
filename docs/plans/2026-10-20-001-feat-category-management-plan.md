@@ -9,7 +9,7 @@ origin: docs/brainstorms/2026-10-20-category-management-requirements.md
 
 ## Summary
 
-新增持久化模型 `BookkeepingCategory`，用来保存分类的排序、隐藏状态、删除墓碑和自定义分类。流水依旧只存一个字符串 key，所有展示层改为通过分类目录（catalog）把 key 解析成名称和图标。schema 升到 V6。App 还没有上线，不考虑存量用户的数据迁移和旧备份兼容。
+新增持久化模型 `BookkeepingCategory`，用来保存分类的排序、删除墓碑和自定义分类。不做隐藏。流水依旧只存一个字符串 key，所有展示层改为通过分类目录（catalog）把 key 解析成名称和图标。schema 升到 V6。App 还没有上线，不考虑存量用户的数据迁移和旧备份兼容。
 
 ---
 
@@ -29,19 +29,22 @@ origin: docs/brainstorms/2026-10-20-category-management-requirements.md
     - `customName: String?`（预置分类为 nil）
     - `symbolName`
     - `sortIndex`
-    - `isHidden`
     - `updatedAt`
     - `deletedAt: Date?`
-    - `replacementKey: String?`
+    - `replacementKey: String?`（已删除且为 nil 表示流水随分类一并删除）
 - **KTD3. 读取时容错，启动时补齐。** `LocalDataBootstrap` 在启动后幂等地补齐缺失的预置行。catalog 合并「预置定义 + 已存行」时，缺行就用默认值兜底，所以即使补齐失败，记账和展示也不会坏。
 - **KTD4. 用 catalog 统一解析。** 新增值类型 `BookkeepingCategoryCatalog`，由 `[BookkeepingCategory]` 快照构造，提供：
-  - `visibleItems(direction)`：记账面板使用；
+  - `items(direction)`：记账面板和管理页使用，只含未删除的分类；
   - `item(direction, key)`：展示使用。删除记录也能解析出原名，未知 key 回退为「其他」的样式。
 
   `AccountTransactionPayload` 改为 `.expense(categoryKey:amount:)` / `.income(categoryKey:amount:)`，原先的 `categoryTitle`、`categorySymbolName` 改为接收 catalog 参数。首页、图表、搜索、详情、账户流水这些投影都加一个 catalog 入参，视图层用 `@Query` 取分类后传进去。
-- **KTD5. 写入时校验存在性，载荷层只校验格式。** `validatedPayload` 只检查 key 格式：要么是该方向的预置 rawValue，要么符合 `custom.<uuid>`。分类是否存在、是否已隐藏，由仓库在新建流水时检查。编辑已有流水时允许保留它当前的分类，即使该分类已隐藏。
+- **KTD5. 写入时校验存在性，载荷层只校验格式。** `validatedPayload` 只检查 key 格式：要么是该方向的预置 rawValue，要么符合 `custom.<uuid>`。分类是否存在、是否已删除，由仓库在新建和修改流水时检查。
 - **KTD6. 删除用软删除，一次保存完成迁移。**
-  - `LocalCategoryRepository.delete(key:migratingTo:)` 在同一个 manual-save context 里完成三件事：把相关流水改写为目标 key；写入 `deletedAt` 和 `replacementKey`；最后 save 一次。
+  - `LocalCategoryRepository.delete(key:direction:transactions:)` 的 `transactions` 为 `.migrate(to:)` 或 `.delete`，在同一个 manual-save context 里完成：
+    - 迁移：把相关流水改写为目标 key，`replacementKey` 记目标；
+    - 一并删除：复用 `LocalExpenseRepository.deleteTransactionsReversingBalances` 删除流水并回退余额，`replacementKey` 为 nil；有流水属于停用账户时拒绝（`transactionsInInactiveAccounts`）；
+    - 写入 `deletedAt`，最后 save 一次。
+  - 删除前用 `deletionImpact(key:direction:)` 取流水笔数和其中属于停用账户的笔数，供删除页展示。
   - 失败就整体回滚。
   - 删除记录不出现在列表里，但不做物理删除，为以后同步时「其他设备按同一目标迁移」预留。
 - **KTD7. 同步身份。** 预置分类以「方向 + key」作为跨设备身份。自定义分类的 key 本身就包含 UUID。本期不接同步，只保证以后不需要再改数据结构。
@@ -82,21 +85,21 @@ origin: docs/brainstorms/2026-10-20-category-management-requirements.md
   - `AccountTransaction.swift`：payload 改为用 key；工厂方法 `validatingExpense` / `validatingIncome` 改为接收 key，同时保留接收枚举的便捷重载，减少测试和夹具的改动。
   - `ExpenseCategoryPresentation.swift`：改为由 catalog 驱动。
   - `HomeOverviewPresentation`、`ChartOverviewPresentation`、`CategoryBreakdownPresentation`、`BookkeepingSearchPresentation`、`AccountTransactionHistoryPresentation`、`BookkeepingTransactionDetailView`：都接入 catalog。
-  - 草稿：`DiningExpenseDraft` / `DiningExpenseEditDraft` 改为存 key。新草稿的默认分类取该方向排序第一的可见分类。
+  - 草稿：`DiningExpenseDraft` / `DiningExpenseEditDraft` 改为存 key。新草稿的默认分类取该方向排序第一的分类。
 - **测试：**
   - 自定义分类的名称和图标在首页、图表、搜索中都能正确显示；
   - 改名后历史流水同步显示新名称；
-  - 隐藏的分类仍参与统计和搜索；
   - 未知 key 按「其他」降级显示；
   - 中英文 locale 下搜索都能匹配到自定义分类名称。
 
 ### U3. 分类仓库写操作
 
-- **方法：** `create`、`rename`、`changeSymbol`、`setHidden`、`move(direction:from:to:)`、`delete(key:migratingTo:)`、`transactionCount(key:)`、`validateName`。
+- **方法：** `create`、`rename`、`changeSymbol`、`reorder`、`delete(key:direction:transactions:)`、`deletionImpact(key:direction:)`、`validateName`。
 - **约束：**
   - 预置分类的名称和图标固定，不能修改，但可以删除；
-  - 「其他」不能隐藏或删除；
-  - 迁移目标必须是同方向、未隐藏、未删除的分类，且不能是被删除的分类本身；
+  - 「其他」不能删除；
+  - 迁移目标必须是同方向、未删除的分类，且不能是被删除的分类本身；
+  - 一并删除流水时，流水不能属于停用账户；
   - 新建的分类排在最后。
 - **约定：** 沿用 `Local*Repository` 的写法：`@MainActor`、使用新的 manual-save context、提供 `beforeSave` 故障注入点、只 save 一次。
 - **测试：** 覆盖每条约束；验证迁移的原子性（注入保存失败后，流水和分类都保持原样）；排序后 `sortIndex` 连续。
@@ -116,30 +119,29 @@ origin: docs/brainstorms/2026-10-20-category-management-requirements.md
 
 ### U5. 分类管理页与入口
 
-- **新增文件：** `yadoA/Features/Categories/` 下的 `CategoryManagementView`、`CategoryEditView`、`CategoryDeleteMigrationView`。
+- **新增文件：** `yadoA/Features/Categories/` 下的 `CategoryManagementView`、`CategoryEditView`、`CategoryDeleteView`。
 - **列表：**
   - 顶部用 `LedgerSwitch` 切换支出/收入；
-  - 列表分为「分类」和「已隐藏」两个 section；
+  - 列表只有一个「分类」section；
   - 右上角的「排序」按钮进入编辑模式，用 `.onMove` 拖拽调整顺序。
 - **左滑操作：**
-  - 自定义分类：「删除」，用破坏色；
-  - 预置分类：「隐藏」，用普通色；
+  - 自定义和预置分类：「删除」，用破坏色；
   - 「其他」：没有左滑操作，行内附说明文字。
 - **编辑页：**
-  - 预置分类的名称显示为只读，并附上说明；
+  - 只有自定义分类能进入编辑页，预置分类行尾无箭头、行内注明「系统分类，不可修改」；
   - 名称输入框带 `n/10` 计数，有重名或超长问题时实时提示并禁用保存按钮。
 - **删除：**
   - 没有流水：用 `confirmationDialog` 确认后删除；
-  - 有流水：弹出迁移页，标题为「将 N 笔流水移到」，默认选中「其他」，按钮文案为「移动并删除」。
+  - 有流水：弹出删除页，二选一「移到其他分类」（默认，目标默认「其他」，按钮「移动并删除」）或「一并删除流水」（按钮「删除分类和 N 笔流水」，再确认一次）；有停用账户的流水时后者置灰并说明原因。
 - **入口：**
   - `ProfileView` 新增「分类管理」行；
   - `BookkeepingCategorySelectionView` 网格末尾加一个「管理」入口，在面板自己的 `NavigationStack` 里 push 管理页。
-  - 记账面板改为显示 `visibleItems`，如果当前选中的分类已隐藏，也把它补进面板。
+  - 记账面板改为显示 `items`；当前选中的分类被删除时，迁移了就跟随迁移目标，流水一并删除了就撤销选择。
 - **UI 测试：**
   - 新增分类后，记账面板中能看到它；
   - 拖拽排序后，记账面板顺序跟着变；
   - 删除带流水的分类并迁移后，图表里的数据随之变化；
-  - 隐藏分类后，面板里看不到它，但搜索仍能找到历史流水。
+  - 删除分类时选「一并删除流水」，再确认后分类消失。
 
 ### U6. 备份导入导出
 

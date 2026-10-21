@@ -4,9 +4,9 @@ import SwiftData
 
 /// SwiftData 中持久化的一条收支分类设置。
 ///
-/// 预置分类与自定义分类共用这张表：预置分类只保存排序、隐藏和删除状态，
+/// 预置分类与自定义分类共用这张表：预置分类只保存排序和删除状态，
 /// 名称来自 String Catalog；自定义分类额外保存用户输入的名称。
-/// 流水通过 `key` 引用分类，删除分类时保留墓碑记录，为以后的多设备同步预留迁移目标。
+/// 流水通过 `key` 引用分类，删除分类时保留墓碑记录，为以后的多设备同步预留流水的处理方式。
 @Model
 final class BookkeepingCategory {
     /// 分类行的稳定标识；预置分类由「方向 + key」派生，保证各设备一致。
@@ -27,9 +27,6 @@ final class BookkeepingCategory {
     /// 同一方向内的展示顺序，数值越小越靠前。
     var sortIndex: Int
 
-    /// 是否在记账面板中隐藏；只影响新记账，不影响历史流水的展示与统计。
-    var isHidden: Bool
-
     /// 最近一次修改时间，供以后的同步做冲突判断。
     var updatedAt: Date
 
@@ -37,6 +34,8 @@ final class BookkeepingCategory {
     var deletedAt: Date?
 
     /// 删除时流水被迁往的分类 key；以后其他设备同步删除时按同一目标迁移。
+    ///
+    /// 已删除但为 `nil` 表示该分类的流水随分类一并删除，其他设备同步时也删除本机对应流水。
     var replacementKey: String?
 
     /// 创建一条分类设置。
@@ -47,7 +46,6 @@ final class BookkeepingCategory {
         customName: String? = nil,
         symbolName: String,
         sortIndex: Int,
-        isHidden: Bool = false,
         updatedAt: Date = .now,
         deletedAt: Date? = nil,
         replacementKey: String? = nil
@@ -58,7 +56,6 @@ final class BookkeepingCategory {
         self.customName = customName
         self.symbolName = symbolName
         self.sortIndex = sortIndex
-        self.isHidden = isHidden
         self.updatedAt = updatedAt
         self.deletedAt = deletedAt
         self.replacementKey = replacementKey

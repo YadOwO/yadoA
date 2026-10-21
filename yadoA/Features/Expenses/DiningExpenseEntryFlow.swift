@@ -137,6 +137,14 @@ final class DiningExpenseEntryFlow: ObservableObject {
         markAsEditing()
     }
 
+    /// 已选分类在分类管理里连同流水一起删除后，撤销分类选择，让用户重新选择。
+    func clearCategory() {
+        guard !isSaving, hasConfirmedCategory else { return }
+        // 确认标记不是 @Published，手动通知页面刷新分类区域与提交按钮。
+        objectWillChange.send()
+        hasConfirmedCategory = false
+    }
+
     /// 切换收支方向；新方向必须重新确认分类，避免把占位值当成用户选择。
     func selectEntryType(_ entryType: BookkeepingEntryType) {
         guard !isSaving, draft.entryType != entryType else { return }

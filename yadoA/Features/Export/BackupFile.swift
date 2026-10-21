@@ -43,7 +43,7 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
     /// canonical 默认记账账户偏好；为 `nil` 表示存储中还没有偏好记录。
     let bookkeepingPreference: BackupBookkeepingPreference?
 
-    /// 全部分类设置，包含预置分类的排序、隐藏状态，自定义分类以及删除墓碑。
+    /// 全部分类设置，包含预置分类的排序、自定义分类以及删除墓碑。
     let categories: [BackupCategory]
 
     /// 从完整业务快照构造备份信封。
@@ -358,16 +358,13 @@ nonisolated struct BackupCategory: Codable, Equatable, Sendable {
     /// 同方向内的展示顺序。
     let sortIndex: Int
 
-    /// 是否在记账面板中隐藏。
-    let isHidden: Bool
-
     /// 最近一次修改时间。
     let updatedAt: Date
 
     /// 删除时间；非空表示墓碑。
     let deletedAt: Date?
 
-    /// 删除时流水迁往的分类 key。
+    /// 删除时流水迁往的分类 key；已删除但为 `nil` 表示流水随分类一并删除。
     let replacementKey: String?
 
     /// 从持久化分类生成值快照。
@@ -378,7 +375,6 @@ nonisolated struct BackupCategory: Codable, Equatable, Sendable {
         customName = category.customName
         symbolName = category.symbolName
         sortIndex = category.sortIndex
-        isHidden = category.isHidden
         updatedAt = category.updatedAt
         deletedAt = category.deletedAt
         replacementKey = category.replacementKey
@@ -392,7 +388,6 @@ nonisolated struct BackupCategory: Codable, Equatable, Sendable {
         customName: String?,
         symbolName: String,
         sortIndex: Int,
-        isHidden: Bool,
         updatedAt: Date,
         deletedAt: Date?,
         replacementKey: String?
@@ -403,7 +398,6 @@ nonisolated struct BackupCategory: Codable, Equatable, Sendable {
         self.customName = customName
         self.symbolName = symbolName
         self.sortIndex = sortIndex
-        self.isHidden = isHidden
         self.updatedAt = updatedAt
         self.deletedAt = deletedAt
         self.replacementKey = replacementKey
@@ -418,7 +412,6 @@ nonisolated struct BackupCategory: Codable, Equatable, Sendable {
         try container.encode(customName, forKey: .customName)
         try container.encode(symbolName, forKey: .symbolName)
         try container.encode(sortIndex, forKey: .sortIndex)
-        try container.encode(isHidden, forKey: .isHidden)
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(deletedAt, forKey: .deletedAt)
         try container.encode(replacementKey, forKey: .replacementKey)
@@ -433,7 +426,6 @@ nonisolated struct BackupCategory: Codable, Equatable, Sendable {
         customName = try container.decodeIfPresent(String.self, forKey: .customName)
         symbolName = try container.decodeIfPresent(String.self, forKey: .symbolName) ?? ""
         sortIndex = try container.decodeIfPresent(Int.self, forKey: .sortIndex) ?? 0
-        isHidden = try container.decodeIfPresent(Bool.self, forKey: .isHidden) ?? false
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
         deletedAt = try container.decodeIfPresent(Date.self, forKey: .deletedAt)
         replacementKey = try container.decodeIfPresent(String.self, forKey: .replacementKey)
@@ -532,7 +524,6 @@ extension BackupCategory {
         case customName
         case symbolName
         case sortIndex
-        case isHidden
         case updatedAt
         case deletedAt
         case replacementKey

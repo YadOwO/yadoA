@@ -17,13 +17,10 @@ struct BookkeepingCategoryItem: Identifiable, Hashable, Sendable {
     /// 同一方向内的展示顺序。
     let sortIndex: Int
 
-    /// 是否在记账面板中隐藏。
-    let isHidden: Bool
-
     /// 是否已删除（墓碑）。
     let isDeleted: Bool
 
-    /// 删除时流水迁往的分类 key；未删除时为 `nil`。
+    /// 删除时流水迁往的分类 key；未删除或流水随分类一并删除时为 `nil`。
     let replacementKey: String?
 
     /// 含方向前缀的稳定标识，避免收入与支出的同名 key 冲突。
@@ -32,7 +29,7 @@ struct BookkeepingCategoryItem: Identifiable, Hashable, Sendable {
     /// 是否为预置分类。
     var isPreset: Bool { BookkeepingCategoryKey.isPreset(key, direction: direction) }
 
-    /// 是否为该方向的「其他」分类；它是删除迁移的兜底目标，不能删除或隐藏。
+    /// 是否为该方向的「其他」分类；它是删除迁移的兜底目标，不能删除。
     var isOther: Bool { key == BookkeepingCategoryKey.other }
 
     /// 只有自定义分类可以改名和换图标；预置分类的名称和图标固定。
@@ -40,9 +37,6 @@ struct BookkeepingCategoryItem: Identifiable, Hashable, Sendable {
 
     /// 除「其他」外都可以删除，预置分类也可以。
     var canDelete: Bool { !isOther }
-
-    /// 除「其他」外都可以隐藏。
-    var canHide: Bool { !isOther }
 
     /// 返回当前语言环境下的分类名称；自定义分类按用户输入原样显示。
     ///
@@ -61,7 +55,6 @@ struct BookkeepingCategoryItem: Identifiable, Hashable, Sendable {
             customName: nil,
             symbolName: preset.symbolName,
             sortIndex: preset.sortIndex,
-            isHidden: false,
             isDeleted: false,
             replacementKey: nil
         )
@@ -81,7 +74,6 @@ struct BookkeepingCategoryItem: Identifiable, Hashable, Sendable {
             customName: preset == nil ? category.customName : nil,
             symbolName: preset?.symbolName ?? category.symbolName,
             sortIndex: category.sortIndex,
-            isHidden: category.isHidden,
             isDeleted: category.isTombstoned,
             replacementKey: category.replacementKey
         )
@@ -94,7 +86,6 @@ struct BookkeepingCategoryItem: Identifiable, Hashable, Sendable {
         customName: String?,
         symbolName: String,
         sortIndex: Int,
-        isHidden: Bool,
         isDeleted: Bool,
         replacementKey: String? = nil
     ) {
@@ -103,7 +94,6 @@ struct BookkeepingCategoryItem: Identifiable, Hashable, Sendable {
         self.customName = customName
         self.symbolName = symbolName
         self.sortIndex = sortIndex
-        self.isHidden = isHidden
         self.isDeleted = isDeleted
         self.replacementKey = replacementKey
     }
@@ -157,37 +147,9 @@ struct BookkeepingCategoryCatalog: Equatable, Sendable {
         self.orderedItems = orderedItems
     }
 
-    /// 指定方向下未删除的全部分类（含已隐藏），按展示顺序排列。
+    /// 指定方向下未删除的全部分类，按展示顺序排列；记账面板和管理页都用它。
     func items(for direction: BookkeepingEntryType) -> [BookkeepingCategoryItem] {
         orderedItems[direction] ?? []
-    }
-
-    /// 指定方向下记账面板可选的分类。
-    func visibleItems(for direction: BookkeepingEntryType) -> [BookkeepingCategoryItem] {
-        items(for: direction).filter { !$0.isHidden }
-    }
-
-    /// 指定方向下已隐藏的分类。
-    func hiddenItems(for direction: BookkeepingEntryType) -> [BookkeepingCategoryItem] {
-        items(for: direction).filter(\.isHidden)
-    }
-
-    /// 记账面板展示的分类：可见分类，再补上当前已选但已隐藏的分类，避免编辑旧流水时选中项消失。
-    ///
-    /// - Parameters:
-    ///   - direction: 收支方向。
-    ///   - selectedKey: 当前草稿已选的分类 key。
-    func pickerItems(
-        for direction: BookkeepingEntryType,
-        including selectedKey: String?
-    ) -> [BookkeepingCategoryItem] {
-        let visible = visibleItems(for: direction)
-        guard let selectedKey,
-              !visible.contains(where: { $0.key == selectedKey }),
-              let selected = item(direction: direction, key: selectedKey),
-              !selected.isDeleted
-        else { return visible }
-        return visible + [selected]
     }
 
     /// 精确查找分类，包含已删除的墓碑；不存在时返回 `nil`。
@@ -204,8 +166,8 @@ struct BookkeepingCategoryCatalog: Equatable, Sendable {
         )
     }
 
-    /// 新草稿默认使用的分类：该方向排序第一的可见分类。
+    /// 新草稿默认使用的分类：该方向排序第一的分类。
     func defaultKey(for direction: BookkeepingEntryType) -> String {
-        visibleItems(for: direction).first?.key ?? BookkeepingCategoryKey.other
+        items(for: direction).first?.key ?? BookkeepingCategoryKey.other
     }
 }

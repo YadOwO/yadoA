@@ -26,22 +26,22 @@ enum CategoryEditorRoute: Identifiable, Hashable {
     }
 }
 
-/// 一次删除请求：被删除的分类及引用它的流水笔数。
+/// 一次删除请求：被删除的分类及删除对流水的影响。
 struct CategoryDeletionRequest: Identifiable, Hashable {
     /// 要删除的分类，预置或自定义均可。
     let item: BookkeepingCategoryItem
 
-    /// 引用该分类的流水笔数；为零时只需二次确认，不需要选择迁移目标。
-    let transactionCount: Int
+    /// 该分类下的流水笔数及其中不能删除的笔数；没有流水时只需二次确认。
+    let impact: CategoryDeletionImpact
 
     /// 使用分类标识作为 Sheet 标识。
     var id: String { item.id }
 }
 
-/// 分类管理页：支出、收入分类的新增、编辑、排序、隐藏和删除。
+/// 分类管理页：支出、收入分类的新增、编辑、排序和删除。
 ///
 /// 规则限制都在界面上直接表达：只有自定义分类显示进入编辑的箭头，预置分类在行内标明「不可修改」；
-/// 除「其他」外都能左滑删除或隐藏，「其他」没有左滑操作并在行内说明原因，避免用户点了没反应才发现做不了。
+/// 除「其他」外都能左滑删除，「其他」没有左滑操作并在行内说明原因，避免用户点了没反应才发现做不了。
 struct CategoryManagementView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.locale) private var locale
@@ -59,8 +59,8 @@ struct CategoryManagementView: View {
     /// 没有流水的分类等待二次确认删除。
     @State private var pendingDeletion: CategoryDeletionRequest?
 
-    /// 有流水的分类等待选择迁移目标。
-    @State private var migrationRequest: CategoryDeletionRequest?
+    /// 有流水的分类等待选择迁移或一并删除。
+    @State private var deletionWithTransactions: CategoryDeletionRequest?
 
     /// 最近一次写操作是否失败。
     @State private var isOperationFailed = false
@@ -76,8 +76,7 @@ struct CategoryManagementView: View {
     }
 
     var body: some View {
-        let visibleItems = catalog.visibleItems(for: direction)
-        let hiddenItems = catalog.hiddenItems(for: direction)
+        let items = catalog.items(for: direction)
 
         List {
             Section {
@@ -95,12 +94,12 @@ struct CategoryManagementView: View {
             }
 
             Section {
-                ForEach(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
-                    visibleRow(item)
-                        .ledgerRow(seed: 300 + UInt64(index), showsRule: index != visibleItems.count - 1)
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    row(item)
+                        .ledgerRow(seed: 300 + UInt64(index), showsRule: index != items.count - 1)
                 }
                 .onMove { source, destination in
-                    move(visibleItems, hiddenItems: hiddenItems, from: source, to: destination)
+                    move(items, from: source, to: destination)
                 }
             } header: {
                 Text(text("category.management.section.visible"))
@@ -110,25 +109,9 @@ struct CategoryManagementView: View {
             } footer: {
                 Text(text("category.management.footer"))
             }
-
-            if !hiddenItems.isEmpty {
-                Section {
-                    ForEach(Array(hiddenItems.enumerated()), id: \.element.id) { index, item in
-                        hiddenRow(item)
-                            .ledgerRow(seed: 400 + UInt64(index), showsRule: index != hiddenItems.count - 1)
-                    }
-                } header: {
-                    Text(text("category.management.section.hidden"))
-                        .font(.system(.headline, design: .serif))
-                        .foregroundStyle(.primary)
-                        .ledgerHeadingRule(seed: 299)
-                } footer: {
-                    Text(text("category.management.hidden.footer"))
-                }
-            }
         }
         .environment(\.editMode, $editMode)
-        .animation(.default, value: categories.count)
+        .animation(.default, value: items.map(\.id))
         .paperPage()
         .navigationTitle(text("category.management.title"))
         .navigationBarTitleDisplayMode(.inline)
@@ -156,14 +139,14 @@ struct CategoryManagementView: View {
                 CategoryEditView(route: route)
             }
         }
-        .sheet(item: $migrationRequest) { request in
+        .sheet(item: $deletionWithTransactions) { request in
             NavigationStack {
-                CategoryDeleteMigrationView(
+                CategoryDeleteView(
                     request: request,
-                    targets: catalog.visibleItems(for: request.item.direction)
+                    targets: catalog.items(for: request.item.direction)
                         .filter { $0.key != request.item.key },
-                    onConfirm: { targetKey in
-                        delete(request.item, migratingTo: targetKey)
+                    onConfirm: { disposition in
+                        delete(request.item, transactions: disposition)
                     }
                 )
             }
@@ -178,7 +161,8 @@ struct CategoryManagementView: View {
             presenting: pendingDeletion
         ) { request in
             Button(text("category.delete.action"), role: .destructive) {
-                delete(request.item, migratingTo: BookkeepingCategoryKey.other)
+                // 本机没有流水时也记下兜底目标，以后同步到其他设备时把那边的流水迁到「其他」。
+                delete(request.item, transactions: .migrate(to: BookkeepingCategoryKey.other))
             }
             Button(text("common.cancel"), role: .cancel) {}
         } message: { _ in
@@ -191,28 +175,24 @@ struct CategoryManagementView: View {
 
     // MARK: - 行
 
-    /// 可见分类：自定义分类点击进入编辑；左滑给出「删除」和「隐藏」，「其他」没有左滑操作。
-    private func visibleRow(_ item: BookkeepingCategoryItem) -> some View {
-        visibleRowContent(item)
+    /// 分类行：自定义分类点击进入编辑；除「其他」外左滑可删除。
+    private func row(_ item: BookkeepingCategoryItem) -> some View {
+        rowContent(item)
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 if item.canDelete {
-                    deleteButton(item)
-                }
-                if item.canHide {
-                    Button {
-                        setHidden(true, item: item)
+                    Button(role: .destructive) {
+                        requestDeletion(of: item)
                     } label: {
-                        Label(text("category.hide.action"), systemImage: "eye.slash")
+                        Label(text("category.delete.action"), systemImage: "trash")
                     }
-                    .tint(.gray)
                 }
             }
             .accessibilityIdentifier("category-row-\(item.key)")
     }
 
-    /// 可见分类的行内容：只有可编辑的自定义分类是按钮并显示箭头，预置分类只展示。
+    /// 分类行内容：只有可编辑的自定义分类是按钮并显示箭头，预置分类只展示。
     @ViewBuilder
-    private func visibleRowContent(_ item: BookkeepingCategoryItem) -> some View {
+    private func rowContent(_ item: BookkeepingCategoryItem) -> some View {
         if item.canEdit {
             Button {
                 guard !editMode.isEditing else { return }
@@ -226,34 +206,6 @@ struct CategoryManagementView: View {
         }
     }
 
-    /// 已隐藏分类：行尾直接给出「恢复」，不用左滑也能找到；左滑仍可删除。
-    private func hiddenRow(_ item: BookkeepingCategoryItem) -> some View {
-        HStack {
-            CategoryRowLabel(item: item, subtitle: nil, showsChevron: false)
-                .opacity(0.6)
-            Button(text("category.unhide.action")) {
-                setHidden(false, item: item)
-            }
-            .buttonStyle(.bordered)
-            .accessibilityIdentifier("category-unhide-\(item.key)")
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            if item.canDelete {
-                deleteButton(item)
-            }
-        }
-        .accessibilityIdentifier("category-hidden-row-\(item.key)")
-    }
-
-    /// 左滑的「删除」按钮。
-    private func deleteButton(_ item: BookkeepingCategoryItem) -> some View {
-        Button(role: .destructive) {
-            requestDeletion(of: item)
-        } label: {
-            Label(text("category.delete.action"), systemImage: "trash")
-        }
-    }
-
     /// 行内的补充说明：「其他」说明它的兜底用途，其余预置分类标明是不可修改的系统分类。
     private func subtitle(for item: BookkeepingCategoryItem) -> String? {
         if item.isOther { return text("category.other.hint") }
@@ -263,49 +215,34 @@ struct CategoryManagementView: View {
 
     // MARK: - 操作
 
-    /// 把拖拽后的可见分类顺序写回存储；已隐藏的分类保持原顺序排在后面。
-    private func move(
-        _ visibleItems: [BookkeepingCategoryItem],
-        hiddenItems: [BookkeepingCategoryItem],
-        from source: IndexSet,
-        to destination: Int
-    ) {
-        var reordered = visibleItems
+    /// 把拖拽后的分类顺序写回存储。
+    private func move(_ items: [BookkeepingCategoryItem], from source: IndexSet, to destination: Int) {
+        var reordered = items
         reordered.move(fromOffsets: source, toOffset: destination)
         perform {
-            try repository.reorder(
-                reordered.map(\.key) + hiddenItems.map(\.key),
-                direction: direction
-            )
+            try repository.reorder(reordered.map(\.key), direction: direction)
         }
     }
 
-    /// 隐藏或恢复分类。
-    private func setHidden(_ isHidden: Bool, item: BookkeepingCategoryItem) {
-        perform {
-            try repository.setHidden(isHidden, key: item.key, direction: item.direction)
-        }
-    }
-
-    /// 先统计流水：没有流水只需确认，有流水则让用户选择迁移目标。
+    /// 先统计流水：没有流水只需确认，有流水则让用户选择迁移还是一并删除。
     private func requestDeletion(of item: BookkeepingCategoryItem) {
         do {
-            let count = try repository.transactionCount(key: item.key, direction: item.direction)
-            let request = CategoryDeletionRequest(item: item, transactionCount: count)
-            if count == 0 {
+            let impact = try repository.deletionImpact(key: item.key, direction: item.direction)
+            let request = CategoryDeletionRequest(item: item, impact: impact)
+            if impact.transactionCount == 0 {
                 pendingDeletion = request
             } else {
-                migrationRequest = request
+                deletionWithTransactions = request
             }
         } catch {
             isOperationFailed = true
         }
     }
 
-    /// 删除分类并把流水迁到目标分类。
-    private func delete(_ item: BookkeepingCategoryItem, migratingTo targetKey: String) {
+    /// 删除分类，并按用户选择迁移或删除它的流水。
+    private func delete(_ item: BookkeepingCategoryItem, transactions disposition: CategoryTransactionDisposition) {
         perform {
-            try repository.delete(key: item.key, direction: item.direction, migratingTo: targetKey)
+            try repository.delete(key: item.key, direction: item.direction, transactions: disposition)
         }
     }
 
@@ -337,7 +274,7 @@ struct CategoryManagementView: View {
     }
 }
 
-/// 分类行的图标、名称和补充说明，管理页与迁移页共用。
+/// 分类行的图标、名称和补充说明，管理页与删除页共用。
 struct CategoryRowLabel: View {
     @Environment(\.locale) private var locale
 

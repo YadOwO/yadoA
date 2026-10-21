@@ -21,8 +21,11 @@ enum CategoryRepositoryError: Error, Equatable {
     /// 预置分类的名称和图标固定，不能修改。
     case presetNotEditable(String)
 
-    /// 「其他」是删除迁移的兜底分类，不能隐藏或删除。
-    case otherNotRemovable
+    /// 「其他」是删除迁移的兜底分类，不能删除。
+    case otherNotDeletable
+
+    /// 要一并删除的流水里有属于已停用账户的流水；删除会改动停用账户的余额，只能迁移。
+    case transactionsInInactiveAccounts
 
     /// 名称不符合规则。
     case invalidName(CategoryNameIssue)
@@ -30,8 +33,29 @@ enum CategoryRepositoryError: Error, Equatable {
     /// 图标名称为空。
     case invalidSymbol
 
-    /// 删除迁移的目标不是同方向、未隐藏、未删除的其他分类。
+    /// 删除迁移的目标不是同方向、未删除的其他分类。
     case invalidMigrationTarget(String)
+}
+
+/// 删除分类时，该分类下流水的处理方式。
+enum CategoryTransactionDisposition: Equatable, Sendable {
+    /// 把流水迁到同方向的另一个分类。
+    case migrate(to: String)
+
+    /// 把流水一并删除，并撤销它们对账户余额的影响。
+    case delete
+}
+
+/// 删除分类前的影响预估，删除页据此展示笔数并决定能否「一并删除流水」。
+struct CategoryDeletionImpact: Hashable, Sendable {
+    /// 该分类下的收支流水笔数。
+    let transactionCount: Int
+
+    /// 其中属于已停用账户的笔数；这些流水删除会改动停用账户余额，所以只能迁移。
+    let inactiveAccountTransactionCount: Int
+
+    /// 是否可以选择「一并删除流水」。
+    var canDeleteTransactions: Bool { inactiveAccountTransactionCount == 0 }
 }
 
 /// 在主 actor 上管理分类设置的本地仓库。
@@ -170,35 +194,6 @@ final class LocalCategoryRepository {
         try context.saveOrRollback(beforeSave: beforeSave)
     }
 
-    /// 隐藏或恢复一个分类；隐藏只影响新记账，历史流水照常展示和统计。
-    ///
-    /// - Parameters:
-    ///   - isHidden: 目标隐藏状态。
-    ///   - key: 分类 key。
-    ///   - direction: 收支方向。
-    ///   - now: 注入的修改时间。
-    /// - Throws: 分类不存在、试图隐藏「其他」或保存失败时抛出错误。
-    func setHidden(
-        _ isHidden: Bool,
-        key: String,
-        direction: BookkeepingEntryType,
-        now: Date = .now
-    ) throws {
-        if isHidden, key == BookkeepingCategoryKey.other {
-            throw CategoryRepositoryError.otherNotRemovable
-        }
-        let context = container.makeManualSaveContext()
-        _ = try insertMissingPresets(in: context)
-        let rows = try categories(direction: direction, in: context)
-        guard let row = rows.first(where: { $0.key == key && !$0.isTombstoned }) else {
-            throw CategoryRepositoryError.categoryNotFound(key)
-        }
-        guard row.isHidden != isHidden else { return }
-        row.isHidden = isHidden
-        row.updatedAt = now
-        try context.saveOrRollback(beforeSave: beforeSave)
-    }
-
     /// 按给定顺序重排同方向的分类，`sortIndex` 重新从 0 连续编号。
     ///
     /// 未出现在 `orderedKeys` 中的未删除分类按原顺序排在后面，避免界面只传部分列表时丢失分类。
@@ -241,53 +236,68 @@ final class LocalCategoryRepository {
 
     // MARK: - 删除
 
-    /// 统计引用某分类的流水数量，供删除前提示。
+    /// 预估删除某分类的影响，供删除页展示。
     ///
     /// - Parameters:
     ///   - key: 分类 key。
     ///   - direction: 收支方向。
-    /// - Returns: 引用该分类的收支流水笔数。
-    func transactionCount(key: String, direction: BookkeepingEntryType) throws -> Int {
+    /// - Returns: 该分类下的流水笔数，以及其中属于已停用账户的笔数。
+    /// - Throws: 读取失败时抛出底层错误。
+    func deletionImpact(key: String, direction: BookkeepingEntryType) throws -> CategoryDeletionImpact {
         let context = container.makeManualSaveContext()
-        return try context.fetchCount(Self.transactionDescriptor(key: key, direction: direction))
+        let transactions = try context.fetch(Self.transactionDescriptor(key: key, direction: direction))
+        return CategoryDeletionImpact(
+            transactionCount: transactions.count,
+            inactiveAccountTransactionCount: try Self.inactiveAccountTransactions(in: transactions, context: context).count
+        )
     }
 
-    /// 删除一个分类（预置或自定义，「其他」除外），并把引用它的流水迁到目标分类；全部修改一次保存。
+    /// 删除一个分类（预置或自定义，「其他」除外），并按用户选择迁移或删除它的流水；全部修改一次保存。
     ///
-    /// 分类行不做物理删除，而是写入删除时间和迁移目标作为墓碑，为以后的同步预留；
-    /// 预置分类的墓碑也让启动补齐不会把它重新加回来。
+    /// 分类行不做物理删除，而是写入删除时间作为墓碑，为以后的同步预留：迁移时记下目标分类，
+    /// 一并删除流水时迁移目标为空。预置分类的墓碑也让启动补齐不会把它重新加回来。
     ///
     /// - Parameters:
     ///   - key: 要删除的分类 key。
     ///   - direction: 收支方向。
-    ///   - targetKey: 流水迁往的分类；没有流水时也必须是合法目标。
+    ///   - disposition: 流水迁往哪个分类，或一并删除。
     ///   - now: 注入的删除时间。
-    /// - Throws: 分类不存在、试图删除「其他」、目标不合法或保存失败时抛出错误。
+    /// - Throws: 分类不存在、试图删除「其他」、迁移目标不合法、要删除的流水属于停用账户、
+    ///   余额计算或保存失败时抛出错误。
     func delete(
         key: String,
         direction: BookkeepingEntryType,
-        migratingTo targetKey: String,
+        transactions disposition: CategoryTransactionDisposition,
         now: Date = .now
     ) throws {
-        guard key != BookkeepingCategoryKey.other else { throw CategoryRepositoryError.otherNotRemovable }
+        guard key != BookkeepingCategoryKey.other else { throw CategoryRepositoryError.otherNotDeletable }
         let context = container.makeManualSaveContext()
         _ = try insertMissingPresets(in: context)
         let rows = try categories(direction: direction, in: context)
         guard let row = rows.first(where: { $0.key == key && !$0.isTombstoned }) else {
             throw CategoryRepositoryError.categoryNotFound(key)
         }
-        guard targetKey != key,
-              rows.contains(where: { $0.key == targetKey && !$0.isTombstoned && !$0.isHidden })
-        else {
-            throw CategoryRepositoryError.invalidMigrationTarget(targetKey)
-        }
+        let transactions = try context.fetch(Self.transactionDescriptor(key: key, direction: direction))
 
-        for transaction in try context.fetch(Self.transactionDescriptor(key: key, direction: direction)) {
-            transaction.categoryRawValue = targetKey
+        switch disposition {
+        case let .migrate(targetKey):
+            guard targetKey != key,
+                  rows.contains(where: { $0.key == targetKey && !$0.isTombstoned })
+            else {
+                throw CategoryRepositoryError.invalidMigrationTarget(targetKey)
+            }
+            for transaction in transactions {
+                transaction.categoryRawValue = targetKey
+            }
+            row.replacementKey = targetKey
+        case .delete:
+            guard try Self.inactiveAccountTransactions(in: transactions, context: context).isEmpty else {
+                throw CategoryRepositoryError.transactionsInInactiveAccounts
+            }
+            try LocalExpenseRepository.deleteTransactionsReversingBalances(transactions, in: context)
+            row.replacementKey = nil
         }
         row.deletedAt = now
-        row.replacementKey = targetKey
-        row.isHidden = false
         row.updatedAt = now
         try context.saveOrRollback(beforeSave: beforeSave)
     }
@@ -371,6 +381,18 @@ final class LocalCategoryRepository {
     /// 用分类行构造目录，供名称校验使用。
     private func catalog(of rows: [BookkeepingCategory]) -> BookkeepingCategoryCatalog {
         BookkeepingCategoryCatalog(categories: rows)
+    }
+
+    /// 筛出账户已停用或不存在的流水；这些流水不能随分类删除。
+    private static func inactiveAccountTransactions(
+        in transactions: [AccountTransaction],
+        context: ModelContext
+    ) throws -> [AccountTransaction] {
+        guard !transactions.isEmpty else { return [] }
+        let activeAccountIDs = Set(
+            try context.fetch(FetchDescriptor<Account>()).filter(\.isActive).map(\.id)
+        )
+        return transactions.filter { !activeAccountIDs.contains($0.accountID) }
     }
 
     /// 查询引用指定分类的收支流水。

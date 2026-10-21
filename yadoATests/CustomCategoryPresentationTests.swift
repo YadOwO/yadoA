@@ -17,7 +17,6 @@ struct CustomCategoryPresentationTests {
                 customName: "咖啡",
                 symbolName: "cup.and.saucer",
                 sortIndex: 16,
-                isHidden: false,
                 isDeleted: false
             )
         ])

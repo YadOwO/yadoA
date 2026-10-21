@@ -5653,6 +5653,23 @@
         }
       }
     },
+    "expense.edit.removed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This transaction was deleted along with its category and can no longer be saved."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这笔记账已随分类一起删除，无法再保存。"
+          }
+        }
+      }
+    },
     "expense.edit.save_failed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6998,53 +7015,19 @@
         }
       }
     },
-    "category.management.section.hidden" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hidden"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已隐藏"
-          }
-        }
-      }
-    },
     "category.management.footer" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap a custom category to edit it. Swipe left to delete or hide a category. Tap Sort to reorder."
+            "value" : "Tap a custom category to edit it. Swipe left to delete a category. Tap Sort to reorder."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "点击自定义分类可编辑。左滑可删除或隐藏分类；点「排序」后可拖动调整顺序。"
-          }
-        }
-      }
-    },
-    "category.management.hidden.footer" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hidden categories don't appear when adding entries. Past entries are not affected."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "隐藏的分类不会出现在记账面板中，历史流水不受影响。"
+            "value" : "点击自定义分类可编辑。左滑可删除分类；点「排序」后可拖动调整顺序。"
           }
         }
       }
@@ -7123,47 +7106,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Receives entries from deleted categories. Can't be deleted or hidden."
+            "value" : "Receives entries from deleted categories. Can't be deleted."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "用于接收被删除分类的流水，不能删除或隐藏"
-          }
-        }
-      }
-    },
-    "category.hide.action" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "隐藏"
-          }
-        }
-      }
-    },
-    "category.unhide.action" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Restore"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "恢复"
+            "value" : "用于接收被删除分类的流水，不能删除"
           }
         }
       }
@@ -7181,6 +7130,159 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "删除"
+          }
+        }
+      }
+    },
+    "category.delete.choice.delete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete the entries too"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一并删除流水"
+          }
+        }
+      }
+    },
+    "category.delete.choice.delete.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The entries are removed and account balances are rolled back"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除这些流水，账户余额同步回退"
+          }
+        }
+      }
+    },
+    "category.delete.choice.delete.locked" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%ld of them belong to deactivated accounts, so they can only be moved"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其中 %ld 笔属于已停用的账户，只能移到其他分类"
+          }
+        }
+      }
+    },
+    "category.delete.choice.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entries in this category: %ld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个分类下有 %ld 笔流水"
+          }
+        }
+      }
+    },
+    "category.delete.choice.migrate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to another category"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移到其他分类"
+          }
+        }
+      }
+    },
+    "category.delete.choice.migrate.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entries are kept under the category you choose"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "流水保留，归到所选分类"
+          }
+        }
+      }
+    },
+    "category.delete.transactions.alert.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted entries can't be recovered. Account balances will be rolled back."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "流水删除后无法恢复，相关账户余额会同步回退。"
+          }
+        }
+      }
+    },
+    "category.delete.transactions.alert.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete these entries?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除 %ld 笔流水？"
+          }
+        }
+      }
+    },
+    "category.delete.transactions.confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Category and Entries"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除分类和 %ld 笔流水"
           }
         }
       }
@@ -7225,13 +7327,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Move %ld entries to"
+            "value" : "Move to"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "将 %ld 笔流水移到"
+            "value" : "移到"
           }
         }
       }

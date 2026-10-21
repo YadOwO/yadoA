@@ -339,7 +339,6 @@ extension BackupImportService {
                 customName: preset == nil ? category.customName : nil,
                 symbolName: preset?.symbolName ?? category.symbolName,
                 sortIndex: category.sortIndex,
-                isHidden: category.isHidden,
                 updatedAt: category.updatedAt,
                 deletedAt: category.deletedAt,
                 replacementKey: category.replacementKey
@@ -401,7 +400,6 @@ private extension BookkeepingCategory {
         customName = other.customName
         symbolName = other.symbolName
         sortIndex = other.sortIndex
-        isHidden = other.isHidden
         updatedAt = other.updatedAt
         deletedAt = other.deletedAt
         replacementKey = other.replacementKey

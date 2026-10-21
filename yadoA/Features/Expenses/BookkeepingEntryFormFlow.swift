@@ -35,11 +35,17 @@ protocol BookkeepingEntryFormFlow: ObservableObject {
     /// 草稿自身是否满足提交条件；账户是否仍然可用由页面另行确认。
     var canSubmit: Bool { get }
 
+    /// 正在编辑的流水是否已被删除；新增记账始终为 `false`。
+    var isEntryRemoved: Bool { get }
+
     /// 切换收支方向。
     func selectEntryType(_ entryType: BookkeepingEntryType)
 
     /// 选择当前方向下的分类。
     func selectCategory(key: String)
+
+    /// 已选分类连同流水一起被删除、没有迁移目标时撤销选择。
+    func clearCategory()
 
     /// 修改标题；没有标题字段的草稿忽略这次输入。
     func updateTitle(_ title: String)
@@ -76,6 +82,8 @@ extension DiningExpenseEntryFlow: BookkeepingEntryFormFlow {
 
     var formNote: String { draft.note }
 
+    var isEntryRemoved: Bool { false }
+
     func updateTitle(_ title: String) {}
 
     func selectFormAccount(id: UUID) {
@@ -88,7 +96,9 @@ extension DiningExpenseEditFlow: BookkeepingEntryFormFlow {
     var formEntryType: BookkeepingEntryType { draft.entryType }
 
     var formCategoryKey: String? {
-        draft.entryType == .expense ? draft.expenseCategoryKey : draft.incomeCategoryKey
+        // 当前方向的分类已随流水一起删除时视为未选择，页面会提示重新选择。
+        guard !directionsAwaitingCategory.contains(draft.entryType) else { return nil }
+        return draft.entryType == .expense ? draft.expenseCategoryKey : draft.incomeCategoryKey
     }
 
     var formTitle: String? { draft.title }
@@ -103,17 +113,10 @@ extension DiningExpenseEditFlow: BookkeepingEntryFormFlow {
 
     var formNote: String { draft.note }
 
+    var isEntryRemoved: Bool { isTransactionRemoved }
+
     func selectEntryType(_ entryType: BookkeepingEntryType) {
         update { $0.entryType = entryType }
-    }
-
-    func selectCategory(key: String) {
-        update { draft in
-            switch draft.entryType {
-            case .expense: draft.expenseCategoryKey = key
-            case .income: draft.incomeCategoryKey = key
-            }
-        }
     }
 
     func selectFormAccount(id: UUID) {

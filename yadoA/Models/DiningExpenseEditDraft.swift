@@ -164,6 +164,12 @@ final class DiningExpenseEditFlow: ObservableObject {
     /// 当前提交流程状态。
     @Published private(set) var submissionState: DiningExpenseEditSubmissionState = .editing
 
+    /// 草稿分类已连同流水一起被删除、需要用户重新选择分类的收支方向。
+    @Published private(set) var directionsAwaitingCategory: Set<BookkeepingEntryType> = []
+
+    /// 所编辑的流水本身是否已被删除（例如随原分类一起删除），删除后不能再保存。
+    @Published private(set) var isTransactionRemoved = false
+
     /// 由上层注入的本地更新动作。
     private let saveAction: DiningExpenseEditSaveAction
 
@@ -186,10 +192,12 @@ final class DiningExpenseEditFlow: ObservableObject {
         submissionState == .failed
     }
 
-    /// 标题、金额与业务日均有效且当前没有保存任务时允许提交。
+    /// 标题、金额与业务日均有效、当前方向的分类仍然可用、流水仍然存在且没有保存任务时允许提交。
     var canSubmit: Bool {
         draft.hasValidTitle && draft.amount != nil
-            && TransactionDay.isValid(draft.transactionDay) && !isSaving
+            && TransactionDay.isValid(draft.transactionDay)
+            && !directionsAwaitingCategory.contains(draft.entryType)
+            && !isTransactionRemoved && !isSaving
     }
 
     /// 通过同一入口修改分类、账户、日期等字段；提交期间保持草稿稳定。
@@ -197,6 +205,33 @@ final class DiningExpenseEditFlow: ObservableObject {
         guard !isSaving else { return }
         mutation(&draft)
         markAsEditing()
+    }
+
+    /// 选择当前方向下的分类；若该方向的分类刚被删除，重新选择后恢复可提交。
+    ///
+    /// - Parameter key: 用户在分类面板中点选的分类 key。
+    func selectCategory(key: String) {
+        guard !isSaving else { return }
+        switch draft.entryType {
+        case .expense: draft.expenseCategoryKey = key
+        case .income: draft.incomeCategoryKey = key
+        }
+        directionsAwaitingCategory.remove(draft.entryType)
+        markAsEditing()
+    }
+
+    /// 当前方向的草稿分类在分类管理里连同流水一起删除后，撤销这次选择，要求用户重新选择。
+    ///
+    /// 草稿里的 key 保持原值，只标记失效，避免把空字符串当成分类写进草稿。
+    func clearCategory() {
+        guard !isSaving else { return }
+        directionsAwaitingCategory.insert(draft.entryType)
+        markAsEditing()
+    }
+
+    /// 所编辑的流水已不存在时调用，此后草稿不再允许提交。
+    func markTransactionRemoved() {
+        isTransactionRemoved = true
     }
 
     /// 接收标题输入，并在修改后清除失败状态。

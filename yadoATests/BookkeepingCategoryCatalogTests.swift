@@ -49,12 +49,12 @@ struct BookkeepingCategoryCatalogTests {
         #expect(catalog.defaultKey(for: .income) == "salary")
     }
 
-    @Test("存储的排序、隐藏和自定义分类生效，墓碑不出现在列表中")
+    @Test("存储的排序和自定义分类生效，墓碑不出现在列表中")
     func storedSettingsOverrideDefaults() {
         let customKey = BookkeepingCategoryKey.customKey(for: UUID())
         let deletedKey = BookkeepingCategoryKey.customKey(for: UUID())
         let catalog = BookkeepingCategoryCatalog(items: [
-            item(.expense, "dining", sortIndex: 5, isHidden: true),
+            item(.expense, "dining", sortIndex: 5),
             item(.expense, "shopping", sortIndex: -1),
             item(.expense, customKey, name: "咖啡", symbol: "cup.and.saucer", sortIndex: 0),
             item(.expense, deletedKey, name: "旧分类", sortIndex: 1, isDeleted: true, replacementKey: "other")
@@ -64,8 +64,6 @@ struct BookkeepingCategoryCatalogTests {
         #expect(keys.first == "shopping")
         #expect(keys.dropFirst().first == customKey)
         #expect(!keys.contains(deletedKey))
-        #expect(catalog.visibleItems(for: .expense).allSatisfy { !$0.isHidden })
-        #expect(catalog.hiddenItems(for: .expense).map(\.key) == ["dining"])
         #expect(catalog.item(direction: .expense, key: customKey)?.title(locale: english) == "咖啡")
         #expect(catalog.defaultKey(for: .expense) == "shopping")
 
@@ -73,19 +71,6 @@ struct BookkeepingCategoryCatalogTests {
         let tombstone = catalog.item(direction: .expense, key: deletedKey)
         #expect(tombstone?.isDeleted == true)
         #expect(tombstone?.replacementKey == "other")
-    }
-
-    @Test("记账面板补上当前已选但已隐藏的分类，已删除的不补")
-    func pickerKeepsHiddenSelection() {
-        let deletedKey = BookkeepingCategoryKey.customKey(for: UUID())
-        let catalog = BookkeepingCategoryCatalog(items: [
-            item(.expense, "pets", sortIndex: 11, isHidden: true),
-            item(.expense, deletedKey, name: "旧", sortIndex: 0, isDeleted: true)
-        ])
-
-        #expect(!catalog.pickerItems(for: .expense, including: nil).contains { $0.key == "pets" })
-        #expect(catalog.pickerItems(for: .expense, including: "pets").last?.key == "pets")
-        #expect(!catalog.pickerItems(for: .expense, including: deletedKey).contains { $0.key == deletedKey })
     }
 
     @Test("未知 key 按同方向「其他」降级展示")
@@ -97,22 +82,19 @@ struct BookkeepingCategoryCatalogTests {
         #expect(resolved.direction == .income)
     }
 
-    @Test("「其他」不能隐藏或删除，预置分类可以删除但不能编辑")
+    @Test("「其他」不能删除，预置分类可以删除但不能编辑")
     func capabilityFlags() {
         let catalog = BookkeepingCategoryCatalog.presets
         let other = catalog.item(direction: .expense, key: "other")
         let dining = catalog.item(direction: .expense, key: "dining")
         let custom = item(.expense, BookkeepingCategoryKey.customKey(for: UUID()), name: "咖啡")
 
-        #expect(other?.canHide == false)
         #expect(other?.canDelete == false)
         #expect(other?.canEdit == false)
-        #expect(dining?.canHide == true)
         #expect(dining?.canDelete == true)
         #expect(dining?.canEdit == false)
         #expect(custom.canEdit)
         #expect(custom.canDelete)
-        #expect(custom.canHide)
     }
 
     @Test("预置分类的名称和图标固定，忽略存储行里的值")
@@ -183,7 +165,6 @@ struct BookkeepingCategoryCatalogTests {
         name: String? = nil,
         symbol: String = "tag",
         sortIndex: Int = 0,
-        isHidden: Bool = false,
         isDeleted: Bool = false,
         replacementKey: String? = nil
     ) -> BookkeepingCategoryItem {
@@ -193,7 +174,6 @@ struct BookkeepingCategoryCatalogTests {
             customName: name,
             symbolName: symbol,
             sortIndex: sortIndex,
-            isHidden: isHidden,
             isDeleted: isDeleted,
             replacementKey: replacementKey
         )

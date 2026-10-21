@@ -323,15 +323,15 @@ struct BackupImportServiceTests {
 
     // MARK: - 分类
 
-    @Test("自定义分类、隐藏、排序和删除墓碑（含预置分类）随备份完整往返")
+    @Test("自定义分类、排序和删除墓碑（含预置分类、流水一并删除）随备份完整往返")
     func categoriesRoundTrip() throws {
         let source = try makeSeededContainer()
         let categories = LocalCategoryRepository(container: source.modelContainer)
         let coffee = try categories.create(name: "咖啡", symbolName: "mug", direction: .expense)
         let removed = try categories.create(name: "旧分类", symbolName: "tag", direction: .expense)
-        try categories.delete(key: removed, direction: .expense, migratingTo: "other")
-        try categories.setHidden(true, key: "pets", direction: .expense)
-        try categories.delete(key: "partTime", direction: .income, migratingTo: "other")
+        try categories.delete(key: removed, direction: .expense, transactions: .migrate(to: "other"))
+        try categories.delete(key: "pets", direction: .expense, transactions: .delete)
+        try categories.delete(key: "partTime", direction: .income, transactions: .migrate(to: "other"))
         try categories.reorder([coffee, "travel"], direction: .expense)
         let activeID = try #require(try snapshot(of: source).bookkeepingPreference?.defaultAccountID)
         try LocalExpenseRepository(container: source.modelContainer).save(
@@ -358,7 +358,8 @@ struct BackupImportServiceTests {
                 .fetch(FetchDescriptor<BookkeepingCategory>())
         )
         #expect(catalog.items(for: .expense).first?.key == coffee)
-        #expect(catalog.hiddenItems(for: .expense).map(\.key) == ["pets"])
+        #expect(catalog.item(direction: .expense, key: "pets")?.isDeleted == true)
+        #expect(catalog.item(direction: .expense, key: "pets")?.replacementKey == nil)
         #expect(catalog.item(direction: .income, key: "partTime")?.isDeleted == true)
         #expect(!catalog.items(for: .income).contains { $0.key == "partTime" })
     }
@@ -368,7 +369,7 @@ struct BackupImportServiceTests {
         let container = try makeSeededContainer()
         let categories = LocalCategoryRepository(container: container.modelContainer)
         try categories.create(name: "咖啡", symbolName: "mug", direction: .expense)
-        try categories.setHidden(true, key: "pets", direction: .expense)
+        try categories.delete(key: "pets", direction: .expense, transactions: .migrate(to: "other"))
         let service = BackupImportService(container: container.modelContainer)
 
         try service.restore(try service.prepare(from: try encode(makeBackup())))
@@ -376,7 +377,7 @@ struct BackupImportServiceTests {
         let rows = try container.modelContainer.makeManualSaveContext()
             .fetch(FetchDescriptor<BookkeepingCategory>())
         #expect(rows.count == BookkeepingCategoryKey.allPresets.count)
-        #expect(rows.allSatisfy { $0.isPreset && !$0.isHidden })
+        #expect(rows.allSatisfy { $0.isPreset && !$0.isTombstoned })
     }
 
     @Test("流水引用备份中不存在或已删除的分类（含预置分类）时整份拒绝")
@@ -386,14 +387,14 @@ struct BackupImportServiceTests {
         let deletedKey = BookkeepingCategoryKey.customKey(for: deletedID)
         let tombstone = BackupCategory(
             id: deletedID, direction: BookkeepingEntryType.expense.rawValue, key: deletedKey,
-            customName: "旧分类", symbolName: "tag", sortIndex: 20, isHidden: false,
+            customName: "旧分类", symbolName: "tag", sortIndex: 20,
             updatedAt: Date(timeIntervalSince1970: 40), deletedAt: Date(timeIntervalSince1970: 50),
             replacementKey: "other"
         )
         let deletedPreset = BackupCategory(
             id: BookkeepingCategoryKey.presetID(direction: .expense, key: "pets"),
             direction: BookkeepingEntryType.expense.rawValue, key: "pets",
-            customName: nil, symbolName: ExpenseCategory.pets.symbolName, sortIndex: 11, isHidden: false,
+            customName: nil, symbolName: ExpenseCategory.pets.symbolName, sortIndex: 11,
             updatedAt: Date(timeIntervalSince1970: 40), deletedAt: Date(timeIntervalSince1970: 50),
             replacementKey: "other"
         )
@@ -419,33 +420,33 @@ struct BackupImportServiceTests {
         let valid = BackupCategory(
             id: customID, direction: BookkeepingEntryType.expense.rawValue,
             key: BookkeepingCategoryKey.customKey(for: customID), customName: "咖啡",
-            symbolName: "mug", sortIndex: 20, isHidden: false,
+            symbolName: "mug", sortIndex: 20,
             updatedAt: Date(timeIntervalSince1970: 40), deletedAt: nil, replacementKey: nil
         )
         let invalidCategories: [BackupCategory] = [
             // 自定义分类没有名称。
             BackupCategory(
                 id: valid.id, direction: valid.direction, key: valid.key, customName: "  ",
-                symbolName: valid.symbolName, sortIndex: valid.sortIndex, isHidden: false,
+                symbolName: valid.symbolName, sortIndex: valid.sortIndex,
                 updatedAt: valid.updatedAt, deletedAt: nil, replacementKey: nil
             ),
             // 未知方向。
             BackupCategory(
                 id: valid.id, direction: "transfer", key: valid.key, customName: valid.customName,
-                symbolName: valid.symbolName, sortIndex: valid.sortIndex, isHidden: false,
+                symbolName: valid.symbolName, sortIndex: valid.sortIndex,
                 updatedAt: valid.updatedAt, deletedAt: nil, replacementKey: nil
             ),
             // 预置分类的标识与「方向 + key」不符。
             BackupCategory(
                 id: UUID(), direction: BookkeepingEntryType.expense.rawValue, key: "dining", customName: nil,
-                symbolName: "fork.knife", sortIndex: 0, isHidden: false,
+                symbolName: "fork.knife", sortIndex: 0,
                 updatedAt: valid.updatedAt, deletedAt: nil, replacementKey: nil
             ),
             // 「其他」是删除迁移的兜底分类，不能被标记删除。
             BackupCategory(
                 id: BookkeepingCategoryKey.presetID(direction: .expense, key: "other"),
                 direction: BookkeepingEntryType.expense.rawValue, key: "other", customName: nil,
-                symbolName: "ellipsis.circle", sortIndex: 15, isHidden: false,
+                symbolName: "ellipsis.circle", sortIndex: 15,
                 updatedAt: valid.updatedAt, deletedAt: valid.updatedAt, replacementKey: "dining"
             )
         ]

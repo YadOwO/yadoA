@@ -1,6 +1,6 @@
 import XCTest
 
-/// 分类管理：新增自定义分类、隐藏预置分类，以及记账面板里的联动。
+/// 分类管理：新增自定义分类、删除分类（迁移或一并删除流水），以及记账面板里的联动。
 final class CategoryManagementFlowUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -61,9 +61,9 @@ final class CategoryManagementFlowUITests: XCTestCase {
         XCTAssertFalse(app.buttons["category-edit-save"].isEnabled)
     }
 
-    /// 预置分类左滑有「删除」和「隐藏」，隐藏后移入「已隐藏」区并可恢复。
+    /// 没有流水的预置分类：左滑只有「删除」，二次确认后直接消失。
     @MainActor
-    func testHidingPresetMovesItToHiddenSection() throws {
+    func testDeletingPresetWithoutEntriesConfirmsOnce() throws {
         let app = launchHomeFixtureInEnglish()
         openCategoryManagement(in: app)
 
@@ -72,13 +72,39 @@ final class CategoryManagementFlowUITests: XCTestCase {
         XCTAssertTrue(pets.waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["category-row-pets"].exists, "预置分类不应进入编辑页")
         pets.swipeLeft()
-        XCTAssertTrue(app.buttons["Delete"].waitForExistence(timeout: 3), "预置分类也可以删除")
-        app.buttons["Hide"].tap()
+        XCTAssertFalse(app.buttons["Hide"].exists, "不再提供隐藏")
+        app.buttons["Delete"].tap()
 
-        let restore = app.buttons["category-unhide-pets"]
-        XCTAssertTrue(restore.waitForExistence(timeout: 3))
-        restore.tap()
-        XCTAssertTrue(restore.waitForNonExistence(timeout: 3))
+        let confirm = app.buttons["Delete"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        confirm.tap()
+        XCTAssertTrue(pets.waitForNonExistence(timeout: 3))
+    }
+
+    /// 有流水的分类：删除页默认迁移，可改为一并删除流水，再确认一次后删除。
+    @MainActor
+    func testDeletingCategoryWithEntriesCanDeleteEntries() throws {
+        let app = launchHomeFixtureInEnglish()
+        openCategoryManagement(in: app)
+
+        let dining = app.descendants(matching: .any)["category-row-dining"]
+        XCTAssertTrue(dining.waitForExistence(timeout: 3))
+        dining.swipeLeft()
+        app.buttons["Delete"].tap()
+
+        let migrate = app.buttons["category-delete-option-migrate"]
+        XCTAssertTrue(migrate.waitForExistence(timeout: 3))
+        XCTAssertTrue(migrate.isSelected, "默认迁移流水")
+        XCTAssertTrue(app.buttons["category-migration-target-other"].exists)
+
+        app.buttons["category-delete-option-delete"].tap()
+        XCTAssertTrue(app.buttons["category-migration-target-other"].waitForNonExistence(timeout: 3))
+        app.buttons["category-delete-confirm"].tap()
+
+        let confirm = app.buttons["Delete"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        confirm.tap()
+        XCTAssertTrue(dining.waitForNonExistence(timeout: 3))
     }
 
     /// 打开「我的 › 分类管理」。
