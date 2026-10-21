@@ -7803,47 +7803,31 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hold to speak and release to send. Tap to open the conversation."
+            "value" : "Double-tap to start speaking, then double-tap again to send."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "按住说话，松手发送；轻点打开对话。"
+            "value" : "轻点两下开始说话，说完再轻点两下发送。"
           }
         }
       }
     },
-    "voice.mic.action.start" : {
+    "voice.mic.holdHint" : {
+      "comment" : "Shown briefly when the mic is released before the hold delay.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Start Speaking"
+            "value" : "Hold to speak"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "开始说话"
-          }
-        }
-      }
-    },
-    "voice.mic.action.stop" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stop Speaking"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "结束说话"
+            "value" : "按住说话"
           }
         }
       }
@@ -7963,23 +7947,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "手动记账"
-          }
-        }
-      }
-    },
-    "voice.session.end" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "End"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "结束"
           }
         }
       }
@@ -8528,75 +8495,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "语音记账"
-          }
-        }
-      }
-    },
-    "voice.conversation.placeholder" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Type an entry, e.g. Lunch 28"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "输入要记的内容，例如「午饭 28」"
-          }
-        }
-      }
-    },
-    "voice.conversation.send" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Send"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "发送"
-          }
-        }
-      }
-    },
-    "voice.conversation.empty" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hold the mic and say something like \"Lunch 28, taxi 35\"."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "按住麦克风说一句，例如「午饭 28，打车 35」。"
-          }
-        }
-      }
-    },
-    "voice.conversation.more" : {
-      "comment" : "Shown when the result card lists only some of the entries recorded in this turn.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d more"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "还有 %d 笔"
           }
         }
       }

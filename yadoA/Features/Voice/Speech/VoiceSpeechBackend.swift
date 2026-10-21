@@ -6,12 +6,13 @@ import Speech
 ///
 /// 音频回调在音频线程执行，因此实现都是 `nonisolated` 的，内部自行加锁；
 /// 不能写成默认的 MainActor 隔离类型，否则音频线程调用时会违反隔离。
+/// 开始、收尾标为 `@concurrent`，加载模型等耗时工作在后台执行，不占主线程。
 nonisolated protocol VoiceSpeechBackend: AnyObject, Sendable {
     /// 开始识别。
     ///
     /// - Parameter onPartial: 转写文字更新时回调（任意线程），参数为截至目前的完整文字。
     /// - Throws: 识别服务无法启动时抛出错误。
-    func start(onPartial: @escaping @Sendable (String) -> Void) async throws
+    @concurrent func start(onPartial: @escaping @Sendable (String) -> Void) async throws
 
     /// 送入一段麦克风音频。
     func append(_ buffer: AVAudioPCMBuffer)
@@ -19,7 +20,7 @@ nonisolated protocol VoiceSpeechBackend: AnyObject, Sendable {
     /// 音频结束，等待识别出最终文字。
     ///
     /// - Returns: 最终转写文字；没识别到时为空字符串。
-    func finish() async -> String
+    @concurrent func finish() async -> String
 
     /// 放弃本次识别。
     func cancel()
@@ -55,7 +56,7 @@ nonisolated final class LegacySpeechBackend: VoiceSpeechBackend, @unchecked Send
         request.taskHint = .dictation
     }
 
-    func start(onPartial: @escaping @Sendable (String) -> Void) async throws {
+    @concurrent func start(onPartial: @escaping @Sendable (String) -> Void) async throws {
         let task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             guard let self else { return }
             if let result {
@@ -77,7 +78,7 @@ nonisolated final class LegacySpeechBackend: VoiceSpeechBackend, @unchecked Send
         request.append(buffer)
     }
 
-    func finish() async -> String {
+    @concurrent func finish() async -> String {
         request.endAudio()
         DispatchQueue.global().asyncAfter(deadline: .now() + Self.finishTimeout) { [weak self] in
             self?.complete()
@@ -135,7 +136,7 @@ nonisolated final class AnalyzerSpeechBackend: VoiceSpeechBackend, @unchecked Se
     }
 
     /// 识别模型的准备情况。
-    enum Availability {
+    enum Availability: Sendable {
         /// 模型已安装，可以直接识别。
         case ready(AnalyzerSpeechBackend)
 
@@ -151,7 +152,7 @@ nonisolated final class AnalyzerSpeechBackend: VoiceSpeechBackend, @unchecked Se
     /// - Parameters:
     ///   - locale: 识别语言。
     ///   - contextualStrings: 需要优先识别的专有名词。
-    static func availability(locale: Locale, contextualStrings: [String]) async -> Availability {
+    @concurrent static func availability(locale: Locale, contextualStrings: [String]) async -> Availability {
         guard SpeechTranscriber.isAvailable,
               let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: locale)
         else { return .unsupported }
@@ -170,7 +171,7 @@ nonisolated final class AnalyzerSpeechBackend: VoiceSpeechBackend, @unchecked Se
     ///
     /// - Parameter locale: `availability` 返回的受支持语言。
     /// - Throws: 下载失败时抛出系统错误。
-    static func installAssets(locale: Locale) async throws {
+    @concurrent static func installAssets(locale: Locale) async throws {
         let transcriber = makeTranscriber(locale: locale)
         if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
             try await request.downloadAndInstall()
@@ -186,7 +187,7 @@ nonisolated final class AnalyzerSpeechBackend: VoiceSpeechBackend, @unchecked Se
         )
     }
 
-    func start(onPartial: @escaping @Sendable (String) -> Void) async throws {
+    @concurrent func start(onPartial: @escaping @Sendable (String) -> Void) async throws {
         let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
         let (stream, continuation) = AsyncStream.makeStream(of: AnalyzerInput.self)
         lock.withLock {
@@ -232,7 +233,7 @@ nonisolated final class AnalyzerSpeechBackend: VoiceSpeechBackend, @unchecked Se
         continuation.yield(AnalyzerInput(buffer: converted))
     }
 
-    func finish() async -> String {
+    @concurrent func finish() async -> String {
         let (continuation, task) = lock.withLock { (inputContinuation, resultsTask) }
         continuation?.finish()
         try? await analyzer.finalizeAndFinishThroughEndOfInput()
@@ -273,50 +274,161 @@ nonisolated final class AnalyzerSpeechBackend: VoiceSpeechBackend, @unchecked Se
     }
 }
 
-/// 麦克风采集：配置音频会话，把输入音频送给识别实现。
+/// 麦克风采集：配置音频会话，把输入音频交给中转，再由中转送给识别实现。
+///
+/// 激活、释放音频会话和启停音频引擎都是会卡住线程的同步调用（可能要几百毫秒），全部放在一条串行队列上执行，
+/// 不占用主线程；同一条队列也保证这些操作按调用顺序执行，例如「上一次释放会话」一定先于「这一次激活」。
 nonisolated final class VoiceAudioCapture: @unchecked Sendable {
+    /// 音频会话与引擎操作的串行队列。
+    private static let queue = DispatchQueue(label: "yadoA.voice.audio", qos: .userInitiated)
+
     private let engine = AVAudioEngine()
+
+    /// 引擎是否正在采集；只在队列上读写，松手和收尾可能先后关闭，重复关闭时直接跳过。
+    private var isRunning = false
+
+    /// 激活音频会话并开始采集，持续把音频交给中转；在后台队列执行，不阻塞调用方所在线程。
+    ///
+    /// - Parameter relay: 接收音频的中转；识别实现还没就绪时由它暂存。
+    /// - Throws: 音频会话配置失败（例如正在通话）、没有可用的麦克风输入或引擎启动失败时抛出错误。
+    func open(feeding relay: VoiceAudioRelay) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            Self.queue.async {
+                do {
+                    try Self.activateSession()
+                    try self.start(feeding: relay)
+                    continuation.resume()
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// 停止采集；在后台队列执行，返回后不会再有新的音频送出。
+    func close() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            Self.queue.async {
+                self.stopEngine()
+                continuation.resume()
+            }
+        }
+    }
+
+    /// 停止采集，不等待完成；用于取消。之后排队的释放会话仍在它之后执行。
+    func closeInBackground() {
+        Self.queue.async {
+            self.stopEngine()
+        }
+    }
+
+    /// 释放音频会话，恢复其他 App 的声音；在后台队列执行，失败可忽略。
+    static func deactivateSession() {
+        queue.async {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
+    }
 
     /// 激活录音用的音频会话，压低其他 App 的声音。
     ///
-    /// - Throws: 音频会话配置失败（例如正在通话）时抛出系统错误。
-    static func activateSession() throws {
+    /// 录音会话默认会屏蔽触感反馈，开始收音的震动正好赶上会话激活，会被吞掉或推迟，所以显式允许。
+    private static func activateSession() throws {
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.record, mode: .measurement, options: .duckOthers)
+        try session.setAllowHapticsAndSystemSoundsDuringRecording(true)
         try session.setActive(true, options: .notifyOthersOnDeactivation)
     }
 
-    /// 释放音频会话，恢复其他 App 的声音；失败可忽略。
-    static func deactivateSession() {
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    /// 停止音频引擎并移除采集；只在队列上调用，可重复调用。
+    private func stopEngine() {
+        guard isRunning else { return }
+        isRunning = false
+        engine.stop()
+        engine.inputNode.removeTap(onBus: 0)
     }
 
-    /// 开始采集并持续送给识别实现。
-    ///
-    /// - Parameter backend: 接收音频的识别实现。
-    /// - Throws: 没有可用的麦克风输入或引擎启动失败时抛出错误。
-    func start(feeding backend: VoiceSpeechBackend) throws {
+    /// 开始采集；只在队列上调用。
+    private func start(feeding relay: VoiceAudioRelay) throws {
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else {
             throw VoiceSpeechError.microphoneUnavailable
         }
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
-            backend.append(buffer)
+            relay.receive(buffer)
         }
         engine.prepare()
         do {
             try engine.start()
+            isRunning = true
         } catch {
             input.removeTap(onBus: 0)
             throw error
         }
     }
+}
 
-    /// 停止采集。
-    func stop() {
-        engine.stop()
-        engine.inputNode.removeTap(onBus: 0)
+/// 麦克风与识别实现之间的音频中转，识别仍是边说边出字的实时识别。
+///
+/// 只在按下后识别模型加载的那一小段时间（通常几百毫秒）里暂存音频；模型一就绪就把这段补送过去，
+/// 之后每段音频直接实时转发。这样按下后马上开口，开头的字也不会丢。
+nonisolated final class VoiceAudioRelay: @unchecked Sendable {
+    /// 最多暂存的时长（秒），识别迟迟没就绪时丢弃更早的音频，避免占用过多内存。
+    private static let maxPendingDuration: Double = 15
+
+    private let lock = NSLock()
+    private var backend: VoiceSpeechBackend?
+    private var pending: [AVAudioPCMBuffer] = []
+    private var pendingFrames: AVAudioFrameCount = 0
+
+    /// 收到一段麦克风音频（音频线程）。
+    ///
+    /// - Parameter buffer: 采集回调给出的音频。
+    func receive(_ buffer: AVAudioPCMBuffer) {
+        lock.withLock {
+            if let backend {
+                backend.append(buffer)
+                return
+            }
+            // 采集回调的缓冲区可能被系统复用，暂存前先复制
+            guard let copy = Self.copy(buffer) else { return }
+            pending.append(copy)
+            pendingFrames += copy.frameLength
+            let limit = AVAudioFrameCount(buffer.format.sampleRate * Self.maxPendingDuration)
+            while pendingFrames > limit, !pending.isEmpty {
+                pendingFrames -= pending.removeFirst().frameLength
+            }
+        }
+    }
+
+    /// 识别实现已就绪：补送暂存的音频，之后的音频直接转发。
+    ///
+    /// - Parameter backend: 已开始识别的实现。
+    func connect(to backend: VoiceSpeechBackend) {
+        // 在锁内补送，保证暂存的音频排在音频线程新送来的音频之前
+        lock.withLock {
+            for buffer in pending {
+                backend.append(buffer)
+            }
+            pending = []
+            pendingFrames = 0
+            self.backend = backend
+        }
+    }
+
+    /// 复制一段音频数据。
+    private static func copy(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+        guard let copy = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameLength) else { return nil }
+        copy.frameLength = buffer.frameLength
+        let source = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: buffer.audioBufferList))
+        let destination = UnsafeMutableAudioBufferListPointer(copy.mutableAudioBufferList)
+        for index in 0..<min(source.count, destination.count) {
+            guard let from = source[index].mData, let to = destination[index].mData else { continue }
+            let size = min(source[index].mDataByteSize, destination[index].mDataByteSize)
+            memcpy(to, from, Int(size))
+            destination[index].mDataByteSize = size
+        }
+        return copy
     }
 }
 

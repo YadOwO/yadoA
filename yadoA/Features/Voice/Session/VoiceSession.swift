@@ -137,7 +137,7 @@ final class VoiceSession {
         self.now = now
     }
 
-    /// 会话是否有内容（结果条或对话面板需要展示）。
+    /// 会话是否有内容（会话卡片需要展示）。
     var isActive: Bool { !turns.isEmpty }
 
     /// 最近的一轮。
@@ -149,7 +149,7 @@ final class VoiceSession {
         return turn
     }
 
-    /// 本会话中仍然有效的流水变更（不含已撤销的轮次），供对话面板列出。
+    /// 本会话中仍然有效的流水变更（不含已撤销的轮次）。
     var activeChanges: [VoiceEntryChange] {
         turns.filter { !$0.isUndone }.flatMap(\.changes)
     }

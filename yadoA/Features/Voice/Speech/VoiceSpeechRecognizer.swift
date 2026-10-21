@@ -27,6 +27,9 @@ protocol VoiceSpeechRecognizing: AnyObject {
     /// 开始收音并识别；只在空闲时生效。
     func start(locale: Locale, contextualStrings: [String]) async throws
 
+    /// 松手时立即停止采集：之后的声音不再进入识别，已采集的音频照常识别；启动还没完成时也生效。
+    func stopCapture()
+
     /// 停止收音并等待最终文字。
     func stop() async -> String
 
@@ -96,7 +99,9 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
 
     /// 开始收音并识别。
     ///
-    /// 启动期间被 `cancel()` 取消时，在下一个异步返回点停下并释放已创建的识别，不会再打开麦克风。
+    /// 按下就打开麦克风，同时加载识别模型；加载期间的音频由 `VoiceAudioRelay` 暂存，
+    /// 模型就绪后补送，之后实时识别、边说边出字。
+    /// 启动期间被 `cancel()` 取消时，在下一个异步返回点停下，关闭麦克风并释放已创建的识别。
     ///
     /// - Parameters:
     ///   - locale: 识别语言，跟随 App 界面语言。
@@ -108,11 +113,17 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
         transcript = ""
         generation += 1
         let startGeneration = generation
+        let capture = VoiceAudioCapture()
+        let relay = VoiceAudioRelay()
         var startedBackend: VoiceSpeechBackend?
         do {
+            // 先记下，启动期间 cancel() 才能关掉麦克风；关闭排在打开之后，再释放音频会话
+            self.capture = capture
+            // 在后台队列打开麦克风，主线程先把「正在听」的界面画出来
+            try await capture.open(feeding: relay)
+            try ensureCurrent(startGeneration)
             let backend = try await makeBackend(locale: locale, contextualStrings: contextualStrings)
             try ensureCurrent(startGeneration)
-            try VoiceAudioCapture.activateSession()
             startedBackend = backend
             try await backend.start { [weak self] text in
                 Task { @MainActor [weak self] in
@@ -121,20 +132,27 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
                 }
             }
             try ensureCurrent(startGeneration)
-            let capture = VoiceAudioCapture()
-            try capture.start(feeding: backend)
+            relay.connect(to: backend)
             self.backend = backend
-            self.capture = capture
             state = .recording
         } catch {
+            capture.closeInBackground()
             startedBackend?.cancel()
             // 被取消时 cancel() 已经复位，之后可能已开始新的一次识别，不能再改动共享状态
             if generation == startGeneration {
+                self.capture = nil
                 VoiceAudioCapture.deactivateSession()
                 state = .idle
             }
             throw error
         }
+    }
+
+    /// 松手时立即关闭麦克风，不等启动完成；启动期间已采集的音频仍在中转里，启动完成后照常补送识别。
+    func stopCapture() {
+        guard state == .starting || state == .recording else { return }
+        // 关闭排在打开之后，打开还没完成时也会在打开后立即关掉
+        capture?.closeInBackground()
     }
 
     /// 松手：停止收音并等待最终文字。
@@ -144,7 +162,7 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
         guard state == .recording, let backend else { return "" }
         state = .finishing
         let stopGeneration = generation
-        capture?.stop()
+        await capture?.close()
         let text = await backend.finish()
         // 收尾期间被取消：cancel() 已经复位，丢弃结果
         guard generation == stopGeneration else { return "" }
@@ -157,7 +175,7 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
     func cancel() {
         guard state != .idle else { return }
         generation += 1
-        capture?.stop()
+        capture?.closeInBackground()
         backend?.cancel()
         reset()
     }
@@ -187,10 +205,16 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
                 break
             }
         }
-        guard let backend = LegacySpeechBackend(locale: locale, contextualStrings: contextualStrings) else {
+        guard let backend = await Self.makeLegacyBackend(locale: locale, contextualStrings: contextualStrings) else {
             throw VoiceSpeechError.unsupported
         }
         return backend
+    }
+
+    /// 在后台创建 `SFSpeechRecognizer` 识别实现，不占主线程。
+    @concurrent
+    private nonisolated static func makeLegacyBackend(locale: Locale, contextualStrings: [String]) async -> LegacySpeechBackend? {
+        LegacySpeechBackend(locale: locale, contextualStrings: contextualStrings)
     }
 
     /// 在后台下载识别模型；失败时下次使用再试，本次不打扰用户。

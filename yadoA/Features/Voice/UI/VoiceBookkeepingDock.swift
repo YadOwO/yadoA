@@ -2,9 +2,9 @@ import SwiftData
 import SwiftUI
 import UIKit
 
-/// 记账页底部的语音记账区域：麦克风按钮、收音气泡与本次会话的结果条，并负责弹出对话面板、登录提示等。
+/// 记账页底部的语音记账区域：麦克风按钮和它上方唯一的会话卡片，并负责登录、权限提示与详情、手动记账弹层。
 ///
-/// 会话在离开记账页、关闭结果条或闲置约 2 分钟后结束。
+/// 只有按住说话一种输入方式，没有轻点和打字。会话在离开记账页、关闭卡片或闲置约 2 分钟后结束。
 struct VoiceBookkeepingDock: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthStore.self) private var authStore
@@ -16,30 +16,18 @@ struct VoiceBookkeepingDock: View {
 
     @State private var session: VoiceSession?
     @State private var input = VoiceInputController()
-    @State private var isConversationPresented = false
     @State private var presentedTransaction: VoicePresentedTransaction?
     @State private var manualEntryNote: VoiceManualEntryNote?
 
+    /// 识别时优先识别的账户名、分类名；进入记账页时读一次，按下时不再查库，避免卡住按下后的第一帧。
+    @State private var contextualStrings: [String] = []
+
     var body: some View {
         VStack(spacing: 10) {
-            if input.isRecording {
-                VoiceTranscriptBubble(
-                    transcript: input.recognizer.transcript,
-                    isCancelArmed: input.isCancelArmed
-                )
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-            } else if let hint = input.transientHint {
-                Text(hint)
-                    .font(.footnote)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .voiceFloatingSurface(in: Capsule())
-                    .transition(.opacity)
-            } else if let session, let turn = session.latestTurn {
-                VoiceSessionStrip(
+            if isCardVisible {
+                VoiceSessionCard(
                     session: session,
-                    turn: turn,
-                    onOpenConversation: { isConversationPresented = true },
+                    input: input,
                     onOpenTransaction: { presentedTransaction = VoicePresentedTransaction(id: $0) },
                     onManualEntry: { manualEntryNote = VoiceManualEntryNote(text: $0) },
                     onSignIn: signIn,
@@ -52,10 +40,25 @@ struct VoiceBookkeepingDock: View {
                 controller: input,
                 isProcessing: session?.isProcessing == true,
                 onPressBegan: beginPress,
-                onTap: { isConversationPresented = true },
                 onText: send,
                 onAccessibilityToggle: toggleRecording
             )
+            // 没识别到话或刚授权时的提示：麦克风正上方的一个小标签，不撑开卡片、不影响布局
+            .overlay(alignment: .top) {
+                if let hint = input.transientHint {
+                    Text(hint)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .voiceFloatingSurface(in: Capsule())
+                        .alignmentGuide(.top) { $0[.bottom] + 8 }
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                        .accessibilityHidden(true)
+                }
+            }
             .padding(.vertical, 12)
             .onGeometryChange(for: CGFloat.self) { proxy in
                 proxy.size.height
@@ -64,8 +67,10 @@ struct VoiceBookkeepingDock: View {
             }
         }
         .padding(.horizontal, 16)
+        .animation(.easeOut(duration: 0.2), value: isCardVisible)
         .animation(.easeOut(duration: 0.2), value: input.isRecording)
         .animation(.easeOut(duration: 0.2), value: session?.latestTurn)
+        .animation(.easeOut(duration: 0.2), value: input.transientHint)
         .task {
             if session == nil {
                 session = VoiceSession(
@@ -75,9 +80,22 @@ struct VoiceBookkeepingDock: View {
                     calendar: calendar
                 )
             }
+            // 账户、分类只能在别的页面修改，回到记账页时会重新执行这里
+            contextualStrings = session?.currentContext().contextualStrings ?? []
         }
         .onChange(of: locale) { _, newValue in session?.locale = newValue }
         .onChange(of: calendar) { _, newValue in session?.calendar = newValue }
+        // 一次性提示展示一会儿后自动消失；换了新提示时重新计时
+        .task(id: input.transientHint) {
+            guard let hint = input.transientHint else { return }
+            UIAccessibility.post(notification: .announcement, argument: hint)
+            do {
+                try await Task.sleep(for: .seconds(Self.hintDuration))
+            } catch {
+                return
+            }
+            input.transientHint = nil
+        }
         // 闲置约 2 分钟后自动结束会话；每轮结束都会重新计时
         .task(id: session?.lastActivityAt) {
             guard session?.lastActivityAt != nil else { return }
@@ -96,25 +114,8 @@ struct VoiceBookkeepingDock: View {
             }
         }
         .onDisappear {
-            // 离开记账页即结束会话；面板与详情都是盖在首页上的弹层，不会触发这里
+            // 离开记账页即结束会话；详情与手动记账都是盖在首页上的弹层，不会触发这里
             endSession()
-        }
-        .sheet(isPresented: $isConversationPresented) {
-            if let session {
-                VoiceConversationView(
-                    session: session,
-                    input: input,
-                    onPressBegan: beginPress,
-                    onSend: send,
-                    onAccessibilityToggle: toggleRecording,
-                    onManualEntry: { text in
-                        isConversationPresented = false
-                        manualEntryNote = VoiceManualEntryNote(text: text)
-                    },
-                    onSignIn: signIn,
-                    onEnd: endSession
-                )
-            }
         }
         .sheet(item: $presentedTransaction) { item in
             NavigationStack {
@@ -143,11 +144,18 @@ struct VoiceBookkeepingDock: View {
                 }
             }
         }
-        // 对话面板打开时由面板负责弹出提示，盖在面板下面的首页无法弹出
-        .voiceInputAlerts(input, isEnabled: !isConversationPresented, onSignIn: signIn)
+        .voiceInputAlerts(input, onSignIn: signIn)
         .alert(text("voice.undo.failed"), isPresented: undoFailureBinding) {
             Button(text("common.close"), role: .cancel) {}
         }
+    }
+
+    /// 一次性提示的展示时长（秒）。
+    private static let hintDuration: Double = 1.5
+
+    /// 是否显示会话卡片：正在说，或本次会话已经有内容。
+    private var isCardVisible: Bool {
+        input.isRecording || input.isFinishing || session?.isActive == true
     }
 
     // MARK: - 动作
@@ -157,7 +165,7 @@ struct VoiceBookkeepingDock: View {
         input.pressBegan(
             isSignedIn: authStore.isAuthenticated,
             locale: locale,
-            contextualStrings: { session?.currentContext().contextualStrings ?? [] }
+            contextualStrings: { contextualStrings }
         )
     }
 
@@ -166,7 +174,7 @@ struct VoiceBookkeepingDock: View {
         input.toggleRecording(
             isSignedIn: authStore.isAuthenticated,
             locale: locale,
-            contextualStrings: { session?.currentContext().contextualStrings ?? [] },
+            contextualStrings: { contextualStrings },
             onText: send
         )
     }
@@ -188,14 +196,9 @@ struct VoiceBookkeepingDock: View {
         session?.end()
     }
 
-    /// 登录；成功后打开对话面板继续语音操作。
+    /// 登录；成功后按住麦克风即可继续。
     private func signIn() {
-        Task {
-            await authStore.signIn()
-            if authStore.isAuthenticated {
-                isConversationPresented = true
-            }
-        }
+        Task { await authStore.signIn() }
     }
 
     /// VoiceOver 播报本轮结果。
@@ -217,15 +220,12 @@ struct VoiceBookkeepingDock: View {
     }
 }
 
-/// 按住说话时的提示：登录、权限、识别不可用。记账页与对话面板各挂一份，同一时间只有一处启用。
+/// 按住说话时的提示：登录、权限、识别不可用。
 private struct VoiceInputAlertModifier: ViewModifier {
     @Environment(\.locale) private var locale
 
     /// 按住说话的交互逻辑，提示来自它的 `alert`。
     let input: VoiceInputController
-
-    /// 是否由这里负责弹出提示。
-    let isEnabled: Bool
 
     /// 去登录。
     let onSignIn: () -> Void
@@ -246,7 +246,7 @@ private struct VoiceInputAlertModifier: ViewModifier {
 
     private var inputAlertBinding: Binding<Bool> {
         Binding(
-            get: { isEnabled && input.alert != nil },
+            get: { input.alert != nil },
             set: { if !$0 { input.alert = nil } }
         )
     }
@@ -296,14 +296,13 @@ extension View {
     ///
     /// - Parameters:
     ///   - input: 按住说话的交互逻辑。
-    ///   - isEnabled: 是否由这里负责弹出。
     ///   - onSignIn: 去登录。
-    func voiceInputAlerts(_ input: VoiceInputController, isEnabled: Bool = true, onSignIn: @escaping () -> Void) -> some View {
-        modifier(VoiceInputAlertModifier(input: input, isEnabled: isEnabled, onSignIn: onSignIn))
+    func voiceInputAlerts(_ input: VoiceInputController, onSignIn: @escaping () -> Void) -> some View {
+        modifier(VoiceInputAlertModifier(input: input, onSignIn: onSignIn))
     }
 }
 
-/// 从结果条或对话面板打开详情的流水。
+/// 从会话卡片打开详情的流水。
 struct VoicePresentedTransaction: Identifiable {
     /// 流水 UUID。
     let id: UUID
@@ -316,152 +315,4 @@ struct VoiceManualEntryNote: Identifiable {
 
     /// 预填的备注文字。
     let text: String
-}
-
-/// 麦克风上方的结果条：最近一轮的回复或追问、本轮写入的流水，以及撤销、手动记账、结束操作。
-struct VoiceSessionStrip: View {
-    @Environment(\.locale) private var locale
-
-    /// 当前会话。
-    let session: VoiceSession
-
-    /// 最近一轮。
-    let turn: VoiceSession.Turn
-
-    /// 打开对话面板。
-    let onOpenConversation: () -> Void
-
-    /// 打开一笔流水的详情。
-    let onOpenTransaction: (UUID) -> Void
-
-    /// 带着这句话去手动记账。
-    let onManualEntry: (String) -> Void
-
-    /// 去登录。
-    let onSignIn: () -> Void
-
-    /// 结束会话。
-    let onEnd: () -> Void
-
-    /// 结果条最多直接列出的流水笔数，其余在对话面板里查看。
-    private static let maxVisibleChanges = 3
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 8) {
-                Button(action: onOpenConversation) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(turn.userText)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                        if turn.outcome == .processing {
-                            HStack(spacing: 6) {
-                                ProgressView().controlSize(.small)
-                                Text(text("voice.processing"))
-                                    .font(.subheadline)
-                            }
-                        } else if let result = turn.resultText(locale: locale) {
-                            Text(result)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(Color.primary)
-                                .multilineTextAlignment(.leading)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("voice-strip")
-
-                Button(action: onEnd) {
-                    Image(systemName: "xmark")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(text("voice.session.close.accessibility"))
-                .accessibilityIdentifier("voice-strip-close")
-            }
-
-            if !turn.changes.isEmpty {
-                VStack(spacing: 6) {
-                    ForEach(turn.changes.prefix(Self.maxVisibleChanges)) { change in
-                        Button {
-                            onOpenTransaction(change.transactionID)
-                        } label: {
-                            VoiceEntryChangeRow(change: change, isUndone: turn.isUndone)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        // 删除或撤销后流水已不存在，没有详情可看
-                        .disabled(change.kind == .deleted || turn.isUndone)
-                    }
-                    if turn.changes.count > Self.maxVisibleChanges {
-                        Button(action: onOpenConversation) {
-                            Text(String(
-                                format: text("voice.conversation.more"),
-                                locale: locale,
-                                turn.changes.count - Self.maxVisibleChanges
-                            ))
-                            .font(.footnote)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            if case let .ask(_, options) = turn.outcome, !options.isEmpty {
-                VoiceAskOptionsView(options: options, isEnabled: !session.isProcessing) { option in
-                    Task { await session.send(option.label, selectedOption: option) }
-                }
-            }
-
-            actions
-        }
-        .padding(14)
-        .voiceFloatingSurface(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-    }
-
-    /// 本轮可用的操作。
-    @ViewBuilder
-    private var actions: some View {
-        let isUndoable = session.undoableTurn?.id == turn.id
-        let requiresSignIn = turn.failure?.requiresSignIn == true
-        if isUndoable || turn.offersManualEntry || turn.isUndone {
-            HStack(spacing: 12) {
-                if turn.isUndone {
-                    Label(text("voice.turn.undone"), systemImage: "arrow.uturn.backward")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-                if requiresSignIn {
-                    Button(text("voice.signIn.action"), action: onSignIn)
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                } else if turn.offersManualEntry {
-                    Button(text("voice.turn.manualEntry")) { onManualEntry(turn.userText) }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .accessibilityIdentifier("voice-manual-entry")
-                }
-                if isUndoable {
-                    Button(text("voice.turn.undo")) { session.undoLatestTurn() }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                        .onAccentForeground()
-                        .accessibilityIdentifier("voice-undo")
-                }
-            }
-        }
-    }
-
-    private func text(_ key: String) -> String {
-        AccountLocalization.string(key, locale: locale)
-    }
 }

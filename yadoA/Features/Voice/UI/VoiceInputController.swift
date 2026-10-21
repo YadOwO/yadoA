@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UIKit
 
 /// 按住说话时需要弹出的提示。
 enum VoiceInputAlert: Identifiable, Equatable {
@@ -19,14 +20,12 @@ enum VoiceInputAlert: Identifiable, Equatable {
     var id: Self { self }
 }
 
-/// 麦克风按钮的交互逻辑：按下即收音、松手发送、上滑取消，按住不足 0.3 秒按点按处理。
-///
-/// 记账页的悬浮按钮与对话面板里的按钮共用这一套逻辑。
+/// 麦克风按钮的交互逻辑：按住满 70 毫秒开始收音、松手发送、上滑取消；不满 70 毫秒松手只提示要按住说话，不打开麦克风。
 @MainActor
 @Observable
 final class VoiceInputController {
-    /// 按住不足该时长视为点按。
-    static let tapThreshold: TimeInterval = 0.3
+    /// 从 UIKit 触摸按下回调起，按住满该时长才确认收音；界面绘制和动画另计。
+    static let holdDelay: Duration = .milliseconds(70)
 
     /// 手指上滑超过该距离（pt）时松手即取消。
     static let cancelDistance: CGFloat = 80
@@ -35,10 +34,10 @@ final class VoiceInputController {
     let recognizer: any VoiceSpeechRecognizing
 
     /// 读取当前权限状态，不弹出系统授权框。
-    private let permission: () -> VoiceSpeechPermission
+    private let permission: @MainActor () -> VoiceSpeechPermission
 
-    /// 当前时刻，用于判断按住时长。
-    private let now: () -> Date
+    /// 本实例使用的按住时长，测试时可缩短。
+    private let holdDelay: Duration
 
     /// 手指是否正按在按钮上。
     private(set) var isPressing = false
@@ -49,7 +48,7 @@ final class VoiceInputController {
     /// 需要弹出的提示；界面展示后置空。
     var alert: VoiceInputAlert?
 
-    /// 刚授权后的一次性提示，例如「已开启，按住麦克风说话」。
+    /// 一次性提示，例如刚授权后的「已开启，按住麦克风说话」或轻点时的「按住说话」；界面展示一会儿后置空。
     var transientHint: String?
 
     /// 本次按下要做的事，在按下时确定，松手时执行。
@@ -65,7 +64,13 @@ final class VoiceInputController {
     }
 
     private var pressIntent: PressIntent?
-    private var pressStartedAt: Date?
+
+    /// 本次按下是否已按满时长、开始收音。
+    private var isHoldConfirmed = false
+
+    /// 开始收音时的震动；按下时预热，按满时长当下直接触发，不等界面刷新。
+    private let startFeedback = UIImpactFeedbackGenerator(style: .medium)
+
     private var startTask: Task<Void, Never>?
     private var startError: Error?
 
@@ -78,23 +83,23 @@ final class VoiceInputController {
     /// 创建按住说话的交互逻辑。
     ///
     /// - Parameters:
-    ///   - recognizer: 语音识别，测试时可替换。
-    ///   - permission: 读取权限状态的动作，测试时可替换。
-    ///   - now: 当前时刻，测试时可替换。
+    ///   - recognizer: 语音识别，测试时可替换；为空时使用系统识别。
+    ///   - permission: 读取权限状态的动作，测试时可替换；为空时读取系统权限。
+    ///   - holdDelay: 按住满多久开始收音，测试时可替换；为空时使用 `VoiceInputController.holdDelay`。
     init(
-        recognizer: any VoiceSpeechRecognizing = VoiceSpeechRecognizer(),
-        permission: @escaping () -> VoiceSpeechPermission = { VoiceSpeechRecognizer.permission },
-        now: @escaping () -> Date = { .now }
+        recognizer: (any VoiceSpeechRecognizing)? = nil,
+        permission: (@MainActor () -> VoiceSpeechPermission)? = nil,
+        holdDelay: Duration? = nil
     ) {
-        self.recognizer = recognizer
-        self.permission = permission
-        self.now = now
+        // 默认参数在非隔离上下文中求值，碰不到主线程隔离的识别器，所以在初始化体内创建默认值
+        self.recognizer = recognizer ?? VoiceSpeechRecognizer()
+        self.permission = permission ?? { VoiceSpeechRecognizer.permission }
+        self.holdDelay = holdDelay ?? Self.holdDelay
     }
 
-    /// 是否正在收音（含启动中），界面据此显示转写气泡。
+    /// 是否正在收音（含启动中）：手指按着且已按满时长，界面据此显示实时转写。
     var isRecording: Bool {
-        guard isPressing, case .record? = pressIntent else { return false }
-        return true
+        isPressing && isHoldConfirmed
     }
 
     /// 已松手、上一句还在启动或等待最终文字；期间不接受新的按下，否则新的一句会被丢掉。
@@ -102,18 +107,29 @@ final class VoiceInputController {
         !isPressing && recognizer.state != .idle
     }
 
-    /// 手指按下。
+    /// 手指按下：按住满 `holdDelay` 才开始收音。
     ///
     /// - Parameters:
     ///   - isSignedIn: 当前是否已登录；未登录时松手后提示登录。
     ///   - locale: 识别语言。
-    ///   - contextualStrings: 读取识别专有名词的动作，只在真正收音时调用。
+    ///   - contextualStrings: 读取识别专有名词的动作，只在可以收音时调用。
     func pressBegan(isSignedIn: Bool, locale: Locale, contextualStrings: () -> [String]) {
+        begin(isSignedIn: isSignedIn, locale: locale, contextualStrings: contextualStrings, delay: holdDelay)
+    }
+
+    /// 开始一次输入。
+    ///
+    /// - Parameters:
+    ///   - isSignedIn: 当前是否已登录。
+    ///   - locale: 识别语言。
+    ///   - contextualStrings: 读取识别专有名词的动作。
+    ///   - delay: 开始收音前的等待；VoiceOver 切换时为零。
+    private func begin(isSignedIn: Bool, locale: Locale, contextualStrings: () -> [String], delay: Duration) {
         guard !isPressing, !isFinishing else { return }
         inputGeneration += 1
         isPressing = true
+        isHoldConfirmed = false
         isCancelArmed = false
-        pressStartedAt = now()
         transientHint = nil
         self.locale = locale
         guard isSignedIn else {
@@ -128,11 +144,19 @@ final class VoiceInputController {
         case .granted:
             pressIntent = .record
             startError = nil
+            startFeedback.prepare()
             let strings = contextualStrings()
             let generation = inputGeneration
             startTask = Task {
+                if delay > .zero {
+                    // 不满时长就松手时任务被取消，sleep 提前结束，由下面的检查拦下
+                    try? await Task.sleep(for: delay)
+                }
                 // 任务还没开始执行就被取消时，识别器仍是空闲，cancel() 停不住它，必须在入口拦下
                 guard generation == inputGeneration, !Task.isCancelled else { return }
+                isHoldConfirmed = true
+                // 先震动再启动识别，震动不受之后激活录音会话的影响
+                startFeedback.impactOccurred()
                 do {
                     try await recognizer.start(locale: locale, contextualStrings: strings)
                 } catch {
@@ -154,17 +178,16 @@ final class VoiceInputController {
 
     /// 手指抬起。
     ///
-    /// - Parameters:
-    ///   - onTap: 按住不足 0.3 秒时执行，例如打开对话面板。
-    ///   - onText: 识别出文字时执行，例如发送给会话。
-    func pressEnded(onTap: @escaping () -> Void, onText: @escaping (String) -> Void) {
+    /// - Parameter onText: 识别出文字时执行，例如发送给会话。
+    func pressEnded(onText: @escaping (String) -> Void) {
         guard isPressing else { return }
         isPressing = false
-        let duration = pressStartedAt.map { now().timeIntervalSince($0) } ?? 0
         let isCancelled = isCancelArmed
         isCancelArmed = false
         let intent = pressIntent
         pressIntent = nil
+        let wasHoldConfirmed = isHoldConfirmed
+        isHoldConfirmed = false
         let generation = inputGeneration
 
         switch intent {
@@ -180,11 +203,21 @@ final class VoiceInputController {
                     alert = .permissionDenied
                 }
             }
+        case .record where !wasHoldConfirmed:
+            // 没按满时长就松手：还没开始收音，取消等待，只提示要按住说话
+            startTask?.cancel()
+            startTask = nil
+            transientHint = AccountLocalization.string("voice.mic.holdHint", locale: locale)
+        case .record where isCancelled:
+            // 上滑取消：立即作废并关麦，启动还没完成也不等
+            cancel()
         case .record:
+            // 松手即停止采集，启动较慢时松手之后的声音也不会被识别
+            recognizer.stopCapture()
             let startTask = startTask
             self.startTask = nil
             Task {
-                // 启动尚未完成时先等它结束，再决定停止还是取消
+                // 启动尚未完成时先等它结束，已采集的音频随后照常识别
                 await startTask?.value
                 // 等待期间离开了页面或结束了会话：识别已被取消，这次输入整个作废
                 guard generation == inputGeneration else { return }
@@ -193,18 +226,9 @@ final class VoiceInputController {
                     alert = Self.alert(for: startError)
                     return
                 }
-                if duration < Self.tapThreshold {
-                    recognizer.cancel()
-                    onTap()
-                    return
-                }
-                if isCancelled {
-                    recognizer.cancel()
-                    return
-                }
                 let text = await recognizer.stop()
                 guard generation == inputGeneration else { return }
-                // 没识别到话时静默取消
+                // 没识别到话时静默结束
                 if !text.isEmpty {
                     onText(text)
                 }
@@ -214,7 +238,7 @@ final class VoiceInputController {
         }
     }
 
-    /// 无障碍「开始说话 / 结束说话」：轻点一次开始，再轻点一次结束并发送。
+    /// VoiceOver 下切换收音：轻点两下开始，再轻点两下结束并发送。
     ///
     /// - Parameters:
     ///   - isSignedIn: 当前是否已登录。
@@ -229,24 +253,25 @@ final class VoiceInputController {
     ) {
         guard !isFinishing else { return }
         if isPressing {
-            // 无障碍模式下没有按住时长，按收音处理
-            pressStartedAt = .distantPast
-            pressEnded(onTap: {}, onText: onText)
+            pressEnded(onText: onText)
         } else {
-            pressBegan(isSignedIn: isSignedIn, locale: locale, contextualStrings: contextualStrings)
+            // VoiceOver 下没有按住的动作，立即开始收音
+            begin(isSignedIn: isSignedIn, locale: locale, contextualStrings: contextualStrings, delay: .zero)
             if case .record = pressIntent {
                 return
             }
             // 不能收音时立即给出提示
-            pressEnded(onTap: {}, onText: onText)
+            pressEnded(onText: onText)
         }
     }
 
-    /// 离开页面或结束会话时放弃这次输入：正在收音、启动中或等待最终文字的都作废，不再回调 `onText`。
+    /// 离开页面或结束会话时放弃这次输入：正在收音、启动中或等待最终文字的都作废，不再回调 `onText`；一次性提示也一并清掉。
     func cancel() {
         inputGeneration += 1
         startError = nil
+        transientHint = nil
         isPressing = false
+        isHoldConfirmed = false
         isCancelArmed = false
         pressIntent = nil
         startTask?.cancel()
