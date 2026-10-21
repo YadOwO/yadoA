@@ -81,6 +81,24 @@ final class CategoryManagementFlowUITests: XCTestCase {
         XCTAssertTrue(pets.waitForNonExistence(timeout: 3))
     }
 
+    /// 左滑点「删除」后在确认框取消，分类仍留在列表里。
+    @MainActor
+    func testCancellingDeletionKeepsCategory() throws {
+        let app = launchHomeFixtureInEnglish()
+        openCategoryManagement(in: app)
+
+        let pets = app.descendants(matching: .any)["category-row-pets"]
+        XCTAssertTrue(pets.waitForExistence(timeout: 3))
+        pets.swipeLeft()
+        app.buttons["Delete"].tap()
+
+        let cancel = app.buttons["Cancel"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 3))
+        cancel.tap()
+        XCTAssertTrue(cancel.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(pets.exists, "取消确认后分类不应从列表消失")
+    }
+
     /// 有流水的分类：删除页默认迁移，可改为一并删除流水，再确认一次后删除。
     @MainActor
     func testDeletingCategoryWithEntriesCanDeleteEntries() throws {

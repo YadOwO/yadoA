@@ -40,8 +40,7 @@ struct CategoryDeletionRequest: Identifiable, Hashable {
 
 /// 分类管理页：支出、收入分类的新增、编辑、排序和删除。
 ///
-/// 规则限制都在界面上直接表达：只有自定义分类显示进入编辑的箭头，预置分类在行内标明「不可修改」；
-/// 除「其他」外都能左滑删除，「其他」没有左滑操作并在行内说明原因，避免用户点了没反应才发现做不了。
+/// 只有自定义分类显示进入编辑的箭头；除「其他」外都能左滑删除，「其他」没有左滑操作并在行内提示不能删除。
 struct CategoryManagementView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.locale) private var locale
@@ -180,11 +179,14 @@ struct CategoryManagementView: View {
         rowContent(item)
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 if item.canDelete {
-                    Button(role: .destructive) {
+                    // 不用 destructive 角色：List 会在点击时立即移除该行，用户取消确认后行就凭空消失了；
+                    // 真正删除由确认框或删除页完成，这里只用红色提示操作性质。
+                    Button {
                         requestDeletion(of: item)
                     } label: {
                         Label(text("category.delete.action"), systemImage: "trash")
                     }
+                    .tint(Color(.ledgerRed))
                 }
             }
             .accessibilityIdentifier("category-row-\(item.key)")
@@ -206,11 +208,9 @@ struct CategoryManagementView: View {
         }
     }
 
-    /// 行内的补充说明：「其他」说明它的兜底用途，其余预置分类标明是不可修改的系统分类。
+    /// 行内的补充说明：只给「其他」提示不能删除，其余分类不显示。
     private func subtitle(for item: BookkeepingCategoryItem) -> String? {
-        if item.isOther { return text("category.other.hint") }
-        if item.isPreset { return text("category.preset.badge") }
-        return nil
+        item.isOther ? text("category.other.hint") : nil
     }
 
     // MARK: - 操作

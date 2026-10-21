@@ -7083,36 +7083,19 @@
         }
       }
     },
-    "category.preset.badge" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Built-in · can't be edited"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "系统分类，不可修改"
-          }
-        }
-      }
-    },
     "category.other.hint" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Receives entries from deleted categories. Can't be deleted."
+            "value" : "Can't be deleted"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "用于接收被删除分类的流水，不能删除"
+            "value" : "不可删除"
           }
         }
       }
