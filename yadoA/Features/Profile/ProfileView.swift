@@ -26,6 +26,10 @@ struct ProfileView: View {
     @State private var editingProfile: AccountProfile?
     /// 是否推入登录 / 注册页。
     @State private var isSignInPresented = false
+    #if DEBUG
+    /// 开发者设置中选择的 AI 服务，只在 DEBUG 包可切换。
+    @AppStorage(AIServiceEnvironment.storageKey) private var aiServiceEnvironment: AIServiceEnvironment = .production
+    #endif
 
     var body: some View {
         ScrollView {
@@ -159,6 +163,22 @@ struct ProfileView: View {
                             )
                         }
                         .accessibilityIdentifier("profile-voice-timing")
+
+                        #if DEBUG
+                        rowDivider
+
+                        NavigationLink {
+                            AIServiceSettingsView()
+                                .secondaryPage()
+                        } label: {
+                            row(
+                                "debug.aiService.title",
+                                symbol: "server.rack",
+                                value: text(aiServiceEnvironment.titleLocalizationKey)
+                            )
+                        }
+                        .accessibilityIdentifier("profile-ai-service")
+                        #endif
                     }
                 }
 

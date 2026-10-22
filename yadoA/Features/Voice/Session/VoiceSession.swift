@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 import SwiftData
 
 /// 一轮无法完成时的原因，界面据此给出提示和后续操作。

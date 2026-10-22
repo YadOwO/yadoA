@@ -44,8 +44,8 @@ protocol VoiceSessionTurnSending {
 
 /// 调用 yado_ai `POST /v1/yadoa/voice-session/turn` 的网络客户端。
 final class VoiceSessionAPI: VoiceSessionTurnSending {
-    /// AI 服务地址（不含路径）。
-    private let endpoint: URL
+    /// 指定的 AI 服务地址（不含路径）；为空时每次请求按 `AIServiceEnvironment` 取当前地址。
+    private let endpointOverride: URL?
 
     /// 网络会话；测试可注入。
     private let session: URLSession
@@ -59,25 +59,22 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
     /// 创建客户端。
     ///
     /// - Parameters:
-    ///   - endpoint: AI 服务地址，默认取 `AuthConfig.aiServiceEndpoint`。
+    ///   - endpoint: AI 服务地址；为空时每次请求取 `AIServiceEnvironment.currentEndpoint`，开发者设置里切换后立即生效。
     ///   - session: 网络会话。
     ///   - accessToken: 获取 access token 的动作，抛出 `AIServiceAuthError`。
     init(
-        endpoint: URL = VoiceSessionAPI.defaultEndpoint,
+        endpoint: URL? = nil,
         session: URLSession = .shared,
         accessToken: @escaping () async throws -> String
     ) {
-        self.endpoint = endpoint
+        self.endpointOverride = endpoint
         self.session = session
         self.accessToken = accessToken
     }
 
-    /// 默认 AI 服务地址；`AuthConfig.aiServiceEndpoint` 是写死的常量，非法即为配置错误。
-    static var defaultEndpoint: URL {
-        guard let url = URL(string: AuthConfig.aiServiceEndpoint) else {
-            preconditionFailure("AuthConfig.aiServiceEndpoint 不是合法 URL：\(AuthConfig.aiServiceEndpoint)")
-        }
-        return url
+    /// 本次请求要连的地址。
+    private var endpoint: URL {
+        endpointOverride ?? AIServiceEnvironment.currentEndpoint
     }
 
     func send(_ request: VoiceSessionTurnRequest, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse {

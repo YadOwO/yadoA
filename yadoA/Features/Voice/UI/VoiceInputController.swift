@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 import UIKit
 
 /// 按住说话时需要弹出的提示。

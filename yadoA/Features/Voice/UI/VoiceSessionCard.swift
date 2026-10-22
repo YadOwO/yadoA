@@ -143,6 +143,17 @@ struct VoiceSessionCard: View {
             Label(text("voice.conversation.title"), systemImage: "waveform")
                 .font(.footnote.weight(.medium))
                 .foregroundStyle(.secondary)
+            #if DEBUG
+            // 连本地 AI 服务时标出来，免得把本地结果当成线上
+            if AIServiceEnvironment.current == .local {
+                Text(text("debug.aiService.local"))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.orange.opacity(0.15), in: Capsule())
+            }
+            #endif
             Spacer(minLength: 0)
             Button(action: onEnd) {
                 Image(systemName: "xmark")

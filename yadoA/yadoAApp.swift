@@ -17,6 +17,8 @@ struct yadoAApp: App {
 
     init() {
         #if DEBUG
+        // yadoA-local / yadoA Scheme 通过启动环境变量指定连本地还是线上的 AI 服务
+        AIServiceEnvironment.applyLaunchEnvironment(ProcessInfo.processInfo.environment)
         if ProcessInfo.processInfo.arguments.contains("--ui-testing-in-memory") {
             do {
                 // 设计预览沿用隔离启动路径，示例收支不会写入真实账本。

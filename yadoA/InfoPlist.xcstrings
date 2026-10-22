@@ -84,6 +84,24 @@
           }
         }
       }
+    },
+    "NSLocalNetworkUsageDescription" : {
+      "comment" : "Local network permission prompt; only development builds connect to a local server.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado Asset connects to a development server on your local network only in development builds."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆资产仅在开发调试版本中连接局域网内的开发服务器。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

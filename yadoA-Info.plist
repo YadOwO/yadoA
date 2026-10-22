@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Yado Asset connects to a development server on your local network only in development builds.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Yado Asset uses the microphone to hear what you say for voice entry.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
