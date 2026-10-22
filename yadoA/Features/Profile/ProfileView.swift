@@ -145,6 +145,23 @@ struct ProfileView: View {
                         .labelStyle(ProfileExportLabelStyle())
                 }
 
+                // 只在 DEBUG 包与 TestFlight 包显示
+                if VoiceTimingFeature.isEnabled {
+                    settingsSection("profile.section.developer") {
+                        NavigationLink {
+                            VoiceTimingHistoryView()
+                                .secondaryPage()
+                        } label: {
+                            row(
+                                "voice.timing.history.title",
+                                symbol: "stopwatch",
+                                value: VoiceTimingStore.shared.records.count.formatted()
+                            )
+                        }
+                        .accessibilityIdentifier("profile-voice-timing")
+                    }
+                }
+
                 if authStore.isAuthenticated {
                     settingsSection("auth.section.title") {
                         Button {

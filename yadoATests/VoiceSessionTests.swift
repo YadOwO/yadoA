@@ -220,6 +220,49 @@ struct VoiceSessionTests {
         #expect(VoiceSessionSummary.text(for: [], locale: locale).isEmpty == false)
     }
 
+    @Test("每句记录耗时：请求带句序号与请求序号，结束会话后重新编号")
+    func recordsTurnTiming() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.toolCalls([fixture.createCall("c1", amount: "28")], canFinishLocally: false)),
+            .success(.reply(text: "已记 1 笔")),
+            .success(.reply(text: "好的")),
+        ]
+
+        await fixture.session.send("午饭 28", speechFinalizeDuration: .milliseconds(180))
+        await fixture.session.send("没事了")
+
+        let traces = fixture.api.traces
+        #expect(traces.map(\.turn) == [1, 1, 2])
+        #expect(traces.map(\.request) == [1, 2, 1])
+        #expect(Set(traces.map(\.sessionID)).count == 1)
+
+        let first = try #require(fixture.session.turns.first?.timing)
+        #expect(first.turnIndex == 1)
+        #expect(first.outcome == .reply)
+        #expect(first.speechFinalizeMs == 180)
+        #expect(first.requests.map(\.outcome) == [.toolCalls, .reply])
+        #expect(first.requests.first?.toolCallCount == 1)
+        #expect(first.requests.first?.executionMs != nil)
+        #expect(first.requests.last?.executionMs == nil)
+        #expect(first.requests.first?.server?.totalMs == 2104)
+        #expect(first.requests.first?.requestID == "req-1")
+        #expect(first.totalMs >= 180)
+        #expect(fixture.session.turns.last?.timing?.speechFinalizeMs == nil)
+        #expect(fixture.timingStore.records.map(\.turnIndex) == [1, 2])
+
+        fixture.session.end()
+        fixture.api.responses = [.failure(.serviceUnavailable)]
+        await fixture.session.send("午饭 28")
+
+        let afterEnd = try #require(fixture.api.traces.last)
+        #expect(afterEnd.turn == 1)
+        #expect(afterEnd.sessionID != traces[0].sessionID)
+        let failed = try #require(fixture.session.latestTurn?.timing)
+        #expect(failed.outcome == .failed)
+        #expect(failed.requests.map(\.outcome) == [.failed])
+    }
+
     // MARK: - 辅助
 
     /// 一次测试使用的容器、账户、时钟与假接口。
@@ -230,6 +273,7 @@ struct VoiceSessionTests {
         let inactiveAccountID: UUID
         let api: FakeVoiceSessionAPI
         let clock: TestClock
+        let timingStore = VoiceTimingStore(fileURL: nil)
         let session: VoiceSession
 
         init() throws {
@@ -262,6 +306,7 @@ struct VoiceSessionTests {
                 api: api,
                 locale: Locale(identifier: "zh-Hans"),
                 calendar: calendar,
+                timingStore: timingStore,
                 now: { clock.date }
             )
         }
@@ -295,8 +340,17 @@ private final class FakeVoiceSessionAPI: VoiceSessionTurnSending {
     /// 收到的请求。
     private(set) var requests: [VoiceSessionTurnRequest] = []
 
-    func send(_ request: VoiceSessionTurnRequest) async throws -> VoiceSessionTurnResponse {
+    /// 每次请求的追踪信息。
+    private(set) var traces: [VoiceRequestTrace] = []
+
+    /// 每次请求填回的服务端耗时，模拟响应头中的 `Server-Timing`。
+    var serverTiming = "pre;dur=1.2, prepare;dur=0.4, ttft-1;dur=900, gen-1;dur=1200;desc=\"in=3000 out=96\", check-1;dur=2, total;dur=2104"
+
+    func send(_ request: VoiceSessionTurnRequest, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse {
         requests.append(request)
+        traces.append(trace)
+        trace.server = VoiceServerTiming.parse(serverTiming)
+        trace.requestID = "req-\(traces.count)"
         guard !responses.isEmpty else { throw VoiceSessionAPIError.serviceUnavailable }
         return try responses.removeFirst().get()
     }

@@ -34,10 +34,12 @@ enum VoiceSessionAPIError: Error, Equatable {
 protocol VoiceSessionTurnSending {
     /// 发送一步请求。
     ///
-    /// - Parameter request: 会话上下文与全部事件。
+    /// - Parameters:
+    ///   - request: 会话上下文与全部事件。
+    ///   - trace: 追踪信息：带上会话、句序号与请求序号，并填回各段耗时；失败时也填回已经测到的部分。
     /// - Returns: 工具调用、追问或回复。
     /// - Throws: `VoiceSessionAPIError`。
-    func send(_ request: VoiceSessionTurnRequest) async throws -> VoiceSessionTurnResponse
+    func send(_ request: VoiceSessionTurnRequest, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse
 }
 
 /// 调用 yado_ai `POST /v1/yadoa/voice-session/turn` 的网络客户端。
@@ -78,9 +80,12 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
         return url
     }
 
-    func send(_ request: VoiceSessionTurnRequest) async throws -> VoiceSessionTurnResponse {
+    func send(_ request: VoiceSessionTurnRequest, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse {
+        let tokenStartedAt = VoiceTimingClock.now
         let token: String
         do {
+            // 成功、失败都记下：凭证过期后刷新慢、最终失败时，正需要看出时间耗在这一段
+            defer { trace.tokenMs = VoiceTimingClock.milliseconds(since: tokenStartedAt) }
             token = try await accessToken()
         } catch AIServiceAuthError.notSignedIn {
             throw VoiceSessionAPIError.notSignedIn
@@ -95,6 +100,10 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
         urlRequest.timeoutInterval = Self.requestTimeout
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        // 服务端日志据此把同一句话的多次请求串起来
+        urlRequest.setValue(trace.sessionID, forHTTPHeaderField: VoiceRequestTrace.Header.sessionID)
+        urlRequest.setValue(String(trace.turn), forHTTPHeaderField: VoiceRequestTrace.Header.turn)
+        urlRequest.setValue(String(trace.request), forHTTPHeaderField: VoiceRequestTrace.Header.request)
         do {
             urlRequest.httpBody = try JSONEncoder().encode(request)
         } catch {
@@ -103,16 +112,27 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
 
         let data: Data
         let response: URLResponse
+        let metrics = VoiceTaskMetricsCollector()
+        let transportStartedAt = VoiceTimingClock.now
+        // 记下网络耗时；请求失败时也记，超时这类情况正需要看卡在哪一段
+        func recordTransport() {
+            trace.transportMs = VoiceTimingClock.milliseconds(since: transportStartedAt)
+            trace.network = metrics.timing
+        }
         do {
-            (data, response) = try await session.data(for: urlRequest)
+            (data, response) = try await session.data(for: urlRequest, delegate: metrics)
         } catch let error as URLError where error.code == .timedOut {
+            recordTransport()
             throw VoiceSessionAPIError.timeout
         } catch {
+            recordTransport()
             throw VoiceSessionAPIError.network
         }
+        recordTransport()
         guard let httpResponse = response as? HTTPURLResponse else {
             throw VoiceSessionAPIError.invalidContract
         }
+        trace.record(httpResponse)
         guard httpResponse.statusCode == 200 else {
             throw Self.error(statusCode: httpResponse.statusCode, body: data)
         }

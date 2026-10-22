@@ -138,6 +138,34 @@ struct VoiceSessionContractTests {
         #expect(object["total"] as? Int == 1)
     }
 
+    @Test("获取凭证失败时也记下凭证耗时，且没有发出请求")
+    func recordsTokenTimingWhenTokenFails() async throws {
+        let cases: [(AIServiceAuthError, VoiceSessionAPIError)] = [
+            (.unavailable, .network),
+            (.sessionExpired, .sessionExpired),
+            (.notSignedIn, .notSignedIn),
+        ]
+        let endpoint = try #require(URL(string: "https://example.invalid"))
+        let request = VoiceSessionTurnRequest(
+            locale: "zh-Hans", now: "2026-10-20T12:30:00-07:00", defaultAccountId: nil,
+            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)]
+        )
+        for (authError, expected) in cases {
+            // 模拟凭证过期后刷新很慢、最终失败
+            let api = VoiceSessionAPI(endpoint: endpoint) {
+                try await Task.sleep(for: .milliseconds(20))
+                throw authError
+            }
+            let trace = VoiceRequestTrace(sessionID: "S", turn: 1, request: 1)
+            await #expect(throws: expected) {
+                try await api.send(request, trace: trace)
+            }
+            #expect((trace.tokenMs ?? 0) >= 20)
+            #expect(trace.transportMs == nil)
+            #expect(trace.statusCode == nil)
+        }
+    }
+
     @Test("错误状态码映射：429 区分每分钟与每天")
     func mapsErrorStatusCodes() {
         let daily = Data(#"{"code":"TOO_MANY_REQUESTS","message":"x","details":{"rule":"per_day"}}"#.utf8)

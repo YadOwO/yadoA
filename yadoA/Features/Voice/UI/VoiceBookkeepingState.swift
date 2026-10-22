@@ -56,7 +56,9 @@ final class VoiceBookkeepingState {
     ///   - option: 点选的候选项；直接说话时为空。
     func send(_ text: String, option: VoiceAskOption? = nil) {
         guard let session else { return }
-        Task { await session.send(text, selectedOption: option) }
+        // 说话发出的一句带上识别收尾耗时；点选候选项没有识别
+        let speechFinalizeDuration = option == nil ? input.takeSpeechFinalizeDuration() : nil
+        Task { await session.send(text, selectedOption: option, speechFinalizeDuration: speechFinalizeDuration) }
     }
 
     /// 结束会话，同时作废还在收尾的语音输入，避免它在会话结束后识别完成、又发起新的一轮。

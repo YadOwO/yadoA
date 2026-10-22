@@ -80,6 +80,9 @@ final class VoiceInputController {
     /// 最近一次按下时的界面语言，用于一次性提示的文案。
     private var locale = Locale.current
 
+    /// 最近一句从松手到拿到最终识别文字的耗时；由 `takeSpeechFinalizeDuration()` 取走，计入这句话的耗时。
+    private var speechFinalizeDuration: Duration?
+
     /// 创建按住说话的交互逻辑。
     ///
     /// - Parameters:
@@ -137,6 +140,7 @@ final class VoiceInputController {
     private func begin(isSignedIn: Bool, locale: Locale, contextualStrings: () -> [String], delay: Duration) {
         guard !isPressing, !isFinishing else { return }
         inputGeneration += 1
+        speechFinalizeDuration = nil
         isPressing = true
         isHoldConfirmed = false
         isCancelArmed = false
@@ -222,11 +226,15 @@ final class VoiceInputController {
             // 上滑取消：立即作废并关麦，启动还没完成也不等
             cancel()
         case .record:
+            let releasedAt = VoiceTimingClock.now
+            let signposter = VoiceTimingLog.signposter
+            let finalizeSignpost = signposter.beginInterval("VoiceSpeechFinalize", id: signposter.makeSignpostID())
             // 松手即停止采集，启动较慢时松手之后的声音也不会被识别
             recognizer.stopCapture()
             let startTask = startTask
             self.startTask = nil
             Task {
+                defer { signposter.endInterval("VoiceSpeechFinalize", finalizeSignpost) }
                 // 启动尚未完成时先等它结束，已采集的音频随后照常识别
                 await startTask?.value
                 // 等待期间离开了页面或结束了会话：识别已被取消，这次输入整个作废
@@ -240,6 +248,7 @@ final class VoiceInputController {
                 guard generation == inputGeneration else { return }
                 // 没识别到话时静默结束
                 if !text.isEmpty {
+                    speechFinalizeDuration = ContinuousClock.now - releasedAt
                     onText(text)
                 }
             }
@@ -275,9 +284,18 @@ final class VoiceInputController {
         }
     }
 
+    /// 取走最近一句从松手到拿到最终识别文字的耗时，取走后清空，避免算到下一句上。
+    ///
+    /// - Returns: 耗时；没有待取的耗时时为空。
+    func takeSpeechFinalizeDuration() -> Duration? {
+        defer { speechFinalizeDuration = nil }
+        return speechFinalizeDuration
+    }
+
     /// 离开页面或结束会话时放弃这次输入：正在收音、启动中或等待最终文字的都作废，不再回调 `onText`；一次性提示也一并清掉。
     func cancel() {
         inputGeneration += 1
+        speechFinalizeDuration = nil
         startError = nil
         transientHint = nil
         isPressing = false

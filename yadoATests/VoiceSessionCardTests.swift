@@ -191,7 +191,8 @@ struct VoiceSessionCardTests {
             session = VoiceSession(
                 container: sessionContainer,
                 api: api,
-                locale: Self.locale
+                locale: Self.locale,
+                timingStore: VoiceTimingStore(fileURL: nil)
             )
             let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
             window = UIWindow(windowScene: scene)
@@ -327,7 +328,7 @@ private final class CardSessionAPI: VoiceSessionTurnSending {
     /// 是否已进入等待阶段。
     var hasPendingResponse: Bool { continuation != nil }
 
-    func send(_ request: VoiceSessionTurnRequest) async throws -> VoiceSessionTurnResponse {
+    func send(_ request: VoiceSessionTurnRequest, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse {
         guard holdsResponse else { return try response.get() }
         return try await withCheckedThrowingContinuation { continuation = $0 }
     }

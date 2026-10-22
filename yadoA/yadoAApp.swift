@@ -74,6 +74,8 @@ struct yadoAApp: App {
             }
             .environment(authStore)
             .modifier(AppDisplayPreferencesModifier())
+            // Release 包判断是否从 TestFlight 安装，决定是否显示语音耗时面板
+            .task { await VoiceTimingFeature.resolve() }
         }
     }
 }

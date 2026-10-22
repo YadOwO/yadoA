@@ -265,6 +265,10 @@ private struct VoiceSessionTurnView: View {
                     ))
                 }
             }
+            // DEBUG 包与 TestFlight 包显示这句话的耗时，点开看每一步
+            if VoiceTimingFeature.isEnabled, let timing = turn.timing {
+                VoiceTurnTimingView(timing: timing)
+            }
             if isLatest, case let .ask(_, options) = turn.outcome, !options.isEmpty {
                 VoiceAskOptionsView(options: options, isEnabled: !session.isProcessing) { option in
                     Task { await session.send(option.label, selectedOption: option) }

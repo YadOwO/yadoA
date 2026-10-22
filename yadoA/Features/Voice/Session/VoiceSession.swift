@@ -67,6 +67,9 @@ final class VoiceSession {
         /// 本轮第一条事件在会话记录中的位置。
         let eventStartIndex: Int
 
+        /// 本轮的耗时；处理结束后才有。
+        var timing: VoiceTurnTiming?
+
         /// 本轮最终展示给用户的文字：回复、追问或空。
         var displayText: String? {
             switch outcome {
@@ -101,10 +104,17 @@ final class VoiceSession {
     /// 每次结束会话递增；等待网络期间会话被结束时，用它丢弃过期的结果。
     private var generation = 0
 
+    /// 会话标识，随请求头发给服务端，服务端日志据此把同一会话的请求串起来；结束会话后重新生成。
+    private var sessionID = UUID()
+
+    /// 本会话已经处理的句数，作为句序号随请求头发给服务端。
+    private var turnCount = 0
+
     private let container: ModelContainer
     private let api: VoiceSessionTurnSending
     private let highlight: HomeRecentEntryHighlight
     private let now: () -> Date
+    private let timingStore: VoiceTimingStore
 
     /// 界面语言，决定分类名称、结果提示和 AI 回复的语言。
     var locale: Locale
@@ -120,6 +130,7 @@ final class VoiceSession {
     ///   - locale: 界面语言。
     ///   - calendar: 记账日使用的日历。
     ///   - highlight: 首页变更提示通道。
+    ///   - timingStore: 耗时记录；为空时使用 App 共用的记录。
     ///   - now: 时间源。
     init(
         container: ModelContainer,
@@ -127,6 +138,7 @@ final class VoiceSession {
         locale: Locale = .current,
         calendar: Calendar = .current,
         highlight: HomeRecentEntryHighlight = .shared,
+        timingStore: VoiceTimingStore? = nil,
         now: @escaping () -> Date = { .now }
     ) {
         self.container = container
@@ -134,6 +146,8 @@ final class VoiceSession {
         self.locale = locale
         self.calendar = calendar
         self.highlight = highlight
+        // 默认参数在非隔离上下文中求值，碰不到主线程隔离的共用记录，所以在初始化体内取默认值
+        self.timingStore = timingStore ?? .shared
         self.now = now
     }
 
@@ -164,7 +178,12 @@ final class VoiceSession {
     /// - Parameters:
     ///   - rawText: 语音转写或输入的文字；去掉首尾空白后为空时忽略。
     ///   - selectedOption: 回答追问时点选的候选项。
-    func send(_ rawText: String, selectedOption: VoiceAskOption? = nil) async {
+    ///   - speechFinalizeDuration: 松手到拿到最终识别文字的耗时，计入本轮耗时；点选候选项时为空。
+    func send(
+        _ rawText: String,
+        selectedOption: VoiceAskOption? = nil,
+        speechFinalizeDuration: Duration? = nil
+    ) async {
         let text = String(
             rawText.trimmingCharacters(in: .whitespacesAndNewlines).prefix(VoiceSessionLimits.maxUserTextLength)
         )
@@ -185,16 +204,55 @@ final class VoiceSession {
                 lastActivityAt = now()
             }
         }
+        turnCount += 1
+        let turnIndex = turnCount
+        let turnStartedAt = VoiceTimingClock.now
+        let signposter = VoiceTimingLog.signposter
+        let turnSignpost = signposter.beginInterval("VoiceTurn", id: signposter.makeSignpostID(), "turn \(turnIndex)")
+        var requestTimings: [VoiceRequestTiming] = []
+        // 每个返回点都要记下本轮耗时；会话已结束的不再记
+        defer {
+            signposter.endInterval("VoiceTurn", turnSignpost)
+            if turnGeneration == generation {
+                recordTiming(
+                    turnID,
+                    turnIndex: turnIndex,
+                    speechFinalizeDuration: speechFinalizeDuration,
+                    processingMs: VoiceTimingClock.milliseconds(since: turnStartedAt),
+                    requests: requestTimings
+                )
+            }
+        }
         events.append(.user(text: text, selectedOptionId: selectedOption?.id))
 
         let executor = VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: now)
         do {
-            for _ in 0..<Self.maxRequestsPerTurn {
-                let response = try await api.send(makeRequest())
+            for requestIndex in 1...Self.maxRequestsPerTurn {
+                let requestStartedAt = VoiceTimingClock.now
+                let request = makeRequest()
+                let buildMs = VoiceTimingClock.milliseconds(since: requestStartedAt)
+                let trace = VoiceRequestTrace(sessionID: sessionID.uuidString, turn: turnIndex, request: requestIndex)
+                let requestSignpost = signposter.beginInterval(
+                    "VoiceRequest", id: signposter.makeSignpostID(), "request \(requestIndex)"
+                )
+                let response: VoiceSessionTurnResponse
+                do {
+                    response = try await api.send(request, trace: trace)
+                } catch {
+                    signposter.endInterval("VoiceRequest", requestSignpost)
+                    requestTimings.append(Self.requestTiming(trace, outcome: .failed, buildMs: buildMs, startedAt: requestStartedAt))
+                    throw error
+                }
+                signposter.endInterval("VoiceRequest", requestSignpost)
+                requestTimings.append(Self.requestTiming(
+                    trace, outcome: response.timingOutcome, buildMs: buildMs, startedAt: requestStartedAt
+                ))
                 // 等待期间会话已结束（例如离开记账页），结果不再展示
                 guard turnGeneration == generation else { return }
                 switch response {
                 case let .toolCalls(calls, canFinishLocally, followUpAsk):
+                    let executionStartedAt = VoiceTimingClock.now
+                    let executionSignpost = signposter.beginInterval("VoiceExecute", id: signposter.makeSignpostID())
                     var isAllSucceeded = true
                     for call in calls {
                         let execution = executor.execute(call)
@@ -208,6 +266,9 @@ final class VoiceSession {
                             }
                         }
                     }
+                    signposter.endInterval("VoiceExecute", executionSignpost)
+                    requestTimings[requestTimings.count - 1].toolCallCount = calls.count
+                    requestTimings[requestTimings.count - 1].executionMs = VoiceTimingClock.milliseconds(since: executionStartedAt)
                     // 随调用下发的追问：全部成功时直接显示，不必为同一个问题再请求一次
                     if let followUpAsk, isAllSucceeded {
                         askUser(turnID, question: followUpAsk.question, options: followUpAsk.options)
@@ -259,6 +320,8 @@ final class VoiceSession {
     /// 结束会话：清空记录。等待中的请求返回后会被丢弃，已写入的流水保留。
     func end() {
         generation += 1
+        sessionID = UUID()
+        turnCount = 0
         turns = []
         events = []
         isProcessing = false
@@ -286,6 +349,72 @@ final class VoiceSession {
             categories: context.categories,
             events: events
         )
+    }
+
+    /// 由追踪信息生成一次请求的耗时。
+    ///
+    /// - Parameters:
+    ///   - trace: 网络层填回的耗时。
+    ///   - outcome: 这次请求的结果。
+    ///   - buildMs: 组装请求的耗时。
+    ///   - startedAt: 开始组装请求的时刻。
+    /// - Returns: 一次请求的耗时。
+    private static func requestTiming(
+        _ trace: VoiceRequestTrace,
+        outcome: VoiceRequestTiming.Outcome,
+        buildMs: Double,
+        startedAt: ContinuousClock.Instant
+    ) -> VoiceRequestTiming {
+        VoiceRequestTiming(
+            index: trace.request,
+            durationMs: VoiceTimingClock.milliseconds(since: startedAt),
+            buildMs: buildMs,
+            tokenMs: trace.tokenMs,
+            transportMs: trace.transportMs,
+            network: trace.network,
+            server: trace.server,
+            requestID: trace.requestID,
+            statusCode: trace.statusCode,
+            outcome: outcome
+        )
+    }
+
+    /// 记下本轮耗时：挂到这一轮上供卡片显示，写系统日志，可见时存入耗时记录。
+    ///
+    /// - Parameters:
+    ///   - id: 本轮标识。
+    ///   - turnIndex: 会话中的第几句。
+    ///   - speechFinalizeDuration: 松手到拿到最终识别文字的耗时。
+    ///   - processingMs: 开始处理到本轮结束的耗时。
+    ///   - requests: 本轮的全部请求。
+    private func recordTiming(
+        _ id: UUID,
+        turnIndex: Int,
+        speechFinalizeDuration: Duration?,
+        processingMs: Double,
+        requests: [VoiceRequestTiming]
+    ) {
+        guard let turn = turns.first(where: { $0.id == id }) else { return }
+        let outcome: VoiceTurnTiming.Outcome = switch turn.outcome {
+        case .ask: .ask
+        case .failed: .failed
+        case .reply, .processing: .reply
+        }
+        let timing = VoiceTurnTiming(
+            id: id,
+            recordedAt: now(),
+            sessionID: sessionID.uuidString,
+            turnIndex: turnIndex,
+            speechFinalizeMs: speechFinalizeDuration.map { VoiceTimingClock.milliseconds($0) },
+            processingMs: processingMs,
+            requests: requests,
+            outcome: outcome
+        )
+        updateTurn(id) { $0.timing = timing }
+        VoiceTimingLog.log(timing)
+        if VoiceTimingFeature.isEnabled {
+            timingStore.append(timing)
+        }
     }
 
     private func appendTurn(_ turn: Turn) -> UUID {
@@ -383,5 +512,16 @@ enum VoiceSessionSummary {
         }
         guard !parts.isEmpty else { return AccountLocalization.string("voice.summary.none", locale: locale) }
         return parts.joined(separator: AccountLocalization.string("voice.summary.separator", locale: locale))
+    }
+}
+
+extension VoiceSessionTurnResponse {
+    /// 耗时记录中这次请求的结果。
+    fileprivate var timingOutcome: VoiceRequestTiming.Outcome {
+        switch self {
+        case .toolCalls: .toolCalls
+        case .ask: .ask
+        case .reply: .reply
+        }
     }
 }
