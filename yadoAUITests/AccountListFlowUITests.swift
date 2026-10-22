@@ -54,10 +54,7 @@ final class AccountListFlowUITests: XCTestCase {
         app.staticTexts["Cash"].firstMatch.tap()
 
         XCTAssertTrue(app.navigationBars["Account Details"].waitForExistence(timeout: 3))
-        XCTAssertTrue(
-            app.tabBars.firstMatch.waitForNonExistence(timeout: 3),
-            "进入账户详情后不应继续展示 Tab Bar"
-        )
+        XCTAssertTrue(app.tabBars.firstMatch.exists, "账户详情保留 Tab Bar")
         XCTAssertEqual(app.staticTexts["account-detail-name"].label, "Cash")
         // 账户资料按需展开，余额和调整入口优先保持在首屏。
         let information = app.buttons["Account Information"]

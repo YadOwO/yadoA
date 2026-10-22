@@ -50,7 +50,6 @@ struct ProfileView: View {
 
                         NavigationLink {
                             DeactivatedAccountListView()
-                                .secondaryPage()
                         } label: {
                             row(
                                 "account.deactivated.title",
@@ -66,7 +65,6 @@ struct ProfileView: View {
                     // 账单是按月、按年回看的汇总，不是日常记账操作，放在这里不占记账页导航栏。
                     NavigationLink {
                         BillView()
-                            .secondaryPage()
                     } label: {
                         row("bill.title", symbol: "doc.text", value: "")
                     }
@@ -76,7 +74,6 @@ struct ProfileView: View {
 
                     NavigationLink {
                         CategoryManagementView()
-                            .secondaryPage()
                     } label: {
                         row("category.management.title", symbol: "square.grid.2x2", value: "")
                     }
@@ -135,7 +132,6 @@ struct ProfileView: View {
                 settingsSection("shortcut.screenshot.section") {
                     NavigationLink {
                         ScreenshotShortcutSetupView()
-                            .secondaryPage()
                     } label: {
                         row("shortcut.screenshot.title", symbol: "viewfinder", value: "")
                     }
@@ -165,7 +161,6 @@ struct ProfileView: View {
                     settingsSection("profile.section.developer") {
                         NavigationLink {
                             VoiceTimingHistoryView()
-                                .secondaryPage()
                         } label: {
                             row(
                                 "voice.timing.history.title",
@@ -180,7 +175,6 @@ struct ProfileView: View {
 
                         NavigationLink {
                             AIServiceSettingsView()
-                                .secondaryPage()
                         } label: {
                             row(
                                 "debug.aiService.title",

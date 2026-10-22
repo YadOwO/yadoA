@@ -64,7 +64,6 @@ struct CategoryBreakdownView: View {
         .paperPage()
         .navigationTitle(AccountLocalization.string("chart.category.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
-        .secondaryPage()
         .sheet(isPresented: $isMonthPickerPresented) {
             NavigationStack {
                 HomeMonthPickerView(

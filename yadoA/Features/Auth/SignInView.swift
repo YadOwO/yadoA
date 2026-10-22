@@ -73,7 +73,6 @@ struct SignInView: View {
                     .reveal(hasAppeared, delay: 0, reduceMotion: reduceMotion)
             }
         }
-        .secondaryPage()
         .sensoryFeedback(.error, trigger: failureCount)
         .sensoryFeedback(.success, trigger: isSucceeded) { _, succeeded in succeeded }
         .onAppear {

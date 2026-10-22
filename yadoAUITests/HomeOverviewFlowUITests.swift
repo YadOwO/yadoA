@@ -140,10 +140,7 @@ final class HomeOverviewFlowUITests: XCTestCase {
         app.buttons["home-add-expense"].tap()
 
         XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 3))
-        XCTAssertTrue(
-            app.tabBars.firstMatch.waitForNonExistence(timeout: 3),
-            "进入记账流程后不应继续展示 Tab Bar"
-        )
+        XCTAssertTrue(app.tabBars.firstMatch.exists, "记账流程是二级页面，保留 Tab Bar")
 
         let travel = app.buttons["expense-category-travel"]
         XCTAssertTrue(travel.waitForExistence(timeout: 2))

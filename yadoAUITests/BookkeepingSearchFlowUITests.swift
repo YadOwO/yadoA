@@ -177,10 +177,7 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
         result.tap()
 
         XCTAssertTrue(app.navigationBars["Transaction Details"].waitForExistence(timeout: 3))
-        XCTAssertTrue(
-            app.tabBars.firstMatch.waitForNonExistence(timeout: 3),
-            "进入二级详情页后不应继续展示 Tab Bar"
-        )
+        XCTAssertTrue(app.tabBars.firstMatch.exists, "二级详情页保留 Tab Bar")
         XCTAssertFalse(
             app.searchFields.firstMatch.exists,
             "进入详情后不应继续展示搜索界面"
@@ -192,7 +189,7 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
         XCTAssertTrue(app.textFields["expense-edit-title"].exists)
         app.buttons["expense-edit-cancel"].tap()
 
-        // 详情返回搜索页，再返回记账页后 Tab Bar 才重新出现。
+        // 详情返回搜索页，再返回记账页，Tab Bar 一直保留。
         app.navigationBars["Transaction Details"].buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.navigationBars["Search"].waitForExistence(timeout: 3))
         app.navigationBars["Search"].buttons.element(boundBy: 0).tap()
@@ -234,9 +231,6 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
         XCTAssertTrue(searchEntry.waitForExistence(timeout: 3))
         searchEntry.tap()
         XCTAssertTrue(app.navigationBars["Search"].waitForExistence(timeout: 3))
-        XCTAssertTrue(
-            app.tabBars.firstMatch.waitForNonExistence(timeout: 3),
-            "搜索是记账页的二级页面，不应继续展示 Tab Bar"
-        )
+        XCTAssertTrue(app.tabBars.firstMatch.exists, "搜索是记账页的二级页面，保留 Tab Bar")
     }
 }

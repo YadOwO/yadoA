@@ -531,7 +531,6 @@ private struct AccountDetailQueryContent: View {
             // 详情也会出现在设置和账户管理的导航栈中，直接目标无需依赖 Tab 路由注册。
             NavigationLink {
                 BookkeepingTransactionDetailView(transactionID: row.id)
-                    .secondaryPage()
             } label: {
                 AccountTransactionHistoryRow(presentation: row)
             }

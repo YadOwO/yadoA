@@ -129,15 +129,12 @@ struct AppTabView: View {
                                 )
                                 try repository.save(draft)
                             }
-                            .secondaryPage()
                         case .search:
                             BookkeepingSearchView { transactionID in
                                 homePath.append(.transactionDetail(transactionID))
                             }
-                            .secondaryPage()
                         case let .transactionDetail(transactionID):
                             BookkeepingTransactionDetailView(transactionID: transactionID)
-                                .secondaryPage()
                         }
                     }
             }
@@ -157,10 +154,8 @@ struct AppTabView: View {
                         switch route {
                         case let .detail(accountID):
                             AccountDetailView(accountID: accountID)
-                                .secondaryPage()
                         case let .transactionDetail(transactionID):
                             BookkeepingTransactionDetailView(transactionID: transactionID)
-                                .secondaryPage()
                         }
                     }
             }
