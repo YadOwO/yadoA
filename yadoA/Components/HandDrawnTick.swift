@@ -11,26 +11,26 @@ private enum HandDrawnTickGeometry {
         let widths: [CGFloat]
     }
 
-    /// 先短促下顿、再向右上提笔的两段笔画，与 `AppIcon.icon` 的对勾图层保持一致。
+    /// 先短促下顿、再向右上提笔的两段笔画；与 `AppIcon.icon`、`BrandMark`、`LaunchMark` 里的对勾同源，改动时需一并更新这些资源。
     static let strokes = [
         Stroke(
             points: [
                 CGPoint(x: 372, y: 588), CGPoint(x: 404, y: 622),
                 CGPoint(x: 432, y: 658), CGPoint(x: 458, y: 696)
             ],
-            widths: [57, 68, 77]
+            widths: [66, 78, 88]
         ),
         Stroke(
             points: [
                 CGPoint(x: 458, y: 696), CGPoint(x: 540, y: 628),
                 CGPoint(x: 630, y: 572), CGPoint(x: 729, y: 526)
             ],
-            widths: [77, 70, 62, 48]
+            widths: [88, 80, 71, 55]
         )
     ]
 
     /// 包含笔宽在内的对勾外接范围。
-    static let designBounds = CGRect(x: 338, y: 496, width: 422, height: 244)
+    static let designBounds = CGRect(x: 338, y: 497, width: 420, height: 244)
 
     /// 书写动画使用的揭示笔宽，需略大于最粗处才能完整露出轮廓。
     static let revealWidth: CGFloat = 112
