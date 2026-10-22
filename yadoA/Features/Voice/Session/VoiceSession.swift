@@ -194,7 +194,7 @@ final class VoiceSession {
                 // 等待期间会话已结束（例如离开记账页），结果不再展示
                 guard turnGeneration == generation else { return }
                 switch response {
-                case let .toolCalls(calls, canFinishLocally):
+                case let .toolCalls(calls, canFinishLocally, followUpAsk):
                     var isAllSucceeded = true
                     for call in calls {
                         let execution = executor.execute(call)
@@ -208,13 +208,17 @@ final class VoiceSession {
                             }
                         }
                     }
+                    // 随调用下发的追问：全部成功时直接显示，不必为同一个问题再请求一次
+                    if let followUpAsk, isAllSucceeded {
+                        askUser(turnID, question: followUpAsk.question, options: followUpAsk.options)
+                        return
+                    }
                     if canFinishLocally, isAllSucceeded {
                         finishTurnLocally(turnID)
                         return
                     }
                 case let .ask(question, options):
-                    events.append(.assistant(text: String(question.prefix(VoiceSessionLimits.maxAssistantTextLength))))
-                    updateTurn(turnID) { $0.outcome = .ask(question: question, options: options) }
+                    askUser(turnID, question: question, options: options)
                     return
                 case let .reply(text):
                     events.append(.assistant(text: String(text.prefix(VoiceSessionLimits.maxAssistantTextLength))))
@@ -292,6 +296,17 @@ final class VoiceSession {
     private func updateTurn(_ id: UUID, _ mutation: (inout Turn) -> Void) {
         guard let index = turns.firstIndex(where: { $0.id == id }) else { return }
         mutation(&turns[index])
+    }
+
+    /// 以追问结束本轮：问题追加为 assistant 事件，等待用户下一轮回答。
+    ///
+    /// - Parameters:
+    ///   - id: 本轮标识。
+    ///   - question: 要问用户的问题。
+    ///   - options: 供用户点选的候选项。
+    private func askUser(_ id: UUID, question: String, options: [VoiceAskOption]) {
+        events.append(.assistant(text: String(question.prefix(VoiceSessionLimits.maxAssistantTextLength))))
+        updateTurn(id) { $0.outcome = .ask(question: question, options: options) }
     }
 
     /// 本步全部写入成功且服务端允许时，在本地生成结果提示并结束本轮，省去一次请求。

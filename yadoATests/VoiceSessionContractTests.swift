@@ -17,11 +17,12 @@ struct VoiceSessionContractTests {
         ],"canFinishLocally":true}
         """
         let response = try JSONDecoder().decode(VoiceSessionTurnResponse.self, from: Data(json.utf8))
-        guard case let .toolCalls(calls, canFinishLocally) = response else {
+        guard case let .toolCalls(calls, canFinishLocally, followUpAsk) = response else {
             Issue.record("应为 tool_calls")
             return
         }
         #expect(canFinishLocally)
+        #expect(followUpAsk == nil)
         #expect(calls.map(\.name) == [.createTransaction, .updateTransaction, .searchTransactions])
         guard case let .createTransaction(_, create) = calls[0],
               case let .updateTransaction(_, update) = calls[1]
@@ -37,6 +38,23 @@ struct VoiceSessionContractTests {
         let legacy = #"{"status":"tool_calls","toolCalls":[{"id":"c1","name":"delete_transaction","input":{"id":"T1"}}]}"#
         let legacyResponse = try JSONDecoder().decode(VoiceSessionTurnResponse.self, from: Data(legacy.utf8))
         #expect(legacyResponse == .toolCalls([.deleteTransaction(id: "c1", input: VoiceDeleteTransactionInput(id: "T1"))], canFinishLocally: false))
+    }
+
+    @Test("tool_calls 响应带追问时解码 followUpAsk，候选项缺失时为空")
+    func decodesToolCallsWithFollowUpAsk() throws {
+        let json = """
+        {"status":"tool_calls","toolCalls":[{"id":"c1","name":"create_transaction","input":{"type":"expense",
+          "amount":"28","accountId":"A1","categoryId":"dining","date":"2026-10-20","note":"午饭","inferredFields":[]}}],
+         "canFinishLocally":false,"ask":{"question":"打车花了多少钱？"}}
+        """
+        let response = try JSONDecoder().decode(VoiceSessionTurnResponse.self, from: Data(json.utf8))
+        guard case let .toolCalls(calls, canFinishLocally, followUpAsk) = response else {
+            Issue.record("应为 tool_calls")
+            return
+        }
+        #expect(calls.count == 1)
+        #expect(!canFinishLocally)
+        #expect(followUpAsk == VoiceFollowUpAsk(question: "打车花了多少钱？"))
     }
 
     @Test("ask 与 reply 响应解码")

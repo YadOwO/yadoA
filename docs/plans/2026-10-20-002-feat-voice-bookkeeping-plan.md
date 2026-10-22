@@ -16,7 +16,7 @@ origin: docs/brainstorms/2026-10-20-voice-bookkeeping-requirements.md
 ## Key Technical Decisions
 
 - **KTD1. 服务端无状态，App 保存会话事件。** App 维护本次会话的 `events`（user / assistant / tool_call / tool_result），每一步完整发送。工具调用原样回传：契约模型手写 Codable，必填的可空字段（如 `note`）显式编码为 `null`，修改的 `patch.note` 区分「不改」与「清空」。
-- **KTD2. 一句话尽量一次请求。** 服务端在 `tool_calls` 响应中返回 `canFinishLocally`：本步只有新增、修改、删除，模型通过工具参数 `finishesTurn` 声明这句话要做的事已全部发出，且没有被搁置的追问或被丢弃的调用；模型漏填按未完成处理，最多多请求一次。为 true 且全部执行成功时，App 在本地生成「已记 2 笔：午饭 ¥28、打车 ¥35」，追加为 assistant 事件后结束本轮，不再请求。
+- **KTD2. 一句话尽量一次请求。** 服务端在 `tool_calls` 响应中返回 `canFinishLocally`：本步只有新增、修改、删除，模型通过工具参数 `finishesTurn` 声明这句话要做的事已全部发出，且没有被搁置的追问或被丢弃的调用；模型漏填按未完成处理，最多多请求一次。为 true 且全部执行成功时，App 在本地生成「已记 2 笔：午饭 ¥28、打车 ¥35」，追加为 assistant 事件后结束本轮，不再请求。新增、修改、删除与追问同时发出时（如「午饭 28，打车」），`tool_calls` 带上 `ask`，全部执行成功后 App 直接显示追问。多笔新增由服务端合并为模型的一次调用、UUID 换成短 id，三笔与一笔耗时接近（2026-10-21 实测 1 笔 2.1s、3 笔 2.5s、6 笔 3.5s）。
 - **KTD3. 回复语言跟随 App。** 请求带 `locale`（`zh-Hans` / `en`），模型回复、追问和服务端固定提示都按它输出；本地生成的结果提示走 String Catalog。
 - **KTD4. 上下文映射。**
   - 分类：id 用 key（预置 rawValue 或 `custom.<uuid>`），名称用当前语言的显示名，已删除的不发送。

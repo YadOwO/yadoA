@@ -57,6 +57,49 @@ struct VoiceSessionTests {
         #expect(fixture.session.events.last == .assistant(text: "打车花了多少钱？"))
     }
 
+    @Test("随调用下发的追问：全部成功时只请求一次，直接显示追问")
+    func followUpAskEndsTurnWithoutRequest() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [.success(.toolCalls(
+            [fixture.createCall("c1", amount: "28", note: "午饭")],
+            canFinishLocally: false,
+            followUpAsk: VoiceFollowUpAsk(question: "打车花了多少钱？")
+        ))]
+
+        await fixture.session.send("午饭 28，打车")
+
+        #expect(fixture.api.requests.count == 1)
+        let turn = try #require(fixture.session.latestTurn)
+        #expect(turn.outcome == .ask(question: "打车花了多少钱？", options: []))
+        #expect(turn.changes.count == 1)
+        #expect(fixture.session.events.count == 4)
+        #expect(fixture.session.events.last == .assistant(text: "打车花了多少钱？"))
+        #expect(try fixture.balance() == 72)
+        #expect(!fixture.session.isProcessing)
+    }
+
+    @Test("随调用下发追问但有调用失败时忽略追问，带结果继续请求")
+    func followUpAskIgnoredOnFailure() async throws {
+        let fixture = try Fixture()
+        let inactiveCall = VoiceToolCall.createTransaction(id: "c1", input: VoiceCreateTransactionInput(
+            type: .expense, amount: "28", accountId: fixture.inactiveAccountID.uuidString, categoryId: "dining",
+            date: "2026-10-20", note: nil, inferredFields: []
+        ))
+        fixture.api.responses = [
+            .success(.toolCalls(
+                [inactiveCall],
+                canFinishLocally: false,
+                followUpAsk: VoiceFollowUpAsk(question: "打车花了多少钱？")
+            )),
+            .success(.reply(text: "这个账户已停用")),
+        ]
+
+        await fixture.session.send("午饭 28 用旧卡，打车")
+
+        #expect(fixture.api.requests.count == 2)
+        #expect(fixture.session.latestTurn?.outcome == .reply("这个账户已停用"))
+    }
+
     @Test("工具执行失败时即使允许本地结束也要继续请求，让模型告知用户")
     func toolFailureRequiresFollowUp() async throws {
         let fixture = try Fixture()

@@ -580,10 +580,42 @@ nonisolated struct VoiceAskOption: Codable, Equatable, Hashable, Sendable, Ident
     var label: String
 }
 
+/// 与工具调用一起下发的追问，例如「午饭 28，打车」中缺金额的那笔。
+nonisolated struct VoiceFollowUpAsk: Decodable, Equatable, Sendable {
+    /// 要问用户的问题。
+    var question: String
+
+    /// 供用户点选的候选项；可为空，表示只需语音回答。
+    var options: [VoiceAskOption]
+
+    private enum CodingKeys: String, CodingKey {
+        case question, options
+    }
+
+    /// 创建追问。
+    ///
+    /// - Parameters:
+    ///   - question: 要问用户的问题。
+    ///   - options: 候选项。
+    init(question: String, options: [VoiceAskOption] = []) {
+        self.question = question
+        self.options = options
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        question = try container.decode(String.self, forKey: .question)
+        options = try container.decodeIfPresent([VoiceAskOption].self, forKey: .options) ?? []
+    }
+}
+
 /// 一次响应。
 nonisolated enum VoiceSessionTurnResponse: Decodable, Equatable, Sendable {
-    /// 需要 App 依次执行的工具调用；`canFinishLocally` 为真且全部成功时可在本地结束本轮。
-    case toolCalls([VoiceToolCall], canFinishLocally: Bool)
+    /// 需要 App 依次执行的工具调用。
+    ///
+    /// `canFinishLocally` 为真且全部成功时在本地结束本轮；带 `followUpAsk` 且全部成功时直接显示追问、结束本轮，
+    /// 两者都省去一次请求。有任一调用失败时都要带结果继续请求。
+    case toolCalls([VoiceToolCall], canFinishLocally: Bool, followUpAsk: VoiceFollowUpAsk? = nil)
 
     /// 追问，本轮结束，等待用户回答。
     case ask(question: String, options: [VoiceAskOption])
@@ -592,7 +624,7 @@ nonisolated enum VoiceSessionTurnResponse: Decodable, Equatable, Sendable {
     case reply(text: String)
 
     private enum CodingKeys: String, CodingKey {
-        case status, toolCalls, canFinishLocally, question, options, text
+        case status, toolCalls, canFinishLocally, ask, question, options, text
     }
 
     init(from decoder: Decoder) throws {
@@ -603,7 +635,8 @@ nonisolated enum VoiceSessionTurnResponse: Decodable, Equatable, Sendable {
             self = try .toolCalls(
                 container.decode([VoiceToolCall].self, forKey: .toolCalls),
                 // 旧版本服务端没有该字段，按需要继续请求处理
-                canFinishLocally: container.decodeIfPresent(Bool.self, forKey: .canFinishLocally) ?? false
+                canFinishLocally: container.decodeIfPresent(Bool.self, forKey: .canFinishLocally) ?? false,
+                followUpAsk: container.decodeIfPresent(VoiceFollowUpAsk.self, forKey: .ask)
             )
         case "ask":
             self = try .ask(
