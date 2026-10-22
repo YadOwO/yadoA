@@ -108,6 +108,104 @@ struct VoiceMicButton: View {
     }
 }
 
+/// Tab Bar 附属栏里的麦克风：整条按住说话，跟随 Tab Bar 滚动收起；按下、上滑取消、松手发送与 `VoiceMicButton` 相同。
+///
+/// 附属栏的玻璃底和形状由系统绘制，这里只画图标和文字；Tab Bar 收起后附属栏与它并排，文字随之变小。
+@available(iOS 26.1, *)
+struct VoiceMicAccessory: View {
+    @Environment(\.locale) private var locale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.tabViewBottomAccessoryPlacement) private var placement
+    @Environment(AuthStore.self) private var authStore
+
+    /// 与记账页会话卡片共享的语音状态。
+    let voice: VoiceBookkeepingState
+
+    private var controller: VoiceInputController {
+        voice.input
+    }
+
+    /// 是否不接受新的按下。
+    private var isBusy: Bool {
+        voice.isProcessing || controller.isFinishing
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if isBusy {
+                ProgressView()
+            } else {
+                Image(systemName: symbolName)
+                    .symbolEffect(
+                        .variableColor.iterative,
+                        isActive: controller.isRecording && !controller.isCancelArmed && !reduceMotion
+                    )
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            Text(title)
+                .lineLimit(1)
+        }
+        .font(font)
+        .foregroundStyle(tint)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
+        .overlay {
+            VoiceMicTouchArea(
+                isCircular: false,
+                onPressBegan: {
+                    guard !isBusy, !controller.isPressing else { return false }
+                    voice.beginPress(isSignedIn: authStore.isAuthenticated, locale: locale)
+                    return controller.isPressing
+                },
+                onPressMoved: { controller.pressMoved(verticalTranslation: $0) },
+                onPressEnded: { controller.pressEnded(onText: { voice.send($0) }) },
+                onPressCancelled: { controller.cancel() }
+            )
+            .accessibilityHidden(true)
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: controller.isRecording)
+        .sensoryFeedback(.selection, trigger: controller.isCancelArmed)
+        .accessibilityElement()
+        .accessibilityLabel(text("voice.mic.label"))
+        .accessibilityHint(text("voice.mic.hint"))
+        .accessibilityValue(controller.isRecording ? text("voice.recording.listening") : "")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(.default) {
+            voice.toggleRecording(isSignedIn: authStore.isAuthenticated, locale: locale)
+        }
+        .accessibilityIdentifier("voice-mic")
+    }
+
+    /// Tab Bar 收起、附属栏与它并排时空间更窄，文字小一号。
+    private var font: Font {
+        let base: Font = placement == .inline ? .subheadline : .body
+        return base.weight(.semibold)
+    }
+
+    /// 空闲是麦克风，说话时是跳动的声波，准备取消时是叉。
+    private var symbolName: String {
+        if controller.isCancelArmed { return "xmark" }
+        return controller.isRecording ? "waveform" : "mic.fill"
+    }
+
+    /// 空闲时提示按住说话，说话时提示松手的结果。
+    private var title: String {
+        if controller.isCancelArmed { return text("voice.recording.releaseToCancel") }
+        return text(controller.isRecording ? "voice.mic.releaseToSend" : "voice.mic.holdHint")
+    }
+
+    /// 说话时用强调色，准备取消时用红色，处理中变淡。
+    private var tint: Color {
+        if controller.isCancelArmed { return Color(.ledgerRed) }
+        if controller.isRecording { return .accentColor }
+        return isBusy ? .secondary : .primary
+    }
+
+    private func text(_ key: String) -> String {
+        AccountLocalization.string(key, locale: locale)
+    }
+}
+
 // MARK: - 结果展示
 
 /// 一轮中写入的一笔流水：分类图标、名称、金额、账户与待确认字段。

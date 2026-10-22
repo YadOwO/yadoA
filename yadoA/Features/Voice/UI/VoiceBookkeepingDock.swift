@@ -2,25 +2,28 @@ import SwiftData
 import SwiftUI
 import UIKit
 
-/// 记账页底部的语音记账区域：麦克风按钮和它上方唯一的会话卡片，并负责登录、权限提示与详情、手动记账弹层。
+/// 记账页底部的语音记账区域：唯一的会话卡片和麦克风按钮，并负责登录、权限提示与详情、手动记账弹层。
 ///
 /// 只有按住说话一种输入方式，没有轻点和打字。会话在离开记账页、关闭卡片或闲置约 2 分钟后结束。
+/// 麦克风放进 Tab Bar 附属栏时（见 `VoiceMicPlacement`），这里只显示卡片和提示，麦克风由 `VoiceMicAccessory` 显示。
 struct VoiceBookkeepingDock: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthStore.self) private var authStore
+    @Environment(VoiceBookkeepingState.self) private var voice
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
 
-    /// 麦克风按钮（含上下留白）占用的高度变化时回调，首页据此给列表末尾留白。
+    /// 麦克风按钮（含上下留白）占用的高度变化时回调，首页据此给列表末尾留白；麦克风在附属栏里时为 0。
     let onButtonHeightChange: (CGFloat) -> Void
 
-    @State private var session: VoiceSession?
-    @State private var input = VoiceInputController()
     @State private var presentedTransaction: VoicePresentedTransaction?
     @State private var manualEntryNote: VoiceManualEntryNote?
 
-    /// 识别时优先识别的账户名、分类名；进入记账页时读一次，按下时不再查库，避免卡住按下后的第一帧。
-    @State private var contextualStrings: [String] = []
+    /// 麦克风是否放在 Tab Bar 附属栏里，而不是悬浮在这里。
+    private let isMicInAccessory = VoiceMicPlacement.usesTabBarAccessory
+
+    private var session: VoiceSession? { voice.session }
+    private var input: VoiceInputController { voice.input }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -36,36 +39,33 @@ struct VoiceBookkeepingDock: View {
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
-            VoiceMicButton(
-                controller: input,
-                isProcessing: session?.isProcessing == true,
-                onPressBegan: beginPress,
-                onText: send,
-                onAccessibilityToggle: toggleRecording
-            )
-            // 没识别到话或刚授权时的提示：麦克风正上方的一个小标签，不撑开卡片、不影响布局
-            .overlay(alignment: .top) {
-                if let hint = input.transientHint {
-                    Text(hint)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize()
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .voiceFloatingSurface(in: Capsule())
-                        .alignmentGuide(.top) { $0[.bottom] + 8 }
-                        .allowsHitTesting(false)
-                        .transition(.opacity)
-                        .accessibilityHidden(true)
+            if !isMicInAccessory {
+                VoiceMicButton(
+                    controller: input,
+                    isProcessing: voice.isProcessing,
+                    onPressBegan: beginPress,
+                    onText: { voice.send($0) },
+                    onAccessibilityToggle: toggleRecording
+                )
+                // 没识别到话或刚授权时的提示：麦克风正上方的一个小标签，不撑开卡片、不影响布局
+                .overlay(alignment: .top) {
+                    transientHint
+                }
+                .padding(.vertical, 12)
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.size.height
+                } action: { height in
+                    onButtonHeightChange(height)
                 }
             }
-            .padding(.vertical, 12)
-            .onGeometryChange(for: CGFloat.self) { proxy in
-                proxy.size.height
-            } action: { height in
-                onButtonHeightChange(height)
+        }
+        // 麦克风在附属栏里时，提示挂在卡片上方；没有卡片时就在附属栏正上方
+        .overlay(alignment: .top) {
+            if isMicInAccessory {
+                transientHint
             }
         }
+        .padding(.bottom, isMicInAccessory ? 10 : 0)
         .padding(.horizontal, 16)
         // 铺满首页内容区，卡片外的空白处才能接住点击；空白处本身不参与命中，卡片不显示时不影响列表
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
@@ -83,8 +83,12 @@ struct VoiceBookkeepingDock: View {
         .animation(.easeOut(duration: 0.2), value: input.isRecording)
         .animation(.easeOut(duration: 0.2), value: input.transientHint)
         .task {
-            if session == nil {
-                session = VoiceSession(
+            if isMicInAccessory {
+                // 附属栏计入列表的底部安全区，列表不用再额外留白
+                onButtonHeightChange(0)
+            }
+            if voice.session == nil {
+                voice.session = VoiceSession(
                     container: modelContext.container,
                     api: VoiceSessionAPI { [authStore] in try await authStore.accessTokenForAIService() },
                     locale: locale,
@@ -92,14 +96,14 @@ struct VoiceBookkeepingDock: View {
                 )
             }
             // 账户、分类只能在别的页面修改，回到记账页时会重新执行这里
-            contextualStrings = session?.currentContext().contextualStrings ?? []
-            input.prepareRecognizer(locale: locale, contextualStrings: contextualStrings)
+            voice.contextualStrings = session?.currentContext().contextualStrings ?? []
+            input.prepareRecognizer(locale: locale, contextualStrings: voice.contextualStrings)
         }
         .onChange(of: locale) { _, newValue in
-            session?.locale = newValue
-            input.prepareRecognizer(locale: newValue, contextualStrings: contextualStrings)
+            voice.session?.locale = newValue
+            input.prepareRecognizer(locale: newValue, contextualStrings: voice.contextualStrings)
         }
-        .onChange(of: calendar) { _, newValue in session?.calendar = newValue }
+        .onChange(of: calendar) { _, newValue in voice.session?.calendar = newValue }
         // 一次性提示展示一会儿后自动消失；换了新提示时重新计时
         .task(id: input.transientHint) {
             guard let hint = input.transientHint else { return }
@@ -109,7 +113,7 @@ struct VoiceBookkeepingDock: View {
             } catch {
                 return
             }
-            input.transientHint = nil
+            voice.input.transientHint = nil
         }
         // 闲置约 2 分钟后自动结束会话；每轮结束都会重新计时
         .task(id: session?.lastActivityAt) {
@@ -168,6 +172,24 @@ struct VoiceBookkeepingDock: View {
     /// 一次性提示的展示时长（秒）。
     private static let hintDuration: Double = 1.5
 
+    /// 没识别到话或刚授权时的一次性提示：贴在所在视图正上方的小标签，不参与布局。
+    @ViewBuilder
+    private var transientHint: some View {
+        if let hint = input.transientHint {
+            Text(hint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize()
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .voiceFloatingSurface(in: Capsule())
+                .alignmentGuide(.top) { $0[.bottom] + 8 }
+                .allowsHitTesting(false)
+                .transition(.opacity)
+                .accessibilityHidden(true)
+        }
+    }
+
     /// 是否显示会话卡片：正在说，或本次会话已经有内容。
     private var isCardVisible: Bool {
         input.isRecording || input.isFinishing || session?.isActive == true
@@ -182,38 +204,17 @@ struct VoiceBookkeepingDock: View {
 
     /// 按下麦克风：未登录时松手后提示登录，已登录时开始收音。
     private func beginPress() {
-        input.pressBegan(
-            isSignedIn: authStore.isAuthenticated,
-            locale: locale,
-            contextualStrings: { contextualStrings }
-        )
+        voice.beginPress(isSignedIn: authStore.isAuthenticated, locale: locale)
     }
 
     /// 无障碍模式下切换收音。
     private func toggleRecording() {
-        input.toggleRecording(
-            isSignedIn: authStore.isAuthenticated,
-            locale: locale,
-            contextualStrings: { contextualStrings },
-            onText: send
-        )
+        voice.toggleRecording(isSignedIn: authStore.isAuthenticated, locale: locale)
     }
 
-    /// 发送一句话。
-    private func send(_ text: String) {
-        send(text, option: nil)
-    }
-
-    /// 发送一句话或点选的候选项。
-    private func send(_ text: String, option: VoiceAskOption?) {
-        guard let session else { return }
-        Task { await session.send(text, selectedOption: option) }
-    }
-
-    /// 结束会话，同时作废还在收尾的语音输入，避免它在会话结束后识别完成、又发起新的一轮。
+    /// 结束会话，同时作废还在收尾的语音输入。
     private func endSession() {
-        input.cancel()
-        session?.end()
+        voice.endSession()
     }
 
     /// 登录；成功后按住麦克风即可继续。
@@ -231,7 +232,7 @@ struct VoiceBookkeepingDock: View {
     private var undoFailureBinding: Binding<Bool> {
         Binding(
             get: { session?.hasUndoFailure == true },
-            set: { if !$0 { session?.hasUndoFailure = false } }
+            set: { if !$0 { voice.session?.hasUndoFailure = false } }
         )
     }
 

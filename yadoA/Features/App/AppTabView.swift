@@ -95,6 +95,8 @@ struct AppTabView: View {
     @State private var selectedTab: AppTab = AppStartPage.stored().tab
     @State private var homePath: [HomeRoute] = []
     @State private var accountsPath: [AccountsRoute] = []
+    /// 记账页语音记账的共享状态；麦克风可能在 Tab Bar 附属栏里，与记账页的会话卡片分属两处，由这里统一持有。
+    @State private var voice = VoiceBookkeepingState()
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -107,6 +109,8 @@ struct AppTabView: View {
             }
         }
         .tabBarMinimizeOnScrollDownIfAvailable()
+        // 麦克风只在记账页根页面出现，进入二级页面或切到其他 Tab 时收起
+        .voiceMicAccessoryIfAvailable(isEnabled: selectedTab == .home && homePath.isEmpty, voice: voice)
         // 系统 Tab Bar 原地重排时图标与标题会错位，顺序变化时整体重建；
         // 各导航路径保存在本视图，重建后仍然保留。
         .id(startPage)
@@ -143,6 +147,7 @@ struct AppTabView: View {
                         }
                     }
             }
+            .environment(voice)
         case .charts:
             NavigationStack {
                 ChartView {

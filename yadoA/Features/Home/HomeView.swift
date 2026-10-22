@@ -57,7 +57,7 @@ private struct HomeQueryContent: View {
     /// 是否展示月份选择 Sheet。
     @State private var isMonthPickerPresented = false
 
-    /// 悬浮麦克风按钮占用的底部高度，列表末尾据此留白，保证最后一条流水能滚到按钮上方。
+    /// 悬浮麦克风按钮占用的底部高度，列表末尾据此留白，保证最后一条流水能滚到按钮上方；麦克风在 Tab Bar 附属栏里时为 0。
     @State private var addButtonClearance: CGFloat = 76
 
     /// 首页当前是否在导航栈顶部可见；被记账页盖住时不消费新流水提示。
@@ -123,7 +123,8 @@ private struct HomeQueryContent: View {
             }
         }
         .paperPage()
-        // 麦克风悬浮在明细之上且不带整条底栏；居中放置以避开右侧的金额列，对话条出现在它上方。
+        // 会话卡片浮在明细之上。iPhone 的 iOS 26.1 起麦克风在 Tab Bar 附属栏里，卡片出现在附属栏上方；
+        // 其他情况麦克风悬浮在这里且不带整条底栏，居中放置以避开右侧的金额列，卡片出现在它上方。
         .overlay(alignment: .bottom) {
             VoiceBookkeepingDock { height in
                 addButtonClearance = height
@@ -1158,6 +1159,7 @@ private struct HomeEmptyState: View {
         HomeView()
     }
     .environment(AuthStore())
+    .environment(VoiceBookkeepingState())
     .modelContainer(
         for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
         inMemory: true

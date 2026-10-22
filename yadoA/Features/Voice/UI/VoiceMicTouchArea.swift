@@ -3,6 +3,9 @@ import UIKit
 
 /// 麦克风的透明触摸层：直接从 UIKit 触摸事件启动按住计时，不经过 SwiftUI 拖动手势识别。
 struct VoiceMicTouchArea: UIViewRepresentable {
+    /// 是否只在内切圆内接收触摸；圆形按钮为 true，附属栏这类整条按钮为 false，整个矩形都可按。
+    var isCircular = true
+
     /// 手指按下时尝试开始输入；返回 false 时忽略整次触摸，即使中途恢复空闲也不开始。
     let onPressBegan: () -> Bool
 
@@ -26,6 +29,7 @@ struct VoiceMicTouchArea: UIViewRepresentable {
 
     /// 刷新回调，不打断正在跟踪的触摸；VoiceOver 仍由外层 SwiftUI 按钮负责。
     func updateUIView(_ control: VoiceMicTouchControl, context: Context) {
+        control.isCircular = isCircular
         control.onPressBegan = onPressBegan
         control.onPressMoved = onPressMoved
         control.onPressEnded = onPressEnded
@@ -38,8 +42,11 @@ struct VoiceMicTouchArea: UIViewRepresentable {
     }
 }
 
-/// 原生触摸跟踪：圆形区域内按下即回调，移出按钮后仍跟踪，松手前更新最终位移。
+/// 原生触摸跟踪：按钮区域内按下即回调，移出按钮后仍跟踪，松手前更新最终位移。
 final class VoiceMicTouchControl: UIControl {
+    /// 是否只在内切圆内接收触摸。
+    var isCircular = true
+
     /// 按下时尝试开始输入，只有被接受的触摸才继续跟踪。
     var onPressBegan: (() -> Bool)?
 
@@ -55,9 +62,9 @@ final class VoiceMicTouchControl: UIControl {
     /// 按下时的窗口坐标，不受按钮缩放和卡片布局变化影响；nil 表示没有接受的触摸。
     private var initialTouchY: CGFloat?
 
-    /// 只在圆形按钮内接收新的触摸，不占用四角的列表点击区域。
+    /// 圆形按钮只在圆内接收新的触摸，不占用四角的列表点击区域；整条按钮整个矩形都可按。
     override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
-        UIBezierPath(ovalIn: bounds).contains(point)
+        isCircular ? UIBezierPath(ovalIn: bounds).contains(point) : bounds.contains(point)
     }
 
     /// 触摸按下立即启动控制器的按住计时；忙碌时返回 false，忽略整次触摸。
