@@ -2,17 +2,21 @@ import SwiftUI
 
 /// 登录 / 注册页：导航栏中的品牌、中央手绘芽豆插画和衬线标语、底部一列胶囊按钮。
 ///
-/// 从“我的”页推入，是导航栈里的一个页面而不是弹层。版式只留品牌、插画、标语、按钮四样，
+/// 由 `SignInPresentation` 在 Tab 界面之上整屏显示，不属于任何 Tab 的导航栈，也不是 sheet 弹层；
+/// 左上角关闭回到原来的页面。版式只留品牌、插画、标语、按钮四样，
 /// 大面积留白，让手绘插画成为视觉中心。第三方按钮由 `AuthSocialProvider.displayed` 决定，
 /// 未接通的方式只作占位，点击提示即将上线；账号密码按钮打开 Logto 托管页，App 不接触用户密码。
 struct SignInView: View {
     @Environment(\.locale) private var locale
-    @Environment(\.dismiss) private var dismiss
+    @Environment(SignInPresentation.self) private var presentation
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AuthStore.self) private var authStore
 
     /// 显示的第三方登录方式，默认取 `AuthSocialProvider.displayed`；预览时可注入。
     private let providers: [AuthSocialProvider]
+
+    /// 打开登录页的原因；有原因时在标语下说明为什么要登录。
+    private let reason: SignInReason?
 
     /// 当前正在进行的登录方式，用于只在被点的那个按钮上转圈。
     @State private var pendingMethod: PendingMethod?
@@ -22,7 +26,7 @@ struct SignInView: View {
     @State private var notice: Notice?
     /// 每次登录失败加一，驱动按钮区抖动与错误震动。
     @State private var failureCount = 0
-    /// 登录成功后切换为成功态，写一笔对勾后返回上一页。
+    /// 登录成功后切换为成功态，写一笔对勾后关闭登录页。
     @State private var isSucceeded = false
     /// 成功态对勾的书写进度。
     @State private var successTickProgress: CGFloat = 0
@@ -43,8 +47,11 @@ struct SignInView: View {
         let id = UUID()
     }
 
-    /// - Parameter providers: 要显示的第三方登录方式。
-    init(providers: [AuthSocialProvider] = AuthSocialProvider.displayed) {
+    /// - Parameters:
+    ///   - reason: 打开登录页的原因，从“我的”主动登录时为 nil。
+    ///   - providers: 要显示的第三方登录方式。
+    init(reason: SignInReason? = nil, providers: [AuthSocialProvider] = AuthSocialProvider.displayed) {
+        self.reason = reason
         self.providers = providers
     }
 
@@ -64,8 +71,19 @@ struct SignInView: View {
         }
         .paperPage()
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(authStore.isBusy || isSucceeded)
         .toolbar {
+            // 登录中或成功过渡时不能关闭，避免 Logto 页面回来时登录页已经不在
+            if !authStore.isBusy && !isSucceeded {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        presentation.dismiss()
+                    } label: {
+                        Label(text("common.close"), systemImage: "xmark")
+                            .labelStyle(.iconOnly)
+                    }
+                    .accessibilityIdentifier("sign-in-close")
+                }
+            }
             // 品牌放在导航栏标题位，与返回按钮处于同一水平线
             ToolbarItem(placement: .principal) {
                 brand
@@ -99,6 +117,18 @@ struct SignInView: View {
                 .padding(.top, 28)
                 .accessibilityAddTraits(.isHeader)
                 .reveal(hasAppeared, delay: 0.5, reduceMotion: reduceMotion)
+
+            if let reason {
+                Text(text(reason.messageLocalizationKey))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 12)
+                    .padding(.horizontal, 8)
+                    .accessibilityIdentifier("sign-in-reason")
+                    .reveal(hasAppeared, delay: 0.55, reduceMotion: reduceMotion)
+            }
 
             Spacer(minLength: 40)
 
@@ -280,7 +310,7 @@ struct SignInView: View {
         }
     }
 
-    /// 切到成功态、写完对勾，停留片刻后返回上一页。
+    /// 切到成功态、写完对勾，停留片刻后关闭登录页，回到打开前的界面。
     private func celebrateAndDismiss() async {
         withAnimation(.spring(duration: 0.4, bounce: 0.2)) {
             isSucceeded = true
@@ -294,7 +324,7 @@ struct SignInView: View {
             }
         }
         try? await Task.sleep(for: .milliseconds(1100))
-        dismiss()
+        presentation.dismiss()
     }
 
     /// 按应用当前语言解析 String Catalog 文案。
@@ -352,7 +382,8 @@ private extension View {
 
 #Preview {
     NavigationStack {
-        SignInView()
+        SignInView(reason: .voiceBookkeeping)
     }
     .environment(AuthStore())
+    .environment(SignInPresentation())
 }

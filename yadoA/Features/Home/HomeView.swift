@@ -1213,6 +1213,7 @@ private struct HomeEmptyState: View {
         HomeView()
     }
     .environment(AuthStore())
+    .environment(SignInPresentation())
     .environment(VoiceBookkeepingState())
     .modelContainer(
         for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],

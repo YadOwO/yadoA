@@ -9,6 +9,7 @@ import UIKit
 struct VoiceBookkeepingDock: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthStore.self) private var authStore
+    @Environment(SignInPresentation.self) private var signInPresentation
     @Environment(VoiceBookkeepingState.self) private var voice
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
@@ -226,7 +227,7 @@ struct VoiceBookkeepingDock: View {
 
     // MARK: - 动作
 
-    /// 按下麦克风：未登录时松手后提示登录，已登录时开始收音。
+    /// 按下麦克风：未登录时松手后打开登录页，已登录时开始收音。
     private func beginPress() {
         voice.beginPress(isSignedIn: authStore.isAuthenticated, locale: locale)
     }
@@ -241,9 +242,9 @@ struct VoiceBookkeepingDock: View {
         voice.endSession()
     }
 
-    /// 登录；成功后按住麦克风即可继续。
+    /// 打开整屏登录页并说明语音记账为什么要登录；登录成功回到记账页后按住麦克风即可继续。
     private func signIn() {
-        Task { await authStore.signIn() }
+        signInPresentation.present(reason: .voiceBookkeeping)
     }
 
     /// VoiceOver 播报本轮结果。
@@ -265,7 +266,7 @@ struct VoiceBookkeepingDock: View {
     }
 }
 
-/// 按住说话时的提示：登录、权限、识别不可用。
+/// 按住说话时的提示：权限、识别不可用；未登录时不弹提示，直接打开登录页。
 private struct VoiceInputAlertModifier: ViewModifier {
     @Environment(\.locale) private var locale
 
@@ -276,17 +277,23 @@ private struct VoiceInputAlertModifier: ViewModifier {
     let onSignIn: () -> Void
 
     func body(content: Content) -> some View {
-        content.alert(
-            input.alert.map { alertTitle(for: $0) } ?? "",
-            isPresented: inputAlertBinding,
-            presenting: input.alert
-        ) { alert in
-            alertActions(for: alert)
-        } message: { alert in
-            if let message = alertMessage(for: alert) {
-                Text(message)
+        content
+            .onChange(of: input.isSignInRequested) { _, isRequested in
+                guard isRequested else { return }
+                input.isSignInRequested = false
+                onSignIn()
             }
-        }
+            .alert(
+                input.alert.map { alertTitle(for: $0) } ?? "",
+                isPresented: inputAlertBinding,
+                presenting: input.alert
+            ) { alert in
+                alertActions(for: alert)
+            } message: { alert in
+                if let message = alertMessage(for: alert) {
+                    Text(message)
+                }
+            }
     }
 
     private var inputAlertBinding: Binding<Bool> {
@@ -298,7 +305,6 @@ private struct VoiceInputAlertModifier: ViewModifier {
 
     private func alertTitle(for alert: VoiceInputAlert) -> String {
         switch alert {
-        case .signInRequired: text("voice.signIn.title")
         case .permissionDenied: text("voice.permission.title")
         case .unsupported: text("voice.error.unsupported")
         case .microphoneUnavailable: text("voice.error.microphoneUnavailable")
@@ -307,7 +313,6 @@ private struct VoiceInputAlertModifier: ViewModifier {
 
     private func alertMessage(for alert: VoiceInputAlert) -> String? {
         switch alert {
-        case .signInRequired: text("voice.signIn.message")
         case .permissionDenied: text("voice.permission.message")
         case .unsupported, .microphoneUnavailable: nil
         }
@@ -316,9 +321,6 @@ private struct VoiceInputAlertModifier: ViewModifier {
     @ViewBuilder
     private func alertActions(for alert: VoiceInputAlert) -> some View {
         switch alert {
-        case .signInRequired:
-            Button(text("voice.signIn.action"), action: onSignIn)
-            Button(text("common.cancel"), role: .cancel) {}
         case .permissionDenied:
             Button(text("voice.permission.settings")) {
                 if let url = URL(string: UIApplication.openSettingsURLString) {

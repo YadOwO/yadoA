@@ -8366,23 +8366,6 @@
         }
       }
     },
-    "voice.signIn.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign In to Use Voice Entry"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "登录后使用语音记账"
-          }
-        }
-      }
-    },
     "voice.signIn.message" : {
       "extractionState" : "manual",
       "localizations" : {

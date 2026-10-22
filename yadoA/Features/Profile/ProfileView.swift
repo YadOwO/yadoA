@@ -7,6 +7,8 @@ struct ProfileView: View {
     @Environment(\.modelContext) private var modelContext
     /// 全局登录状态；登录与否只影响页头身份和退出入口，不影响本地账本。
     @Environment(AuthStore.self) private var authStore
+    /// 整屏登录页的展示状态。
+    @Environment(SignInPresentation.self) private var signInPresentation
     @Query private var accounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
 
@@ -24,8 +26,6 @@ struct ProfileView: View {
     @State private var isSignOutConfirmationPresented = false
     /// 修改个人资料弹层，打开时携带当时的资料快照。
     @State private var editingProfile: AccountProfile?
-    /// 是否推入登录 / 注册页。
-    @State private var isSignInPresented = false
     #if DEBUG
     /// 开发者设置中选择的 AI 服务，只在 DEBUG 包可切换。
     @AppStorage(AIServiceEnvironment.storageKey) private var aiServiceEnvironment: AIServiceEnvironment = .production
@@ -215,9 +215,6 @@ struct ProfileView: View {
         .sheet(item: $editingProfile) { profile in
             ProfileEditView(profile: profile)
         }
-        .navigationDestination(isPresented: $isSignInPresented) {
-            SignInView()
-        }
         .task(id: authStore.isAuthenticated) {
             // 进入页面或登录状态变化时拉一次最新资料，其他端改过昵称也能及时同步
             await authStore.refreshProfile()
@@ -306,7 +303,7 @@ struct ProfileView: View {
     /// 打开登录 / 注册页的入口；登录方式的选择与进度都在登录页内完成。
     private var signInButton: some View {
         Button {
-            isSignInPresented = true
+            signInPresentation.present()
         } label: {
             Text(text("auth.sign_in.action"))
                 .font(.body.weight(.medium))
@@ -441,6 +438,7 @@ private struct ProfileSettingsLabelStyle: LabelStyle {
 #Preview {
     NavigationStack { ProfileView() }
         .environment(AuthStore())
+        .environment(SignInPresentation())
         .modelContainer(for: [Account.self, AccountTransaction.self, BookkeepingPreference.self], inMemory: true)
 }
 

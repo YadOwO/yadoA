@@ -65,6 +65,20 @@ struct VoiceInputControllerTests {
         #expect(fixture.controller.isRecording)
     }
 
+    @Test("未登录时按下不收音，松手后请求打开登录页而不是弹提示")
+    func releaseWhileSignedOutRequestsSignInPage() async {
+        let fixture = Fixture()
+
+        fixture.controller.pressBegan(isSignedIn: false, locale: Fixture.locale, contextualStrings: { [] })
+        await settle()
+        #expect(!fixture.controller.isSignInRequested)
+        fixture.controller.pressEnded(onText: { _ in })
+
+        #expect(fixture.controller.isSignInRequested)
+        #expect(fixture.controller.alert == nil)
+        #expect(fixture.recognizer.startCount == 0)
+    }
+
     @Test("没按满时长就松手：不打开麦克风、不发送，只提示要按住说话")
     func releaseBeforeHoldDelayShowsHint() async {
         let fixture = Fixture(holdDelay: .seconds(60))
