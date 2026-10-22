@@ -9292,20 +9292,20 @@
         }
       }
     },
-    "voice.guide.hold_format" : {
-      "comment" : "Idle mic label rotating through example phrases. %@ is an example phrase.",
+    "voice.guide.quote_format" : {
+      "comment" : "Quotes an example voice phrase shown after \"Hold to speak\". %@ is the phrase.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hold and say “%@”"
+            "value" : "“%@”"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "按住说「%@」"
+            "value" : "「%@」"
           }
         }
       }

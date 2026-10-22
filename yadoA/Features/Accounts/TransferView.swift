@@ -11,6 +11,8 @@ struct TransferView: View {
     @AccessibilityFocusState private var isSaveErrorFocused: Bool
     @Query private var queriedAccounts: [Account]
     @StateObject private var flow: TransferFlow
+    /// 正在选择账户的那一行（「转出」或「转入」的本地化键）；为空时不弹出账户列表。
+    @State private var pickingTitleKey: String?
 
     /// 仅在转账保存成功后交由上层关闭表单并刷新。
     private let onSaved: @MainActor () -> Void
@@ -137,7 +139,7 @@ struct TransferView: View {
         .ledgerFormBorder(seed: 140)
     }
 
-    /// 一行账户选择：左边是「转出 / 转入」，右边是所选账户的图标、名称和余额，点开菜单换账户。
+    /// 一行账户选择：左边是「转出 / 转入」，右边是所选账户的图标、名称和余额，点开弹出账户列表换账户。
     private func accountRow(
         titleKey: String,
         selectedID: UUID?,
@@ -148,20 +150,9 @@ struct TransferView: View {
         let selected = accounts.first { $0.id == selectedID }
         let presentation = selected.map { AccountListPresentation.row(for: $0, locale: locale) }
 
-        return Menu {
-            Picker(
-                text(titleKey),
-                selection: Binding(
-                    get: { selectedID },
-                    set: { if let id = $0 { select(id) } }
-                )
-            ) {
-                ForEach(accounts) { account in
-                    let row = AccountListPresentation.row(for: account, locale: locale)
-                    Text(verbatim: "\(row.name)  \(row.formattedAmount)")
-                        .tag(Optional(account.id))
-                }
-            }
+        return Button {
+            focusedField = nil
+            pickingTitleKey = titleKey
         } label: {
             HStack(spacing: 12) {
                 Text(text(titleKey))
@@ -169,7 +160,6 @@ struct TransferView: View {
                 Spacer(minLength: 8)
                 if let presentation {
                     AccountIconView(presentation: presentation.icon)
-                        .frame(width: 28, height: 28)
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(presentation.name)
                             .foregroundStyle(.primary)
@@ -192,6 +182,22 @@ struct TransferView: View {
         .buttonStyle(.plain)
         .disabled(flow.isSaving)
         .accessibilityIdentifier(identifier)
+        // 系统菜单只能排一行文字，账户图标和右对齐的余额需要自绘；iPhone 上也保持贴着这一行弹出。
+        .popover(
+            isPresented: Binding(
+                get: { pickingTitleKey == titleKey },
+                set: { if !$0, pickingTitleKey == titleKey { pickingTitleKey = nil } }
+            ),
+            attachmentAnchor: .rect(.bounds),
+            arrowEdge: .top
+        ) {
+            TransferAccountPicker(accounts: accounts, selectedID: selectedID) { accountID in
+                select(accountID)
+                pickingTitleKey = nil
+            }
+            .presentationCompactAdaptation(.popover)
+            .presentationBackground(Color(.paperBackground))
+        }
     }
 
     // MARK: - 金额、日期与备注
@@ -310,5 +316,75 @@ struct TransferView: View {
     private enum FocusedField: Hashable {
         case amount
         case note
+    }
+}
+
+/// 转账表单里弹出的账户列表：每行是账户图标、名称和右对齐的余额，当前选中的打勾。
+private struct TransferAccountPicker: View {
+    @Environment(\.locale) private var locale
+
+    /// 可参与转账的账户，顺序与账户列表一致。
+    let accounts: [Account]
+
+    /// 这一行当前选中的账户。
+    let selectedID: UUID?
+
+    /// 选中某个账户。
+    let onSelect: (UUID) -> Void
+
+    var body: some View {
+        // 账户不多时按内容高度弹出；放不下时才在弹层里滚动。
+        ViewThatFits(in: .vertical) {
+            list
+            ScrollView {
+                list
+            }
+        }
+        .frame(minWidth: 300, idealWidth: 320)
+    }
+
+    /// 全部账户行。
+    private var list: some View {
+        VStack(spacing: 0) {
+            ForEach(accounts) { account in
+                option(for: account)
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    /// 一个账户选项。
+    private func option(for account: Account) -> some View {
+        let row = AccountListPresentation.row(for: account, locale: locale)
+        let isSelected = account.id == selectedID
+        return Button {
+            onSelect(account.id)
+        } label: {
+            HStack(spacing: 12) {
+                AccountIconView(presentation: row.icon)
+                Text(row.name)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Spacer(minLength: 16)
+                Text(row.formattedAmount)
+                    .font(.body.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                // 不论是否选中都占住勾的位置，余额才能上下对齐。
+                Image(systemName: "checkmark")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tint)
+                    .opacity(isSelected ? 1 : 0)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(minHeight: 52)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityIdentifier("transfer-account-option-\(account.id.uuidString)")
     }
 }
