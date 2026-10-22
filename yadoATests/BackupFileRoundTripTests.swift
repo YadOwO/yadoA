@@ -149,7 +149,7 @@ struct BackupFileRoundTripTests {
         ])
         #expect(Set(transaction.keys) == [
             "id", "accountID", "type", "category", "amount", "title",
-            "balanceBefore", "balanceAfter", "balanceDelta", "currencyCode",
+            "balanceBefore", "balanceAfter", "balanceDelta", "counterpartAccountID", "currencyCode",
             "transactionDay", "note", "savedAt",
         ])
         #expect(account["templateID"] is NSNull)
@@ -158,6 +158,7 @@ struct BackupFileRoundTripTests {
         #expect(transaction["balanceBefore"] is NSNull)
         #expect(transaction["balanceAfter"] is NSNull)
         #expect(transaction["balanceDelta"] is NSNull)
+        #expect(transaction["counterpartAccountID"] is NSNull)
         #expect(transaction["note"] is NSNull)
     }
 

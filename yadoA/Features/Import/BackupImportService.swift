@@ -270,6 +270,7 @@ extension BackupImportService {
             // 流水工厂固定写入 CNY；其他币种若放行会被静默改写，必须拒绝。
             guard transactionIDs.insert(transaction.id).inserted,
                   accountIDs.contains(transaction.accountID),
+                  transaction.counterpartAccountID.map(accountIDs.contains) ?? true,
                   transaction.currencyCode == "CNY"
             else { throw BackupImportError.invalidContent }
 
@@ -284,6 +285,7 @@ extension BackupImportService {
                     balanceBefore: try optionalDecimal(from: transaction.balanceBefore),
                     balanceAfter: try optionalDecimal(from: transaction.balanceAfter),
                     balanceDelta: try optionalDecimal(from: transaction.balanceDelta),
+                    counterpartAccountID: transaction.counterpartAccountID,
                     transactionDay: transaction.transactionDay,
                     note: transaction.note ?? "",
                     savedAt: transaction.savedAt,
@@ -417,6 +419,7 @@ private extension AccountTransaction {
         balanceBefore = other.balanceBefore
         balanceAfter = other.balanceAfter
         balanceDelta = other.balanceDelta
+        counterpartAccountID = other.counterpartAccountID
         currencyCode = other.currencyCode
         transactionDay = other.transactionDay
         note = other.note

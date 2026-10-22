@@ -18,6 +18,9 @@ enum AccountTransactionValidationError: Error, Equatable {
     /// 余额调整的精确十进制差额计算失败。
     case balanceCalculationFailed
 
+    /// 转账缺少转入账户、转入转出是同一个账户，或非转账流水带了转入账户。
+    case invalidTransferAccounts
+
     /// 记账日必须是有效的 `YYYYMMDD` 公历日期。
     case invalidTransactionDay
 }
@@ -32,6 +35,9 @@ enum AccountTransactionType: String, Sendable {
 
     /// 直接设置账户总余额产生的调整流水。
     case balanceAdjustment
+
+    /// 账户之间的转账：挂在转出账户上，同时记录转入账户；不计入收支。
+    case transfer
 }
 
 /// 预置的支出分类；顺序即默认排序，rawValue 即流水引用的分类 key。
@@ -129,14 +135,17 @@ enum AccountTransactionPayload: Equatable, Sendable {
     /// 余额调整的完整前值、后值与带符号差额。
     case balanceAdjustment(before: Decimal, after: Decimal, delta: Decimal)
 
-    /// 真实收支的方向与正数金额；余额调整不属于收支，返回 `nil`。
+    /// 从流水所在账户转到 `toAccountID` 的正数金额。
+    case transfer(toAccountID: UUID, amount: Decimal)
+
+    /// 真实收支的方向与正数金额；余额调整和转账不属于收支，返回 `nil`。
     var bookkeepingAmount: (entryType: BookkeepingEntryType, amount: Decimal)? {
         switch self {
         case let .expense(_, amount):
             (.expense, amount)
         case let .income(_, amount):
             (.income, amount)
-        case .balanceAdjustment:
+        case .balanceAdjustment, .transfer:
             nil
         }
     }
@@ -157,7 +166,7 @@ final class AccountTransaction {
     /// 收支引用的分类 key（预置 rawValue 或 `custom.<uuid>`）；余额调整必须为 `nil`。
     var categoryRawValue: String?
 
-    /// 支出以正数保存的精确金额；其他类型必须为 `nil`。
+    /// 收支和转账以正数保存的精确金额；其他类型必须为 `nil`。
     var amount: Decimal?
 
     /// 用户可选的流水标题；旧数据为空时由展示层回退到分类标题。
@@ -171,6 +180,9 @@ final class AccountTransaction {
 
     /// `balanceAfter - balanceBefore` 的带符号差额。
     var balanceDelta: Decimal?
+
+    /// 转账的转入账户；流水本身挂在转出账户上。其他类型必须为 `nil`。
+    var counterpartAccountID: UUID?
 
     /// 金额使用的 ISO 4217 货币代码；当前固定为 `CNY`。
     var currencyCode: String
@@ -210,7 +222,8 @@ final class AccountTransaction {
             title: title.flatMap { Self.sanitizedOptionalText($0) },
             balanceBefore: balanceBefore,
             balanceAfter: balanceAfter,
-            balanceDelta: balanceDelta
+            balanceDelta: balanceDelta,
+            counterpartAccountID: counterpartAccountID
         )
     }
 
@@ -225,6 +238,7 @@ final class AccountTransaction {
         balanceBefore: Decimal?,
         balanceAfter: Decimal?,
         balanceDelta: Decimal?,
+        counterpartAccountID: UUID?,
         currencyCode: String,
         transactionDay: Int,
         note: String?,
@@ -239,6 +253,7 @@ final class AccountTransaction {
         self.balanceBefore = balanceBefore
         self.balanceAfter = balanceAfter
         self.balanceDelta = balanceDelta
+        self.counterpartAccountID = counterpartAccountID
         self.currencyCode = currencyCode
         self.transactionDay = transactionDay
         self.note = note
@@ -419,6 +434,43 @@ final class AccountTransaction {
         )
     }
 
+    /// 校验转账字段，生成尚未插入 context 的转账流水。
+    ///
+    /// - Parameters:
+    ///   - id: 转账表单生命周期内保持稳定的流水 UUID。
+    ///   - fromAccountID: 转出账户 UUID，流水挂在这个账户上。
+    ///   - toAccountID: 转入账户 UUID，不能与转出账户相同。
+    ///   - amount: 大于零且最多两位小数的 CNY 转账金额。
+    ///   - transactionDay: 用户选择的 `YYYYMMDD` 公历记账日。
+    ///   - note: 允许为空的备注原始值。
+    ///   - savedAt: 注入的保存时间，便于同日排序与确定性测试。
+    /// - Returns: 已完成转账专属字段校验和清理的账户流水。
+    /// - Throws: 金额、记账日或转入转出账户不符合约束时抛出校验错误。
+    static func validatingTransfer(
+        id: UUID,
+        fromAccountID: UUID,
+        toAccountID: UUID,
+        amount: Decimal,
+        transactionDay: Int,
+        note: String = "",
+        savedAt: Date = .now
+    ) throws -> AccountTransaction {
+        try validatingPersistedFields(
+            id: id,
+            accountID: fromAccountID,
+            typeRawValue: AccountTransactionType.transfer.rawValue,
+            categoryRawValue: nil,
+            amount: amount,
+            balanceBefore: nil,
+            balanceAfter: nil,
+            balanceDelta: nil,
+            counterpartAccountID: toAccountID,
+            transactionDay: transactionDay,
+            note: note,
+            savedAt: savedAt
+        )
+    }
+
     /// 验证持久化字段是否严格符合指定流水类型的专属字段矩阵。
     ///
     /// 正常业务写入应使用类型专属工厂；该边界用于让 schema 转换与模型测试
@@ -432,6 +484,7 @@ final class AccountTransaction {
         balanceBefore: Decimal?,
         balanceAfter: Decimal?,
         balanceDelta: Decimal?,
+        counterpartAccountID: UUID? = nil,
         transactionDay: Int,
         note: String = "",
         savedAt: Date = .now,
@@ -448,8 +501,14 @@ final class AccountTransaction {
             title: sanitizedTitle,
             balanceBefore: balanceBefore,
             balanceAfter: balanceAfter,
-            balanceDelta: balanceDelta
+            balanceDelta: balanceDelta,
+            counterpartAccountID: counterpartAccountID
         )
+        if let counterpartAccountID {
+            guard counterpartAccountID != accountID else {
+                throw AccountTransactionValidationError.invalidTransferAccounts
+            }
+        }
 
         return AccountTransaction(
             id: id,
@@ -461,6 +520,7 @@ final class AccountTransaction {
             balanceBefore: balanceBefore,
             balanceAfter: balanceAfter,
             balanceDelta: balanceDelta,
+            counterpartAccountID: counterpartAccountID,
             currencyCode: "CNY",
             transactionDay: transactionDay,
             note: sanitizedOptionalText(note),
@@ -476,10 +536,15 @@ final class AccountTransaction {
         title: String?,
         balanceBefore: Decimal?,
         balanceAfter: Decimal?,
-        balanceDelta: Decimal?
+        balanceDelta: Decimal?,
+        counterpartAccountID: UUID?
     ) throws -> AccountTransactionPayload {
         guard let transactionType = AccountTransactionType(rawValue: typeRawValue) else {
             throw AccountTransactionValidationError.unknownType(typeRawValue)
+        }
+        // 只有转账记录转入账户，其他类型带了就是字段混用。
+        guard (transactionType == .transfer) == (counterpartAccountID != nil) else {
+            throw AccountTransactionValidationError.invalidTransferAccounts
         }
 
         switch transactionType {
@@ -542,6 +607,22 @@ final class AccountTransaction {
                 after: balanceAfter,
                 delta: balanceDelta
             )
+
+        case .transfer:
+            guard categoryRawValue == nil,
+                  title == nil,
+                  let amount,
+                  let counterpartAccountID,
+                  balanceBefore == nil,
+                  balanceAfter == nil,
+                  balanceDelta == nil
+            else {
+                throw AccountTransactionValidationError.invalidPayload
+            }
+            guard amount > 0, AccountAmountParser.hasCNYPrecision(amount) else {
+                throw AccountTransactionValidationError.invalidAmount
+            }
+            return .transfer(toAccountID: counterpartAccountID, amount: amount)
         }
     }
 

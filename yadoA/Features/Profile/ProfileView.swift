@@ -63,6 +63,17 @@ struct ProfileView: View {
                 }
 
                 settingsSection("profile.section.bookkeeping") {
+                    // 账单是按月、按年回看的汇总，不是日常记账操作，放在这里不占记账页导航栏。
+                    NavigationLink {
+                        BillView()
+                            .secondaryPage()
+                    } label: {
+                        row("bill.title", symbol: "doc.text", value: "")
+                    }
+                    .accessibilityIdentifier("profile-bills")
+
+                    rowDivider
+
                     NavigationLink {
                         CategoryManagementView()
                             .secondaryPage()

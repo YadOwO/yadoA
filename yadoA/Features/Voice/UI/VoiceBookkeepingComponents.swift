@@ -142,8 +142,13 @@ struct VoiceMicAccessory: View {
                     )
                     .contentTransition(.symbolEffect(.replace))
             }
-            Text(title)
-                .lineLimit(1)
+            if showsSpeakingPrompt {
+                VoiceRotatingHoldPrompt(isRotating: true)
+                    .lineLimit(1)
+            } else {
+                Text(title)
+                    .lineLimit(1)
+            }
         }
         .font(font)
         .foregroundStyle(tint)
@@ -186,6 +191,11 @@ struct VoiceMicAccessory: View {
     private var symbolName: String {
         if controller.isCancelArmed { return "xmark" }
         return controller.isRecording ? "waveform" : "mic.fill"
+    }
+
+    /// 空闲且附属栏展开时轮换示例说法，告诉用户可以怎么说；与 Tab Bar 并排时空间太窄，只写「按住说话」。
+    private var showsSpeakingPrompt: Bool {
+        !controller.isPressing && !controller.isRecording && !isBusy && placement != .inline
     }
 
     /// 空闲时提示按住说话，说话时提示松手的结果。

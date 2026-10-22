@@ -264,8 +264,16 @@ final class LocalExpenseRepository {
         return (account, type)
     }
 
-    /// 根据账户语义计算收支后的精确金额，并拒绝溢出或精度损失。
-    private static func updatedBalance(
+    /// 根据账户语义计算收支后的精确金额，并拒绝溢出或精度损失；转账按转出记支出、转入记收入复用这套方向规则。
+    ///
+    /// - Parameters:
+    ///   - balance: 账户当前余额。
+    ///   - amount: 正数收支金额，撤销时传入负数。
+    ///   - effect: 账户类型决定的支出影响方向。
+    ///   - entryType: 收支方向。
+    /// - Returns: 应用后的精确余额。
+    /// - Throws: 精确十进制计算失败时抛出 `ExpenseRepositoryError.balanceCalculationFailed`。
+    static func updatedBalance(
         _ balance: Decimal,
         by amount: Decimal,
         effect: ExpenseBalanceEffect,

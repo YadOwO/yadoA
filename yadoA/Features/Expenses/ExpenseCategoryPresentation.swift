@@ -65,14 +65,14 @@ extension IncomeCategory {
     }
 }
 
-/// 收支载荷的分类展示信息；余额调整没有分类，全部返回 `nil`。
+/// 收支载荷的分类展示信息；余额调整和转账没有分类，全部返回 `nil`。
 extension AccountTransactionPayload {
-    /// 收支方向与分类 key；余额调整返回 `nil`。
+    /// 收支方向与分类 key；余额调整和转账返回 `nil`。
     var categoryReference: (direction: BookkeepingEntryType, key: String)? {
         switch self {
         case let .expense(key, _): (.expense, key)
         case let .income(key, _): (.income, key)
-        case .balanceAdjustment: nil
+        case .balanceAdjustment, .transfer: nil
         }
     }
 

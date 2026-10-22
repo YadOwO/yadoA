@@ -23,12 +23,6 @@ struct HomeView: View {
                     }
                     .accessibilityIdentifier("home-search")
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(value: HomeRoute.bills) {
-                        Label(AccountLocalization.string("bill.title", locale: locale), systemImage: "doc.text")
-                    }
-                    .accessibilityIdentifier("home-bills")
-                }
                 // 悬浮按钮留给语音记账，手动记一笔放在导航栏最右侧
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(value: HomeRoute.expenseEntry) {

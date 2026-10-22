@@ -355,12 +355,13 @@ final class LocalAccountRepository {
         try context.fetch(FetchDescriptor<Account>())
     }
 
-    /// 统计账户关联的全部流水类型，未来新增流水无需修改删除语义。
+    /// 统计账户关联的全部流水类型，包括转入该账户的转账；未来新增流水无需修改删除语义。
     private func transactionCount(for accountID: UUID, in context: ModelContext) throws -> Int {
         let targetAccountID = accountID
         let descriptor = FetchDescriptor<AccountTransaction>(
             predicate: #Predicate<AccountTransaction> { transaction in
                 transaction.accountID == targetAccountID
+                    || transaction.counterpartAccountID == targetAccountID
             }
         )
         return try context.fetchCount(descriptor)

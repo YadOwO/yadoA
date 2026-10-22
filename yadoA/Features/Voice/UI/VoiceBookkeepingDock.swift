@@ -44,16 +44,20 @@ struct VoiceBookkeepingDock: View {
             }
 
             if !isMicInAccessory {
-                VoiceMicButton(
-                    controller: input,
-                    isProcessing: voice.isProcessing,
-                    onPressBegan: beginPress,
-                    onText: { voice.send($0) },
-                    onAccessibilityToggle: toggleRecording
-                )
-                // 没识别到话或刚授权时的提示：麦克风正上方的一个小标签，不撑开卡片、不影响布局
-                .overlay(alignment: .top) {
-                    transientHint
+                VStack(spacing: 8) {
+                    // 麦克风上方轮换示例说法；卡片或一次性提示出现时只隐藏不移除，列表底部留白不跟着跳
+                    floatingSpeakingPrompt
+                    VoiceMicButton(
+                        controller: input,
+                        isProcessing: voice.isProcessing,
+                        onPressBegan: beginPress,
+                        onText: { voice.send($0) },
+                        onAccessibilityToggle: toggleRecording
+                    )
+                    // 没识别到话或刚授权时的提示：麦克风正上方的一个小标签，不撑开卡片、不影响布局
+                    .overlay(alignment: .top) {
+                        transientHint
+                    }
                 }
                 .padding(.vertical, 12)
                 .onGeometryChange(for: CGFloat.self) { proxy in
@@ -192,6 +196,22 @@ struct VoiceBookkeepingDock: View {
                 .transition(.opacity)
                 .accessibilityHidden(true)
         }
+    }
+
+    /// 悬浮麦克风上方的示例说法，告诉用户按住后可以怎么说；会话卡片或一次性提示出现时隐藏。
+    private var floatingSpeakingPrompt: some View {
+        let isShown = !isCardVisible && input.transientHint == nil
+        return VoiceRotatingHoldPrompt(isRotating: isShown && !input.isPressing)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .voiceFloatingSurface(in: Capsule())
+            .opacity(isShown ? 1 : 0)
+            .allowsHitTesting(false)
+            // 麦克风自身的无障碍提示已说明操作方式，示例只做视觉引导
+            .accessibilityHidden(true)
     }
 
     /// 是否显示会话卡片：正在说，或本次会话已经有内容。

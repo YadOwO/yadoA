@@ -5,7 +5,7 @@ final class BillFlowUITests: XCTestCase {
     @MainActor
     func testMonthlyAndYearlyBills() throws {
         let app = launchExportFixtureInEnglish()
-        app.buttons["home-bills"].tap()
+        openBills(in: app)
         XCTAssertTrue(app.navigationBars["Bills"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["bill-year-selector"].exists)
         XCTAssertTrue(app.staticTexts["bill-summary-balance"].label.contains("87.50"))
@@ -16,13 +16,13 @@ final class BillFlowUITests: XCTestCase {
         app.buttons["bill-period-picker-monthly"].tap()
         XCTAssertTrue(app.buttons["bill-year-selector"].exists)
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(app.buttons["home-bills"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["profile-bills"].waitForExistence(timeout: 3))
     }
 
     @MainActor
     func testYearSelectionPersistsAcrossModes() throws {
         let app = launchHomeFixtureInEnglish()
-        app.buttons["home-bills"].tap()
+        openBills(in: app)
         let selector = app.buttons["bill-year-selector"]
         XCTAssertTrue(selector.waitForExistence(timeout: 3))
         let originalYear = selector.value as? String
@@ -43,7 +43,7 @@ final class BillFlowUITests: XCTestCase {
     @MainActor
     func testEmptyBills() throws {
         let app = launchIsolatedAppInEnglish()
-        app.buttons["home-bills"].tap()
+        openBills(in: app)
         XCTAssertTrue(app.staticTexts["No bills yet"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["bill-summary-balance"].label.contains("0.00"))
         app.buttons["bill-period-picker-yearly"].tap()
@@ -67,7 +67,7 @@ final class BillFlowUITests: XCTestCase {
                 ]
             }
             app.launch()
-            app.buttons["home-bills"].tap()
+            openBills(in: app)
             XCTAssertTrue(app.staticTexts["bill-summary-balance"].waitForExistence(timeout: 3))
             attachScreenshot(of: app, name: accessibility ? "Bills - Accessibility English" : "Bills - Chinese")
             if accessibility {
@@ -80,6 +80,17 @@ final class BillFlowUITests: XCTestCase {
             }
             app.terminate()
         }
+    }
+
+    /// 账单入口在“我的”里：先切到“我的”，再点账单行。
+    @MainActor
+    private func openBills(in app: XCUIApplication) {
+        let profile = app.tabBars.buttons.element(boundBy: app.tabBars.buttons.count - 1)
+        XCTAssertTrue(profile.waitForExistence(timeout: 3))
+        profile.tap()
+        let entry = app.buttons["profile-bills"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 3))
+        entry.tap()
     }
 
     /// 保存实际渲染结果，检查金额与表头在不同字号下是否重叠。

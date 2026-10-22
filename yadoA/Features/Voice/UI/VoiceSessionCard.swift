@@ -191,7 +191,9 @@ struct VoiceSessionCard: View {
                 VoiceLiveTranscript(
                     transcript: input.recognizer.transcript,
                     isRecording: input.isRecording,
-                    isCancelArmed: input.isCancelArmed
+                    isCancelArmed: input.isCancelArmed,
+                    // 只在会话第一句给示例；后续轮次多是回答追问或接着改，示例反而打岔
+                    showsExamples: session?.isActive != true
                 )
             }
         }
@@ -348,6 +350,9 @@ private struct VoiceLiveTranscript: View {
     /// 是否已上滑到取消区域。
     let isCancelArmed: Bool
 
+    /// 还没识别到文字时是否列出示例说法。
+    var showsExamples = false
+
     var body: some View {
         VStack(alignment: .trailing, spacing: 6) {
             VoiceUserBubble(
@@ -356,6 +361,10 @@ private struct VoiceLiveTranscript: View {
             )
             .opacity(isCancelArmed ? 0.45 : 1)
             .contentTransition(.interpolate)
+            if showsExamples, transcript.isEmpty, isRecording, !isCancelArmed {
+                VoiceSpeakingExamples()
+                    .padding(.top, 4)
+            }
             if isRecording {
                 Text(text(isCancelArmed ? "voice.recording.releaseToCancel" : "voice.recording.cancelHint"))
                     .font(.footnote.weight(isCancelArmed ? .semibold : .regular))

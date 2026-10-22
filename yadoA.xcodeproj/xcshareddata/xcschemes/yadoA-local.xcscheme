@@ -15,10 +15,10 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-            BlueprintIdentifier = "617E5CCD302C24940076C208"
-            BuildableName = "yadoA.app"
-            BlueprintName = "yadoA"
-            ReferencedContainer = "container:yadoA.xcodeproj">
+               BlueprintIdentifier = "617E5CCD302C24940076C208"
+               BuildableName = "yadoA.app"
+               BlueprintName = "yadoA"
+               ReferencedContainer = "container:yadoA.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>

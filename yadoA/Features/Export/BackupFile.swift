@@ -237,6 +237,9 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
     /// 带符号差额的字符串金额；其他类型为 `nil`。
     let balanceDelta: String?
 
+    /// 转账的转入账户 UUID；其他类型为 `nil`。
+    let counterpartAccountID: UUID?
+
     /// ISO 4217 货币代码。
     let currencyCode: String
 
@@ -260,6 +263,7 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         balanceBefore = transaction.balanceBefore?.description
         balanceAfter = transaction.balanceAfter?.description
         balanceDelta = transaction.balanceDelta?.description
+        counterpartAccountID = transaction.counterpartAccountID
         currencyCode = transaction.currencyCode
         transactionDay = transaction.transactionDay
         note = transaction.note
@@ -280,6 +284,7 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         try container.encode(balanceBefore, forKey: .balanceBefore)
         try container.encode(balanceAfter, forKey: .balanceAfter)
         try container.encode(balanceDelta, forKey: .balanceDelta)
+        try container.encode(counterpartAccountID?.backupJSONString, forKey: .counterpartAccountID)
         try container.encode(currencyCode, forKey: .currencyCode)
         try container.encode(transactionDay, forKey: .transactionDay)
         try container.encode(note, forKey: .note)
@@ -297,6 +302,7 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         balanceBefore: String?,
         balanceAfter: String?,
         balanceDelta: String?,
+        counterpartAccountID: UUID? = nil,
         currencyCode: String,
         transactionDay: Int,
         note: String?,
@@ -311,6 +317,7 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         self.balanceBefore = balanceBefore
         self.balanceAfter = balanceAfter
         self.balanceDelta = balanceDelta
+        self.counterpartAccountID = counterpartAccountID
         self.currencyCode = currencyCode
         self.transactionDay = transactionDay
         self.note = note
@@ -331,6 +338,7 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         balanceBefore = try container.decodeIfPresent(String.self, forKey: .balanceBefore)
         balanceAfter = try container.decodeIfPresent(String.self, forKey: .balanceAfter)
         balanceDelta = try container.decodeIfPresent(String.self, forKey: .balanceDelta)
+        counterpartAccountID = try container.decodeIfPresent(UUID.self, forKey: .counterpartAccountID)
         currencyCode = try container.decodeIfPresent(String.self, forKey: .currencyCode) ?? "CNY"
         transactionDay = try container.decodeIfPresent(Int.self, forKey: .transactionDay) ?? 0
         note = try container.decodeIfPresent(String.self, forKey: .note)
@@ -508,6 +516,7 @@ extension BackupTransaction {
         case balanceBefore
         case balanceAfter
         case balanceDelta
+        case counterpartAccountID
         case currencyCode
         case transactionDay
         case note

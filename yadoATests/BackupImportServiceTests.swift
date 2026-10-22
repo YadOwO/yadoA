@@ -144,6 +144,29 @@ struct BackupImportServiceTests {
         )
     }
 
+    /// 从默认账户转出的一笔转账快照。
+    private func makeTransfer(
+        id: UUID = UUID(),
+        toAccountID: UUID
+    ) -> BackupTransaction {
+        BackupTransaction(
+            id: id,
+            accountID: Self.accountID,
+            type: AccountTransactionType.transfer.rawValue,
+            category: nil,
+            amount: "20",
+            title: nil,
+            balanceBefore: nil,
+            balanceAfter: nil,
+            balanceDelta: nil,
+            counterpartAccountID: toAccountID,
+            currencyCode: "CNY",
+            transactionDay: 20261022,
+            note: nil,
+            savedAt: Date(timeIntervalSince1970: 40)
+        )
+    }
+
     private func encode(_ backup: BackupFile) throws -> Data {
         try BackupFileEncoding.makeEncoder().encode(backup)
     }
@@ -304,6 +327,8 @@ struct BackupImportServiceTests {
             makeBackup(transactions: [makeExpense(currencyCode: "USD")]),
             // 非法记账日。
             makeBackup(transactions: [makeExpense(transactionDay: 20261340)]),
+            // 转账的转入账户不在备份中。
+            makeBackup(transactions: [makeTransfer(toAccountID: UUID())]),
         ]
 
         for backup in invalidBackups {
@@ -319,6 +344,26 @@ struct BackupImportServiceTests {
         let context = container.modelContainer.makeManualSaveContext()
         #expect(try context.fetchCount(FetchDescriptor<Account>()) == 0)
         #expect(try context.fetchCount(FetchDescriptor<AccountTransaction>()) == 0)
+    }
+
+    @Test("转账随备份恢复并保留转入账户")
+    func restoresTransferWithCounterpart() throws {
+        let container = try AccountDataContainer.inMemory()
+        let service = BackupImportService(container: container.modelContainer)
+        let targetID = UUID()
+        let transferID = UUID()
+        let backup = makeBackup(
+            accounts: [makeAccount(id: Self.accountID), makeAccount(id: targetID, name: "银行卡")],
+            transactions: [makeTransfer(id: transferID, toAccountID: targetID)]
+        )
+
+        let plan = try service.prepare(from: try encode(backup))
+        try service.restore(plan)
+
+        let context = container.modelContainer.makeManualSaveContext()
+        let transaction = try #require(try context.transaction(id: transferID))
+        #expect(try transaction.validatedPayload() == .transfer(toAccountID: targetID, amount: 20))
+        #expect(transaction.accountID == Self.accountID)
     }
 
     // MARK: - 分类

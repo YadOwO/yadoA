@@ -204,12 +204,15 @@ enum AccountListState {
 /// 应用根账户列表，根据 SwiftData 查询结果切换空状态与列表状态。
 struct AccountListView: View {
     @Environment(\.locale) private var locale
+    @Environment(\.calendar) private var calendar
     @Environment(\.modelContext) private var modelContext
     @Query private var queriedAccounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
     @State private var isPresentingCreation = false
     @State private var isPresentingManagement = false
     @State private var isPresentingDeactivated = false
+    /// 正在填写的转账；为空时不显示转账表单。
+    @State private var transferDraft: TransferDraft?
 
     var body: some View {
         let accounts = AccountListPresentation.sorted(queriedAccounts)
@@ -223,6 +226,23 @@ struct AccountListView: View {
         }
         .navigationTitle(AccountLocalization.string("account.list.title", locale: locale))
         .toolbar {
+            // 至少两个可记账账户才有转账的意义。
+            if TransferView.transferableAccounts(queriedAccounts).count >= 2 {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        transferDraft = TransferDraft(
+                            fromAccountID: defaultTransferSourceID,
+                            transactionDay: TransactionDay.encode(.now, calendar: calendar)
+                        )
+                    } label: {
+                        Label(
+                            AccountLocalization.string("account.transfer.title", locale: locale),
+                            systemImage: "arrow.left.arrow.right"
+                        )
+                    }
+                    .accessibilityIdentifier("account-list-transfer")
+                }
+            }
             if AccountListState.showsToolbarAdd(accountCount: accounts.count) {
                 ToolbarItem(placement: .primaryAction) {
                     addButton(identifier: "account-list-toolbar-add")
@@ -257,7 +277,29 @@ struct AccountListView: View {
                 DeactivatedAccountListView()
             }
         }
+        .sheet(item: $transferDraft) { draft in
+            NavigationStack {
+                TransferView(
+                    draft: draft,
+                    save: { draft in
+                        try LocalTransferRepository(container: modelContext.container).save(draft)
+                    },
+                    onSaved: {
+                        transferDraft = nil
+                    }
+                )
+            }
+            .presentationDragIndicator(.visible)
+        }
         .paperPage()
+    }
+
+    /// 从账户列表发起转账时预选的转出账户：有默认记账账户时用它，否则先不选。
+    private var defaultTransferSourceID: UUID? {
+        BookkeepingPreference.resolvedAccountID(
+            preference: preferences.first { $0.id == BookkeepingPreference.singletonID },
+            accounts: queriedAccounts
+        )
     }
 
     /// 干净存储唯一的主要添加入口。
