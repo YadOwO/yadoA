@@ -52,6 +52,9 @@ struct VoiceEntryChange: Equatable, Identifiable {
     /// 流水 UUID。
     let transactionID: UUID
 
+    /// 变更后的 `YYYYMMDD` 记账日；删除时为删除前的记账日。
+    let transactionDay: Int
+
     /// 变更后的流水展示；删除时为删除前的样子。流水不在首页展示范围内时为 `nil`。
     let row: HomeOverviewRowPresentation?
 
@@ -258,6 +261,7 @@ struct VoiceToolExecutor {
         let change = VoiceEntryChange(
             kind: .deleted,
             transactionID: target.snapshot.id,
+            transactionDay: target.snapshot.transactionDay,
             row: deletedRow?.row,
             accountName: target.accountName,
             label: label(for: target.snapshot, catalog: target.catalog),
@@ -332,6 +336,7 @@ struct VoiceToolExecutor {
         return VoiceEntryChange(
             kind: kind,
             transactionID: snapshot.id,
+            transactionDay: snapshot.transactionDay,
             row: row,
             accountName: (try? context.account(id: snapshot.accountID))?.name,
             label: label(for: snapshot, catalog: catalog),

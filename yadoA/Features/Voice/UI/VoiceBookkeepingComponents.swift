@@ -208,9 +208,10 @@ struct VoiceMicAccessory: View {
 
 // MARK: - 结果展示
 
-/// 一轮中写入的一笔流水：分类图标、名称、金额、账户与待确认字段。
+/// 一轮中写入的一笔流水：分类图标、名称、金额、日期（不是今天时）、账户与待确认字段。
 struct VoiceEntryChangeRow: View {
     @Environment(\.locale) private var locale
+    @Environment(\.calendar) private var calendar
 
     /// 流水变更。
     let change: VoiceEntryChange
@@ -261,9 +262,19 @@ struct VoiceEntryChangeRow: View {
         }
     }
 
-    /// 账户与待确认字段，例如「微信钱包 · 待确认：账户」。
+    /// 日期、账户与待确认字段，例如「9月28日 · 微信钱包 · 待确认：账户」；日期只在不是今天时显示。
     private var detail: String? {
         var parts: [String] = []
+        // 改到别的日期、或者改的是旧账时带上日期，用户点之前就知道首页会跳到哪个月
+        let today = TransactionDay.encode(.now, calendar: calendar)
+        if change.transactionDay != today,
+           let date = TransactionDay.date(from: change.transactionDay, calendar: calendar, locale: locale) {
+            // 今年的只写月日，其他年份带上年份
+            let template = change.transactionDay / 10_000 == today / 10_000 ? "MMMd" : "yMMMd"
+            parts.append(
+                BookkeepingDateFormatting.formatter(template: template, locale: locale, calendar: calendar).string(from: date)
+            )
+        }
         if let accountName = change.accountName {
             parts.append(accountName)
         }

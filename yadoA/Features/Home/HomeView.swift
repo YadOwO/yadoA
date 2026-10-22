@@ -126,9 +126,12 @@ private struct HomeQueryContent: View {
         // 会话卡片浮在明细之上。iPhone 的 iOS 26.1 起麦克风在 Tab Bar 附属栏里，卡片出现在附属栏上方；
         // 其他情况麦克风悬浮在这里且不带整条底栏，居中放置以避开右侧的金额列，卡片出现在它上方。
         .overlay(alignment: .bottom) {
-            VoiceBookkeepingDock { height in
-                addButtonClearance = height
-            }
+            VoiceBookkeepingDock(
+                onLocateChange: locate,
+                onButtonHeightChange: { height in
+                    addButtonClearance = height
+                }
+            )
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -177,24 +180,52 @@ extension HomeQueryContent {
     /// 删除残影从出现、划掉到停留结束的时长，之后把这一行从列表中收起。
     private static let deletedRowLifetime: Duration = .milliseconds(1600)
 
-    /// 首页可见时取走刚变更的流水：切到第一条所在的月份并把它滚到汇总下方，新增标红写对勾、修改划掉旧值换上新值、删除划掉后收起。
+    /// 首页可见时取走刚变更的流水并展示提示。
     ///
     /// - Parameter animated: 是否带动画滚动；切换了月份时列表是新建的，总是直接定位。
     private func showRecentEntryHighlightIfNeeded(animated: Bool) {
         guard isVisible else { return }
-        let entries = recentEntryHighlight.consume()
-        guard let first = entries.first else { return }
+        present(recentEntryHighlight.consume(), animated: animated)
+    }
 
-        var switchesMonth = false
-        if let month = HomeMonth(value: first.transactionDay / 100) {
-            switchesMonth = month != selectedMonth
-            selectedMonth = month
-        }
+    /// 在明细里定位语音卡片上点选的一笔流水：切到它现在所在的月份、滚到汇总下方，并重新播放一次提示。
+    ///
+    /// 按流水当前的记账日定位，之后的轮次改过日期也能找到；流水已被删除时不做任何事。
+    /// - Parameter change: 卡片上点选的流水变更，删除和已撤销的变更不会走到这里。
+    private func locate(_ change: VoiceEntryChange) {
+        guard let transaction = transactions.first(where: { $0.id == change.transactionID }) else { return }
+        // 修改不再对比旧值：之后的轮次可能又改过，只在标题和金额下补笔迹提示"就是这笔"
+        let entry = HomeRecentEntryHighlight.Entry(
+            id: transaction.id,
+            transactionDay: transaction.transactionDay,
+            change: change.kind == .updated ? .updated(previous: nil) : .added,
+            savedAt: .now
+        )
+        present([entry], animated: true)
+    }
+
+    /// 播放一批流水变更的提示：新增标红写对勾、修改划掉旧值换上新值、删除划掉后收起；
+    /// 并切到变更最多的月份，把其中排得最靠上的一笔滚到汇总下方，其余几笔出现在它下方。
+    ///
+    /// - Parameters:
+    ///   - entries: 要展示的流水变更。
+    ///   - animated: 是否带动画滚动；切换了月份时列表是新建的，总是直接定位。
+    private func present(_ entries: [HomeRecentEntryHighlight.Entry], animated: Bool) {
         for entry in entries {
             show(entry)
         }
-        // 一批有多条时定位到第一条
-        let request = HomeScrollRequest(transactionID: first.id, isAnimated: animated && !switchesMonth && !reduceMotion)
+        guard let focus = HomeEntryFocus(
+            entries: entries,
+            currentMonth: selectedMonth,
+            today: HomeMonth.from(date: .now, calendar: environmentCalendar, locale: locale)
+        ) else { return }
+
+        let switchesMonth = focus.month != selectedMonth
+        selectedMonth = focus.month
+        let request = HomeScrollRequest(
+            transactionIDs: focus.transactionIDs,
+            isAnimated: animated && !switchesMonth && !reduceMotion
+        )
         scrollRequest = request
         Task {
             try? await Task.sleep(for: Self.highlightLifetime)
@@ -523,10 +554,8 @@ private struct HomeOverviewList: View {
                             ForEach(monthPresentation.dayGroups) { day in
                                 Section {
                                     ForEach(day.rows) { row in
-                                        HomeOverviewRow(
-                                            row: row,
-                                            mark: rowMarks.last { $0.transactionID == row.id }?.kind
-                                        )
+                                        let rowMark = rowMarks.last { $0.transactionID == row.id }
+                                        HomeOverviewRow(row: row, mark: rowMark?.kind, markToken: rowMark?.token)
                                             .listRowInsets(EdgeInsets(top: 9, leading: 2, bottom: 9, trailing: 2))
                                             // 流水直接写在纸上：不垫卡片，行与行之间是一条手画的账本横线。
                                             .listRowBackground(
@@ -579,12 +608,17 @@ private struct HomeOverviewList: View {
                 }
                 // 变更流水所在行进入当前月份数据后，把它滚到列表可视区顶部，也就是汇总卡片正下方，
                 // 下方的语音卡片不会挡住它；查询刷新可能晚于登记提示，因此同时观察行是否已出现。
-                .onChange(of: resolvedScrollRequest, initial: true) { _, request in
-                    guard let request else { return }
+                .onChange(of: scrollTarget, initial: true) { previous, target in
+                    guard let target else { return }
+                    // 同一请求已经滚过、上次的目标行又不在明细里了，说明是删除残影收起，不跟着往下滚；
+                    // 上次的目标行还在时目标变了，说明更靠上的一笔刚出现，需要重新定位。
+                    if let previous, previous.request == target.request, !isListed(previous.transactionID) {
+                        return
+                    }
                     // 等列表完成本轮布局后再滚动
                     Task { @MainActor in
-                        withAnimation(request.isAnimated ? .easeInOut(duration: 0.35) : nil) {
-                            scrollProxy.scrollTo(request.transactionID, anchor: .top)
+                        withAnimation(target.request.isAnimated ? .easeInOut(duration: 0.35) : nil) {
+                            scrollProxy.scrollTo(target.transactionID, anchor: .top)
                         }
                     }
                 }
@@ -623,14 +657,22 @@ private struct HomeOverviewList: View {
         }
     }
 
-    /// 已出现在当前月份明细里（含删除残影）的定位请求，行还没出现时为 `nil`。
-    private var resolvedScrollRequest: HomeScrollRequest? {
-        guard let scrollRequest,
-              monthPresentation.dayGroups.contains(where: { day in
-                  day.rows.contains { $0.id == scrollRequest.transactionID }
-              })
-        else { return nil }
-        return scrollRequest
+    /// 定位请求在当前月份明细（含删除残影）里落到的行：候选流水中排得最靠上、已经出现的一笔；都还没出现时为 `nil`。
+    private var scrollTarget: HomeScrollTarget? {
+        guard let scrollRequest else { return nil }
+        for day in monthPresentation.dayGroups {
+            if let row = day.rows.first(where: { scrollRequest.transactionIDs.contains($0.id) }) {
+                return HomeScrollTarget(request: scrollRequest, transactionID: row.id)
+            }
+        }
+        return nil
+    }
+
+    /// 流水是否出现在当前月份明细里（含删除残影）。
+    private func isListed(_ transactionID: UUID) -> Bool {
+        monthPresentation.dayGroups.contains { day in
+            day.rows.contains { $0.id == transactionID }
+        }
     }
 
     /// 是否保留边界回弹：有流水的月份始终回弹；空月份只有存在可切换的相邻月份时才回弹，否则完全静止。
@@ -823,14 +865,23 @@ private struct HomeRowMark: Equatable {
 
 /// 一次把变更流水滚到汇总下方的请求。
 private struct HomeScrollRequest: Equatable {
-    /// 要定位的流水标识。
-    let transactionID: UUID
+    /// 候选流水；滚到其中在明细里排得最靠上的一笔，其余几笔出现在它下方。
+    let transactionIDs: Set<UUID>
 
     /// 是否带动画滚动。
     let isAnimated: Bool
 
     /// 每次请求的唯一标识；同一笔流水再次变更时也算新的请求。
     let token = UUID()
+}
+
+/// 定位请求在当前明细里实际要滚到的行。
+private struct HomeScrollTarget: Equatable {
+    /// 所属的定位请求。
+    let request: HomeScrollRequest
+
+    /// 候选流水中当前排得最靠上的一笔。
+    let transactionID: UUID
 }
 
 /// 修改提示的播放阶段。
@@ -856,6 +907,9 @@ private struct HomeOverviewRow: View {
 
     /// 当前行正在播放的变更提示；为空时保持默认样式。
     let mark: HomeRowMark.Kind?
+
+    /// 当前提示的唯一标识；从语音卡片再次定位同一笔时提示类型可能不变，靠它从头重播。
+    let markToken: UUID?
 
     /// 新增提示中图标位置手绘对勾的书写进度。
     @State private var tickProgress: CGFloat = 0
@@ -973,7 +1027,7 @@ private struct HomeOverviewRow: View {
         .navigationLinkIndicatorVisibility(.hidden)
         // 残影对应的流水已不存在，不能再进入详情。
         .disabled(isDeleted)
-        .task(id: mark) {
+        .task(id: markToken) {
             await playMark()
         }
         .accessibilityLabel(
@@ -1033,6 +1087,12 @@ extension HomeOverviewRow {
             revisionStep = .previous
             return
         }
+        // 上一次提示可能还没播完就被新提示替换，先回到起点再播
+        hasSettled = false
+        tickProgress = 0
+        strikeProgress = 0
+        underlineProgress = 0
+        revisionStep = .previous
 
         do {
             // 等返回转场结束后再落笔。

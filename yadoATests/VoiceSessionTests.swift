@@ -162,7 +162,7 @@ struct VoiceSessionTests {
         let locale = Locale(identifier: "zh-Hans")
         func change(_ kind: VoiceEntryChange.Kind, _ label: String) -> VoiceEntryChange {
             VoiceEntryChange(
-                kind: kind, transactionID: UUID(), row: nil, accountName: nil, label: label,
+                kind: kind, transactionID: UUID(), transactionDay: 20261020, row: nil, accountName: nil, label: label,
                 formattedAmount: "¥1.00", inferredFields: [], inverse: .delete(UUID()), highlight: nil
             )
         }

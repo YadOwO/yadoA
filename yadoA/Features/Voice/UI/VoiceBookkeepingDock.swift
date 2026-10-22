@@ -13,6 +13,9 @@ struct VoiceBookkeepingDock: View {
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
 
+    /// 点选卡片上的一笔流水时回调，由首页切到对应月份并滚过去。
+    let onLocateChange: (VoiceEntryChange) -> Void
+
     /// 麦克风按钮（含上下留白）占用的高度变化时回调，首页据此给列表末尾留白；麦克风在附属栏里时为 0。
     let onButtonHeightChange: (CGFloat) -> Void
 
@@ -31,6 +34,7 @@ struct VoiceBookkeepingDock: View {
                 VoiceSessionCard(
                     session: session,
                     input: input,
+                    onLocateChange: onLocateChange,
                     onOpenTransaction: { presentedTransaction = VoicePresentedTransaction(id: $0) },
                     onManualEntry: { manualEntryNote = VoiceManualEntryNote(text: $0) },
                     onSignIn: signIn,

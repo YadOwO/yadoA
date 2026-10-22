@@ -44,6 +44,7 @@ struct VoiceToolExecutorTests {
         #expect(change.inferredFields == [.account])
         #expect(change.inverse == .delete(id))
         #expect(change.highlight == .added(id: id, transactionDay: 20261020))
+        #expect(change.transactionDay == 20261020)
         #expect(change.row?.id == id)
     }
 
@@ -97,6 +98,7 @@ struct VoiceToolExecutorTests {
         let change = try #require(execution.change)
         #expect(change.kind == .updated)
         #expect(change.inverse == .replace(previous))
+        #expect(change.transactionDay == 20261020)
     }
 
     @Test("已停用账户下的流水不能修改或删除，不存在的流水返回 not_found")
@@ -186,7 +188,7 @@ struct VoiceToolExecutorTests {
         let change = try #require(first.change)
         // 伪造一个已不存在的流水的删除，使整批撤销失败
         let missing = VoiceEntryChange(
-            kind: .created, transactionID: UUID(), row: nil, accountName: nil, label: "x",
+            kind: .created, transactionID: UUID(), transactionDay: 20261020, row: nil, accountName: nil, label: "x",
             formattedAmount: "¥1.00", inferredFields: [], inverse: .delete(UUID()), highlight: nil
         )
 

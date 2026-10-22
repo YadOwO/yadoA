@@ -8037,6 +8037,42 @@
         }
       }
     },
+    "voice.change.detail.accessibility" : {
+      "comment" : "VoiceOver label of the button that opens a transaction's details from the voice card. %@ is the transaction name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Details for %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看“%@”详情"
+          }
+        }
+      }
+    },
+    "voice.change.locate.hint" : {
+      "comment" : "VoiceOver hint on a transaction in the voice card: tapping scrolls the home list to it.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows this transaction in the list."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在列表中定位这笔流水。"
+          }
+        }
+      }
+    },
     "voice.change.inferred" : {
       "comment" : "Fields the AI guessed or filled with defaults. %@ is a list such as Account and Category.",
       "extractionState" : "manual",

@@ -78,3 +78,46 @@ final class HomeRecentEntryHighlight {
         return entries.filter { Date.now.timeIntervalSince($0.savedAt) <= Self.lifetime }
     }
 }
+
+/// 一批变更提示在首页的定位目标：切到哪个月份，以及滚动时在其中哪几笔里取排得最靠上的一笔。
+///
+/// 语音记账一句话可能改动好几笔、分布在不同月份。首页一次只能展示一个月，
+/// 因此切到变更最多的月份；锚点取列表里最靠上的一笔，其余几笔会出现在它下方。
+struct HomeEntryFocus: Equatable {
+    /// 要切换到的月份。
+    let month: HomeMonth
+
+    /// 该月份内的变更流水；滚动时取其中在明细里排得最靠上、且已经出现的一笔。
+    let transactionIDs: Set<UUID>
+
+    /// 为一批变更选出定位目标。
+    ///
+    /// 月份按以下顺序决出：变更笔数最多 → 首页当前所在月份 → 离今天所在月份最近 → 更晚的月份。
+    ///
+    /// - Parameters:
+    ///   - entries: 本批流水变更。
+    ///   - currentMonth: 首页当前展示的月份，笔数相同时优先留在这个月，避免无谓的跳转。
+    ///   - today: 今天所在的月份。
+    /// - Returns: 定位目标；所有变更的记账日都无效时为 `nil`。
+    init?(entries: [HomeRecentEntryHighlight.Entry], currentMonth: HomeMonth?, today: HomeMonth?) {
+        var idsByMonth: [HomeMonth: Set<UUID>] = [:]
+        for entry in entries {
+            guard let month = HomeMonth(value: entry.transactionDay / 100) else { continue }
+            idsByMonth[month, default: []].insert(entry.id)
+        }
+        // 月份距今天所在月份相差的月数；没有今天时视为相同距离。
+        func distance(_ month: HomeMonth) -> Int {
+            guard let today else { return 0 }
+            return abs((month.year - today.year) * 12 + month.month - today.month)
+        }
+        let best = idsByMonth.max { lhs, rhs in
+            if lhs.value.count != rhs.value.count { return lhs.value.count < rhs.value.count }
+            if (lhs.key == currentMonth) != (rhs.key == currentMonth) { return rhs.key == currentMonth }
+            if distance(lhs.key) != distance(rhs.key) { return distance(lhs.key) > distance(rhs.key) }
+            return lhs.key < rhs.key
+        }
+        guard let best else { return nil }
+        month = best.key
+        transactionIDs = best.value
+    }
+}
