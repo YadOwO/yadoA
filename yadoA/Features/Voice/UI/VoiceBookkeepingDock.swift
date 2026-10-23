@@ -34,6 +34,9 @@ struct VoiceBookkeepingDock: View {
 
     var body: some View {
         VStack(spacing: 10) {
+            // 提示参与布局；短按时没有卡片和悬浮按钮，也要保留完整高度，避免空栈上的 overlay 落入附属栏。
+            transientHint
+
             if isCardVisible {
                 VoiceSessionCard(
                     session: session,
@@ -66,10 +69,6 @@ struct VoiceBookkeepingDock: View {
                     onButtonHeightChange(height)
                 }
             }
-        }
-        // 一次性提示挂在整个语音区域上方：有卡片时在卡片上方，没有卡片时在麦克风（或附属栏）上方
-        .overlay(alignment: .top) {
-            transientHint
         }
         // 附属栏不在内容区的安全区里，按实际重叠量抬到附属栏上方
         .padding(.bottom, isMicInAccessory ? Self.accessorySpacing + accessoryOverlap : 0)
@@ -186,13 +185,10 @@ struct VoiceBookkeepingDock: View {
     /// 一次性提示的展示时长（秒）。
     private static let hintDuration: Double = 1.5
 
-    /// 一次性提示底边与语音区域顶边的间距。
-    private static let hintSpacing: CGFloat = 8
-
     /// 麦克风在附属栏里时，卡片和提示与附属栏顶边的间距。
     private static let accessorySpacing: CGFloat = 10
 
-    /// 没识别到话或刚授权时的一次性提示：贴在语音区域正上方的小标签，不参与布局。
+    /// 短按或刚授权时的一次性提示：作为语音区域首项，完整排在卡片或麦克风上方。
     @ViewBuilder
     private var transientHint: some View {
         if let hint = input.transientHint {
@@ -203,7 +199,6 @@ struct VoiceBookkeepingDock: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .voiceFloatingSurface(in: Capsule())
-                .alignmentGuide(.top) { $0[.bottom] + Self.hintSpacing }
                 .allowsHitTesting(false)
                 .transition(.opacity)
                 .accessibilityHidden(true)
