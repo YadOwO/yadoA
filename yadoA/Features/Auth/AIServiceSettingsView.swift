@@ -1,7 +1,7 @@
 #if DEBUG
 import SwiftUI
 
-/// 「我的 → 开发者 → AI 服务」：选择连线上还是本地 yado_ai，填写本地地址并测试连接。只在 DEBUG 包存在。
+/// 「我的 → 开发 → AI 服务」（开发入口在头像右上角）：选择连线上还是本地 yado_ai，填写本地地址并测试连接。只在 DEBUG 包存在。
 struct AIServiceSettingsView: View {
     @Environment(\.locale) private var locale
 

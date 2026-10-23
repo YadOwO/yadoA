@@ -31,6 +31,6 @@ nonisolated enum AuthConfig {
     /// 与后端的 `LOGTO_AUDIENCE` 逐字一致；登录时同样必须一并申请，新增前已登录的设备需要重新登录一次。
     static let syncServiceResource = "https://api.yado1225.top/yadoa"
 
-    /// yadoA 后端的地址（不含路径）。
+    /// yadoA 后端的线上地址（不含路径）；本地开发包可改连本地服务，见 `SyncServiceEnvironment`。
     static let syncServiceEndpoint = "https://yadoa-api.yado1225.top"
 }

@@ -85,6 +85,16 @@
             value = "http://yujunjie-201577.local:7790"
             isEnabled = "YES">
          </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "YADO_LOCAL_BUILD"
+            value = "1"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "YADO_SYNC_LOCAL_ENDPOINT"
+            value = "http://yujunjie-201577.local:7789"
+            isEnabled = "YES">
+         </EnvironmentVariable>
       </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction

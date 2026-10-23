@@ -2,9 +2,9 @@ import Foundation
 
 /// AI 服务连哪一套：线上，或开发机上用 `pnpm dev` 跑起来的本地 yado_ai。
 ///
-/// 只有 DEBUG 包可以切换，Release 包始终连线上。切换方式有两种：
+/// 只有本地开发包（`DeveloperTools.isEnabled`）可以切换，其他包始终连线上。切换方式有两种：
 /// - Xcode 里选 `yadoA-local` / `yadoA` Scheme 运行：Scheme 通过启动环境变量指定，见 `applyLaunchEnvironment(_:)`；
-/// - App 内「我的 → 开发者 → AI 服务」。
+/// - App 内「我的 → 开发 → AI 服务」（开发入口在头像右上角）。
 /// 两种方式写入同一份设置，之后从桌面直接打开 App 也保持上次的选择。
 ///
 /// 登录仍走线上 Logto，本地服务开启免鉴权时忽略 token，未开启时同样能校验线上签发的 token。
@@ -41,9 +41,10 @@ enum AIServiceEnvironment: String, CaseIterable, Identifiable {
         }
     }
 
-    /// 当前选择；Release 包始终为线上。
+    /// 当前选择；只有本地开发包（`DeveloperTools.isEnabled`）可能为本地，其他包始终为线上。
     static var current: AIServiceEnvironment {
         #if DEBUG
+        guard DeveloperTools.isEnabled else { return .production }
         let rawValue = UserDefaults.standard.string(forKey: storageKey) ?? ""
         return AIServiceEnvironment(rawValue: rawValue) ?? .production
         #else

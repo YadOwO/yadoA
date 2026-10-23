@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import yadoA
 
-/// 验证 AI 服务环境：本地地址校验，以及 Scheme 启动环境变量写入设置。
+/// 验证本地开发配置：AI 服务本地地址校验，以及 Scheme 启动环境变量写入 AI 服务、开发入口和同步服务地址的设置。
 @Suite("AI 服务环境")
 @MainActor
 struct AIServiceEnvironmentTests {
@@ -41,5 +41,37 @@ struct AIServiceEnvironmentTests {
 
         AIServiceEnvironment.applyLaunchEnvironment([AIServiceEnvironment.launchEnvironmentKey: "production"], defaults: defaults)
         #expect(defaults.string(forKey: AIServiceEnvironment.storageKey) == "production")
+    }
+
+    @Test("开发入口开关：yadoA-local 写入 1、yadoA 写入 0，没有变量或非法取值时保持原样")
+    func appliesDeveloperToolsLaunchEnvironment() throws {
+        let suiteName = "DeveloperToolsTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        DeveloperTools.applyLaunchEnvironment([DeveloperTools.launchEnvironmentKey: "1"], defaults: defaults)
+        #expect(defaults.bool(forKey: DeveloperTools.storageKey))
+
+        DeveloperTools.applyLaunchEnvironment([:], defaults: defaults)
+        DeveloperTools.applyLaunchEnvironment([DeveloperTools.launchEnvironmentKey: "yes"], defaults: defaults)
+        #expect(defaults.bool(forKey: DeveloperTools.storageKey))
+
+        DeveloperTools.applyLaunchEnvironment([DeveloperTools.launchEnvironmentKey: "0"], defaults: defaults)
+        #expect(!defaults.bool(forKey: DeveloperTools.storageKey))
+    }
+
+    @Test("同步服务本地地址：合法地址写入设置，没有变量或地址不合法时保持原样")
+    func appliesSyncServiceLaunchEnvironment() throws {
+        let suiteName = "SyncServiceEnvironmentTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let key = SyncServiceEnvironment.launchLocalEndpointKey
+
+        SyncServiceEnvironment.applyLaunchEnvironment([key: "http://my-mac.local:7789"], defaults: defaults)
+        #expect(defaults.string(forKey: SyncServiceEnvironment.localEndpointStorageKey) == "http://my-mac.local:7789")
+
+        SyncServiceEnvironment.applyLaunchEnvironment([:], defaults: defaults)
+        SyncServiceEnvironment.applyLaunchEnvironment([key: "not a url"], defaults: defaults)
+        #expect(defaults.string(forKey: SyncServiceEnvironment.localEndpointStorageKey) == "http://my-mac.local:7789")
     }
 }

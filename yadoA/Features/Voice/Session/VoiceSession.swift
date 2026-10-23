@@ -115,7 +115,8 @@ final class VoiceSession {
     private let api: VoiceSessionTurnSending
     private let highlight: HomeRecentEntryHighlight
     private let now: () -> Date
-    private let timingStore: VoiceTimingStore
+    /// 写入「语音耗时」的记录；非本地开发包为空，不保存耗时。
+    private let timingStore: VoiceTimingStore?
 
     /// 界面语言，决定分类名称、结果提示和 AI 回复的语言。
     var locale: Locale
@@ -131,7 +132,7 @@ final class VoiceSession {
     ///   - locale: 界面语言。
     ///   - calendar: 记账日使用的日历。
     ///   - highlight: 首页变更提示通道。
-    ///   - timingStore: 耗时记录；为空时使用 App 共用的记录。
+    ///   - timingStore: 耗时记录；为空时本地开发包使用 App 共用的记录，其他包不保存。
     ///   - now: 时间源。
     init(
         container: ModelContainer,
@@ -148,7 +149,7 @@ final class VoiceSession {
         self.calendar = calendar
         self.highlight = highlight
         // 默认参数在非隔离上下文中求值，碰不到主线程隔离的共用记录，所以在初始化体内取默认值
-        self.timingStore = timingStore ?? .shared
+        self.timingStore = timingStore ?? (VoiceTimingFeature.isEnabled ? .shared : nil)
         self.now = now
     }
 
@@ -413,9 +414,7 @@ final class VoiceSession {
         )
         updateTurn(id) { $0.timing = timing }
         VoiceTimingLog.log(timing)
-        if VoiceTimingFeature.isEnabled {
-            timingStore.append(timing)
-        }
+        timingStore?.append(timing)
     }
 
     private func appendTurn(_ turn: Turn) -> UUID {

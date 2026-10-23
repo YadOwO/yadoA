@@ -37,14 +37,24 @@ private struct SyncEngineHostModifier: ViewModifier {
             .task {
                 guard engine == nil else { return }
                 let authStore = authStore
-                let api = SyncAPI { try await authStore.accessTokenForSyncService() }
+                let endpoint = SyncServiceEnvironment.currentEndpoint
+                let api = SyncAPI(endpoint: endpoint) { try await authStore.accessTokenForSyncService() }
                 let engine = SyncEngine(
                     container: modelContext.container,
                     api: api,
                     currentUserID: { authStore.userID }
                 )
+                let lifecycle = SyncLifecycle(container: modelContext.container, api: api, engine: engine)
                 self.engine = engine
-                lifecycle = SyncLifecycle(container: modelContext.container, api: api, engine: engine)
+                self.lifecycle = lifecycle
+                do {
+                    // 本地开发包在线上与本地服务之间切换后，旧绑定和进度对新服务无效，先解除绑定
+                    try lifecycle.resetIfEndpointChanged(to: endpoint)
+                } catch {
+                    // 台账没清掉时不能按旧进度请求新服务，本次启动不同步
+                    errorKey = SyncMessages.localizationKey(forLifecycleError: error)
+                    return
+                }
                 engine.start()
             }
             .onChange(of: scenePhase) { _, phase in

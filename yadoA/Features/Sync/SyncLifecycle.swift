@@ -248,6 +248,37 @@ final class SyncLifecycle {
         }
     }
 
+    /// 同步服务地址与上次不同（本地开发包在线上与本地服务之间切换）时解除绑定、清空台账，本机数据保留。
+    ///
+    /// 绑定、进度和代次只对原来那套服务有效；新服务上的数据可能是空的，直接按旧进度同步会被当成云端重置，
+    /// 全量拉取还会用空结果替换本机已同步的数据。解除绑定后，到同步设置页重新开启即可把本机数据上传到新服务。
+    /// 必须在同步引擎启动前调用。
+    ///
+    /// - Parameter endpoint: 本次启动同步要连的地址。
+    /// - Returns: 是否因地址变化解除了绑定。
+    /// - Throws: 清空台账失败时抛出 `SyncLifecycleError.storage`，此时同步状态不变。
+    @discardableResult
+    func resetIfEndpointChanged(to endpoint: URL) throws -> Bool {
+        var state = loadState()
+        let previous = state.serverEndpoint ?? SyncAPI.productionEndpoint.absoluteString
+        guard previous != endpoint.absoluteString else {
+            if state.serverEndpoint == nil {
+                state.serverEndpoint = endpoint.absoluteString
+                state.save(to: defaults)
+            }
+            return false
+        }
+        let wasBound = state.isBound
+        if wasBound {
+            try storage { try store.clearLedger() }
+            state.unbind()
+        }
+        state.serverEndpoint = endpoint.absoluteString
+        state.save(to: defaults)
+        refreshState()
+        return wasBound
+    }
+
     // MARK: - 私有方法
 
     /// 从 UserDefaults 读取最新的同步状态。

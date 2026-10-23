@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 会话卡片中一句话的耗时面板：默认只显示一行概要，点开展开整棵耗时树。
 ///
-/// 只在 `VoiceTimingFeature.isEnabled` 时显示（DEBUG 包与 TestFlight 包）。
+/// 只在 `VoiceTimingFeature.isEnabled` 时显示（本地开发包）。
 struct VoiceTurnTimingView: View {
     @Environment(\.locale) private var locale
 
@@ -97,7 +97,7 @@ private struct VoiceTimingRowView: View {
     }
 }
 
-/// 「我的 → 开发者 → 语音耗时」：最近若干句的耗时，可逐句展开、导出成文本或清空。
+/// 「我的 → 开发 → 语音耗时」：最近若干句的耗时，可逐句展开、导出成文本或清空。
 struct VoiceTimingHistoryView: View {
     @Environment(\.locale) private var locale
 

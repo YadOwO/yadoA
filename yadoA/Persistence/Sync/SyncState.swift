@@ -28,6 +28,11 @@ struct SyncState: Codable, Equatable {
     /// 最近一次成功同步的时间。
     var lastSyncedAt: Date?
 
+    /// 绑定、进度和代次所属的同步服务地址；为空表示线上（加这个字段之前保存的状态）。
+    ///
+    /// 本地开发包在线上与本地服务之间切换时据此发现地址变了，解除绑定，避免拿一套服务的进度去请求另一套。
+    var serverEndpoint: String?
+
     /// 本机数据是否已绑定到某个登录用户。
     var isBound: Bool { boundUserID != nil }
 

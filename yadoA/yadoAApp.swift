@@ -17,8 +17,10 @@ struct yadoAApp: App {
 
     init() {
         #if DEBUG
-        // yadoA-local / yadoA Scheme 通过启动环境变量指定连本地还是线上的 AI 服务
+        // yadoA-local / yadoA Scheme 通过启动环境变量指定是否为本地开发包，以及 AI 服务和同步服务的本地地址
         AIServiceEnvironment.applyLaunchEnvironment(ProcessInfo.processInfo.environment)
+        DeveloperTools.applyLaunchEnvironment(ProcessInfo.processInfo.environment)
+        SyncServiceEnvironment.applyLaunchEnvironment(ProcessInfo.processInfo.environment)
         if ProcessInfo.processInfo.arguments.contains("--ui-testing-in-memory") {
             do {
                 // 设计预览沿用隔离启动路径，示例收支不会写入真实账本。
@@ -76,8 +78,6 @@ struct yadoAApp: App {
             }
             .environment(authStore)
             .modifier(AppDisplayPreferencesModifier())
-            // Release 包判断是否从 TestFlight 安装，决定是否显示语音耗时面板
-            .task { await VoiceTimingFeature.resolve() }
         }
     }
 }

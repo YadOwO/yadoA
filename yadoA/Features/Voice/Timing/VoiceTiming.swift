@@ -1,7 +1,5 @@
 import Foundation
-import Observation
 import os
-import StoreKit
 
 /// 耗时计算使用的单调时钟：不受系统改时间影响。
 nonisolated enum VoiceTimingClock {
@@ -380,36 +378,10 @@ nonisolated enum VoiceTimingLog {
     }
 }
 
-/// 耗时面板与「语音耗时」页是否可见：DEBUG 包始终可见，Release 包只在 TestFlight 安装时可见。
+/// 耗时面板与「语音耗时」记录是否启用：只在本地开发包（`DeveloperTools.isEnabled`）启用，其他包一律关闭。
 ///
 /// 系统日志与 signpost 不受影响，始终输出。
 enum VoiceTimingFeature {
-    /// 可被界面观察的开关；Release 包启动后判断完成时，已经显示的界面随之刷新。
-    @Observable
-    final class State {
-        /// 当前是否可见。
-        var isEnabled: Bool = {
-            #if DEBUG
-            return true
-            #else
-            return false
-            #endif
-        }()
-    }
-
-    private static let state = State()
-
-    /// 当前是否可见。
-    static var isEnabled: Bool { state.isEnabled }
-
-    /// 启动时判断 Release 包是否从 TestFlight 安装；DEBUG 包不做任何事。
-    static func resolve() async {
-        #if !DEBUG
-        guard let result = try? await AppTransaction.shared else { return }
-        switch result {
-        case let .verified(transaction), let .unverified(transaction, _):
-            state.isEnabled = transaction.environment == .sandbox
-        }
-        #endif
-    }
+    /// 当前是否启用。
+    static var isEnabled: Bool { DeveloperTools.isEnabled }
 }

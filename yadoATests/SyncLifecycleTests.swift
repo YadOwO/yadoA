@@ -239,6 +239,34 @@ struct SyncLifecycleTests {
         }
     }
 
+    @Test("同步服务地址变化时解除绑定、清空台账，本机数据保留；地址不变时只记录地址")
+    func endpointChangeUnbinds() async throws {
+        try await SyncTestEnvironment.run { environment in
+            let device = try environment.makeDevice()
+            let accountID = UUID()
+            try saveAccount(id: accountID, in: device.container)
+            await device.engine.synchronize()
+            let lifecycle = lifecycle(for: device, in: environment)
+
+            // 旧状态没有记录地址时按线上处理
+            #expect(try lifecycle.resetIfEndpointChanged(to: SyncAPI.productionEndpoint) == false)
+            #expect(device.state.isBound)
+            #expect(device.state.serverEndpoint == SyncAPI.productionEndpoint.absoluteString)
+
+            let localEndpoint = try #require(URL(string: "http://my-mac.local:7789"))
+            #expect(try lifecycle.resetIfEndpointChanged(to: localEndpoint))
+            #expect(!device.state.isBound)
+            #expect(!device.state.isEnabled)
+            #expect(device.state.since == 0)
+            #expect(device.state.serverEndpoint == localEndpoint.absoluteString)
+            #expect(lifecycle.state == device.state)
+            #expect(try allEntries(in: device.container).isEmpty)
+            #expect(try ModelContext(device.container).account(id: accountID) != nil)
+
+            #expect(try lifecycle.resetIfEndpointChanged(to: localEndpoint) == false)
+        }
+    }
+
     @Test("删除云端数据并解除绑定，本机数据保留")
     func deleteCloudDataUnbinds() async throws {
         try await SyncTestEnvironment.run { environment in

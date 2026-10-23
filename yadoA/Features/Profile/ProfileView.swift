@@ -34,10 +34,6 @@ struct ProfileView: View {
     @State private var isSigningOut = false
     /// 修改个人资料弹层，打开时携带当时的资料快照。
     @State private var editingProfile: AccountProfile?
-    #if DEBUG
-    /// 开发者设置中选择的 AI 服务，只在 DEBUG 包可切换。
-    @AppStorage(AIServiceEnvironment.storageKey) private var aiServiceEnvironment: AIServiceEnvironment = .production
-    #endif
 
     var body: some View {
         ScrollView {
@@ -173,37 +169,6 @@ struct ProfileView: View {
                         .labelStyle(ProfileExportLabelStyle())
                 }
 
-                // 只在 DEBUG 包与 TestFlight 包显示
-                if VoiceTimingFeature.isEnabled {
-                    settingsSection("profile.section.developer") {
-                        NavigationLink {
-                            VoiceTimingHistoryView()
-                        } label: {
-                            row(
-                                "voice.timing.history.title",
-                                symbol: "stopwatch",
-                                value: VoiceTimingStore.shared.records.count.formatted()
-                            )
-                        }
-                        .accessibilityIdentifier("profile-voice-timing")
-
-                        #if DEBUG
-                        rowDivider
-
-                        NavigationLink {
-                            AIServiceSettingsView()
-                        } label: {
-                            row(
-                                "debug.aiService.title",
-                                symbol: "server.rack",
-                                value: text(aiServiceEnvironment.titleLocalizationKey)
-                            )
-                        }
-                        .accessibilityIdentifier("profile-ai-service")
-                        #endif
-                    }
-                }
-
                 if authStore.isAuthenticated {
                     settingsSection("auth.section.title") {
                         Button {
@@ -318,18 +283,29 @@ struct ProfileView: View {
     private var profileHeader: some View {
         VStack(spacing: 14) {
             // 未登录时不包成按钮，避免禁用态把头像和名称压暗
-            if authStore.isAuthenticated {
-                Button {
-                    editingProfile = authStore.profile ?? AccountProfile()
-                } label: {
+            Group {
+                if authStore.isAuthenticated {
+                    Button {
+                        editingProfile = authStore.profile ?? AccountProfile()
+                    } label: {
+                        profileIdentity
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityHint(text("profile.edit.title"))
+                    .accessibilityIdentifier("profile-edit-entry")
+                } else {
                     profileIdentity
-                        .contentShape(Rectangle())
                 }
-                .accessibilityHint(text("profile.edit.title"))
-                .accessibilityIdentifier("profile-edit-entry")
-            } else {
-                profileIdentity
             }
+            #if DEBUG
+            // 开发入口不能放进修改资料按钮里，否则点击会被外层按钮吃掉；这里叠在同一位置，对齐头像右上角
+            .overlay(alignment: .top) {
+                if DeveloperTools.isEnabled {
+                    developerEntry
+                        .frame(width: Self.avatarSize, height: Self.avatarSize, alignment: .topTrailing)
+                }
+            }
+            #endif
 
             Text(text("profile.local_data"))
                 .font(.subheadline)
@@ -347,7 +323,7 @@ struct ProfileView: View {
     /// 头像与名称；已登录时头像带铅笔角标。
     private var profileIdentity: some View {
         VStack(spacing: 14) {
-            ProfileAvatarView(url: authStore.profile?.avatarURL, size: 96)
+            ProfileAvatarView(url: authStore.profile?.avatarURL, size: Self.avatarSize)
                 .overlay(alignment: .bottomTrailing) {
                     if authStore.isAuthenticated {
                         editBadge
@@ -360,6 +336,28 @@ struct ProfileView: View {
                 .accessibilityIdentifier("profile-user-name")
         }
     }
+
+    /// 页头头像的边长。
+    private static let avatarSize: CGFloat = 96
+
+    #if DEBUG
+    /// 头像右上角的「开发」页面入口，只在本地开发包显示（见 `DeveloperTools`）。
+    private var developerEntry: some View {
+        NavigationLink {
+            DeveloperView()
+        } label: {
+            Image(systemName: "hammer")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.primary)
+                .frame(width: 32, height: 32)
+                .background(Circle().fill(Color(uiColor: .secondarySystemBackground)))
+                .overlay(Circle().strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+        }
+        .offset(x: 4, y: -4)
+        .accessibilityLabel(text("developer.title"))
+        .accessibilityIdentifier("profile-developer")
+    }
+    #endif
 
     /// 头像右下角的铅笔角标，提示可以修改资料。
     private var editBadge: some View {
