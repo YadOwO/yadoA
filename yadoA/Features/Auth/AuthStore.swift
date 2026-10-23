@@ -107,18 +107,17 @@ final class AuthStore {
     /// 获取调用 AI 交互服务的 access token；SDK 会缓存并在过期时用 refresh token 续期。
     ///
     /// - Returns: 面向 `AuthConfig.aiServiceResource` 的 access token。
-    /// - Throws: 未登录时抛出 `AIServiceAuthError.notSignedIn`；凭证已失效时清除本地凭证并抛出
-    ///   `AIServiceAuthError.sessionExpired`；网络等其他失败抛出 `AIServiceAuthError.unavailable`。
+    /// - Throws: `ServiceAuthError`，见 `accessToken(forResource:)`。
     func accessTokenForAIService() async throws -> String {
-        guard client.isAuthenticated else { throw AIServiceAuthError.notSignedIn }
-        do {
-            return try await client.getAccessToken(for: AuthConfig.aiServiceResource)
-        } catch {
-            if await clearCredentialsIfRevoked(error) {
-                throw AIServiceAuthError.sessionExpired
-            }
-            throw AIServiceAuthError.unavailable
-        }
+        try await accessToken(forResource: AuthConfig.aiServiceResource)
+    }
+
+    /// 获取调用 yadoA 后端（云端同步）的 access token；SDK 会缓存并在过期时用 refresh token 续期。
+    ///
+    /// - Returns: 面向 `AuthConfig.syncServiceResource` 的 access token。
+    /// - Throws: `ServiceAuthError`，见 `accessToken(forResource:)`。
+    func accessTokenForSyncService() async throws -> String {
+        try await accessToken(forResource: AuthConfig.syncServiceResource)
     }
 
     /// 把处理好的头像上传到 OSS，返回公开访问地址；此时尚未写入 Logto 资料。
@@ -173,6 +172,24 @@ final class AuthStore {
     }
 
     // MARK: - 私有方法
+
+    /// 获取指定 API resource 的 access token。
+    ///
+    /// - Parameter resource: 登录时已申请的 API resource 标识。
+    /// - Returns: access token。
+    /// - Throws: 未登录时抛出 `ServiceAuthError.notSignedIn`；凭证已失效时清除本地凭证并抛出
+    ///   `ServiceAuthError.sessionExpired`；网络等其他失败抛出 `ServiceAuthError.unavailable`。
+    private func accessToken(forResource resource: String) async throws -> String {
+        guard client.isAuthenticated else { throw ServiceAuthError.notSignedIn }
+        do {
+            return try await client.getAccessToken(for: resource)
+        } catch {
+            if await clearCredentialsIfRevoked(error) {
+                throw ServiceAuthError.sessionExpired
+            }
+            throw ServiceAuthError.unavailable
+        }
+    }
 
     /// 凭证已失效时清除本地凭证并回到未登录状态；网络等临时失败不处理。
     ///
@@ -235,7 +252,7 @@ final class AuthStore {
         guard let config = try? LogtoConfig(
             endpoint: AuthConfig.endpoint,
             appId: AuthConfig.appId,
-            resources: [AuthConfig.aiServiceResource]
+            resources: [AuthConfig.aiServiceResource, AuthConfig.syncServiceResource]
         ) else {
             preconditionFailure("AuthConfig.endpoint 不是合法 URL：\(AuthConfig.endpoint)")
         }
@@ -292,8 +309,8 @@ final class AuthStore {
     }
 }
 
-/// 获取 AI 交互服务 access token 时的错误。
-enum AIServiceAuthError: Error, Equatable {
+/// 获取后端服务（AI 交互服务、yadoA 后端）access token 时的错误。
+nonisolated enum ServiceAuthError: Error, Equatable, Sendable {
     /// 当前未登录。
     case notSignedIn
 

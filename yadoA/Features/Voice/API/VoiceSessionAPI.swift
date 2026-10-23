@@ -61,7 +61,7 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
     /// - Parameters:
     ///   - endpoint: AI 服务地址；为空时每次请求取 `AIServiceEnvironment.currentEndpoint`，开发者设置里切换后立即生效。
     ///   - session: 网络会话。
-    ///   - accessToken: 获取 access token 的动作，抛出 `AIServiceAuthError`。
+    ///   - accessToken: 获取 access token 的动作，抛出 `ServiceAuthError`。
     init(
         endpoint: URL? = nil,
         session: URLSession = .shared,
@@ -84,9 +84,9 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
             // 成功、失败都记下：凭证过期后刷新慢、最终失败时，正需要看出时间耗在这一段
             defer { trace.tokenMs = VoiceTimingClock.milliseconds(since: tokenStartedAt) }
             token = try await accessToken()
-        } catch AIServiceAuthError.notSignedIn {
+        } catch ServiceAuthError.notSignedIn {
             throw VoiceSessionAPIError.notSignedIn
-        } catch AIServiceAuthError.sessionExpired {
+        } catch ServiceAuthError.sessionExpired {
             throw VoiceSessionAPIError.sessionExpired
         } catch {
             throw VoiceSessionAPIError.network

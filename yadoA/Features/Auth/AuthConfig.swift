@@ -4,7 +4,7 @@ import Foundation
 ///
 /// 目前只有线上一套 Logto（与 yadoI 共用同一租户，同一账号两个 App 通用），
 /// Debug 与 Release 构建都连它；以后若需要多环境，再把这里的值按构建配置拆开。
-enum AuthConfig {
+nonisolated enum AuthConfig {
     /// Logto 服务地址（不含路径），OIDC issuer 由 Logto 拼成 `{endpoint}/oidc`。
     static let endpoint = "https://accounts.yado1225.top"
 
@@ -25,4 +25,12 @@ enum AuthConfig {
 
     /// AI 交互服务的地址（不含路径）。
     static let aiServiceEndpoint = "https://ai-api.yado1225.top"
+
+    /// yadoA 后端（yadoA_be，云端同步）在 Logto 中注册的 API resource 标识；调用同步接口时请求它的 access token。
+    ///
+    /// 与后端的 `LOGTO_AUDIENCE` 逐字一致；登录时同样必须一并申请，新增前已登录的设备需要重新登录一次。
+    static let syncServiceResource = "https://api.yado1225.top/yadoa"
+
+    /// yadoA 后端的地址（不含路径）。
+    static let syncServiceEndpoint = "https://yadoa-api.yado1225.top"
 }

@@ -49,10 +49,10 @@ App 还没有上线，schema 直接升到 V7，不做数据迁移。
 - **KTD7. 序号按用户串行分配。** `sync_users.last_version` 是每个用户自己的计数器，推送时在事务里 `SELECT … FOR UPDATE` 锁住这一行再递增。这样可以避免使用全局序列时，两个并发事务的提交顺序和序号顺序不一致，导致拉取方跳过某条记录。
 - **KTD8. 用数据代次（epoch）处理删除云端数据。** `sync_users.epoch` 在「删除云端数据」时加 1。客户端每次请求都带上自己记录的 epoch，不一致时服务端返回 `epochMismatch`，客户端暂停同步并提示用户。
 - **KTD9. 删除记录的清理。**
-  - 服务端：`sync_devices` 记录每台设备拉取到的序号。每天执行一次清理，删除序号低于「90 天内活跃设备中最小的拉取序号」、或者删除时间超过 90 天的删除记录，并把清理边界记入 `sync_users.purged_through`。设备的 `since` 早于这个边界时，返回 `resetRequired`。
+  - 服务端：`sync_devices` 记录每台设备拉取到的序号。每天执行一次清理，删除序号低于「90 天内活跃设备中最小的拉取序号」、或者服务端写入超过 90 天的删除记录（按服务端时间，不按客户端给的删除时间），并把清理边界记入 `sync_users.purged_through`。设备的 `since` 早于这个边界时，拉取和推送都返回 `resetRequired`，推送整批不写入，防止落后设备把已清理的删除写回。
   - 客户端：删除记录上传成功后，就可以从台账中移除。
 - **KTD10. 全量重新同步。**
-  - 流程：先推送本地还没上传的修改，然后从序号 0 开始拉取。拉取结束后，本地那些已经同步过、但不在这次全量结果里的记录，在本地删除。
+  - 流程：先从序号 0 全量拉取，**翻完所有页**（直到 `hasMore = false`）并按序号合并整轮结果，再一次性应用；整轮完成前不推送。完成后保存最后一页的 `nextSince`，用它推送本地还没上传的修改（推送带 `since`，全量拉取前推送会被 `resetRequired` 拒绝）。单页不是完整状态，整轮结果为空表示云端没有记录。整轮拉取结束后，本地那些已经同步过（`pushedRevision > 0`）、但不在全量结果里的记录在本地删除，即使本地还有待上传的修改也删除，并丢弃它们的待上传状态：它们在云端已被删除，只是墓碑已清理。从未上传过的记录保留并推送。全量结果是完整的当前状态，只能替换，不能和本地合并。
   - 触发场景：`resetRequired`、首次绑定账号，以及客户端的同步格式版本升级（本地存的 `syncSchemaVersion` 低于当前值时，把 `since` 重置为 0）。最后一种是给以后新增实体类型（比如 yadoI 的数据）预留的：旧版本客户端会忽略不认识的实体类型，升级后通过全量同步补回来。
 - **KTD11. 拉取时的特殊情况。**
   - 本地台账是待上传状态，而且 `modifiedAt` 比远端更新：保留本地版本，下一轮再推送。
@@ -115,11 +115,19 @@ App 还没有上线，schema 直接升到 V7，不做数据迁移。
   - `sync_users`：`user_id`、`last_version`、`epoch`、`purged_through`；
   - `sync_devices`：`user_id`、`device_id`、`last_pulled_version`、`last_seen_at`。
 - **接口**（`src/modules/sync/`）：
-  - `POST /v1/sync/push`：请求体 `{ deviceId, epoch, changes[] }`。在一个事务里锁住用户行，逐条按 LWW 写入。返回每条的结果：`applied`（带 `serverVersion` 和钳制后的 `modifiedAt`），或 `stale`（带服务端当前版本）。单次最多 500 条。
+  - `POST /v1/sync/push`：请求体 `{ deviceId, epoch, since, changes[] }`。在一个事务里锁住用户行，逐条按 LWW 写入。返回 `{ results[], resetRequired }`，每条结果为 `applied`（带 `serverVersion` 和钳制后的 `modifiedAt`）或 `stale`（带服务端当前版本）。单次最多 250 条，单条 payload 不超过 16 KB（UTF-8），整批约 4.2 MB，低于 nginx 的 8m。
   - `GET /v1/sync/pull?since&limit&deviceId&epoch`：返回 `{ changes[], nextSince, hasMore, resetRequired }`，同时更新这台设备的 `last_pulled_version`。
-  - `DELETE /v1/sync/data`：删除该用户的全部同步记录，epoch 加 1。
+  - `DELETE /v1/sync/data?epoch`：删除该用户的全部同步记录，epoch 加 1；epoch 不一致时拒绝，防止旧设备删掉重置后的新数据。
+  - `GET /v1/sync/state`：返回当前 epoch，首次开启同步时用它初始化本地 epoch（实现时补充）。
+- **实现时补充的约定**（客户端 U4–U6 需遵守）：
+  - `modifiedAt` 早于 1970-01-01 时按 1970-01-01 记录：postgres 驱动会把公元 1 年读成 2001 年，让没改过的预设记录反而胜出。客户端的 `distantPast` 推送后会收到 1970，按 `applied` 结果写回台账即可，仍早于任何真实修改。
+  - epoch 不一致返回 409，`code` 为 `EPOCH_MISMATCH`，`details.epoch` 是当前代次。
+  - 删除云端数据会额外占用一个序号作为清理边界，删除前的任何 `since` 拉取都会得到 `resetRequired`；客户端接受新 epoch 后应把 `since` 归零。
+  - 设备进度记为拉取请求带上的 `since`，只增不减；拉取结果包含墓碑，`since=0` 时也包含。
+  - 最后一页的 `nextSince` 是服务端当前序号（不一定等于最后一条的序号），客户端直接保存。
+  - 单条 payload 超过 16 KB 会让整批返回 400；客户端分批前先剔除超限记录并记日志（备注目前不限长度）。
 - **清理任务：** 进程内每天执行一次，规则见 KTD9。
-- **文档：** 更新 AGENTS.md 里的「列表与同步策略」和 KTD12 中的例外说明，并重新生成 `openapi.json`。
+- **文档：** 更新 AGENTS.md 里的「列表与同步策略」和 KTD12 中的例外说明；`openapi.json` 由服务运行时在 `/openapi.json` 生成，不入库。
 - **测试：**
   - LWW 判断：更新的才写入，时间相同保留服务端版本，未来时间会被钳制；
   - 并发推送时序号连续，拉取不会漏掉记录；
@@ -132,8 +140,13 @@ App 还没有上线，schema 直接升到 V7，不做数据迁移。
 
 #### U4. 网络层与鉴权
 
-- **新增：** `yadoA/Features/Sync/SyncAPI.swift`（包括 push、pull、删除云端数据和对应的 DTO）。
-- **修改：** `AuthConfig` 新增 `syncServiceResource`；`AuthStore` 的 resources 列表加上它，并新增 `accessTokenForSyncService()`。
+- **新增：**
+  - `yadoA/Features/Sync/SyncAPI.swift`：`SyncServing` 协议（state、push、pull、删除云端数据，U5 用 mock 替换）和 `SyncAPI` 实现；`SyncAPIError` 带 `isRetryable`，409 `EPOCH_MISMATCH` 映射为 `.epochMismatch(currentEpoch:)`；
+  - `yadoA/Features/Sync/SyncContract.swift`：与后端 schemas 一一对应的 DTO。payload 用 `SyncJSONValue` 原样收发；记录类型保留原始字符串，旧客户端遇到新类型只跳过这一条；早于 1970 的裁决时钟按 1970 发送；
+  - 类型都是 `nonisolated`，U5 在后台 actor 中编解码。
+- **修改：**
+  - `AuthConfig` 新增 `syncServiceResource`（`https://api.yado1225.top/yadoa`）和 `syncServiceEndpoint`；
+  - `AuthStore` 的 resources 列表加上它，新增 `accessTokenForSyncService()`；`AIServiceAuthError` 改名为两个服务共用的 `ServiceAuthError`。
 
 #### U5. 同步引擎
 
@@ -141,7 +154,7 @@ App 还没有上线，schema 直接升到 V7，不做数据迁移。
   - `yadoA/Features/Sync/SyncEngine.swift`：`@MainActor` 的调度器，保证同一时间只有一次同步在进行；
   - `SyncStore`：基于 `@ModelActor`，在后台 context 中读取台账、应用远端变更，避免全量同步时卡住主线程。
 - **流程：**
-  - 推送：按 500 条一批上传待上传的台账，确认成功后写入 `pushedRevision`，并清理已上传的删除记录；
+  - 推送：按 250 条一批上传待上传的台账，确认成功后写入 `pushedRevision`，并清理已上传的删除记录；
   - 拉取：分页拉取，应用规则见 KTD11，应用完重算受影响账户的余额；
   - 全量同步：见 KTD10；
   - epoch 不一致时暂停同步并报告。

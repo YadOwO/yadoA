@@ -140,7 +140,7 @@ struct VoiceSessionContractTests {
 
     @Test("获取凭证失败时也记下凭证耗时，且没有发出请求")
     func recordsTokenTimingWhenTokenFails() async throws {
-        let cases: [(AIServiceAuthError, VoiceSessionAPIError)] = [
+        let cases: [(ServiceAuthError, VoiceSessionAPIError)] = [
             (.unavailable, .network),
             (.sessionExpired, .sessionExpired),
             (.notSignedIn, .notSignedIn),
