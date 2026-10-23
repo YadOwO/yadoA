@@ -1,9 +1,10 @@
 import Foundation
 
-/// 「开发」页面入口的开关：只有用 `yadoA-local` Scheme 运行过的 DEBUG 包才显示，Release 包始终隐藏。
+/// 开发调试相关的开关。
 ///
-/// Scheme 通过启动环境变量 `YADO_LOCAL_BUILD` 指定（`yadoA-local` 为 1，`yadoA` 为 0），启动时写入设置；
-/// 之后从桌面直接打开 App（没有环境变量）也保持上次的结果。
+/// - `isEnabled`：是否显示「开发」页面入口、记录语音耗时。
+/// - `isLocalBuild`：是否为 `yadoA-local` 构建，只有它会连本地的同步服务。由启动环境变量 `YADO_LOCAL_BUILD`
+///   指定（`yadoA-local` 为 1，`yadoA` 为 0），启动时写入设置；之后从桌面直接打开 App（没有环境变量）也保持上次的结果。
 enum DeveloperTools {
     /// 是否为本地开发包的存储键。
     static let storageKey = "debug.developerTools.enabled"
@@ -11,8 +12,18 @@ enum DeveloperTools {
     /// Scheme 中指定是否为本地开发包的启动环境变量，取值为 `1` 或 `0`。
     static let launchEnvironmentKey = "YADO_LOCAL_BUILD"
 
-    /// 当前是否显示开发页面入口；Release 包始终为 false。
+    /// 是否显示「开发」页面入口；只有 `yadoA-local` 构建显示，Release 包始终隐藏。
     static var isEnabled: Bool {
+        #if DEBUG
+        // 调试期间临时对所有 DEBUG 包打开，去掉 `true ||` 即恢复
+        true || isLocalBuild
+        #else
+        false
+        #endif
+    }
+
+    /// 是否为 `yadoA-local` 构建；Release 包始终为 false。
+    static var isLocalBuild: Bool {
         #if DEBUG
         UserDefaults.standard.bool(forKey: storageKey)
         #else

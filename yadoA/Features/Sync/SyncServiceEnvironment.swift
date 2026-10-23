@@ -2,7 +2,7 @@ import Foundation
 
 /// 云端同步连哪一套 yadoA_be：线上，或开发机上用 `pnpm dev` 跑起来的本地服务。
 ///
-/// 只有本地开发包（`DeveloperTools.isEnabled`）会连本地，其他包始终连线上。本地地址由 `yadoA-local` Scheme 的
+/// 只有 `yadoA-local` 构建（`DeveloperTools.isLocalBuild`）会连本地，其他包始终连线上。本地地址由 `yadoA-local` Scheme 的
 /// 启动环境变量指定，见 `applyLaunchEnvironment(_:defaults:)`；之后从桌面直接打开 App 也保持上次的地址。
 /// 地址在启动时确定，App 运行期间不变；与上次同步用的地址不同时，由 `SyncLifecycle.resetIfEndpointChanged(to:)` 解除绑定。
 ///
@@ -14,10 +14,10 @@ enum SyncServiceEnvironment {
     /// Scheme 中指定本地服务地址的启动环境变量。
     static let launchLocalEndpointKey = "YADO_SYNC_LOCAL_ENDPOINT"
 
-    /// 本次启动同步要连的地址：本地开发包且配置了合法的本地地址时为本地，否则为线上。
+    /// 本次启动同步要连的地址：`yadoA-local` 构建且配置了合法的本地地址时为本地，否则为线上。
     static var currentEndpoint: URL {
         #if DEBUG
-        guard DeveloperTools.isEnabled,
+        guard DeveloperTools.isLocalBuild,
               let text = UserDefaults.standard.string(forKey: localEndpointStorageKey),
               let url = AIServiceEnvironment.localEndpoint(from: text)
         else { return SyncAPI.productionEndpoint }

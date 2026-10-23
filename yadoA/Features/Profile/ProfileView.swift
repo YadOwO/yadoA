@@ -341,7 +341,7 @@ struct ProfileView: View {
     private static let avatarSize: CGFloat = 96
 
     #if DEBUG
-    /// 头像右上角的「开发」页面入口，只在本地开发包显示（见 `DeveloperTools`）。
+    /// 头像右上角的「开发」页面入口，是否显示见 `DeveloperTools.isEnabled`。
     private var developerEntry: some View {
         NavigationLink {
             DeveloperView()

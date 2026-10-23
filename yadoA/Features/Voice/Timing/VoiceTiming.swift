@@ -378,7 +378,7 @@ nonisolated enum VoiceTimingLog {
     }
 }
 
-/// 耗时面板与「语音耗时」记录是否启用：只在本地开发包（`DeveloperTools.isEnabled`）启用，其他包一律关闭。
+/// 耗时面板与「语音耗时」记录是否启用：与「开发」页面入口一致（`DeveloperTools.isEnabled`），Release 包一律关闭。
 ///
 /// 系统日志与 signpost 不受影响，始终输出。
 enum VoiceTimingFeature {

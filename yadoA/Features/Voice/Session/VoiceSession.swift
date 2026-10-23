@@ -115,7 +115,7 @@ final class VoiceSession {
     private let api: VoiceSessionTurnSending
     private let highlight: HomeRecentEntryHighlight
     private let now: () -> Date
-    /// 写入「语音耗时」的记录；非本地开发包为空，不保存耗时。
+    /// 写入「语音耗时」的记录；未启用语音耗时（`VoiceTimingFeature.isEnabled`）时为空，不保存耗时。
     private let timingStore: VoiceTimingStore?
 
     /// 界面语言，决定分类名称、结果提示和 AI 回复的语言。
@@ -132,7 +132,7 @@ final class VoiceSession {
     ///   - locale: 界面语言。
     ///   - calendar: 记账日使用的日历。
     ///   - highlight: 首页变更提示通道。
-    ///   - timingStore: 耗时记录；为空时本地开发包使用 App 共用的记录，其他包不保存。
+    ///   - timingStore: 耗时记录；为空时启用了语音耗时则使用 App 共用的记录，否则不保存。
     ///   - now: 时间源。
     init(
         container: ModelContainer,

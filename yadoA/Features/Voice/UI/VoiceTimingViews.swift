@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 会话卡片中一句话的耗时面板：默认只显示一行概要，点开展开整棵耗时树。
 ///
-/// 只在 `VoiceTimingFeature.isEnabled` 时显示（本地开发包）。
+/// 只在 `VoiceTimingFeature.isEnabled` 时显示（与「开发」页面入口一致）。
 struct VoiceTurnTimingView: View {
     @Environment(\.locale) private var locale
 
