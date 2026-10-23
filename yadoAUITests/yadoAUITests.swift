@@ -46,10 +46,51 @@ final class yadoAUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Ledger"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.otherElements["home-details-empty"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["account-list-empty-add"].exists)
+        // 空账本没有可搜索的收支，不显示搜索入口。
+        XCTAssertFalse(app.buttons["home-search"].exists)
+        XCTAssertTrue(app.buttons["home-add-expense"].exists)
 
         openAccountsTab(in: app)
 
         XCTAssertTrue(app.buttons["account-list-empty-add"].waitForExistence(timeout: 3))
+    }
+
+    /// 空账本的图表页只保留引导，右上角不显示分类统计入口。
+    @MainActor
+    func testEmptyChartHidesCategoryBreakdownEntry() throws {
+        let app = launchIsolatedAppInEnglish()
+        app.tabBars.buttons["Charts"].tap()
+
+        XCTAssertTrue(app.otherElements["chart-empty"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["chart-category-breakdown-entry"].exists)
+    }
+
+    /// 没有账户时，默认账户选择页提供添加入口，新建的现金账户直接成为默认。
+    @MainActor
+    func testDefaultAccountSelectionCanAddFirstAccount() throws {
+        let app = launchIsolatedAppInEnglish()
+        app.tabBars.buttons["Profile"].tap()
+        let defaultAccount = app.buttons["profile-default-account"]
+        XCTAssertTrue(defaultAccount.waitForExistence(timeout: 3))
+        defaultAccount.tap()
+
+        let addButton = app.buttons["default-account-empty-add"]
+        XCTAssertTrue(addButton.waitForExistence(timeout: 3))
+        addButton.tap()
+
+        let cashType = app.descendants(matching: .any)["account-creation-type-cash"]
+        XCTAssertTrue(cashType.waitForExistence(timeout: 3))
+        cashType.tap()
+        let amountField = app.textFields["account-creation-amount"]
+        XCTAssertTrue(amountField.waitForExistence(timeout: 2))
+        amountField.tap()
+        amountField.typeText("40")
+        app.buttons["account-creation-save"].tap()
+
+        // 保存后两层 sheet 都关闭，回到“我的”并显示新默认账户。
+        XCTAssertTrue(defaultAccount.waitForExistence(timeout: 3))
+        XCTAssertFalse(addButton.exists)
+        XCTAssertFalse(defaultAccount.label.contains("No valid default account"))
     }
 
     @MainActor

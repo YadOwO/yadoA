@@ -81,13 +81,19 @@ final class CategoryBreakdownFlowUITests: XCTestCase {
         attachScreenshot(of: app, name: "Category ranking - Chinese")
     }
 
-    /// 空账本保持零值和说明，避免绘制没有业务含义的满圆。
+    /// 有流水但当前周期为空时，分类统计保持零值和说明，避免绘制没有业务含义的满圆。
+    ///
+    /// 空账本会隐藏分类统计入口，因此用夹具数据（均记在今天）再切到上个月制造空周期。
     @MainActor
     func testEmptyStateInEnglish() throws {
-        let app = launchIsolatedAppInEnglish()
+        let app = launchExportFixtureInEnglish()
         app.tabBars.buttons["Charts"].tap()
         let entry = app.buttons["chart-category-breakdown-entry"]
         XCTAssertTrue(entry.waitForExistence(timeout: 5), app.debugDescription)
+        app.buttons["Previous period"].tap()
+        XCTAssertTrue(app.staticTexts["chart-period-empty"].waitForExistence(timeout: 3))
+        // 账本不为空，空周期下仍保留入口。
+        XCTAssertTrue(entry.exists)
         entry.tap()
         XCTAssertTrue(app.staticTexts["category-breakdown-empty"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.descendants(matching: .any)["category-breakdown-total"].firstMatch.label.contains("0.00"))

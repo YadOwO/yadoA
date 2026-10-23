@@ -3221,6 +3221,23 @@
         }
       }
     },
+    "account.default.empty.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Eligible Accounts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无可选账户"
+          }
+        }
+      }
+    },
     "account.management.no_default" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -8,20 +8,31 @@ struct HomeView: View {
     /// 用户最近一次选择的收支汇总显隐状态。
     @AppStorage("home.summary.amountsVisible") private var areAmountsVisible = false
 
+    /// 最多取一条收支，仅用于判断账本是否为空；搜索只覆盖收支，空账本时隐藏搜索入口。
+    @Query private var anyBookkeepingEntry: [AccountTransaction]
+
+    init() {
+        var descriptor = ChartOverviewPresentation.descriptor()
+        descriptor.fetchLimit = 1
+        _anyBookkeepingEntry = Query(descriptor)
+    }
+
     var body: some View {
         HomeQueryContent(areAmountsVisible: $areAmountsVisible)
             .navigationTitle(AppTab.home.title(locale: locale))
             // 标题仅供返回按钮和辅助功能使用，导航栏中部由月份入口占据。
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(value: HomeRoute.search) {
-                        Label(
-                            AccountLocalization.string("bookkeeping.search.title", locale: locale),
-                            systemImage: "magnifyingglass"
-                        )
+                if !anyBookkeepingEntry.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink(value: HomeRoute.search) {
+                            Label(
+                                AccountLocalization.string("bookkeeping.search.title", locale: locale),
+                                systemImage: "magnifyingglass"
+                            )
+                        }
+                        .accessibilityIdentifier("home-search")
                     }
-                    .accessibilityIdentifier("home-search")
                 }
                 // 悬浮按钮留给语音记账，手动记一笔放在导航栏最右侧
                 ToolbarItem(placement: .topBarTrailing) {

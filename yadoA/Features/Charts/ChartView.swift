@@ -115,20 +115,23 @@ struct ChartView: View {
         .navigationTitle(AppTab.charts.title(locale: locale))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    CategoryBreakdownView(
-                        entryType: selectedEntryType,
-                        period: selectedPeriod,
-                        anchorDay: TransactionDay.encode(chart.anchorDate, calendar: environmentCalendar)
-                    )
-                } label: {
-                    Label(
-                        AccountLocalization.string("chart.category.title", locale: locale),
-                        systemImage: "chart.pie"
-                    )
+            // 空账本没有可统计的分类，分类统计入口随空状态一起隐藏。
+            if !transactions.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        CategoryBreakdownView(
+                            entryType: selectedEntryType,
+                            period: selectedPeriod,
+                            anchorDay: TransactionDay.encode(chart.anchorDate, calendar: environmentCalendar)
+                        )
+                    } label: {
+                        Label(
+                            AccountLocalization.string("chart.category.title", locale: locale),
+                            systemImage: "chart.pie"
+                        )
+                    }
+                    .accessibilityIdentifier("chart-category-breakdown-entry")
                 }
-                .accessibilityIdentifier("chart-category-breakdown-entry")
             }
         }
         .sheet(isPresented: $isMonthPickerPresented) {
