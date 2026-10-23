@@ -23,6 +23,9 @@ struct VoiceBookkeepingDock: View {
     @State private var presentedTransaction: VoicePresentedTransaction?
     @State private var manualEntryNote: VoiceManualEntryNote?
 
+    /// 语音区域（铺满首页内容区）底边在窗口中的位置，用来算它与附属栏的重叠。
+    @State private var dockMaxY: CGFloat?
+
     /// 麦克风是否放在 Tab Bar 附属栏里，而不是悬浮在这里。
     private let isMicInAccessory = VoiceMicPlacement.usesTabBarAccessory
 
@@ -64,14 +67,22 @@ struct VoiceBookkeepingDock: View {
                 }
             }
         }
-        // 一次性提示挂在整个语音区域上方：有卡片时在卡片上方，没有卡片时离麦克风留出一指高，不被按住麦克风的手指挡住
+        // 一次性提示挂在整个语音区域上方：有卡片时在卡片上方，没有卡片时在麦克风（或附属栏）上方
         .overlay(alignment: .top) {
             transientHint
         }
-        .padding(.bottom, isMicInAccessory ? 10 : 0)
+        // 附属栏不在内容区的安全区里，按实际重叠量抬到附属栏上方
+        .padding(.bottom, isMicInAccessory ? Self.accessorySpacing + accessoryOverlap : 0)
         .padding(.horizontal, 16)
         // 铺满首页内容区，卡片外的空白处才能接住点击；空白处本身不参与命中，卡片不显示时不影响列表
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        // 量的是铺满后的外框，不受上面抬高的影响，不会来回触发
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.frame(in: .global).maxY
+        } action: { maxY in
+            dockMaxY = maxY
+        }
+        .animation(.easeOut(duration: 0.2), value: accessoryOverlap)
         .background {
             if isOutsideTapDismissEnabled {
                 // 卡片外的任何触摸只用来关闭卡片：松手即关，列表不会被点开或滚动
@@ -178,10 +189,8 @@ struct VoiceBookkeepingDock: View {
     /// 一次性提示底边与语音区域顶边的间距。
     private static let hintSpacing: CGFloat = 8
 
-    /// 麦克风在附属栏里且没有卡片时，提示额外抬高的距离，避开按住附属栏的手指。
-    ///
-    /// 悬浮麦克风上方本来就留着示例说法的位置，提示越过它后已离开手指范围，不需要再抬。
-    private static let accessoryHintThumbClearance: CGFloat = 40
+    /// 麦克风在附属栏里时，卡片和提示与附属栏顶边的间距。
+    private static let accessorySpacing: CGFloat = 10
 
     /// 没识别到话或刚授权时的一次性提示：贴在语音区域正上方的小标签，不参与布局。
     @ViewBuilder
@@ -194,16 +203,20 @@ struct VoiceBookkeepingDock: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .voiceFloatingSurface(in: Capsule())
-                .alignmentGuide(.top) { $0[.bottom] + hintOffset }
+                .alignmentGuide(.top) { $0[.bottom] + Self.hintSpacing }
                 .allowsHitTesting(false)
                 .transition(.opacity)
                 .accessibilityHidden(true)
         }
     }
 
-    /// 一次性提示底边离语音区域顶边的距离：附属栏模式下没有卡片时语音区域是空的，要额外抬高避开手指。
-    private var hintOffset: CGFloat {
-        isMicInAccessory && !isCardVisible ? Self.hintSpacing + Self.accessoryHintThumbClearance : Self.hintSpacing
+    /// 语音区域底边伸到附属栏后面的距离。
+    ///
+    /// 记账页内容区的底部安全区只算 Tab Bar、不算附属栏，按安全区排版的卡片和提示会压在附属栏后面，
+    /// 这里用两者在窗口中的实际位置算出重叠部分，整体抬上去；Tab Bar 收起、附属栏下移时随之变化。
+    private var accessoryOverlap: CGFloat {
+        guard isMicInAccessory, let accessoryMinY = voice.accessoryMinY, let dockMaxY else { return 0 }
+        return max(0, dockMaxY - accessoryMinY)
     }
 
     /// 悬浮麦克风上方的示例说法，告诉用户按住后可以怎么说；会话卡片或一次性提示出现时隐藏。

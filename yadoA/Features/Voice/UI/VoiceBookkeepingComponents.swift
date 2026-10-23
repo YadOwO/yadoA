@@ -153,6 +153,15 @@ struct VoiceMicAccessory: View {
         .font(font)
         .foregroundStyle(tint)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // 告诉记账页附属栏顶边在哪，会话卡片和提示据此避开附属栏
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.frame(in: .global).minY
+        } action: { minY in
+            voice.accessoryMinY = minY
+        }
+        .onDisappear {
+            voice.accessoryMinY = nil
+        }
         .contentShape(Rectangle())
         .overlay {
             VoiceMicTouchArea(

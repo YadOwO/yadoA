@@ -17,6 +17,11 @@ final class VoiceBookkeepingState {
     /// 识别时优先识别的账户名、分类名；进入记账页时读一次，按下时不再查库，避免卡住按下后的第一帧。
     var contextualStrings: [String] = []
 
+    /// Tab Bar 附属栏里麦克风顶边在窗口中的位置；附属栏不显示时为 nil。
+    ///
+    /// 记账页内容区的底部安全区不包含附属栏，会话卡片和提示据此抬到附属栏上方。
+    var accessoryMinY: CGFloat?
+
     /// 会话是否正在处理上一句。
     var isProcessing: Bool {
         session?.isProcessing == true
