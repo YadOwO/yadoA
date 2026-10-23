@@ -17,9 +17,13 @@ struct DataUndoServiceTests {
             .appending(path: "data-undo-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
     }
 
-    /// 构造含账户、支出流水和默认偏好的夹具。
+    /// 构造含预置分类、账户、支出流水和默认偏好的夹具。
+    ///
+    /// 和 App 启动时一样先补齐预置分类：清除后会立即补回预置分类，撤销也会带回完整分类，
+    /// 夹具里没有分类时「撤销后与清除前一致」无法成立。
     private func makeSeededContainer() throws -> AccountDataContainer {
         let container = try AccountDataContainer.inMemory()
+        try LocalCategoryRepository(container: container.modelContainer).ensurePresets()
         let accountID = UUID()
         try LocalAccountRepository(container: container.modelContainer).save(
             AccountDraft(id: accountID, accountType: .cash, name: "现金", amountText: "10"),

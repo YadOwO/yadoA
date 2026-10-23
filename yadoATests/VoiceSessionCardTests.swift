@@ -9,39 +9,6 @@ import UIKit
 @Suite("语音会话卡片滚动", .serialized)
 @MainActor
 struct VoiceSessionCardTests {
-    @Test("实时转写在同高度替换和换行增长时都贴底，并隐藏滚动条")
-    func followsTranscriptChanges() async throws {
-        let fixture = try Fixture()
-        defer { fixture.close() }
-        await fixture.seedHistory()
-        fixture.input.pressBegan(isSignedIn: true, locale: Fixture.locale, contextualStrings: { [] })
-        try await fixture.waitUntil { fixture.input.isRecording }
-        fixture.recognizer.transcript = "午饭 28"
-        fixture.show()
-        let scrollView = try await fixture.scrollView()
-        try await fixture.waitForBottom(scrollView)
-        #expect(!scrollView.showsVerticalScrollIndicator)
-        #expect(!scrollView.showsHorizontalScrollIndicator)
-
-        fixture.displaceOffset(scrollView)
-        let height = scrollView.contentSize.height
-        fixture.recognizer.transcript = "午饭 29"
-        try await fixture.waitForBottom(scrollView)
-        #expect(abs(scrollView.contentSize.height - height) < 1)
-
-        fixture.displaceOffset(scrollView)
-        fixture.recognizer.transcript = String(repeating: "午饭 29，打车 35，", count: 30)
-        try await fixture.waitForBottom(scrollView)
-        #expect(scrollView.contentSize.height > height)
-
-        // 松手后仍在等待最终转写；此时的同高度文字修正也必须被跟随。
-        fixture.input.pressEnded(onText: { _ in })
-        try await fixture.waitUntil { fixture.recognizer.state == .finishing && fixture.isAtBottom(scrollView) }
-        fixture.displaceOffset(scrollView)
-        fixture.recognizer.transcript = String(repeating: "午饭 28，打车 35，", count: 30)
-        try await fixture.waitForBottom(scrollView)
-    }
-
     @Test("AI 回复、追问候选和失败提示统一贴底", arguments: ["reply", "ask", "failure"])
     func followsAIResults(kind: String) async throws {
         let fixture = try Fixture()

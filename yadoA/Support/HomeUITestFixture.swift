@@ -68,6 +68,7 @@ enum HomeUITestFixture {
             )
         }
 
+        try context.alignOpeningBalancesWithBalances()
         try context.save()
     }
 
@@ -132,6 +133,7 @@ enum HomeUITestFixture {
             )
         )
         context.insert(BookkeepingPreference(defaultAccountID: activeAccountID))
+        try context.alignOpeningBalancesWithBalances()
         try context.save()
     }
 
@@ -228,6 +230,7 @@ enum HomeUITestFixture {
             )
         )
 
+        try context.alignOpeningBalancesWithBalances()
         try context.save()
     }
 
@@ -244,6 +247,33 @@ enum HomeUITestFixture {
         return (components.year ?? 1970) * 10_000
             + (components.month ?? 1) * 100
             + (components.day ?? 1)
+    }
+}
+
+extension ModelContext {
+    /// 按夹具写入的余额倒推各账户的期初余额，使「期初余额 + 流水影响 = 余额」成立。
+    ///
+    /// 夹具直接给出账户余额、再插入流水，期初余额默认等于余额，与流水对不上；
+    /// 导入、同步后重算余额时会把余额改掉。保存前调用一次，界面显示的余额保持夹具给定的值。
+    ///
+    /// - Throws: 读取失败或精确十进制计算失败时抛出错误。
+    func alignOpeningBalancesWithBalances() throws {
+        let accounts = try fetch(FetchDescriptor<Account>())
+        var accountTypes: [UUID: AccountType] = [:]
+        for account in accounts {
+            if let type = account.accountType { accountTypes[account.id] = type }
+        }
+        let effects = try AccountBalanceRebuilder.netEffects(
+            of: fetch(FetchDescriptor<AccountTransaction>()),
+            accountTypes: accountTypes
+        )
+        for account in accounts {
+            guard let effect = effects[account.id] else { continue }
+            account.openingBalance = try AccountBalanceRebuilder.openingBalance(
+                fromBalance: account.balance,
+                effect: effect
+            )
+        }
     }
 }
 #endif

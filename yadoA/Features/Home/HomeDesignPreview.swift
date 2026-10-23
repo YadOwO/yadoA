@@ -93,6 +93,7 @@ enum HomeDesignPreviewData {
             )
         }
 
+        try context.alignOpeningBalancesWithBalances()
         try context.save()
         return container
     }

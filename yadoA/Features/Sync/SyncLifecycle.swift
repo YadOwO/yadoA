@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import SwiftData
 
 /// 绑定生命周期操作失败的原因。
@@ -47,7 +48,10 @@ enum SyncEpochMismatchResolution: Equatable {
 ///
 /// 只负责数据与同步状态，界面入口和确认弹窗在 U7。每个会改动数据或同步状态的操作都会先暂停同步引擎、
 /// 等正在进行的一轮结束，操作完成后恢复并立即同步一次，避免两边同时改数据。
+/// `state` 是给界面观察的快照，每个操作结束后刷新；操作内部总是重新读取 UserDefaults，
+/// 避免用旧快照覆盖同步引擎期间写入的进度。
 @MainActor
+@Observable
 final class SyncLifecycle {
     /// 本地财务容器。
     private let container: ModelContainer
@@ -63,6 +67,9 @@ final class SyncLifecycle {
 
     /// 本地读写边界。
     private let store: SyncStore
+
+    /// 本机同步状态的快照，供界面展示开关和绑定；进度和同步时间以同步引擎为准。
+    private(set) var state: SyncState
 
     /// 创建生命周期服务。
     ///
@@ -82,11 +89,21 @@ final class SyncLifecycle {
         self.defaults = defaults
         self.engine = engine
         store = SyncStore(container: container)
+        state = SyncState.load(from: defaults)
     }
 
-    /// 本机当前的同步状态。
-    var currentState: SyncState {
-        SyncState.load(from: defaults)
+    /// 重新读取同步状态快照；操作结束后自动调用，界面出现时也可以手动刷新。
+    func refreshState() {
+        state = SyncState.load(from: defaults)
+    }
+
+    /// 本机数据是否已绑定到另一个账号（与当前登录账号不同）。
+    ///
+    /// - Parameter userID: 当前登录用户的 ID；未登录时传 nil，结果为 false。
+    /// - Returns: 已绑定且绑定账号不是 `userID` 时为 true。
+    func isBoundToAnotherAccount(than userID: String?) -> Bool {
+        guard let userID, let boundUserID = state.boundUserID else { return false }
+        return boundUserID != userID
     }
 
     /// 用当前登录账号开启同步。
@@ -100,7 +117,7 @@ final class SyncLifecycle {
     /// - Throws: `SyncLifecycleError`。
     func enable(userID: String) async throws {
         try await withEngineSuspended {
-            var state = currentState
+            var state = loadState()
             if let boundUserID = state.boundUserID {
                 guard boundUserID == userID else { throw SyncLifecycleError.boundToAnotherAccount }
                 state.isEnabled = true
@@ -121,9 +138,10 @@ final class SyncLifecycle {
     /// 关闭同步：台账照常记录本地修改，下次开启时再上传；绑定保持不变。
     func disable() async {
         await engine?.suspend()
-        var state = currentState
+        var state = loadState()
         state.isEnabled = false
         state.save(to: defaults)
+        refreshState()
         engine?.resume()
     }
 
@@ -134,7 +152,7 @@ final class SyncLifecycle {
     /// - Parameter choice: 保留在本机，或从本机清除。
     /// - Throws: 清除本机数据或台账失败时抛出 `SyncLifecycleError.storage`，此时绑定状态不变。
     func prepareForSignOut(_ choice: SyncSignOutChoice) async throws {
-        if currentState.isEnabled {
+        if loadState().isEnabled {
             await engine?.synchronize()
         }
         try await withEngineSuspended {
@@ -145,7 +163,7 @@ final class SyncLifecycle {
                 // 清空本机数据会同时清空台账
                 try storage { try LocalDataResetService(container: container).eraseAll() }
             }
-            var state = currentState
+            var state = loadState()
             state.unbind()
             state.save(to: defaults)
         }
@@ -164,7 +182,7 @@ final class SyncLifecycle {
         let container = container
         let erase: () throws -> Void = eraseLocalData ?? { try LocalDataResetService(container: container).eraseAll() }
         try await withEngineSuspended {
-            var state = currentState
+            var state = loadState()
             switch scope {
             case .deviceOnly:
                 // 先解除绑定再清空，清空不会被当成要上传的删除
@@ -190,7 +208,7 @@ final class SyncLifecycle {
     /// - Throws: `SyncLifecycleError`。
     func resolveEpochMismatch(_ resolution: SyncEpochMismatchResolution) async throws {
         try await withEngineSuspended {
-            var state = currentState
+            var state = loadState()
             switch resolution {
             case .uploadLocalData:
                 guard state.isBound else { throw SyncLifecycleError.notBound }
@@ -208,14 +226,15 @@ final class SyncLifecycle {
         }
     }
 
-    /// 注销账号前删除云端数据并解除绑定；本机数据保留，是否清除由注销流程决定。
+    /// 删除当前账号的全部云端数据并解除绑定；本机数据保留。
     ///
+    /// 同步设置页的「删除云端数据」和注销账号流程都用它；注销时删除失败不应继续注销。
     /// 本机从未绑定时没有本机记录的代次，先读取云端代次再删除，保证该账号的云端数据一定被删掉。
     ///
-    /// - Throws: `SyncLifecycleError`；删除失败时不应继续注销。
-    func deleteCloudDataBeforeAccountDeletion() async throws {
+    /// - Throws: `SyncLifecycleError`。
+    func deleteCloudData() async throws {
         try await withEngineSuspended {
-            var state = currentState
+            var state = loadState()
             let epoch: Int
             if state.isBound {
                 epoch = state.epoch
@@ -231,10 +250,18 @@ final class SyncLifecycle {
 
     // MARK: - 私有方法
 
-    /// 暂停同步引擎执行操作，结束后恢复并立即同步一次。
+    /// 从 UserDefaults 读取最新的同步状态。
+    private func loadState() -> SyncState {
+        SyncState.load(from: defaults)
+    }
+
+    /// 暂停同步引擎执行操作，结束后刷新状态快照、恢复引擎并立即同步一次。
     private func withEngineSuspended(_ operation: () async throws -> Void) async throws {
         await engine?.suspend()
-        defer { engine?.resume() }
+        defer {
+            refreshState()
+            engine?.resume()
+        }
         try await operation()
     }
 

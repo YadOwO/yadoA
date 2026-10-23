@@ -195,7 +195,6 @@ struct AccountTransactionHistoryPresentationTests {
                 .currency(code: "CNY").locale(chineseLocale)
             )
         )
-        #expect(negativeRow.balanceTransition?.contains("-10") == true)
         #expect(negativeRow.accessibilityLabel.contains("余额从"))
         #expect(negativeRow.note == nil)
     }

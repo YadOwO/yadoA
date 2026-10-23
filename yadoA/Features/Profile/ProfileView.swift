@@ -9,6 +9,8 @@ struct ProfileView: View {
     @Environment(AuthStore.self) private var authStore
     /// 整屏登录页的展示状态。
     @Environment(SignInPresentation.self) private var signInPresentation
+    /// 云端同步的绑定与开关；预览中没有注入时为 nil。
+    @Environment(SyncLifecycle.self) private var syncLifecycle: SyncLifecycle?
     @Query private var accounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
 
@@ -22,8 +24,14 @@ struct ProfileView: View {
     @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
     /// 默认账户选择沿用现有独立弹层流程。
     @State private var isDefaultSelectionPresented = false
-    /// 退出登录前的二次确认。
+    /// 退出登录前的二次确认（本机数据没有同步到当前账号时）。
     @State private var isSignOutConfirmationPresented = false
+    /// 退出登录时选择保留还是清除本机数据（本机数据已同步到当前账号时）。
+    @State private var isSignOutChoicePresented = false
+    /// 退出前处理本机数据失败的提示。
+    @State private var isSignOutFailurePresented = false
+    /// 正在退出登录（含退出前的最后一次同步）。
+    @State private var isSigningOut = false
     /// 修改个人资料弹层，打开时携带当时的资料快照。
     @State private var editingProfile: AccountProfile?
     #if DEBUG
@@ -139,6 +147,15 @@ struct ProfileView: View {
                 }
 
                 settingsSection("profile.section.data") {
+                    NavigationLink {
+                        SyncSettingsView()
+                    } label: {
+                        row("sync.title", symbol: "icloud", value: text(syncRowValueKey))
+                    }
+                    .accessibilityIdentifier("profile-sync")
+
+                    rowDivider
+
                     DataExportEntryView(container: modelContext.container)
                         .labelStyle(ProfileExportLabelStyle())
 
@@ -190,12 +207,12 @@ struct ProfileView: View {
                 if authStore.isAuthenticated {
                     settingsSection("auth.section.title") {
                         Button {
-                            isSignOutConfirmationPresented = true
+                            beginSignOut()
                         } label: {
                             Label(text("auth.sign_out.action"), systemImage: "rectangle.portrait.and.arrow.right")
                         }
                         .labelStyle(ProfileExportLabelStyle(color: .red))
-                        .disabled(authStore.isBusy)
+                        .disabled(authStore.isBusy || isSigningOut)
                         .accessibilityIdentifier("profile-sign-out")
                     }
                 }
@@ -229,6 +246,70 @@ struct ProfileView: View {
         } message: {
             Text(text("auth.sign_out.confirm.message"))
         }
+        .confirmationDialog(
+            text("auth.sign_out.choice.title"),
+            isPresented: $isSignOutChoicePresented,
+            titleVisibility: .visible
+        ) {
+            Button(text("auth.sign_out.choice.keep")) {
+                Task { await signOut(.keepOnDevice) }
+            }
+            .accessibilityIdentifier("profile-sign-out-keep")
+
+            Button(text("auth.sign_out.choice.erase"), role: .destructive) {
+                Task { await signOut(.eraseFromDevice) }
+            }
+            .accessibilityIdentifier("profile-sign-out-erase")
+
+            Button(text("common.cancel"), role: .cancel) {}
+        } message: {
+            Text(text("auth.sign_out.choice.message"))
+        }
+        .alert(text("auth.sign_out.failed"), isPresented: $isSignOutFailurePresented) {
+            Button(text("common.close"), role: .cancel) {}
+        }
+    }
+
+    /// 点击退出登录：本机数据已同步到当前账号时让用户选择保留还是清除，否则只做二次确认。
+    private func beginSignOut() {
+        syncLifecycle?.refreshState()
+        if let boundUserID = syncLifecycle?.state.boundUserID, boundUserID == authStore.userID {
+            isSignOutChoicePresented = true
+        } else {
+            isSignOutConfirmationPresented = true
+        }
+    }
+
+    /// 处理本机数据后退出登录；处理失败时不退出，本机数据和绑定保持原样。
+    ///
+    /// - Parameter choice: 保留在本机，或从本机清除。
+    private func signOut(_ choice: SyncSignOutChoice) async {
+        guard let syncLifecycle else { return }
+        isSigningOut = true
+        defer { isSigningOut = false }
+        do {
+            try await syncLifecycle.prepareForSignOut(choice)
+        } catch {
+            isSignOutFailurePresented = true
+            return
+        }
+        if choice == .eraseFromDevice {
+            // 从本机清除是为了不在这台设备上留下数据：撤销快照和最近搜索词也一并删除
+            DataUndoService(container: modelContext.container).discardSnapshot()
+            UserDefaults.standard.removeObject(forKey: BookkeepingSearchHistory.storageKey)
+        }
+        await authStore.signOut()
+    }
+
+    /// 「云端同步」行右侧的状态：当前账号已开启同步时为“已开启”，其他情况为“未开启”。
+    private var syncRowValueKey: String {
+        guard authStore.isAuthenticated,
+              let state = syncLifecycle?.state,
+              state.isEnabled,
+              let userID = authStore.userID,
+              state.boundUserID == userID
+        else { return "sync.row.off" }
+        return "sync.row.on"
     }
 
     /// 页头留给用户自己的头像与名称，不放产品品牌；未登录时显示占位名称和登录入口。

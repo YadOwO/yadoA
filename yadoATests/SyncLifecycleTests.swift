@@ -239,15 +239,15 @@ struct SyncLifecycleTests {
         }
     }
 
-    @Test("注销账号前删除云端数据并解除绑定，本机数据保留")
-    func deleteCloudDataBeforeAccountDeletion() async throws {
+    @Test("删除云端数据并解除绑定，本机数据保留")
+    func deleteCloudDataUnbinds() async throws {
         try await SyncTestEnvironment.run { environment in
             let device = try environment.makeDevice()
             let accountID = UUID()
             try saveAccount(id: accountID, in: device.container)
             await device.engine.synchronize()
 
-            try await lifecycle(for: device, in: environment).deleteCloudDataBeforeAccountDeletion()
+            try await lifecycle(for: device, in: environment).deleteCloudData()
 
             #expect(!device.state.isBound)
             let remote = await environment.server.record(.account, accountID)
@@ -256,6 +256,42 @@ struct SyncLifecycleTests {
             #expect(epoch == 1)
             #expect(try ModelContext(device.container).account(id: accountID) != nil)
         }
+    }
+
+    @Test("操作结束后刷新给界面观察的状态快照，并能判断本机是否绑定到其他账号")
+    func stateSnapshotRefreshesAfterOperations() async throws {
+        try await SyncTestEnvironment.run { environment in
+            let device = try environment.makeDevice()
+            let lifecycle = lifecycle(for: device, in: environment)
+            #expect(lifecycle.state.isEnabled)
+            #expect(lifecycle.isBoundToAnotherAccount(than: "user-2"))
+            #expect(!lifecycle.isBoundToAnotherAccount(than: environment.userID))
+            #expect(!lifecycle.isBoundToAnotherAccount(than: nil))
+
+            await lifecycle.disable()
+            #expect(!lifecycle.state.isEnabled)
+
+            try await lifecycle.prepareForSignOut(.keepOnDevice)
+            #expect(!lifecycle.state.isBound)
+            #expect(!lifecycle.isBoundToAnotherAccount(than: "user-2"))
+        }
+    }
+
+    @Test("错误对应的界面文案：登录类错误提示重新登录，非生命周期错误按本机读写失败处理")
+    func errorMessageKeys() {
+        #expect(SyncMessages.localizationKey(for: .sessionExpired) == "sync.error.signIn")
+        #expect(SyncMessages.localizationKey(for: .unauthorized) == "sync.error.signIn")
+        #expect(SyncMessages.localizationKey(for: .timeout) == "sync.error.network")
+        #expect(SyncMessages.localizationKey(for: SyncFailure.storage) == "sync.error.storage")
+        #expect(
+            SyncMessages.localizationKey(forLifecycleError: SyncLifecycleError.api(.serviceUnavailable))
+                == "sync.error.serviceUnavailable"
+        )
+        #expect(
+            SyncMessages.localizationKey(forLifecycleError: SyncLifecycleError.boundToAnotherAccount)
+                == "sync.error.boundToAnotherAccount"
+        )
+        #expect(SyncMessages.localizationKey(forLifecycleError: CancellationError()) == "sync.error.storage")
     }
 
     // MARK: - 辅助

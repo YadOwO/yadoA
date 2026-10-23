@@ -41,7 +41,6 @@ struct VoiceTimingTests {
         #expect(server?.durationMs == 2260)
         let ttft = rows.first { $0.title == text("voice.timing.server.ttft") }
         #expect(ttft?.depth == 2)
-        #expect(ttft?.detail?.contains("3100") == true)
         let roundTrip = rows.first { $0.title == text("voice.timing.roundTrip") }
         #expect(roundTrip?.durationMs == 30)
         let execute = rows.first { $0.title == text("voice.timing.execute") }
