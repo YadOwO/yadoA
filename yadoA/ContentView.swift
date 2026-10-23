@@ -25,6 +25,7 @@ struct ContentView: View {
                 .frame(width: 0, height: 0)
             }
             .signInPageHost()
+            .syncEngineHost()
             .environment(signInPresentation)
     }
 }

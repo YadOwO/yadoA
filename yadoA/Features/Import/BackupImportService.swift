@@ -407,8 +407,8 @@ extension BackupImportService {
         return categories
     }
 
-    /// 解析可选金额：缺省保持 `nil`，存在但非法时抛错而不是静默丢弃。
-    private static func optionalDecimal(from text: String?) throws -> Decimal? {
+    /// 解析可选金额：缺省保持 `nil`，存在但非法时抛错而不是静默丢弃。同步应用远端记录时复用。
+    static func optionalDecimal(from text: String?) throws -> Decimal? {
         guard let text else { return nil }
         guard let value = decimal(from: text) else { throw BackupImportError.invalidContent }
         return value
@@ -416,16 +416,16 @@ extension BackupImportService {
 
     /// 严格解析备份中的十进制金额字符串（`Decimal.description` 的表达）。
     ///
-    /// `Decimal(string:)` 会接受 `"12abc"` 这类前缀合法的输入，因此先做整串格式校验。
-    private static func decimal(from text: String) -> Decimal? {
+    /// `Decimal(string:)` 会接受 `"12abc"` 这类前缀合法的输入，因此先做整串格式校验。同步应用远端记录时复用。
+    static func decimal(from text: String) -> Decimal? {
         guard text.wholeMatch(of: #/-?[0-9]+(\.[0-9]+)?/#) != nil else { return nil }
         return Decimal(string: text, locale: Locale(identifier: "en_US_POSIX"))
     }
 }
 
-// MARK: - 原地覆盖
+// MARK: - 原地覆盖（同步应用远端记录时复用）
 
-private extension Account {
+extension Account {
     /// 用已校验的备份账户覆盖除稳定标识外的全部持久化字段。
     func overwrite(with other: Account) {
         typeRawValue = other.typeRawValue
@@ -442,7 +442,7 @@ private extension Account {
     }
 }
 
-private extension BookkeepingCategory {
+extension BookkeepingCategory {
     /// 用已校验的备份分类覆盖除稳定标识外的全部持久化字段。
     func overwrite(with other: BookkeepingCategory) {
         directionRawValue = other.directionRawValue
@@ -456,7 +456,7 @@ private extension BookkeepingCategory {
     }
 }
 
-private extension AccountTransaction {
+extension AccountTransaction {
     /// 用已校验的备份流水覆盖除稳定标识外的全部持久化字段。
     func overwrite(with other: AccountTransaction) {
         accountID = other.accountID

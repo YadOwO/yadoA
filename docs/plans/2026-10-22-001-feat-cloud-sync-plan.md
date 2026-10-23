@@ -151,8 +151,11 @@ App 还没有上线，schema 直接升到 V7，不做数据迁移。
 #### U5. 同步引擎
 
 - **新增：**
-  - `yadoA/Features/Sync/SyncEngine.swift`：`@MainActor` 的调度器，保证同一时间只有一次同步在进行；
-  - `SyncStore`：基于 `@ModelActor`，在后台 context 中读取台账、应用远端变更，避免全量同步时卡住主线程。
+  - `yadoA/Features/Sync/SyncEngine.swift`：`@MainActor` 的调度器，保证同一时间只有一次同步在进行；状态（同步中、失败原因、代次不一致）放在内存里，供 U7 展示；写回 `SyncState` 时只改进度字段，期间绑定或代次被 U6 改过就丢弃本轮进度；
+  - `SyncStore`：在主线程用独立的 manual-save context 读取台账、应用远端变更。原计划用 `@ModelActor` 放到后台，但工程默认隔离是 MainActor，全部 `@Model` 和仓库都在主线程，改后台需要整套模型层改为 nonisolated，代价过大；网络和 JSON 编解码已在 `SyncAPI` 的 `@concurrent` 方法中放到后台；
+  - `SyncRecordApplier`：按 KTD11 把服务端记录写入模型，复用备份 DTO 的解码与校验；
+  - `SyncEngineHost`：挂在 `ContentView` 上，创建引擎并注入环境。
+- **分类迁移的补充规则：** 远端分类删除时若选择了「随分类删除流水」（`replacementKey` 为空），或迁移目标在本机不可用，本机独有的流水迁到「其他」，不删除用户数据。
 - **流程：**
   - 推送：按 250 条一批上传待上传的台账，确认成功后写入 `pushedRevision`，并清理已上传的删除记录；
   - 拉取：分页拉取，应用规则见 KTD11，应用完重算受影响账户的余额；

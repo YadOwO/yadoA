@@ -120,13 +120,23 @@ final class AuthStore {
         try await accessToken(forResource: AuthConfig.syncServiceResource)
     }
 
+    /// 当前登录用户的稳定 ID（Logto 的 `sub`），同步据此确认本机数据归属于当前账号。
+    ///
+    /// 未登录或 ID token 解析失败时为 nil。
+    var userID: String? {
+        guard client.isAuthenticated, let subject = try? client.getIdTokenClaims().sub, !subject.isEmpty else {
+            return nil
+        }
+        return subject
+    }
+
     /// 把处理好的头像上传到 OSS，返回公开访问地址；此时尚未写入 Logto 资料。
     ///
     /// - Parameter jpegData: `AvatarImageProcessor` 输出的 JPEG 数据。
     /// - Throws: `AvatarUploadError`。
     func uploadAvatar(jpegData: Data) async throws -> URL {
         // sub 是 Logto 用户的稳定 ID，不随改用户名变化，作为头像目录名
-        guard client.isAuthenticated, let userID = try? client.getIdTokenClaims().sub, !userID.isEmpty else {
+        guard let userID else {
             throw AvatarUploadError.notSignedIn
         }
         return try await avatarUploader.upload(jpegData: jpegData, userID: userID)

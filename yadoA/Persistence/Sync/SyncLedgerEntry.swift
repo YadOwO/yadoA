@@ -106,4 +106,42 @@ final class SyncLedgerEntry {
         self.isTombstone = isTombstone
         revision += 1
     }
+
+    /// 记录本地内容已与服务端一致：应用了服务端版本，或推送被服务端确认。
+    ///
+    /// 丢弃尚未上传的本地修改；`pushedRevision` 大于 0 同时表示这条记录「已同步过」，全量同步据此判断要不要删除。
+    ///
+    /// - Parameters:
+    ///   - modifiedAt: 服务端记录的裁决时钟（已钳制）。
+    ///   - payloadHash: 本地模型重新编码后的内容哈希。
+    func markSynced(modifiedAt: Date, payloadHash: String) {
+        self.modifiedAt = modifiedAt
+        self.payloadHash = payloadHash
+        isTombstone = false
+        pushedRevision = revision
+    }
+
+    /// 创建一条与服务端一致的台账，用于本地第一次见到的远端记录。
+    ///
+    /// - Parameters:
+    ///   - entityType: 记录类型。
+    ///   - recordID: 业务记录 UUID。
+    ///   - modifiedAt: 服务端记录的裁决时钟。
+    ///   - payloadHash: 本地模型编码后的内容哈希。
+    /// - Returns: `revision` 与 `pushedRevision` 都为 1 的台账。
+    static func synced(
+        entityType: SyncEntityType,
+        recordID: UUID,
+        modifiedAt: Date,
+        payloadHash: String
+    ) -> SyncLedgerEntry {
+        let entry = SyncLedgerEntry(
+            entityType: entityType,
+            recordID: recordID,
+            modifiedAt: modifiedAt,
+            payloadHash: payloadHash
+        )
+        entry.pushedRevision = entry.revision
+        return entry
+    }
 }

@@ -245,6 +245,23 @@ nonisolated struct SyncPushResult: Decodable, Equatable, Sendable {
         modifiedAt = try container.decode(Date.self, forKey: .modifiedAt)
         current = try container.decodeIfPresent(SyncRemoteRecord.self, forKey: .current)
     }
+
+    /// 测试用的成员初始化。
+    init(
+        entityTypeRawValue: String,
+        recordID: UUID,
+        status: Status,
+        serverVersion: Int64,
+        modifiedAt: Date,
+        current: SyncRemoteRecord?
+    ) {
+        self.entityTypeRawValue = entityTypeRawValue
+        self.recordID = recordID
+        self.status = status
+        self.serverVersion = serverVersion
+        self.modifiedAt = modifiedAt
+        self.current = current
+    }
 }
 
 /// 推送响应。

@@ -72,9 +72,10 @@ extension ModelContext {
         tracksSyncChanges: Bool = true,
         beforeSave: () throws -> Void = {}
     ) throws {
+        var recordedCount = 0
         do {
             if tracksSyncChanges {
-                try SyncChangeTracker.recordLocalChanges(in: self)
+                recordedCount = try SyncChangeTracker.recordLocalChanges(in: self)
             }
             try beforeSave()
             try save()
@@ -82,5 +83,14 @@ extension ModelContext {
             rollback()
             throw error
         }
+        if recordedCount > 0 {
+            // 同步引擎监听它，防抖后上传
+            NotificationCenter.default.post(name: .syncLedgerDidRecordLocalChanges, object: nil)
+        }
     }
+}
+
+extension Notification.Name {
+    /// 有本地修改被登记到同步台账并已保存。
+    static let syncLedgerDidRecordLocalChanges = Notification.Name("yadoA.syncLedgerDidRecordLocalChanges")
 }
