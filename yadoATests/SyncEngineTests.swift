@@ -171,16 +171,31 @@ final class SyncTestEnvironment {
     let userID = "user-1"
     private(set) var suiteNames: [String] = []
 
-    /// 创建一台已开启同步、绑定到同一账号的设备；本地删除按已绑定规则保留墓碑。
-    func makeDevice() throws -> SyncTestDevice {
+    /// 在独立的同步环境中执行测试，结束后还原全局台账设置并清理同步状态。
+    static func run(_ body: (SyncTestEnvironment) async throws -> Void) async throws {
+        let originalDefaults = SyncChangeTracker.defaults
+        let environment = SyncTestEnvironment()
+        defer {
+            SyncChangeTracker.defaults = originalDefaults
+            for suiteName in environment.suiteNames {
+                UserDefaults().removePersistentDomain(forName: suiteName)
+            }
+        }
+        try await body(environment)
+    }
+
+    /// 创建一台设备；默认已开启同步、绑定到同一账号，本地删除按已绑定规则保留墓碑。
+    ///
+    /// - Parameter bound: 为 false 时设备未绑定、未开启同步，模拟还没开启过同步的本机。
+    func makeDevice(bound: Bool = true) throws -> SyncTestDevice {
         let suiteName = "SyncEngineTests.\(UUID().uuidString)"
         suiteNames.append(suiteName)
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         var state = SyncState.load(from: defaults)
-        state.boundUserID = userID
-        state.isEnabled = true
+        state.boundUserID = bound ? userID : nil
+        state.isEnabled = bound
         state.save(to: defaults)
-        // 台账只读取「是否已绑定」，各设备都已绑定，共用任一设备的设置即可
+        // 台账只读取「是否已绑定」；测试里最后创建的设备决定这条规则，同一测试内的设备绑定状态一致
         SyncChangeTracker.defaults = defaults
 
         let container = try AccountDataContainer.inMemory().modelContainer
@@ -204,11 +219,15 @@ struct SyncEngineTests {
             try LocalExpenseRepository(container: deviceA.container).save(draft)
 
             await deviceA.engine.synchronize()
-            let lastVersion = await environment.server.lastVersion
             #expect(deviceA.engine.status == .idle)
             #expect(try pendingEntries(in: deviceA.container).isEmpty)
-            #expect(deviceA.state.since == lastVersion)
             #expect(deviceA.state.syncSchemaVersion == SyncEngine.currentSchemaVersion)
+            // 进度只由拉取推进，推送不前移：下一轮拉回自己的推送后才追上服务端
+            #expect(deviceA.state.since == 0)
+            await deviceA.engine.synchronize()
+            let lastVersion = await environment.server.lastVersion
+            #expect(deviceA.state.since == lastVersion)
+            #expect(try pendingEntries(in: deviceA.container).isEmpty)
 
             await deviceB.engine.synchronize()
             let context = ModelContext(deviceB.container)
@@ -438,6 +457,8 @@ struct SyncEngineTests {
         try await withEnvironment { environment in
             let device = try environment.makeDevice()
             try saveAccount(id: UUID(), in: device.container)
+            // 第二轮拉回第一轮的推送，进度才大于 0
+            await device.engine.synchronize()
             await device.engine.synchronize()
             #expect(device.state.since > 0)
 
@@ -503,17 +524,9 @@ struct SyncEngineTests {
 
     // MARK: - 辅助
 
-    /// 在独立的同步环境中执行测试，结束后还原全局台账设置并清理同步状态。
+    /// 在独立的同步环境中执行测试。
     private func withEnvironment(_ body: (SyncTestEnvironment) async throws -> Void) async throws {
-        let originalDefaults = SyncChangeTracker.defaults
-        let environment = SyncTestEnvironment()
-        defer {
-            SyncChangeTracker.defaults = originalDefaults
-            for suiteName in environment.suiteNames {
-                UserDefaults().removePersistentDomain(forName: suiteName)
-            }
-        }
-        try await body(environment)
+        try await SyncTestEnvironment.run(body)
     }
 
     /// 通过账户仓库保存一个期初余额为 100 的现金账户。

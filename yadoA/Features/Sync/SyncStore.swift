@@ -200,6 +200,63 @@ final class SyncStore {
         return outcome
     }
 
+    // MARK: - 绑定生命周期
+
+    /// 清空同步台账；解除绑定时使用，业务数据不动。之后的修改按未绑定规则重新登记。
+    ///
+    /// - Throws: 读取或保存失败时抛出底层错误。
+    func clearLedger() throws {
+        let context = container.makeManualSaveContext()
+        try context.fetch(FetchDescriptor<SyncLedgerEntry>()).forEach(context.delete)
+        try context.saveOrRollback(tracksSyncChanges: false)
+    }
+
+    /// 把本机全部记录标记为待上传：开启同步、或云端被其他设备重置后重新上传本机数据时使用。
+    ///
+    /// - 已有台账：全部改为待上传，并视为「从未同步过」（`pushedRevision = 0`），全量同步时不会因云端没有而被删除；
+    ///   墓碑直接移除，云端没有这些记录，不必再上传删除；
+    /// - 没有台账的记录（如解除绑定时台账被清空后一直没改过的记录）补登记，修改时间记为 `distantPast`：
+    ///   这份本地副本可能早已过时，云端有同一条记录时以云端为准，云端没有时照常上传。
+    ///
+    /// - Returns: 补登记的记录数。
+    /// - Throws: 读取、编码或保存失败时抛出底层错误。
+    @discardableResult
+    func markAllRecordsForUpload() throws -> Int {
+        let context = container.makeManualSaveContext()
+        var ledger = try loadLedger(in: context)
+        for (key, entry) in ledger {
+            if entry.isTombstone {
+                ledger.removeValue(forKey: key)
+                context.delete(entry)
+            } else {
+                entry.pushedRevision = 0
+            }
+        }
+
+        var models: [any PersistentModel] = []
+        models += try context.fetch(FetchDescriptor<Account>()) as [any PersistentModel]
+        models += try context.fetch(FetchDescriptor<AccountTransaction>()) as [any PersistentModel]
+        models += try context.fetch(FetchDescriptor<BookkeepingCategory>()) as [any PersistentModel]
+        models += try context.fetch(FetchDescriptor<BookkeepingPreference>()) as [any PersistentModel]
+        var registeredCount = 0
+        for model in models {
+            guard let record = try SyncPayloadCoder.record(for: model) else { continue }
+            let key = SyncLedgerEntry.key(entityType: record.entityType, recordID: record.recordID)
+            guard ledger[key] == nil else { continue }
+            let entry = SyncLedgerEntry(
+                entityType: record.entityType,
+                recordID: record.recordID,
+                modifiedAt: .distantPast,
+                payloadHash: record.payloadHash
+            )
+            context.insert(entry)
+            ledger[key] = entry
+            registeredCount += 1
+        }
+        try context.saveOrRollback(tracksSyncChanges: false)
+        return registeredCount
+    }
+
     // MARK: - 私有方法
 
     /// 重算余额并保存（不登记台账）；再把引用已删除分类的流水迁走（登记台账，让迁移被推送）。

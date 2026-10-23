@@ -113,12 +113,31 @@ enum AccountBalanceRebuilder {
 
     /// 使用精确十进制加法，拒绝溢出和精度损失。
     private static func adding(_ change: Decimal, to value: Decimal) throws -> Decimal {
-        var lhs = value
-        var rhs = change
-        var result = Decimal()
-        guard NSDecimalAdd(&result, &lhs, &rhs, .plain) == .noError else {
+        guard let result = value.exactlyAdding(change) else {
             throw ExpenseRepositoryError.balanceCalculationFailed
         }
         return result
+    }
+}
+
+extension Decimal {
+    /// 精确相加；溢出或无法精确表示时返回 nil。
+    ///
+    /// 不能只看 `NSDecimalAdd` 的返回值：尾数溢出需要舍入时它可能仍返回 `.noError`
+    /// （iOS 27 实测最大尾数加 30 被舍入成 …480 却不报错），所以加完再减回去核对。
+    ///
+    /// - Parameter other: 加数。
+    /// - Returns: 精确的和；不精确时为 nil。
+    nonisolated func exactlyAdding(_ other: Decimal) -> Decimal? {
+        var lhs = self
+        var rhs = other
+        var sum = Decimal()
+        guard NSDecimalAdd(&sum, &lhs, &rhs, .plain) == .noError else { return nil }
+        var roundTrip = Decimal()
+        var sumCopy = sum
+        guard NSDecimalSubtract(&roundTrip, &sumCopy, &rhs, .plain) == .noError, roundTrip == self else {
+            return nil
+        }
+        return sum
     }
 }

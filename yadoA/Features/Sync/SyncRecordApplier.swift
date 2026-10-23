@@ -88,9 +88,16 @@ enum SyncRecordApplier {
 
         for (entityType, record) in ordered {
             let key = SyncLedgerEntry.key(entityType: entityType, recordID: record.recordID)
-            if let entry = ledger[key], entry.hasPendingChanges, entry.modifiedAt > record.modifiedAt {
-                outcome.keptLocalCount += 1
-                continue
+            if let entry = ledger[key] {
+                if entry.hasPendingChanges, entry.modifiedAt > record.modifiedAt {
+                    outcome.keptLocalCount += 1
+                    continue
+                }
+                // 本机已是这个版本（通常是自己推送后拉回的回声）：服务端只接受严格更新的修改时间，
+                // 同一条记录同一修改时间只对应一份内容，不必重写本地
+                if !entry.hasPendingChanges, !entry.isTombstone, !record.isDeleted, entry.modifiedAt == record.modifiedAt {
+                    continue
+                }
             }
             if record.isDeleted {
                 try removeLocal(

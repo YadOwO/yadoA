@@ -631,11 +631,7 @@ final class AccountTransaction {
         balanceBefore: Decimal,
         balanceAfter: Decimal
     ) throws -> Decimal {
-        var before = balanceBefore
-        var after = balanceAfter
-        var result = Decimal()
-        let calculationError = NSDecimalSubtract(&result, &after, &before, .plain)
-        guard calculationError == .noError else {
+        guard let result = balanceAfter.exactlyAdding(-balanceBefore) else {
             throw AccountTransactionValidationError.balanceCalculationFailed
         }
         return result

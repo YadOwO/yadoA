@@ -296,10 +296,7 @@ final class LocalExpenseRepository {
 
     /// 使用精确十进制加法应用余额变化，拒绝溢出和精度损失。
     private static func adding(_ change: Decimal, to balance: Decimal) throws -> Decimal {
-        var currentBalance = balance
-        var change = change
-        var result = Decimal()
-        guard NSDecimalAdd(&result, &currentBalance, &change, .plain) == .noError else {
+        guard let result = balance.exactlyAdding(change) else {
             throw ExpenseRepositoryError.balanceCalculationFailed
         }
         return result
@@ -314,15 +311,9 @@ final class LocalExpenseRepository {
         newEntryType: BookkeepingEntryType,
         effect: ExpenseBalanceEffect
     ) throws -> Decimal {
-        var oldAmount = balanceChange(oldAmount, effect: effect, entryType: oldEntryType)
-        var newAmount = balanceChange(newAmount, effect: effect, entryType: newEntryType)
-        var amountDelta = Decimal()
-        guard NSDecimalSubtract(
-            &amountDelta,
-            &newAmount,
-            &oldAmount,
-            .plain
-        ) == .noError else {
+        let oldAmount = balanceChange(oldAmount, effect: effect, entryType: oldEntryType)
+        let newAmount = balanceChange(newAmount, effect: effect, entryType: newEntryType)
+        guard let amountDelta = newAmount.exactlyAdding(-oldAmount) else {
             throw ExpenseRepositoryError.balanceCalculationFailed
         }
 

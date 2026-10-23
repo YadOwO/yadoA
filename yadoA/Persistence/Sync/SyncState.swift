@@ -31,6 +31,16 @@ struct SyncState: Codable, Equatable {
     /// 本机数据是否已绑定到某个登录用户。
     var isBound: Bool { boundUserID != nil }
 
+    /// 解除绑定并关闭同步，进度和代次归零；保留设备标识。
+    mutating func unbind() {
+        boundUserID = nil
+        isEnabled = false
+        since = 0
+        epoch = 0
+        syncSchemaVersion = 0
+        lastSyncedAt = nil
+    }
+
     /// 读取同步状态；首次读取时生成设备标识并立即保存，保证之后保持不变。
     ///
     /// - Parameter defaults: 存储同步状态的 UserDefaults。

@@ -90,6 +90,9 @@ final class SyncEngine {
     /// 本地修改通知的监听。
     private var localChangeObserver: NSObjectProtocol?
 
+    /// 生命周期操作（开启、清空、解除绑定等）进行中的层数；大于 0 时不开始新的一轮。
+    private var suspendCount = 0
+
     /// 创建同步调度器。
     ///
     /// - Parameters:
@@ -140,6 +143,7 @@ final class SyncEngine {
     func syncNow() {
         scheduledTask?.cancel()
         scheduledTask = nil
+        guard suspendCount == 0 else { return }
         guard runTask == nil else {
             needsAnotherRun = true
             return
@@ -155,6 +159,25 @@ final class SyncEngine {
         await runTask?.value
     }
 
+    /// 暂停同步并等待正在进行的一轮结束。
+    ///
+    /// `SyncLifecycle` 在清空数据、解除绑定、切换代次前调用，避免和同步同时改本地数据或同步状态；
+    /// 必须与 `resume()` 成对调用。
+    func suspend() async {
+        suspendCount += 1
+        scheduledTask?.cancel()
+        scheduledTask = nil
+        needsAnotherRun = false
+        await runTask?.value
+    }
+
+    /// 结束暂停；所有暂停都结束后立即同步一次，按新的同步状态刷新 `status`。
+    func resume() {
+        suspendCount = max(suspendCount - 1, 0)
+        guard suspendCount == 0 else { return }
+        syncNow()
+    }
+
     /// 本地保存后防抖同步。
     func scheduleAfterLocalChange() {
         schedule(after: Self.localChangeDebounce)
@@ -167,7 +190,7 @@ final class SyncEngine {
         repeat {
             needsAnotherRun = false
             await runOnce()
-        } while needsAnotherRun
+        } while needsAnotherRun && suspendCount == 0
         runTask = nil
     }
 
