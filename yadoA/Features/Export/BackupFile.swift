@@ -111,7 +111,12 @@ nonisolated struct BackupAccount: Codable, Equatable, Sendable {
     let lastFourDigits: String?
 
     /// 精确十进制余额的字符串表达（`Decimal.description`）。
+    ///
+    /// 只是导出时的缓存值；导入时以期初余额和流水重算，不直接采用。
     let balance: String
+
+    /// 期初余额的字符串表达；旧文件缺少时为 `nil`，导入端由 `balance` 和流水倒推。
+    let openingBalance: String?
 
     /// ISO 4217 货币代码。
     let currencyCode: String
@@ -134,6 +139,7 @@ nonisolated struct BackupAccount: Codable, Equatable, Sendable {
         note = account.note
         lastFourDigits = account.lastFourDigits
         balance = account.balance.description
+        openingBalance = account.openingBalance.description
         currencyCode = account.currencyCode
         createdAt = account.createdAt
         updatedAt = account.updatedAt
@@ -152,6 +158,7 @@ nonisolated struct BackupAccount: Codable, Equatable, Sendable {
         try container.encode(note, forKey: .note)
         try container.encode(lastFourDigits, forKey: .lastFourDigits)
         try container.encode(balance, forKey: .balance)
+        try container.encode(openingBalance, forKey: .openingBalance)
         try container.encode(currencyCode, forKey: .currencyCode)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
@@ -167,6 +174,7 @@ nonisolated struct BackupAccount: Codable, Equatable, Sendable {
         note: String?,
         lastFourDigits: String?,
         balance: String,
+        openingBalance: String? = nil,
         currencyCode: String,
         createdAt: Date,
         updatedAt: Date,
@@ -179,6 +187,7 @@ nonisolated struct BackupAccount: Codable, Equatable, Sendable {
         self.note = note
         self.lastFourDigits = lastFourDigits
         self.balance = balance
+        self.openingBalance = openingBalance
         self.currencyCode = currencyCode
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -198,6 +207,7 @@ nonisolated struct BackupAccount: Codable, Equatable, Sendable {
         note = try container.decodeIfPresent(String.self, forKey: .note)
         lastFourDigits = try container.decodeIfPresent(String.self, forKey: .lastFourDigits)
         balance = try container.decodeIfPresent(String.self, forKey: .balance) ?? "0"
+        openingBalance = try container.decodeIfPresent(String.self, forKey: .openingBalance)
         currencyCode = try container.decodeIfPresent(String.self, forKey: .currencyCode) ?? "CNY"
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? .distantPast
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
@@ -497,6 +507,7 @@ extension BackupAccount {
         case note
         case lastFourDigits
         case balance
+        case openingBalance
         case currencyCode
         case createdAt
         case updatedAt

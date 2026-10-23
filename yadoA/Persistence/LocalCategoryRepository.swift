@@ -349,15 +349,15 @@ final class LocalCategoryRepository {
         let existingIDs = Set(try context.fetch(FetchDescriptor<BookkeepingCategory>()).map(\.id))
         var inserted = false
         for preset in BookkeepingCategoryKey.allPresets where !existingIDs.contains(preset.id) {
-            context.insert(
-                BookkeepingCategory(
-                    id: preset.id,
-                    direction: preset.direction,
-                    key: preset.key,
-                    symbolName: preset.symbolName,
-                    sortIndex: preset.sortIndex
-                )
+            let category = BookkeepingCategory(
+                id: preset.id,
+                direction: preset.direction,
+                key: preset.key,
+                symbolName: preset.symbolName,
+                sortIndex: preset.sortIndex
             )
+            category.isAutoCreated = true
+            context.insert(category)
             inserted = true
         }
         return inserted

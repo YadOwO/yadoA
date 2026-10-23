@@ -32,8 +32,13 @@ final class Account {
     /// 最多四位数字组成的可选卡号后缀。
     var lastFourDigits: String?
 
-    /// 账户创建时为非负精确十进制数；支出或手动调整后允许为负。
+    /// 当前余额，是「期初余额 + 全部流水影响」的本地缓存；支出或手动调整后允许为负。
+    ///
+    /// 不参与同步：各端由 `AccountBalanceRebuilder` 按期初余额和流水重算，避免并发记账互相覆盖。
     var balance: Decimal
+
+    /// 建账时填写的期初余额，创建后不再改变；与流水一起推导出 `balance`。
+    var openingBalance: Decimal
 
     /// 决定金额格式的 ISO 4217 货币代码；当前仅支持 `CNY`。
     var currencyCode: String
@@ -66,6 +71,8 @@ final class Account {
     }
 
     /// 直接构造已完成校验的持久化账户。
+    ///
+    /// `openingBalance` 为空时取 `balance`，即新建账户的期初余额等于当前余额。
     init(
         id: UUID,
         typeRawValue: String,
@@ -74,6 +81,7 @@ final class Account {
         note: String?,
         lastFourDigits: String?,
         balance: Decimal,
+        openingBalance: Decimal? = nil,
         currencyCode: String,
         createdAt: Date,
         updatedAt: Date,
@@ -86,6 +94,7 @@ final class Account {
         self.note = note
         self.lastFourDigits = lastFourDigits
         self.balance = balance
+        self.openingBalance = openingBalance ?? balance
         self.currencyCode = currencyCode
         self.createdAt = createdAt
         self.updatedAt = updatedAt

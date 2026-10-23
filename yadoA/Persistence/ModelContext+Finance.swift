@@ -59,12 +59,23 @@ extension ModelContext {
         return try fetch(descriptor).first
     }
 
-    /// 执行保存前故障点并显式保存；任一步失败都回滚本 context 的全部未保存变更。
+    /// 登记同步台账、执行保存前故障点并显式保存；任一步失败都回滚本 context 的全部未保存变更。
     ///
-    /// - Parameter beforeSave: 内存修改完成后、显式保存前执行的故障点。
-    /// - Throws: 故障点或保存失败时原样抛出错误。
-    func saveOrRollback(beforeSave: () throws -> Void = {}) throws {
+    /// 这是所有业务写入唯一的保存入口：同步台账在这里自动登记，与业务修改一起提交或回滚。
+    /// 新增写入路径不要直接调用 `save()`，否则修改不会被同步。
+    ///
+    /// - Parameters:
+    ///   - tracksSyncChanges: 是否把本次修改登记到同步台账；应用服务端数据、清空台账时传 `false`。
+    ///   - beforeSave: 内存修改完成后、显式保存前执行的故障点。
+    /// - Throws: 登记、故障点或保存失败时原样抛出错误。
+    func saveOrRollback(
+        tracksSyncChanges: Bool = true,
+        beforeSave: () throws -> Void = {}
+    ) throws {
         do {
+            if tracksSyncChanges {
+                try SyncChangeTracker.recordLocalChanges(in: self)
+            }
             try beforeSave()
             try save()
         } catch {

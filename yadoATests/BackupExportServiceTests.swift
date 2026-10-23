@@ -127,7 +127,7 @@ struct BackupExportServiceTests {
         #expect(
             accountKeys == [
                 "id", "type", "templateID", "name", "note", "lastFourDigits",
-                "balance", "currencyCode", "createdAt", "updatedAt", "deactivatedAt",
+                "balance", "openingBalance", "currencyCode", "createdAt", "updatedAt", "deactivatedAt",
             ]
         )
         let transactionKeys = Set(

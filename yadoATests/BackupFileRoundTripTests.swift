@@ -145,7 +145,7 @@ struct BackupFileRoundTripTests {
 
         #expect(Set(account.keys) == [
             "id", "type", "templateID", "name", "note", "lastFourDigits",
-            "balance", "currencyCode", "createdAt", "updatedAt", "deactivatedAt",
+            "balance", "openingBalance", "currencyCode", "createdAt", "updatedAt", "deactivatedAt",
         ])
         #expect(Set(transaction.keys) == [
             "id", "accountID", "type", "category", "amount", "title",

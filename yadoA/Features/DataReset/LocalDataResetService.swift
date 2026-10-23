@@ -9,7 +9,7 @@ enum LocalDataResetError: Error, Equatable {
 
 /// 在主 actor 上一次性清除全部本地业务数据的服务。
 ///
-/// 清除范围为账户、账户流水、默认记账账户偏好和分类设置，结果等同于全新安装后的空账本；
+/// 清除范围为账户、账户流水、默认记账账户偏好、分类设置和同步台账，结果等同于全新安装后的空账本；
 /// 分类设置清除后立即补回预置分类的默认值；
 /// 语言、外观、金额显隐等显示偏好不属于业务数据，不在清除范围内。
 /// 全部删除在单一 context 中一次保存，保存失败时回滚，不会留下只删一半的状态。
@@ -50,7 +50,9 @@ final class LocalDataResetService {
         }
     }
 
-    /// 删除全部账户、流水、记账偏好和分类设置，并补回预置分类默认值。
+    /// 删除全部账户、流水、记账偏好、分类设置和同步台账，并补回预置分类默认值。
+    ///
+    /// 台账一并清空、本次删除不登记墓碑：清空是本机行为，是否同时删除云端数据由调用方另行处理。
     ///
     /// - Throws: 读取或保存失败时抛出 `LocalDataResetError.resetFailed`，
     ///   此时本地数据保持清除前的状态。
@@ -61,7 +63,8 @@ final class LocalDataResetService {
             try context.fetch(FetchDescriptor<Account>()).forEach(context.delete)
             try context.fetch(FetchDescriptor<BookkeepingPreference>()).forEach(context.delete)
             try context.fetch(FetchDescriptor<BookkeepingCategory>()).forEach(context.delete)
-            try context.saveOrRollback(beforeSave: beforeSave)
+            try context.fetch(FetchDescriptor<SyncLedgerEntry>()).forEach(context.delete)
+            try context.saveOrRollback(tracksSyncChanges: false, beforeSave: beforeSave)
         } catch {
             context.rollback()
             throw LocalDataResetError.resetFailed

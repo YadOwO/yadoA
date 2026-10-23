@@ -346,6 +346,7 @@ final class LocalAccountRepository {
             return preference
         }
         let preference = BookkeepingPreference()
+        preference.isAutoCreated = true
         context.insert(preference)
         return preference
     }

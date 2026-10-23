@@ -240,6 +240,7 @@ extension BackupImportService {
                   !account.currencyCode.isEmpty,
                   let balance = decimal(from: account.balance)
             else { throw BackupImportError.invalidContent }
+            let openingBalance = try optionalDecimal(from: account.openingBalance)
 
             // 未知账户类型原样保留：模型允许未来类型，由展示层安全降级。
             return Account(
@@ -250,6 +251,7 @@ extension BackupImportService {
                 note: account.note,
                 lastFourDigits: account.lastFourDigits,
                 balance: balance,
+                openingBalance: openingBalance,
                 currencyCode: account.currencyCode,
                 createdAt: account.createdAt,
                 updatedAt: account.updatedAt,
@@ -300,7 +302,52 @@ extension BackupImportService {
             }
             return record
         }
+        try reconcileBalances(
+            of: accounts,
+            withOpeningBalanceFrom: backup.accounts,
+            transactions: transactions
+        )
         return ValidatedRecords(accounts: accounts, transactions: transactions, categories: categories)
+    }
+
+    /// 让账户余额与「期初余额 + 流水」一致，不采用文件里的余额缓存。
+    ///
+    /// 文件带期初余额时据此重算余额；旧文件缺少期初余额时，由文件里的余额减去流水影响倒推。
+    /// 账户类型未知时无法判断流水方向，保留文件里的余额和期初余额。
+    ///
+    /// - Parameters:
+    ///   - accounts: 由备份转换出、尚未插入 context 的账户。
+    ///   - backupAccounts: 对应的备份账户快照，用来判断文件是否带有期初余额。
+    ///   - transactions: 备份中的全部流水。
+    /// - Throws: 精确十进制计算溢出或损失精度时抛出 `.invalidContent`。
+    private static func reconcileBalances(
+        of accounts: [Account],
+        withOpeningBalanceFrom backupAccounts: [BackupAccount],
+        transactions: [AccountTransaction]
+    ) throws {
+        var accountTypes: [UUID: AccountType] = [:]
+        for account in accounts {
+            if let type = account.accountType { accountTypes[account.id] = type }
+        }
+        let hasOpeningBalance = Set(backupAccounts.filter { $0.openingBalance != nil }.map(\.id))
+        do {
+            let effects = try AccountBalanceRebuilder.netEffects(of: transactions, accountTypes: accountTypes)
+            for account in accounts {
+                guard let effect = effects[account.id] else { continue }
+                if !hasOpeningBalance.contains(account.id) {
+                    account.openingBalance = try AccountBalanceRebuilder.openingBalance(
+                        fromBalance: account.balance,
+                        effect: effect
+                    )
+                }
+                account.balance = try AccountBalanceRebuilder.balance(
+                    openingBalance: account.openingBalance,
+                    effect: effect
+                )
+            }
+        } catch {
+            throw BackupImportError.invalidContent
+        }
     }
 
     /// 校验备份中的分类设置，并为缺少的预置分类补上默认值。
@@ -387,6 +434,7 @@ private extension Account {
         note = other.note
         lastFourDigits = other.lastFourDigits
         balance = other.balance
+        openingBalance = other.openingBalance
         currencyCode = other.currencyCode
         createdAt = other.createdAt
         updatedAt = other.updatedAt

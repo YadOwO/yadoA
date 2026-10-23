@@ -38,6 +38,11 @@ final class BookkeepingCategory {
     /// 已删除但为 `nil` 表示该分类的流水随分类一并删除，其他设备同步时也删除本机对应流水。
     var replacementKey: String?
 
+    /// 本行是否由 App 自动补齐预置分类时插入；不持久化，只在插入它的那次保存中有效。
+    ///
+    /// 同步台账据此区分系统初始化和用户或导入写入的内容，见 `SyncPayloadCoder.isPristineDefault`。
+    @Transient var isAutoCreated = false
+
     /// 创建一条分类设置。
     init(
         id: UUID,
