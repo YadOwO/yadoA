@@ -5,6 +5,9 @@ import UIKit
 
 /// 按住说话时需要弹出的提示。
 enum VoiceInputAlert: Identifiable, Equatable {
+    /// 未登录：询问是否去登录，登录后才能使用语音记账。
+    case signInRequired
+
     /// 麦克风或语音识别权限被拒绝。
     case permissionDenied
 
@@ -46,9 +49,6 @@ final class VoiceInputController {
     /// 需要弹出的提示；界面展示后置空。
     var alert: VoiceInputAlert?
 
-    /// 未登录时松手，需要打开登录页；界面打开登录页后置回 false。
-    var isSignInRequested = false
-
     /// 一次性提示，例如刚授权后的「已开启，按住麦克风说话」或轻点时的「按住说话」；界面展示一会儿后置空。
     var transientHint: String?
 
@@ -62,9 +62,6 @@ final class VoiceInputController {
 
         /// 松手后提示。
         case alert(VoiceInputAlert)
-
-        /// 松手后打开登录页。
-        case signIn
     }
 
     private var pressIntent: PressIntent?
@@ -127,7 +124,7 @@ final class VoiceInputController {
     /// 手指按下：按住满 `holdDelay` 才开始收音。
     ///
     /// - Parameters:
-    ///   - isSignedIn: 当前是否已登录；未登录时松手后打开登录页。
+    ///   - isSignedIn: 当前是否已登录；未登录时不收音，松手后弹窗询问是否去登录。
     ///   - locale: 识别语言。
     ///   - contextualStrings: 读取识别专有名词的动作，只在可以收音时调用。
     func pressBegan(isSignedIn: Bool, locale: Locale, contextualStrings: () -> [String]) {
@@ -151,7 +148,7 @@ final class VoiceInputController {
         transientHint = nil
         self.locale = locale
         guard isSignedIn else {
-            pressIntent = .signIn
+            pressIntent = .alert(.signInRequired)
             return
         }
         switch permission() {
@@ -211,8 +208,6 @@ final class VoiceInputController {
         switch intent {
         case let .alert(alert):
             self.alert = alert
-        case .signIn:
-            isSignInRequested = true
         case .requestPermission:
             Task {
                 let permission = await VoiceSpeechRecognizer.requestPermission()

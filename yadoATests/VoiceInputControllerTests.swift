@@ -65,17 +65,33 @@ struct VoiceInputControllerTests {
         #expect(fixture.controller.isRecording)
     }
 
-    @Test("未登录时按下不收音，松手后请求打开登录页而不是弹提示")
-    func releaseWhileSignedOutRequestsSignInPage() async {
+    @Test("未登录时按下不收音，松手后弹窗询问是否去登录")
+    func releaseWhileSignedOutAsksToSignIn() async {
         let fixture = Fixture()
 
         fixture.controller.pressBegan(isSignedIn: false, locale: Fixture.locale, contextualStrings: { [] })
         await settle()
-        #expect(!fixture.controller.isSignInRequested)
+        #expect(fixture.controller.alert == nil)
         fixture.controller.pressEnded(onText: { _ in })
 
-        #expect(fixture.controller.isSignInRequested)
-        #expect(fixture.controller.alert == nil)
+        #expect(fixture.controller.alert == .signInRequired)
+        #expect(fixture.recognizer.startCount == 0)
+    }
+
+    @Test("未登录时 VoiceOver 切换收音：不收音，直接弹窗询问是否去登录")
+    func accessibilityToggleWhileSignedOutAsksToSignIn() async {
+        let fixture = Fixture()
+
+        fixture.controller.toggleRecording(
+            isSignedIn: false,
+            locale: Fixture.locale,
+            contextualStrings: { [] },
+            onText: { _ in }
+        )
+        await settle()
+
+        #expect(fixture.controller.alert == .signInRequired)
+        #expect(!fixture.controller.isPressing)
         #expect(fixture.recognizer.startCount == 0)
     }
 

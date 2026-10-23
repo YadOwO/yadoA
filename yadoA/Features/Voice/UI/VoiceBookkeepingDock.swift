@@ -55,10 +55,6 @@ struct VoiceBookkeepingDock: View {
                         onText: { voice.send($0) },
                         onAccessibilityToggle: toggleRecording
                     )
-                    // 没识别到话或刚授权时的提示：麦克风正上方的一个小标签，不撑开卡片、不影响布局
-                    .overlay(alignment: .top) {
-                        transientHint
-                    }
                 }
                 .padding(.vertical, 12)
                 .onGeometryChange(for: CGFloat.self) { proxy in
@@ -68,11 +64,9 @@ struct VoiceBookkeepingDock: View {
                 }
             }
         }
-        // 麦克风在附属栏里时，提示挂在卡片上方；没有卡片时就在附属栏正上方
+        // 一次性提示挂在整个语音区域上方：有卡片时在卡片上方，没有卡片时离麦克风留出一指高，不被按住麦克风的手指挡住
         .overlay(alignment: .top) {
-            if isMicInAccessory {
-                transientHint
-            }
+            transientHint
         }
         .padding(.bottom, isMicInAccessory ? 10 : 0)
         .padding(.horizontal, 16)
@@ -181,7 +175,15 @@ struct VoiceBookkeepingDock: View {
     /// 一次性提示的展示时长（秒）。
     private static let hintDuration: Double = 1.5
 
-    /// 没识别到话或刚授权时的一次性提示：贴在所在视图正上方的小标签，不参与布局。
+    /// 一次性提示底边与语音区域顶边的间距。
+    private static let hintSpacing: CGFloat = 8
+
+    /// 麦克风在附属栏里且没有卡片时，提示额外抬高的距离，避开按住附属栏的手指。
+    ///
+    /// 悬浮麦克风上方本来就留着示例说法的位置，提示越过它后已离开手指范围，不需要再抬。
+    private static let accessoryHintThumbClearance: CGFloat = 40
+
+    /// 没识别到话或刚授权时的一次性提示：贴在语音区域正上方的小标签，不参与布局。
     @ViewBuilder
     private var transientHint: some View {
         if let hint = input.transientHint {
@@ -192,11 +194,16 @@ struct VoiceBookkeepingDock: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .voiceFloatingSurface(in: Capsule())
-                .alignmentGuide(.top) { $0[.bottom] + 8 }
+                .alignmentGuide(.top) { $0[.bottom] + hintOffset }
                 .allowsHitTesting(false)
                 .transition(.opacity)
                 .accessibilityHidden(true)
         }
+    }
+
+    /// 一次性提示底边离语音区域顶边的距离：附属栏模式下没有卡片时语音区域是空的，要额外抬高避开手指。
+    private var hintOffset: CGFloat {
+        isMicInAccessory && !isCardVisible ? Self.hintSpacing + Self.accessoryHintThumbClearance : Self.hintSpacing
     }
 
     /// 悬浮麦克风上方的示例说法，告诉用户按住后可以怎么说；会话卡片或一次性提示出现时隐藏。
@@ -227,7 +234,7 @@ struct VoiceBookkeepingDock: View {
 
     // MARK: - 动作
 
-    /// 按下麦克风：未登录时松手后打开登录页，已登录时开始收音。
+    /// 按下麦克风：未登录时松手后弹窗询问是否去登录，已登录时开始收音。
     private func beginPress() {
         voice.beginPress(isSignedIn: authStore.isAuthenticated, locale: locale)
     }
@@ -266,23 +273,18 @@ struct VoiceBookkeepingDock: View {
     }
 }
 
-/// 按住说话时的提示：权限、识别不可用；未登录时不弹提示，直接打开登录页。
+/// 按住说话时的提示：未登录询问是否去登录，以及权限、识别不可用。
 private struct VoiceInputAlertModifier: ViewModifier {
     @Environment(\.locale) private var locale
 
     /// 按住说话的交互逻辑，提示来自它的 `alert`。
     let input: VoiceInputController
 
-    /// 去登录。
+    /// 用户在未登录弹窗里选择去登录。
     let onSignIn: () -> Void
 
     func body(content: Content) -> some View {
         content
-            .onChange(of: input.isSignInRequested) { _, isRequested in
-                guard isRequested else { return }
-                input.isSignInRequested = false
-                onSignIn()
-            }
             .alert(
                 input.alert.map { alertTitle(for: $0) } ?? "",
                 isPresented: inputAlertBinding,
@@ -305,6 +307,7 @@ private struct VoiceInputAlertModifier: ViewModifier {
 
     private func alertTitle(for alert: VoiceInputAlert) -> String {
         switch alert {
+        case .signInRequired: text("voice.signIn.title")
         case .permissionDenied: text("voice.permission.title")
         case .unsupported: text("voice.error.unsupported")
         case .microphoneUnavailable: text("voice.error.microphoneUnavailable")
@@ -313,6 +316,7 @@ private struct VoiceInputAlertModifier: ViewModifier {
 
     private func alertMessage(for alert: VoiceInputAlert) -> String? {
         switch alert {
+        case .signInRequired: text("voice.signIn.message")
         case .permissionDenied: text("voice.permission.message")
         case .unsupported, .microphoneUnavailable: nil
         }
@@ -321,6 +325,9 @@ private struct VoiceInputAlertModifier: ViewModifier {
     @ViewBuilder
     private func alertActions(for alert: VoiceInputAlert) -> some View {
         switch alert {
+        case .signInRequired:
+            Button(text("voice.signIn.action"), action: onSignIn)
+            Button(text("common.cancel"), role: .cancel) {}
         case .permissionDenied:
             Button(text("voice.permission.settings")) {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -343,7 +350,7 @@ extension View {
     ///
     /// - Parameters:
     ///   - input: 按住说话的交互逻辑。
-    ///   - onSignIn: 去登录。
+    ///   - onSignIn: 用户在未登录弹窗里选择去登录。
     func voiceInputAlerts(_ input: VoiceInputController, onSignIn: @escaping () -> Void) -> some View {
         modifier(VoiceInputAlertModifier(input: input, onSignIn: onSignIn))
     }
