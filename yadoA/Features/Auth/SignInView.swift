@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// 登录 / 注册页：导航栏中的品牌、中央手绘芽豆插画和衬线标语、底部一列胶囊按钮。
+/// 登录 / 注册页：导航栏中的品牌、中央手绘芽豆插画和衬线标语、登录权益列表、底部一列胶囊按钮。
 ///
 /// 由 `SignInPresentation` 在 Tab 界面之上整屏显示，不属于任何 Tab 的导航栈，也不是 sheet 弹层；
-/// 左上角关闭回到原来的页面。版式只留品牌、插画、标语、按钮四样，
-/// 大面积留白，让手绘插画成为视觉中心。第三方按钮由 `AuthSocialProvider.displayed` 决定，
+/// 左上角关闭回到原来的页面。版式只留品牌、插画、标语、权益、按钮五样，
+/// 大面积留白，让手绘插画成为视觉中心；权益列表告诉用户登录后能得到什么。第三方按钮由 `AuthSocialProvider.displayed` 决定，
 /// 未接通的方式只作占位，点击提示即将上线；账号密码按钮打开 Logto 托管页，App 不接触用户密码。
 struct SignInView: View {
     @Environment(\.locale) private var locale
@@ -103,18 +103,18 @@ struct SignInView: View {
 
     // MARK: - 版面
 
-    /// 插画与标语、按钮、说明自上而下排开，插画上下的弹性留白把它推到视觉中心；品牌在导航栏标题位。
+    /// 插画与标语、权益、按钮、说明自上而下排开，插画上下的弹性留白把它推到视觉中心；品牌在导航栏标题位。
     private var content: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 24)
 
-            SproutIllustration(size: 216)
+            SproutIllustration(size: 160)
 
             Text(text("auth.sign_in.headline"))
-                .font(.system(size: 28, weight: .regular, design: .serif))
+                .font(.system(size: 26, weight: .regular, design: .serif))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 28)
+                .padding(.top, 20)
                 .accessibilityAddTraits(.isHeader)
                 .reveal(hasAppeared, delay: 0.5, reduceMotion: reduceMotion)
 
@@ -130,6 +130,9 @@ struct SignInView: View {
                     .reveal(hasAppeared, delay: 0.55, reduceMotion: reduceMotion)
             }
 
+            benefits
+                .padding(.top, 28)
+
             Spacer(minLength: 40)
 
             buttons
@@ -144,7 +147,7 @@ struct SignInView: View {
                 .multilineTextAlignment(.center)
                 .padding(.top, 18)
                 .padding(.horizontal, 8)
-                .reveal(hasAppeared, delay: 0.85, reduceMotion: reduceMotion)
+                .reveal(hasAppeared, delay: 1.0, reduceMotion: reduceMotion)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
@@ -168,6 +171,31 @@ struct SignInView: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// 登录权益列表：每行一个图标加一句短文案，整块按最宽一行收拢后居中，行内左对齐。
+    ///
+    /// 带着打开原因进来时，与原因对应的那一行用主文字色和账本红图标突出，其余行退为次要色。
+    private var benefits: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(Array(SignInBenefit.allCases.enumerated()), id: \.element) { index, benefit in
+                let isHighlighted = reason != nil && benefit.highlightedReason == reason
+                let isDimmed = reason != nil && !isHighlighted
+                Label {
+                    Text(text(benefit.titleLocalizationKey))
+                        .foregroundStyle(isDimmed ? Color.secondary : Color.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: benefit.systemImage)
+                        .foregroundStyle(isHighlighted ? Color(.ledgerRed) : Color.secondary)
+                        .frame(width: 24)
+                }
+                .font(isHighlighted ? .subheadline.weight(.semibold) : .subheadline)
+                .accessibilityIdentifier("sign-in-benefit-\(benefit.rawValue)")
+                .reveal(hasAppeared, delay: 0.6 + Double(index) * 0.06, reduceMotion: reduceMotion)
+            }
+        }
+        .frame(maxWidth: 320)
+    }
+
     /// 底部按钮：第三方方式在前，账号密码收尾；失败时整组左右摇晃。
     private var buttons: some View {
         VStack(spacing: 10) {
@@ -184,7 +212,7 @@ struct SignInView: View {
                     }
                 }
                 .accessibilityIdentifier("sign-in-social-\(provider.rawValue)")
-                .reveal(hasAppeared, delay: 0.65 + Double(index) * 0.08, reduceMotion: reduceMotion)
+                .reveal(hasAppeared, delay: 0.8 + Double(index) * 0.08, reduceMotion: reduceMotion)
             }
 
             pillButton(
@@ -195,7 +223,7 @@ struct SignInView: View {
                 startSignIn(.password)
             }
             .accessibilityIdentifier("sign-in-password")
-            .reveal(hasAppeared, delay: 0.65 + Double(providers.count) * 0.08, reduceMotion: reduceMotion)
+            .reveal(hasAppeared, delay: 0.8 + Double(providers.count) * 0.08, reduceMotion: reduceMotion)
         }
         .disabled(authStore.isBusy)
         .modifier(ShakeEffect(animatableData: CGFloat(failureCount)))
@@ -333,6 +361,40 @@ struct SignInView: View {
     }
 }
 
+// MARK: - 登录权益
+
+/// 登录页上列出的登录权益，只列已经上线、登录后真实可用的能力。
+enum SignInBenefit: String, CaseIterable {
+    /// 语音记账：需要登录才能调用 AI 服务。
+    case voice
+    /// 云同步：登录后可在设置中开启，多设备共享账本。
+    case sync
+    /// 芽豆系列 App 共用同一个 Logto 账号。
+    case account
+
+    /// 文案键。
+    var titleLocalizationKey: String {
+        "auth.sign_in.benefit.\(rawValue)"
+    }
+
+    /// 行首图标。
+    var systemImage: String {
+        switch self {
+        case .voice: "waveform"
+        case .sync: "arrow.triangle.2.circlepath"
+        case .account: "leaf"
+        }
+    }
+
+    /// 因该原因打开登录页时突出这一行；与任何原因都无关时为 nil。
+    var highlightedReason: SignInReason? {
+        switch self {
+        case .voice: .voiceBookkeeping
+        case .sync, .account: nil
+        }
+    }
+}
+
 // MARK: - 动效
 
 /// 登录页按钮的按压反馈：轻微缩小并在按下瞬间给一次柔和震动。
@@ -380,7 +442,15 @@ private extension View {
     }
 }
 
-#Preview {
+#Preview("主动登录") {
+    NavigationStack {
+        SignInView()
+    }
+    .environment(AuthStore())
+    .environment(SignInPresentation())
+}
+
+#Preview("语音记账要求登录") {
     NavigationStack {
         SignInView(reason: .voiceBookkeeping)
     }

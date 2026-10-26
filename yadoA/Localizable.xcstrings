@@ -6883,31 +6883,85 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Every entry, clearly kept."
+            "value" : "Do more with a Yado account"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "每一笔，都记得清清楚楚"
+            "value" : "登录芽豆账号，能做的更多"
           }
         }
       }
     },
     "auth.sign_in.local_note" : {
-      "comment" : "登录页底部关于本地账本的说明",
+      "comment" : "登录页底部说明：同步需在设置中手动开启，开启前账本只在本机",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your ledger stays on this device. Signing in won't upload it."
+            "value" : "Turn on sync in Settings after signing in. Until then, your ledger stays on this device."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "账本仍只保存在这台设备上，登录不会上传"
+            "value" : "登录后可在设置中开启同步，开启前账本只保存在本机"
+          }
+        }
+      }
+    },
+    "auth.sign_in.benefit.voice" : {
+      "comment" : "登录页权益：语音记账",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voice entry: say it, and it's recorded"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语音记账：说一句话，自动记好"
+          }
+        }
+      }
+    },
+    "auth.sign_in.benefit.sync" : {
+      "comment" : "登录页权益：云同步",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloud sync: your ledger on every device"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "云同步：换手机、多设备，账本都在"
+          }
+        }
+      }
+    },
+    "auth.sign_in.benefit.account" : {
+      "comment" : "登录页权益：芽豆系列 App 共用一个账号",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One account for every Yado app"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一个芽豆账号，通用芽豆系列 App"
           }
         }
       }

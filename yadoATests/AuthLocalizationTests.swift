@@ -39,6 +39,18 @@ struct AuthLocalizationTests {
         }
     }
 
+    @Test("登录权益都有中英文文案，语音记账原因只突出语音那一行")
+    func signInBenefitsAreLocalized() {
+        let english = Locale(identifier: "en")
+        let simplifiedChinese = Locale(identifier: "zh-Hans")
+
+        for benefit in SignInBenefit.allCases {
+            #expect(AccountLocalization.string(benefit.titleLocalizationKey, locale: english) != benefit.titleLocalizationKey)
+            #expect(AccountLocalization.string(benefit.titleLocalizationKey, locale: simplifiedChinese) != benefit.titleLocalizationKey)
+        }
+        #expect(SignInBenefit.allCases.filter { $0.highlightedReason == .voiceBookkeeping } == [.voice])
+    }
+
     @Test("第三方登录方式都有中英文文案，连接器 target 不为空")
     func socialProvidersAreLocalized() {
         let english = Locale(identifier: "en")
