@@ -70,6 +70,7 @@ final class yadoAUITests: XCTestCase {
     func testDefaultAccountSelectionCanAddFirstAccount() throws {
         let app = launchIsolatedAppInEnglish()
         app.tabBars.buttons["Profile"].tap()
+        app.buttons["profile-settings"].tap()
         let defaultAccount = app.buttons["profile-default-account"]
         XCTAssertTrue(defaultAccount.waitForExistence(timeout: 3))
         defaultAccount.tap()
@@ -87,7 +88,7 @@ final class yadoAUITests: XCTestCase {
         amountField.typeText("40")
         app.buttons["account-creation-save"].tap()
 
-        // 保存后两层 sheet 都关闭，回到“我的”并显示新默认账户。
+        // 保存后两层 sheet 都关闭，回到设置页并显示新默认账户。
         XCTAssertTrue(defaultAccount.waitForExistence(timeout: 3))
         XCTAssertFalse(addButton.exists)
         XCTAssertFalse(defaultAccount.label.contains("No valid default account"))
@@ -100,12 +101,13 @@ final class yadoAUITests: XCTestCase {
         XCTAssertEqual(app.tabBars.buttons.element(boundBy: 0).label, "Ledger")
 
         app.tabBars.buttons["Profile"].tap()
+        app.buttons["profile-settings"].tap()
         let startPage = app.buttons["profile-start-page"]
         XCTAssertTrue(startPage.waitForExistence(timeout: 3))
         startPage.tap()
         app.buttons["Accounts"].firstMatch.tap()
 
-        // 重排 Tab 后仍停留在“我的”页面。
+        // 重排 Tab 会重建 TabView，“我的”导航路径保留，仍停留在设置页。
         XCTAssertTrue(startPage.waitForExistence(timeout: 3))
         XCTAssertTrue(startPage.label.contains("Accounts"))
         XCTAssertEqual(app.tabBars.buttons.element(boundBy: 0).label, "Accounts")

@@ -1,22 +1,18 @@
 import XCTest
 
-/// 验证设置中的停用账户列表只压入对应详情，返回后仍停留在原列表。
+/// 验证账户管理中的停用账户列表只压入对应详情，返回后仍停留在原列表。
 final class DeactivatedAccountNavigationUITests: XCTestCase {
-    /// “我的”页面中的停用账户流水可以打开详情并返回原账户。
-    @MainActor
-    func testProfileArchivedTransactionOpensAndReturns() throws {
-        let app = launchBookkeepingSearchFixtureInEnglish()
-        let profile = app.tabBars.buttons["Profile"]
-        XCTAssertTrue(profile.waitForExistence(timeout: 5))
-        profile.tap()
-        app.staticTexts["Deactivated accounts"].tap()
-        assertArchivedTransactionNavigation(in: app)
-    }
-
-    /// 账户管理弹层应提供与设置入口相同的流水导航。
+    /// 账户管理弹层中的停用账户流水可以打开详情并返回原账户。
     @MainActor
     func testManagementArchivedTransactionOpensAndReturns() throws {
         let app = launchBookkeepingSearchFixtureInEnglish()
+        openDeactivatedAccountsFromManagement(in: app)
+        assertArchivedTransactionNavigation(in: app)
+    }
+
+    /// 从“账户”Tab 打开账户管理弹层，再进入停用账户列表。
+    @MainActor
+    private func openDeactivatedAccountsFromManagement(in app: XCUIApplication) {
         openAccountsTab(in: app)
         var management = app.buttons["account-list-management"]
         // 新系统会把 secondaryAction 收入工具栏的“更多”菜单。
@@ -27,7 +23,6 @@ final class DeactivatedAccountNavigationUITests: XCTestCase {
         XCTAssertTrue(management.waitForExistence(timeout: 3))
         management.tap()
         app.buttons["account-management-deactivated"].tap()
-        assertArchivedTransactionNavigation(in: app)
     }
 
     /// 验证流水详情出现且返回后仍保留停用账户详情。
@@ -54,13 +49,10 @@ final class DeactivatedAccountNavigationUITests: XCTestCase {
     }
 
     @MainActor
-    func testProfileArchivedAccountOpensDetailsAndReturnsToOriginalList() throws {
+    func testManagementArchivedAccountOpensDetailsAndReturnsToOriginalList() throws {
         let app = launchExportFixtureInEnglish()
 
-        let profile = app.tabBars.buttons["Profile"]
-        XCTAssertTrue(profile.waitForExistence(timeout: 5))
-        profile.tap()
-        app.staticTexts["Deactivated accounts"].tap()
+        openDeactivatedAccountsFromManagement(in: app)
 
         let account = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "deactivated-account-row-")
@@ -75,6 +67,6 @@ final class DeactivatedAccountNavigationUITests: XCTestCase {
         app.navigationBars["Account Details"].buttons.element(boundBy: 0).tap()
         XCTAssertTrue(account.waitForExistence(timeout: 3))
         app.navigationBars["Deactivated accounts"].buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(app.buttons["profile-default-account"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["account-management-deactivated"].waitForExistence(timeout: 3))
     }
 }

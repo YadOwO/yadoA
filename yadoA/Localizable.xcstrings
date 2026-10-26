@@ -1,6 +1,60 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "settings.title" : {
+      "comment" : "「我的」页进入设置二级页的入口及该页标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置"
+          }
+        }
+      }
+    },
+    "settings.section.general" : {
+      "comment" : "设置页语言、外观、启动页面所在分组标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通用"
+          }
+        }
+      }
+    },
+    "profile.sync_on" : {
+      "comment" : "「我的」页头副标题：当前账号已开启云端同步",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloud sync is on"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已开启云端同步"
+          }
+        }
+      }
+    },
     "profile.language.title" : {
       "extractionState": "manual",
       "localizations": {
@@ -218,23 +272,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "截图记账"
-          }
-        }
-      }
-    },
-    "shortcut.screenshot.section": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Shortcuts"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "快捷指令"
           }
         }
       }
@@ -1072,23 +1109,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "数据"
-          }
-        }
-      }
-    },
-    "profile.section.display": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Display"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "显示"
           }
         }
       }

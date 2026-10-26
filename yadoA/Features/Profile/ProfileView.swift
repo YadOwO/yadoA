@@ -1,37 +1,18 @@
 import SwiftData
 import SwiftUI
 
-/// “我的”Tab 根页面：页头承载登录身份，分组卡片承载账户、备份、语言与外观等本机偏好。
+/// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、分类）、云端同步和“设置”二级页。
+///
+/// 语言、外观、默认账户、导入导出、退出登录等低频项统一收进 `SettingsView`，已停用账户由“账户”Tab 承载。
 struct ProfileView: View {
     @Environment(\.locale) private var locale
-    @Environment(\.modelContext) private var modelContext
-    /// 全局登录状态；登录与否只影响页头身份和退出入口，不影响本地账本。
+    /// 全局登录状态；登录与否只影响页头身份，不影响本地账本。
     @Environment(AuthStore.self) private var authStore
     /// 整屏登录页的展示状态。
     @Environment(SignInPresentation.self) private var signInPresentation
     /// 云端同步的绑定与开关；预览中没有注入时为 nil。
     @Environment(SyncLifecycle.self) private var syncLifecycle: SyncLifecycle?
-    @Query private var accounts: [Account]
-    @Query private var preferences: [BookkeepingPreference]
 
-    /// 与首页共用金额显隐偏好，修改后立即同步。
-    @AppStorage("home.summary.amountsVisible") private var areAmountsVisible = false
-    /// 与窗口根部共享语言偏好，修改后立即更新界面文案。
-    @AppStorage(AppLanguage.storageKey) private var language: AppLanguage = .system
-    /// 与窗口根部共享外观偏好，修改后立即同步亮暗色。
-    @AppStorage(AppAppearance.storageKey) private var appearance: AppAppearance = .system
-    /// 启动页面偏好：底部导航顺序立即更新，落点在下次冷启动时生效。
-    @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
-    /// 默认账户选择沿用现有独立弹层流程。
-    @State private var isDefaultSelectionPresented = false
-    /// 退出登录前的二次确认（本机数据没有同步到当前账号时）。
-    @State private var isSignOutConfirmationPresented = false
-    /// 退出登录时选择保留还是清除本机数据（本机数据已同步到当前账号时）。
-    @State private var isSignOutChoicePresented = false
-    /// 退出前处理本机数据失败的提示。
-    @State private var isSignOutFailurePresented = false
-    /// 正在退出登录（含退出前的最后一次同步）。
-    @State private var isSigningOut = false
     /// 修改个人资料弹层，打开时携带当时的资料快照。
     @State private var editingProfile: AccountProfile?
 
@@ -40,146 +21,40 @@ struct ProfileView: View {
             VStack(spacing: 28) {
                 profileHeader
 
-                settingsSection("account.management.title") {
-                    Button {
-                        isDefaultSelectionPresented = true
-                    } label: {
-                        row("account.management.default.title", symbol: "star", value: defaultAccountName)
-                    }
-                    .accessibilityIdentifier("profile-default-account")
-
-                    // 没有已停用账户时整行（含分隔线）不显示。
-                    if deactivatedAccountCount > 0 {
-                        rowDivider
-
-                        NavigationLink {
-                            DeactivatedAccountListView()
-                        } label: {
-                            row(
-                                "account.deactivated.title",
-                                symbol: "archivebox",
-                                value: deactivatedAccountCount.formatted()
-                            )
-                        }
-                        .accessibilityIdentifier("profile-deactivated-accounts")
-                    }
-                }
-
-                settingsSection("profile.section.bookkeeping") {
+                ProfileSettingsSection(nil, seed: "profile.section.bookkeeping") {
                     // 账单是按月、按年回看的汇总，不是日常记账操作，放在这里不占记账页导航栏。
                     NavigationLink {
                         BillView()
                     } label: {
-                        row("bill.title", symbol: "doc.text", value: "")
+                        ProfileSettingsRow(titleKey: "bill.title", symbol: "doc.text")
                     }
                     .accessibilityIdentifier("profile-bills")
 
-                    rowDivider
+                    ProfileSettingsRowDivider()
 
                     NavigationLink {
                         CategoryManagementView()
                     } label: {
-                        row("category.management.title", symbol: "square.grid.2x2", value: "")
+                        ProfileSettingsRow(titleKey: "category.management.title", symbol: "square.grid.2x2")
                     }
                     .accessibilityIdentifier("profile-category-management")
                 }
 
-                settingsSection("profile.section.display") {
-                    Menu {
-                        Picker(text("profile.language.title"), selection: $language) {
-                            ForEach(AppLanguage.allCases) { option in
-                                Text(text(option.titleLocalizationKey)).tag(option)
-                            }
-                        }
-                    } label: {
-                        row("profile.language.title", symbol: "globe", value: text(language.titleLocalizationKey))
-                    }
-                    .accessibilityIdentifier("profile-language")
-
-                    rowDivider
-
-                    Menu {
-                        Picker(text("profile.appearance.title"), selection: $appearance) {
-                            ForEach(AppAppearance.allCases) { option in
-                                Text(text(option.titleLocalizationKey)).tag(option)
-                            }
-                        }
-                    } label: {
-                        row("profile.appearance.title", symbol: "circle.lefthalf.filled", value: text(appearance.titleLocalizationKey))
-                    }
-                    .accessibilityIdentifier("profile-appearance")
-
-                    rowDivider
-
-                    Menu {
-                        Picker(text("profile.start_page.title"), selection: $startPage) {
-                            ForEach(AppStartPage.allCases) { option in
-                                Text(text(option.titleLocalizationKey)).tag(option)
-                            }
-                        }
-                    } label: {
-                        row("profile.start_page.title", symbol: "house", value: text(startPage.titleLocalizationKey))
-                    }
-                    .accessibilityIdentifier("profile-start-page")
-
-                    rowDivider
-
-                    Toggle(isOn: $areAmountsVisible) {
-                        Label(text("profile.show_amounts"), systemImage: "eye")
-                            .labelStyle(ProfileSettingsLabelStyle())
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 14)
-                    .accessibilityIdentifier("profile-show-amounts")
-                }
-
-                settingsSection("shortcut.screenshot.section") {
-                    NavigationLink {
-                        ScreenshotShortcutSetupView()
-                    } label: {
-                        row("shortcut.screenshot.title", symbol: "viewfinder", value: "")
-                    }
-                    .accessibilityIdentifier("profile-screenshot-shortcut")
-                }
-
-                settingsSection("profile.section.data") {
+                ProfileSettingsSection(nil, seed: "profile.section.data") {
                     NavigationLink {
                         SyncSettingsView()
                     } label: {
-                        row("sync.title", symbol: "icloud", value: text(syncRowValueKey))
+                        ProfileSettingsRow(titleKey: "sync.title", symbol: "icloud", value: text(isSyncOn ? "sync.row.on" : "sync.row.off"))
                     }
                     .accessibilityIdentifier("profile-sync")
 
-                    rowDivider
+                    ProfileSettingsRowDivider()
 
-                    DataExportEntryView(container: modelContext.container)
-                        .labelStyle(ProfileExportLabelStyle())
-
-                    rowDivider
-
-                    DataImportEntryView(container: modelContext.container)
-                        .labelStyle(ProfileExportLabelStyle())
-
-                    rowDivider
-
-                    DataResetEntryView(container: modelContext.container)
-                        .labelStyle(ProfileExportLabelStyle(color: .red))
-
-                    DataUndoEntryView(container: modelContext.container) { rowDivider }
-                        .labelStyle(ProfileExportLabelStyle())
-                }
-
-                if authStore.isAuthenticated {
-                    settingsSection("auth.section.title") {
-                        Button {
-                            beginSignOut()
-                        } label: {
-                            Label(text("auth.sign_out.action"), systemImage: "rectangle.portrait.and.arrow.right")
-                        }
-                        .labelStyle(ProfileExportLabelStyle(color: .red))
-                        .disabled(authStore.isBusy || isSigningOut)
-                        .accessibilityIdentifier("profile-sign-out")
+                    // 走路径导航：在设置页修改启动页面会重建 TabView，路径保存在 AppTabView 才能停留在设置页
+                    NavigationLink(value: ProfileRoute.settings) {
+                        ProfileSettingsRow(titleKey: "settings.title", symbol: "gearshape")
                     }
+                    .accessibilityIdentifier("profile-settings")
                 }
 
                 brandFooter
@@ -191,9 +66,6 @@ struct ProfileView: View {
         .paperPage()
         .navigationTitle(text("profile.title"))
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $isDefaultSelectionPresented) {
-            NavigationStack { DefaultAccountSelectionView() }
-        }
         .sheet(item: $editingProfile) { profile in
             ProfileEditView(profile: profile)
         }
@@ -201,80 +73,16 @@ struct ProfileView: View {
             // 进入页面或登录状态变化时拉一次最新资料，其他端改过昵称也能及时同步
             await authStore.refreshProfile()
         }
-        .alert(text("auth.sign_out.confirm.title"), isPresented: $isSignOutConfirmationPresented) {
-            Button(text("auth.sign_out.action"), role: .destructive) {
-                Task { await authStore.signOut() }
-            }
-            .accessibilityIdentifier("profile-sign-out-confirm")
-
-            Button(text("common.cancel"), role: .cancel) {}
-        } message: {
-            Text(text("auth.sign_out.confirm.message"))
-        }
-        .confirmationDialog(
-            text("auth.sign_out.choice.title"),
-            isPresented: $isSignOutChoicePresented,
-            titleVisibility: .visible
-        ) {
-            Button(text("auth.sign_out.choice.keep")) {
-                Task { await signOut(.keepOnDevice) }
-            }
-            .accessibilityIdentifier("profile-sign-out-keep")
-
-            Button(text("auth.sign_out.choice.erase"), role: .destructive) {
-                Task { await signOut(.eraseFromDevice) }
-            }
-            .accessibilityIdentifier("profile-sign-out-erase")
-
-            Button(text("common.cancel"), role: .cancel) {}
-        } message: {
-            Text(text("auth.sign_out.choice.message"))
-        }
-        .alert(text("auth.sign_out.failed"), isPresented: $isSignOutFailurePresented) {
-            Button(text("common.close"), role: .cancel) {}
-        }
     }
 
-    /// 点击退出登录：本机数据已同步到当前账号时让用户选择保留还是清除，否则只做二次确认。
-    private func beginSignOut() {
-        syncLifecycle?.refreshState()
-        if let boundUserID = syncLifecycle?.state.boundUserID, boundUserID == authStore.userID {
-            isSignOutChoicePresented = true
-        } else {
-            isSignOutConfirmationPresented = true
-        }
-    }
-
-    /// 处理本机数据后退出登录；处理失败时不退出，本机数据和绑定保持原样。
-    ///
-    /// - Parameter choice: 保留在本机，或从本机清除。
-    private func signOut(_ choice: SyncSignOutChoice) async {
-        guard let syncLifecycle else { return }
-        isSigningOut = true
-        defer { isSigningOut = false }
-        do {
-            try await syncLifecycle.prepareForSignOut(choice)
-        } catch {
-            isSignOutFailurePresented = true
-            return
-        }
-        if choice == .eraseFromDevice {
-            // 从本机清除是为了不在这台设备上留下数据：撤销快照和最近搜索词也一并删除
-            DataUndoService(container: modelContext.container).discardSnapshot()
-            UserDefaults.standard.removeObject(forKey: BookkeepingSearchHistory.storageKey)
-        }
-        await authStore.signOut()
-    }
-
-    /// 「云端同步」行右侧的状态：当前账号已开启同步时为“已开启”，其他情况为“未开启”。
-    private var syncRowValueKey: String {
+    /// 当前账号是否已开启云端同步；决定「云端同步」行的状态值和页头副标题。
+    private var isSyncOn: Bool {
         guard authStore.isAuthenticated,
               let state = syncLifecycle?.state,
               state.isEnabled,
-              let userID = authStore.userID,
-              state.boundUserID == userID
-        else { return "sync.row.off" }
-        return "sync.row.on"
+              let userID = authStore.userID
+        else { return false }
+        return state.boundUserID == userID
     }
 
     /// 页头留给用户自己的头像与名称，不放产品品牌；未登录时显示占位名称和登录入口。
@@ -307,7 +115,8 @@ struct ProfileView: View {
             }
             #endif
 
-            Text(text("profile.local_data"))
+            // 副标题说明数据存放位置：开启同步后提示已同步到云端，否则提示只在本机
+            Text(text(isSyncOn ? "profile.sync_on" : "profile.local_data"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -427,111 +236,18 @@ struct ProfileView: View {
         return "\(version) (\(build))"
     }
 
-    /// 已停用账户的数量；为 0 时隐藏入口。
-    private var deactivatedAccountCount: Int {
-        accounts.count { !$0.isActive }
-    }
-
-    /// 显示当前生效的默认账户，保持与记账入口相同的解析规则。
-    private var defaultAccountName: String {
-        let id = BookkeepingPreference.resolvedAccountID(
-            preference: preferences.first { $0.id == BookkeepingPreference.singletonID },
-            accounts: accounts
-        )
-        return accounts.first { $0.id == id }?.name ?? text("account.management.no_default")
-    }
-
-    /// 分组标题与动态背景卡片，支持浅色、深色及动态字号。
-    private func settingsSection<Content: View>(
-        _ titleKey: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(text(titleKey))
-                .font(.system(.subheadline, design: .serif, weight: .medium))
-                .foregroundStyle(.secondary)
-                .padding(.leading, 20)
-                .accessibilityAddTraits(.isHeader)
-
-            VStack(spacing: 0, content: content)
-                .ledgerFormBorder(seed: titleKey.handDrawnSeed)
-        }
-    }
-
-    /// 图标、标题、当前值与导航箭头组成的整行点击区域。
-    private func row(_ titleKey: String, symbol: String, value: String) -> some View {
-        HStack(spacing: 12) {
-            Label(text(titleKey), systemImage: symbol)
-                .labelStyle(ProfileSettingsLabelStyle())
-            Spacer(minLength: 4)
-            Text(value)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
-        }
-        .font(.body)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 18)
-        .frame(minHeight: 60)
-        .contentShape(Rectangle())
-    }
-
-    /// 两行之间的手绘细线，从标题处开始。
-    private var rowDivider: some View {
-        HandDrawnRule(seed: 99)
-            .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
-            .frame(height: 3)
-            .padding(.leading, 62)
-            .padding(.trailing, 20)
-            .accessibilityHidden(true)
-    }
-
     /// 按应用当前语言解析已有 String Catalog 文案。
     private func text(_ key: String) -> String {
         AccountLocalization.string(key, locale: locale)
     }
 }
 
-/// 统一个人页图标宽度，使用系统线性图标和主文字色。
-private struct ProfileSettingsLabelStyle: LabelStyle {
-    /// 图标与标题的颜色；破坏性操作使用红色。
-    var color: Color = .primary
-
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 14) {
-            configuration.icon
-                .font(.system(size: 21, weight: .regular))
-                .frame(width: 28)
-                .accessibilityHidden(true)
-            configuration.title
-                .font(.body)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .foregroundStyle(color)
-    }
-}
-
 #Preview {
-    NavigationStack { ProfileView() }
+    NavigationStack {
+        ProfileView()
+            .navigationDestination(for: ProfileRoute.self) { _ in SettingsView() }
+    }
         .environment(AuthStore())
         .environment(SignInPresentation())
         .modelContainer(for: [Account.self, AccountTransaction.self, BookkeepingPreference.self], inMemory: true)
-}
-
-/// 将数据分组各行的留白纳入 Button 标签，使整行均可点击。
-private struct ProfileExportLabelStyle: LabelStyle {
-    /// 图标与标题的颜色；破坏性操作使用红色。
-    var color: Color = .primary
-
-    func makeBody(configuration: Configuration) -> some View {
-        Label(configuration)
-            .labelStyle(ProfileSettingsLabelStyle(color: color))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 18)
-            .contentShape(Rectangle())
-    }
 }

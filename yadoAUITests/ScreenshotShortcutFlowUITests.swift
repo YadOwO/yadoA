@@ -18,6 +18,7 @@ final class ScreenshotShortcutFlowUITests: XCTestCase {
     func testIntentWhileSetupIsPresentedAndRepeatAfterClosing() {
         let app = launchScreenshotFixture(coldStart: false)
         app.tabBars.buttons["Profile"].tap()
+        app.buttons["profile-settings"].tap()
         app.buttons["profile-screenshot-shortcut"].tap()
         let invoke = app.buttons["screenshot-shortcut-test-invoke"]
         app.swipeUp()

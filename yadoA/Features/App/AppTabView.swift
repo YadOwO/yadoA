@@ -82,6 +82,15 @@ enum AccountsRoute: Hashable {
     case transactionDetail(UUID)
 }
 
+/// “我的”导航栈支持的二级页面。
+///
+/// 只登记需要在 Tab 重建后恢复的页面：在设置页修改启动页面会重建 TabView，
+/// 设置页必须走路径导航才能在重建后仍停留在原处。
+enum ProfileRoute: Hashable {
+    /// 设置页面。
+    case settings
+}
+
 /// 应用根级导航：记账、图表、账户与“我的”四个一级入口。
 struct AppTabView: View {
     @Environment(\.locale) private var locale
@@ -92,6 +101,7 @@ struct AppTabView: View {
     @State private var selectedTab: AppTab = AppStartPage.stored().tab
     @State private var homePath: [HomeRoute] = []
     @State private var accountsPath: [AccountsRoute] = []
+    @State private var profilePath: [ProfileRoute] = []
     /// 记账页语音记账的共享状态；麦克风可能在 Tab Bar 附属栏里，与记账页的会话卡片分属两处，由这里统一持有。
     @State private var voice = VoiceBookkeepingState()
 
@@ -160,8 +170,14 @@ struct AppTabView: View {
                     }
             }
         case .profile:
-            NavigationStack {
+            NavigationStack(path: $profilePath) {
                 ProfileView()
+                    .navigationDestination(for: ProfileRoute.self) { route in
+                        switch route {
+                        case .settings:
+                            SettingsView()
+                        }
+                    }
             }
         }
     }
