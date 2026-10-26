@@ -106,8 +106,10 @@ struct DataUndoEntryView<Divider: View>: View {
         guard let operation = pendingSnapshot?.operation else { return }
         do {
             try service.undo()
+            AppHaptics.play(.restore)
             completedOperation = operation
         } catch {
+            AppHaptics.play(.error)
             failure = error as? DataUndoError ?? .undoFailed
         }
         reload()

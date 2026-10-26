@@ -22,6 +22,8 @@ struct SettingsView: View {
     @AppStorage(AppAppearance.storageKey) private var appearance: AppAppearance = .system
     /// 启动页面偏好：底部导航顺序立即更新，落点在下次冷启动时生效。
     @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
+    /// 全局触感开关，所有 `appHaptic` 与 `AppHaptics.play` 都读同一个键，修改后立即生效。
+    @AppStorage(AppHaptics.storageKey) private var isHapticsEnabled = true
     /// 默认账户选择沿用现有独立弹层流程。
     @State private var isDefaultSelectionPresented = false
     /// 退出登录前的二次确认（本机数据没有同步到当前账号时）。
@@ -55,6 +57,18 @@ struct SettingsView: View {
                         $0.titleLocalizationKey
                     }
                     .accessibilityIdentifier("profile-start-page")
+
+                    ProfileSettingsRowDivider()
+
+                    Toggle(isOn: $isHapticsEnabled) {
+                        Label(text("settings.haptics.title"), systemImage: "iphone.radiowaves.left.and.right")
+                            .labelStyle(ProfileSettingsLabelStyle())
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
+                    // 打开时轻轻震一下，让用户马上感受到效果
+                    .appHaptic(.selection, trigger: isHapticsEnabled) { _, isOn in isOn }
+                    .accessibilityIdentifier("settings-haptics")
                 }
 
                 ProfileSettingsSection("profile.section.bookkeeping") {

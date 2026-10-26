@@ -138,7 +138,7 @@ struct VoiceBookkeepingDock: View {
         .onChange(of: session?.latestTurn?.outcome) { _, outcome in
             announce(outcome)
         }
-        .sensoryFeedback(trigger: session?.latestTurn?.outcome) { _, outcome in
+        .appHaptic(trigger: session?.latestTurn?.outcome) { _, outcome -> AppHaptic? in
             switch outcome {
             case .reply?, .ask?: .success
             case .failed?: .error

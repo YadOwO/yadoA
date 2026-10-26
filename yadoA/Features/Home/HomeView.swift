@@ -610,9 +610,7 @@ private struct HomeOverviewList: View {
                 .accessibilityIdentifier("home-month-pull-hint")
             }
         }
-        .sensoryFeedback(.selection, trigger: isReadyToSwitch) { _, isReady in
-            isReady
-        }
+        .appHaptic(.selection, trigger: isReadyToSwitch) { _, isReady in isReady }
         .onChange(of: selectedMonth) { _, _ in
             interaction = HomeMonthScrollInteraction()
         }

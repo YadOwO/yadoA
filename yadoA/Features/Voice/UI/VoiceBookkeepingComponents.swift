@@ -93,7 +93,7 @@ struct VoiceMicButton: View {
             )
             .accessibilityHidden(true)
         }
-        .sensoryFeedback(.selection, trigger: controller.isCancelArmed)
+        .appHaptic(.selection, trigger: controller.isCancelArmed)
         .accessibilityElement()
         .accessibilityLabel(text("voice.mic.label"))
         .accessibilityHint(text("voice.mic.hint"))
@@ -178,7 +178,7 @@ struct VoiceMicAccessory: View {
             .accessibilityHidden(true)
         }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: controller.isRecording)
-        .sensoryFeedback(.selection, trigger: controller.isCancelArmed)
+        .appHaptic(.selection, trigger: controller.isCancelArmed)
         .accessibilityElement()
         .accessibilityLabel(text("voice.mic.label"))
         .accessibilityHint(text("voice.mic.hint"))

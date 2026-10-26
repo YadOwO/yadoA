@@ -339,6 +339,7 @@ struct BalanceAdjustmentView: View {
                 }
 
                 if flow.hasSaveError {
+                    AppHaptics.play(.error)
                     await Task.yield()
                     isSaveErrorFocused = true
                     UIAccessibility.post(
@@ -384,7 +385,7 @@ struct BalanceAdjustmentView: View {
 
     /// 保存成功后提供系统触觉和 VoiceOver 公告。
     private func provideSuccessFeedback() {
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        AppHaptics.play(.success)
         UIAccessibility.post(
             notification: .announcement,
             argument: AccountLocalization.string(

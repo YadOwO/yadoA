@@ -91,8 +91,8 @@ struct SignInView: View {
                     .reveal(hasAppeared, delay: 0, reduceMotion: reduceMotion)
             }
         }
-        .sensoryFeedback(.error, trigger: failureCount)
-        .sensoryFeedback(.success, trigger: isSucceeded) { _, succeeded in succeeded }
+        .appHaptic(.error, trigger: failureCount)
+        .appHaptic(.success, trigger: isSucceeded) { _, succeeded in succeeded }
         .onAppear {
             hasAppeared = true
         }
@@ -404,9 +404,7 @@ private struct SignInPressStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .opacity(configuration.isPressed ? 0.9 : 1)
             .animation(.spring(duration: 0.25, bounce: 0.4), value: configuration.isPressed)
-            .sensoryFeedback(.impact(flexibility: .soft, intensity: 0.6), trigger: configuration.isPressed) { _, pressed in
-                pressed
-            }
+            .appHaptic(.press, trigger: configuration.isPressed) { _, pressed in pressed }
     }
 }
 

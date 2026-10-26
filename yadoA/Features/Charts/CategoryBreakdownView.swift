@@ -198,6 +198,8 @@ private struct CategoryBreakdownCard: View {
             }
         }
         .accessibilityIdentifier("category-breakdown-donut")
+        // 滑过扇区或点图例每换一个分类震一下，取消选中不震
+        .appHaptic(.selection, trigger: selectedID) { _, id in id != nil }
         .overlay {
             GeometryReader { geometry in
                 totalLabel(breakdown: breakdown)

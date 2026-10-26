@@ -80,12 +80,14 @@ struct BookkeepingTransactionDetailView: View {
         }
         do {
             try LocalExpenseRepository(container: modelContext.container).delete(id: id)
+            AppHaptics.play(.destructive)
             if let deletedRow {
                 HomeRecentEntryHighlight.shared.markDeleted(deletedRow)
             }
             dismiss()
         } catch {
             queryRefreshToken = UUID()
+            AppHaptics.play(.error)
             isDeleteFailed = true
         }
     }

@@ -24,6 +24,15 @@ struct DataImportEntryView: View {
     }
 
     var body: some View {
+        // 触感单独挂在外层，避免和下面一长串弹窗修饰符放在同一个表达式里拖慢类型检查
+        entry
+            // 只在提示刚出现时震一次，关闭提示回到空闲不震
+            .appHaptic(.success, trigger: flow.completedPlan != nil) { _, isShown in isShown }
+            .appHaptic(.error, trigger: flow.failure != nil) { _, isShown in isShown }
+    }
+
+    /// 导入按钮及其文件选择、确认、失败和完成弹窗。
+    private var entry: some View {
         Button {
             #if DEBUG
             // UI 自动化无法稳定驱动系统文件选择器，改为直接载入隔离夹具备份。

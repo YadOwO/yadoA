@@ -10,7 +10,8 @@ import SwiftUI
 /// - 豆子弹出时整段最重的一下“落定”，带一点低沉的分量，紧跟一次回弹的余震；
 /// - 三道闪光短线各一下清脆的细点。
 ///
-/// 设备不支持 Core Haptics 或引擎启动失败时 `isAvailable` 为 false，由插画退回系统 `sensoryFeedback`。
+/// 设备不支持 Core Haptics 或引擎启动失败时 `isAvailable` 为 false，由插画退回 `appHaptic`。
+/// 同样受设置里的触感开关控制（见 `AppHaptics`）。
 @Observable
 final class SproutHaptics {
     /// Core Haptics 是否可用；为 false 时由调用方使用系统触感兜底。
@@ -30,9 +31,9 @@ final class SproutHaptics {
 
     // MARK: - 生命周期
 
-    /// 创建并启动引擎；失败时标记为不可用。
+    /// 创建并启动引擎；失败时标记为不可用。设置里关闭了触感时不创建引擎，之后的播放都静默跳过。
     func start() {
-        guard isAvailable, engine == nil else { return }
+        guard isAvailable, engine == nil, AppHaptics.isEnabled() else { return }
         do {
             let engine = try CHHapticEngine()
             engine.isAutoShutdownEnabled = true

@@ -47,7 +47,7 @@ struct LedgerSwitch<Value: Hashable>: View {
             }
         }
         .animation(.snappy(duration: 0.25), value: selection)
-        .sensoryFeedback(.selection, trigger: selection)
+        .appHaptic(.selection, trigger: selection)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(label)
     }

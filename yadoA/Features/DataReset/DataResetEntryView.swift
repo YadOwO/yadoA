@@ -119,6 +119,7 @@ struct DataResetEntryView: View {
             try eraseWithUndoSnapshot()
             finishReset()
         } catch {
+            AppHaptics.play(.error)
             isPresentingFailure = true
         }
     }
@@ -134,12 +135,14 @@ struct DataResetEntryView: View {
             try await syncLifecycle.resetData(scope, eraseLocalData: eraseWithUndoSnapshot)
             finishReset()
         } catch let error as SyncLifecycleError {
+            AppHaptics.play(.error)
             if case .api = error {
                 syncErrorKey = SyncMessages.localizationKey(forLifecycleError: error)
             } else {
                 isPresentingFailure = true
             }
         } catch {
+            AppHaptics.play(.error)
             isPresentingFailure = true
         }
     }
@@ -156,6 +159,7 @@ struct DataResetEntryView: View {
         // 最近搜索词来自已被清除的记账内容，一并清掉；它不属于备份数据，撤销也不会带回来。
         UserDefaults.standard.removeObject(forKey: BookkeepingSearchHistory.storageKey)
         canUndoReset = DataUndoService(container: container).availableSnapshot()?.operation == .reset
+        AppHaptics.play(.destructive)
         isPresentingSuccess = true
     }
 

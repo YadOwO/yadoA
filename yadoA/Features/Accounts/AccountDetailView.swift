@@ -286,8 +286,10 @@ struct AccountDetailView: View {
     private func deleteTransfer(id: UUID) {
         do {
             try LocalTransferRepository(container: modelContext.container).delete(id: id)
+            AppHaptics.play(.destructive)
             queryRefreshToken = UUID()
         } catch {
+            AppHaptics.play(.error)
             isTransferDeleteFailed = true
         }
     }

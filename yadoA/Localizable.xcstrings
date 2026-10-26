@@ -1113,6 +1113,23 @@
         }
       }
     },
+    "settings.haptics.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haptics"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "触感反馈"
+          }
+        }
+      }
+    },
     "profile.show_amounts": {
       "extractionState": "manual",
       "localizations": {

@@ -127,6 +127,7 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
             NavigationStack {
                 ExpenseAccountSelectionView(
                     onSelectAccount: { accountID in
+                        AppHaptics.play(.selection)
                         hasAccountCreationError = false
                         flow.selectFormAccount(id: accountID)
                     },
@@ -162,6 +163,9 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
                 flow.clearCategory()
             }
         }
+        // 余额不足提醒出现的那一刻提示一下，金额继续变化时不再重复
+        .appHaptic(.warning, trigger: showsInsufficientBalanceWarning) { _, shows in shows }
+        .appHaptic(.error, trigger: flow.hasSaveError) { _, failed in failed }
         .paperPage()
     }
 
@@ -531,6 +535,7 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
             accessibilityPrefix: "\(entryType.rawValue)-category",
             onSelectEntryType: flow.selectEntryType,
             onSelect: { item in
+                AppHaptics.play(.selection)
                 flow.selectCategory(key: item.key)
                 completeCategorySelection()
             }
@@ -625,7 +630,7 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
 
     /// 保存成功后提供系统触觉和 VoiceOver 可播报反馈。
     private func provideSuccessFeedback() {
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        AppHaptics.play(.success)
         UIAccessibility.post(
             notification: .announcement,
             argument: text(configuration.saveSucceededKey)

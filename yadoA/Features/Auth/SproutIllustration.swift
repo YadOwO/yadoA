@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// 呼应“芽豆”的名字。出现时墨线先一笔画完，豆子再弹出，闪光短线随后划出，最后在芽尖上轻轻浮动；
 /// 浮动时两片叶子绕着与茎的连接点轻轻抬落，点一下豆子会弹跳一下、叶子跟着颤一下。触感由 `SproutHaptics` 按 `SproutTimeline` 对齐到每一笔，
-/// 设备不支持 Core Haptics 时退回系统 `sensoryFeedback`。墨线使用系统主文字色，随浅色、深色外观自动切换。
+/// 设备不支持 Core Haptics 时退回 `appHaptic`。墨线使用系统主文字色，随浅色、深色外观自动切换。
 struct SproutIllustration: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -74,10 +74,10 @@ struct SproutIllustration: View {
         }
         .frame(width: size, height: size)
         // 只在 Core Haptics 不可用时兜底，避免与精细触感叠在一起
-        .sensoryFeedback(.impact(weight: .heavy, intensity: 0.9), trigger: isBeanVisible) { _, visible in
+        .appHaptic(.landing, trigger: isBeanVisible) { _, visible in
             visible && !haptics.isAvailable
         }
-        .sensoryFeedback(.impact(weight: .light), trigger: tapCount) { _, _ in
+        .appHaptic(.tap, trigger: tapCount) { _, _ in
             !haptics.isAvailable
         }
         .accessibilityHidden(true)

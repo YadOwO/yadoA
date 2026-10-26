@@ -130,6 +130,7 @@ struct AccountLifecycleSheet: View {
                 )
                 flow.submit(
                     onSaved: {
+                        AppHaptics.play(.destructive)
                         onSaved()
                         dismiss()
                     },
@@ -155,6 +156,7 @@ struct AccountLifecycleSheet: View {
             }
         }
         .interactiveDismissDisabled(flow.isSaving)
+        .appHaptic(.error, trigger: flow.lastError != nil) { _, failed in failed }
     }
 
     /// 按当前应用语言解析 String Catalog 文案。

@@ -69,8 +69,11 @@ final class VoiceInputController {
     /// 本次按下是否已按满时长、开始收音。
     private var isHoldConfirmed = false
 
-    /// 开始收音时的震动；按下时预热，按满时长当下直接触发，不等界面刷新。
+    /// 开始收音时的震动（对应 `AppHaptic.begin`）；按下时预热，按满时长当下直接触发，不等界面刷新。
     private let startFeedback = UIImpactFeedbackGenerator(style: .medium)
+
+    /// 本次按下时触感开关是否开启；按下时读取一次，整次输入沿用。
+    private var isHapticEnabled = true
 
     private var startTask: Task<Void, Never>?
     private var startError: Error?
@@ -159,7 +162,10 @@ final class VoiceInputController {
         case .granted:
             pressIntent = .record
             startError = nil
-            startFeedback.prepare()
+            isHapticEnabled = AppHaptics.isEnabled()
+            if isHapticEnabled {
+                startFeedback.prepare()
+            }
             let strings = contextualStrings()
             let generation = inputGeneration
             startTask = Task {
@@ -171,7 +177,9 @@ final class VoiceInputController {
                 guard generation == inputGeneration, !Task.isCancelled else { return }
                 isHoldConfirmed = true
                 // 先震动再启动识别，震动不受之后激活录音会话的影响
-                startFeedback.impactOccurred()
+                if isHapticEnabled {
+                    startFeedback.impactOccurred()
+                }
                 do {
                     try await recognizer.start(locale: locale, contextualStrings: strings)
                 } catch {
@@ -225,6 +233,7 @@ final class VoiceInputController {
             transientHint = AccountLocalization.string("voice.mic.holdHint", locale: locale)
         case .record where isCancelled:
             // 上滑取消：立即作废并关麦，启动还没完成也不等
+            AppHaptics.play(.dismiss)
             cancel()
         case .record:
             let releasedAt = VoiceTimingClock.now
@@ -232,6 +241,8 @@ final class VoiceInputController {
             let finalizeSignpost = signposter.beginInterval("VoiceSpeechFinalize", id: signposter.makeSignpostID())
             // 松手即停止采集，启动较慢时松手之后的声音也不会被识别
             recognizer.stopCapture()
+            // 录音会话允许触感，松手发送当下给一下轻的落点
+            AppHaptics.play(.commit)
             let startTask = startTask
             self.startTask = nil
             Task {

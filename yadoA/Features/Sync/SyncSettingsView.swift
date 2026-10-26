@@ -39,7 +39,7 @@ struct SyncSettingsView: View {
                             rowDivider
 
                             Button {
-                                Task { await engine?.synchronize() }
+                                Task { await synchronizeNow() }
                             } label: {
                                 Label(text("sync.now.action"), systemImage: "arrow.clockwise")
                                     .labelStyle(SyncSettingsRowLabelStyle())
@@ -70,6 +70,7 @@ struct SyncSettingsView: View {
         .navigationTitle(text("sync.title"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { lifecycle?.refreshState() }
+        .appHaptic(.error, trigger: errorKey != nil) { _, isShown in isShown }
         .alert(text("sync.delete.confirm.title"), isPresented: $isDeleteConfirmationPresented) {
             Button(text("sync.delete.confirm.action"), role: .destructive) {
                 Task { await deleteCloudData() }
@@ -254,6 +255,17 @@ struct SyncSettingsView: View {
         }
     }
 
+    /// 用户点「立即同步」：等这一轮结束，成功或失败各震一下；后台自动同步不走这里，不会震。
+    private func synchronizeNow() async {
+        guard let engine else { return }
+        await engine.synchronize()
+        switch engine.status {
+        case .idle: AppHaptics.play(.success)
+        case .failed, .epochMismatch: AppHaptics.play(.error)
+        case .syncing: break
+        }
+    }
+
     /// 删除云端数据并解除绑定，本机数据保留。
     private func deleteCloudData() async {
         guard let lifecycle else { return }
@@ -261,6 +273,7 @@ struct SyncSettingsView: View {
         defer { isWorking = false }
         do {
             try await lifecycle.deleteCloudData()
+            AppHaptics.play(.destructive)
         } catch {
             errorKey = SyncMessages.localizationKey(forLifecycleError: error)
         }

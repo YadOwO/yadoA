@@ -35,8 +35,10 @@ struct DefaultAccountSelectionView: View {
                                 do {
                                     try LocalAccountRepository(container: modelContext.container)
                                         .setDefaultAccount(id: account.id)
+                                    AppHaptics.play(.selection)
                                     dismiss()
                                 } catch {
+                                    AppHaptics.play(.error)
                                     isSaveFailed = true
                                 }
                             } label: {

@@ -296,11 +296,12 @@ struct TransferView: View {
         focusedField = nil
         Task {
             await flow.submit {
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                AppHaptics.play(.success)
                 UIAccessibility.post(notification: .announcement, argument: text("account.transfer.save_succeeded"))
                 onSaved()
             }
             if flow.hasSaveError {
+                AppHaptics.play(.error)
                 await Task.yield()
                 isSaveErrorFocused = true
                 UIAccessibility.post(notification: .announcement, argument: text("account.transfer.save_failed"))
