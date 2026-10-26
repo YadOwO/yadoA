@@ -79,20 +79,6 @@ struct CategoryManagementView: View {
 
         List {
             Section {
-                LedgerSwitch(
-                    label: text("bookkeeping.entry.type"),
-                    selection: $direction,
-                    options: BookkeepingEntryType.ledgerSwitchOptions(
-                        identifier: "category-management-type",
-                        locale: locale
-                    )
-                )
-                .frame(maxWidth: .infinity)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            }
-
-            Section {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     row(item)
                         .ledgerRow(seed: 300 + UInt64(index), showsRule: index != items.count - 1)
@@ -109,8 +95,23 @@ struct CategoryManagementView: View {
                 Text(text("category.management.footer"))
             }
         }
+        // 列表首段紧贴顶部栏，不再留系统默认的大段顶部留白
+        .contentMargins(.top, 4, for: .scrollContent)
         .environment(\.editMode, $editMode)
         .animation(.default, value: items.map(\.id))
+        // 支出 / 收入切换固定在导航栏下方：紧贴标题，分类很多时向下滚动也随时能切换
+        .paperTopBar {
+            LedgerSwitch(
+                label: text("bookkeeping.entry.type"),
+                selection: $direction,
+                options: BookkeepingEntryType.ledgerSwitchOptions(
+                    identifier: "category-management-type",
+                    locale: locale
+                )
+            )
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 4)
+        }
         .paperPage()
         .navigationTitle(text("category.management.title"))
         .navigationBarTitleDisplayMode(.inline)

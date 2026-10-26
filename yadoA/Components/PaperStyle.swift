@@ -10,6 +10,15 @@ extension View {
             .background(Color(.paperBackground).ignoresSafeArea())
     }
 
+    /// 把一栏内容固定在滚动内容顶部，内容从它下方滑过并在边缘柔和淡出。
+    ///
+    /// - Parameters:
+    ///   - isEnabled: 是否启用顶部栏；关闭时不占用任何空间。
+    ///   - bar: 顶部栏内容。
+    func paperTopBar<Bar: View>(isEnabled: Bool = true, @ViewBuilder bar: @escaping () -> Bar) -> some View {
+        modifier(PaperTopBar(isEnabled: isEnabled, bar: bar))
+    }
+
     /// 让列表行直接落在纸面上：去掉系统行底和分隔线，在行底画一条账本细线。
     ///
     /// - Parameters:
@@ -39,5 +48,46 @@ extension View {
         }
         .textCase(nil)
         .listRowInsets(EdgeInsets(top: 0, leading: 2, bottom: 2, trailing: 2))
+    }
+}
+
+/// 固定在滚动内容顶部的纸面栏。
+///
+/// iOS 26 使用系统的 `safeAreaBar`，由滚动边缘效果处理内容淡出；
+/// 更早的系统用 `safeAreaInset` 加一层向下渐隐的纸色底得到相近的效果。
+private struct PaperTopBar<Bar: View>: ViewModifier {
+    /// 是否启用顶部栏；关闭时不占用任何空间。
+    let isEnabled: Bool
+
+    /// 顶部栏内容。
+    @ViewBuilder let bar: () -> Bar
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content
+                .safeAreaBar(edge: .top, spacing: 0) {
+                    if isEnabled {
+                        bar()
+                    }
+                }
+                .scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            content.safeAreaInset(edge: .top, spacing: 0) {
+                if isEnabled {
+                    bar().background {
+                        // 上方是实的纸色，靠近内容的一小段渐隐，让列表滑入时不出现硬边。
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color(.paperBackground), location: 0),
+                                .init(color: Color(.paperBackground), location: 0.86),
+                                .init(color: Color(.paperBackground).opacity(0), location: 1)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    }
+                }
+            }
+        }
     }
 }

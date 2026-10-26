@@ -124,7 +124,7 @@ private struct HomeQueryContent: View {
                     }
                 )
                 // 常规布局下汇总作为明细的顶部栏：流水从它下方滑过并在边缘柔和淡出，而不是被一刀切掉。
-                .modifier(HomeTopBar(isEnabled: !usesStackedHeader) { header })
+                .paperTopBar(isEnabled: !usesStackedHeader) { header }
             }
         }
         .paperPage()
@@ -271,47 +271,6 @@ extension HomeQueryContent {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
                     deletedRows.removeAll { $0 == row }
                     rowMarks.removeAll { $0 == mark }
-                }
-            }
-        }
-    }
-}
-
-/// 把汇总挂为明细列表的顶部栏。
-///
-/// iOS 26 使用系统的 `safeAreaBar`，由滚动边缘效果处理内容淡出；
-/// 更早的系统用 `safeAreaInset` 加一层向下渐隐的纸色底得到相近的效果。
-private struct HomeTopBar<Bar: View>: ViewModifier {
-    /// 是否启用顶部栏；关闭时不占用任何空间。
-    let isEnabled: Bool
-
-    /// 顶部栏内容。
-    @ViewBuilder let bar: () -> Bar
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content
-                .safeAreaBar(edge: .top, spacing: 0) {
-                    if isEnabled {
-                        bar()
-                    }
-                }
-                .scrollEdgeEffectStyle(.soft, for: .top)
-        } else {
-            content.safeAreaInset(edge: .top, spacing: 0) {
-                if isEnabled {
-                    bar().background {
-                        // 上方是实的纸色，靠近明细的一小段渐隐，让流水滑入时不出现硬边。
-                        LinearGradient(
-                            stops: [
-                                .init(color: Color(.paperBackground), location: 0),
-                                .init(color: Color(.paperBackground), location: 0.86),
-                                .init(color: Color(.paperBackground).opacity(0), location: 1)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    }
                 }
             }
         }

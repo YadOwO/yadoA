@@ -44,7 +44,13 @@ struct ProfileView: View {
                     NavigationLink {
                         SyncSettingsView()
                     } label: {
-                        ProfileSettingsRow(titleKey: "sync.title", symbol: "icloud", value: text(isSyncOn ? "sync.row.on" : "sync.row.off"))
+                        ProfileSettingsRow(
+                            titleKey: "sync.title",
+                            symbol: "icloud",
+                            value: text(isSyncOn ? "sync.row.on" : "sync.row.off"),
+                            // 已开启用账本绿表示生效，未开启保持灰色；账本绿已配好浅色与深色两套
+                            valueTint: isSyncOn ? Color(.ledgerGreen) : nil
+                        )
                     }
                     .accessibilityIdentifier("profile-sync")
 

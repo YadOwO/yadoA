@@ -49,6 +49,8 @@ struct ProfileSettingsRow: View {
     let symbol: String
     /// 行尾显示的当前值；为空时只显示箭头。
     var value: String = ""
+    /// 当前值的强调色；为 `nil` 时用灰色，表示“已开启”等生效状态时传入状态色。
+    var valueTint: Color?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -56,7 +58,7 @@ struct ProfileSettingsRow: View {
                 .labelStyle(ProfileSettingsLabelStyle())
             Spacer(minLength: 4)
             Text(value)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(valueTint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.secondary))
                 .multilineTextAlignment(.trailing)
             Image(systemName: "chevron.right")
                 .font(.footnote.weight(.semibold))
