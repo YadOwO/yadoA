@@ -800,7 +800,7 @@ private struct HomeOverviewDayHeader: View {
 }
 
 /// 首页某一行正在播放的变更提示。
-private struct HomeRowMark: Equatable {
+struct HomeRowMark: Equatable {
     /// 三种变更各用一种可区分的纸面动作。
     enum Kind: Equatable {
         /// 新记一笔：账本红 + 图标位置写出对勾。
@@ -858,9 +858,50 @@ private enum HomeRowRevisionStep {
     case settled
 }
 
-/// 首页单条只读流水行。
+/// 首页单条只读流水行：整行点开进入详情；纸面样式与变更提示由 `HomeOverviewRowContent` 负责。
 private struct HomeOverviewRow: View {
     @Environment(\.locale) private var locale
+
+    /// 已完成本地化的首页行数据。
+    let row: HomeOverviewRowPresentation
+
+    /// 当前行正在播放的变更提示；为空时保持默认样式。
+    let mark: HomeRowMark.Kind?
+
+    /// 当前提示的唯一标识，交给纸面内容从头重播提示。
+    let markToken: UUID?
+
+    var body: some View {
+        NavigationLink(value: HomeRoute.transactionDetail(row.id)) {
+            HomeOverviewRowContent(row: row, mark: mark, markToken: markToken)
+        }
+        .buttonStyle(.plain)
+        // 整行都可点，纸面上不再逐行重复系统的右箭头。
+        .navigationLinkIndicatorVisibility(.hidden)
+        // 残影对应的流水已不存在，不能再进入详情。
+        .disabled(mark == .deleted)
+        .accessibilityLabel(
+            mark == .deleted
+                ? AccountLocalization.formatted("home.transaction.deleted", value: row.accessibilityLabel, locale: locale)
+                : row.accessibilityLabel
+        )
+        .accessibilityHint(
+            Text(
+                AccountLocalization.formatted(
+                    "bookkeeping.detail.open",
+                    value: row.title,
+                    locale: locale
+                )
+            )
+        )
+        .accessibilityIdentifier("home-transaction-\(row.id.uuidString)")
+    }
+}
+
+/// 一条流水在纸面上的样子，以及新增、修改、删除三种变更提示的动画。
+///
+/// 首页明细和首次引导里的示例账本共用这一份，引导里看到的就是记账后首页的真实样子。
+struct HomeOverviewRowContent: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -893,7 +934,7 @@ private struct HomeOverviewRow: View {
         mark == .added && !hasSettled
     }
 
-    /// 是否为刚删除流水的残影；为真时整行不再可点。
+    /// 是否为刚删除流水的残影。
     private var isDeleted: Bool {
         mark == .deleted
     }
@@ -915,102 +956,80 @@ private struct HomeOverviewRow: View {
     }
 
     var body: some View {
-        NavigationLink(value: HomeRoute.transactionDetail(row.id)) {
-            HStack(spacing: 14) {
-                ZStack {
-                    // 修改了分类时，旧图标以系统替换动画换成新图标。
-                    Image(systemName: displayed.symbolName)
+        HStack(spacing: 14) {
+            ZStack {
+                // 修改了分类时，旧图标以系统替换动画换成新图标。
+                Image(systemName: displayed.symbolName)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(Color.accentColor)
+                    .contentTransition(.symbolEffect(.replace))
+                    .opacity(isAddedMarked ? 0 : 1)
+                // 标红期间图标位置写出一笔对勾，褪色时再交还给分类图标。
+                HandDrawnTick(progress: tickProgress)
+                    .frame(width: 24)
+                    .opacity(isAddedMarked ? 1 : 0)
+            }
+            .frame(width: 38, height: 38)
+            // 图标垫在随手涂出的色块上，每条流水的色块形状各不相同。
+            .background(
+                isAddedMarked ? Color(.ledgerRed).opacity(0.12) : Color.accentColor.opacity(0.08),
+                in: HandDrawnBlob(seed: row.id.handDrawnSeed)
+            )
+            .opacity(deletedOpacity)
+            .accessibilityHidden(true)
+
+            let layout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                : AnyLayout(HStackLayout(alignment: .center, spacing: 8))
+            layout {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(displayed.title)
                         .font(.body.weight(.medium))
-                        .foregroundStyle(Color.accentColor)
-                        .contentTransition(.symbolEffect(.replace))
-                        .opacity(isAddedMarked ? 0 : 1)
-                    // 标红期间图标位置写出一笔对勾，褪色时再交还给分类图标。
-                    HandDrawnTick(progress: tickProgress)
-                        .frame(width: 24)
-                        .opacity(isAddedMarked ? 1 : 0)
-                }
-                .frame(width: 38, height: 38)
-                // 图标垫在随手涂出的色块上，每条流水的色块形状各不相同。
-                .background(
-                    isAddedMarked ? Color(.ledgerRed).opacity(0.12) : Color.accentColor.opacity(0.08),
-                    in: HandDrawnBlob(seed: row.id.handDrawnSeed)
-                )
-                .opacity(deletedOpacity)
-                .accessibilityHidden(true)
-
-                let layout = dynamicTypeSize.isAccessibilitySize
-                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
-                    : AnyLayout(HStackLayout(alignment: .center, spacing: 8))
-                layout {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(displayed.title)
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(isAddedMarked ? Color(.ledgerRed) : Color.primary)
-                            .contentTransition(.interpolate)
-                            .modifier(revisionMarks(isChanged: revision?.isTitleChanged, marksWithoutVisibleChanges: true, seed: 1))
-                        if let note = displayed.note {
-                            Text(note)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .contentTransition(.interpolate)
-                                .modifier(revisionMarks(isChanged: revision?.isNoteChanged, marksWithoutVisibleChanges: false, seed: 2))
-                                .transition(.opacity)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    // 金额修改时数字逐位滚动到新值。
-                    Text(displayed.formattedAmount)
-                        .font(.system(.body, design: .serif).monospacedDigit())
                         .foregroundStyle(isAddedMarked ? Color(.ledgerRed) : Color.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                        .contentTransition(.numericText())
-                        .modifier(revisionMarks(isChanged: revision?.isAmountChanged, marksWithoutVisibleChanges: true, seed: 3))
-                        .layoutPriority(1)
-                }
-                .opacity(deletedOpacity)
-                // 像在账本上把这一笔划掉：一条红色墨线从左到右穿过标题和金额。
-                .overlay {
-                    if isDeleted {
-                        HandDrawnRule(seed: row.id.handDrawnSeed)
-                            .trim(from: 0, to: strikeProgress)
-                            .stroke(Color(.ledgerRed), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
-                            .frame(height: 3)
-                            .accessibilityHidden(true)
+                        .contentTransition(.interpolate)
+                        .modifier(revisionMarks(isChanged: revision?.isTitleChanged, marksWithoutVisibleChanges: true, seed: 1))
+                    if let note = displayed.note {
+                        Text(note)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .contentTransition(.interpolate)
+                            .modifier(revisionMarks(isChanged: revision?.isNoteChanged, marksWithoutVisibleChanges: false, seed: 2))
+                            .transition(.opacity)
                     }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // 金额修改时数字逐位滚动到新值。
+                Text(displayed.formattedAmount)
+                    .font(.system(.body, design: .serif).monospacedDigit())
+                    .foregroundStyle(isAddedMarked ? Color(.ledgerRed) : Color.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .contentTransition(.numericText())
+                    .modifier(revisionMarks(isChanged: revision?.isAmountChanged, marksWithoutVisibleChanges: true, seed: 3))
+                    .layoutPriority(1)
+            }
+            .opacity(deletedOpacity)
+            // 像在账本上把这一笔划掉：一条红色墨线从左到右穿过标题和金额。
+            .overlay {
+                if isDeleted {
+                    HandDrawnRule(seed: row.id.handDrawnSeed)
+                        .trim(from: 0, to: strikeProgress)
+                        .stroke(Color(.ledgerRed), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+                        .frame(height: 3)
+                        .accessibilityHidden(true)
                 }
             }
-            .frame(minHeight: 44)
         }
-        .buttonStyle(.plain)
-        // 整行都可点，纸面上不再逐行重复系统的右箭头。
-        .navigationLinkIndicatorVisibility(.hidden)
-        // 残影对应的流水已不存在，不能再进入详情。
-        .disabled(isDeleted)
+        .frame(minHeight: 44)
         .task(id: markToken) {
             await playMark()
         }
-        .accessibilityLabel(
-            isDeleted
-                ? AccountLocalization.formatted("home.transaction.deleted", value: row.accessibilityLabel, locale: locale)
-                : row.accessibilityLabel
-        )
-        .accessibilityHint(
-            Text(
-                AccountLocalization.formatted(
-                    "bookkeeping.detail.open",
-                    value: row.title,
-                    locale: locale
-                )
-            )
-        )
-        .accessibilityIdentifier("home-transaction-\(row.id.uuidString)")
     }
 }
 
-extension HomeOverviewRow {
+extension HomeOverviewRowContent {
     /// 删除残影随划线逐渐变淡，划完后保留约一半的不透明度。
     private var deletedOpacity: Double {
         isDeleted ? 1 - 0.55 * strikeProgress : 1

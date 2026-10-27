@@ -69,7 +69,21 @@ struct AccountSummaryPresentation: Equatable {
                 assets += account.balance
             }
         }
+        return summary(assets: assets, liabilities: liabilities, locale: locale)
+    }
 
+    /// 由已经汇总好的资产和负债生成展示数据；首次引导的示例账户也用它，和账户页保持同一种写法。
+    ///
+    /// - Parameters:
+    ///   - assets: 资产总额。
+    ///   - liabilities: 负债总额，以正数表示欠款。
+    ///   - locale: 金额与播报文本使用的语言环境。
+    /// - Returns: 资产、负债和净资产汇总。
+    static func summary(
+        assets: Decimal,
+        liabilities: Decimal,
+        locale: Locale = .current
+    ) -> AccountSummaryPresentation {
         let netAssets = assets - liabilities
         let formattedNetAssets = AccountListPresentation.currencyAmount(
             netAssets,
@@ -125,19 +139,55 @@ enum AccountListPresentation {
         locale: Locale = .current,
         isDefault: Bool = false
     ) -> AccountRowPresentation {
-        let accountType = account.accountType
-        let template = template(id: account.templateID, accountType: accountType)
+        row(
+            id: account.id,
+            accountType: account.accountType,
+            templateID: account.templateID,
+            name: account.name,
+            lastFourDigits: account.lastFourDigits,
+            balance: account.balance,
+            currencyCode: account.currencyCode,
+            locale: locale,
+            isDefault: isDefault
+        )
+    }
+
+    /// 由账户字段生成行展示数据；首次引导的示例账户不落库，也用它得到与账户页一致的一行。
+    ///
+    /// - Parameters:
+    ///   - id: 账户标识。
+    ///   - accountType: 账户类型；未知类型为 `nil`。
+    ///   - templateID: 静态模板标识。
+    ///   - name: 账户名称。
+    ///   - lastFourDigits: 卡号后四位。
+    ///   - balance: 当前余额或欠款。
+    ///   - currencyCode: ISO 货币代码。
+    ///   - locale: 文案与金额使用的语言环境。
+    ///   - isDefault: 是否为默认记账账户。
+    /// - Returns: 账户行展示数据。
+    static func row(
+        id: UUID,
+        accountType: AccountType?,
+        templateID: String?,
+        name: String,
+        lastFourDigits: String?,
+        balance: Decimal,
+        currencyCode: String,
+        locale: Locale = .current,
+        isDefault: Bool = false
+    ) -> AccountRowPresentation {
+        let template = template(id: templateID, accountType: accountType)
         let typeTitle = accountType?.title(locale: locale)
             ?? AccountLocalization.string("account.type.unknown.title", locale: locale)
         let amountLabel = accountType?.amountLabel(locale: locale)
             ?? AccountLocalization.string("account.amount.value", locale: locale)
         let formattedAmount = currencyAmount(
-            account.balance,
-            currencyCode: account.currencyCode,
+            balance,
+            currencyCode: currencyCode,
             locale: locale
         )
         let detail: String
-        if let suffix = account.lastFourDigits {
+        if let suffix = lastFourDigits {
             detail = String(
                 format: AccountLocalization.string("account.list.type_suffix_format", locale: locale),
                 locale: locale,
@@ -155,10 +205,10 @@ enum AccountListPresentation {
         )
 
         return AccountRowPresentation(
-            id: account.id,
+            id: id,
             name: accountType?.showsEditableName == false
-                ? (template?.name(locale: locale) ?? account.name)
-                : account.name,
+                ? (template?.name(locale: locale) ?? name)
+                : name,
             detail: detail,
             formattedAmount: formattedAmount,
             amountLabel: amountLabel,
@@ -383,8 +433,8 @@ struct AccountListView: View {
     }
 }
 
-/// 账户列表顶部的资产汇总卡片，突出净资产并并列展示资产和负债。
-private struct AccountSummaryCard: View {
+/// 账户列表顶部的资产汇总卡片，突出净资产并并列展示资产和负债；首次引导的示例也用它。
+struct AccountSummaryCard: View {
     @Environment(\.locale) private var locale
 
     /// 用户选择的启动页面；账户页是启动页时汇总卡片才带装饰。

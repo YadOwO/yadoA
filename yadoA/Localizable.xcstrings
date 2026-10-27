@@ -10898,6 +10898,1428 @@
           }
         }
       }
+    },
+    "onboarding.opening.enter" : {
+      "comment" : "首次引导开场唯一的按钮，进入产品",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter Yado Asset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "进入芽豆资产"
+          }
+        }
+      }
+    },
+    "onboarding.continue" : {
+      "comment" : "首次引导各行的继续按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续"
+          }
+        }
+      }
+    },
+    "onboarding.skip" : {
+      "comment" : "首次引导右上角的跳过",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳过"
+          }
+        }
+      }
+    },
+    "onboarding.privacy.title" : {
+      "comment" : "首次引导本地承诺的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your ledger lives on this phone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的账本，只存在这台手机上。"
+          }
+        }
+      }
+    },
+    "onboarding.privacy.message" : {
+      "comment" : "首次引导本地承诺的说明；只写已实现的事实",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record, chart, and manage accounts without signing in. Signing in doesn't upload anything. Sync is your call, and you can change it anytime."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不登录也能记账、看图表、管账户。登录了也不会自动上传，同不同步由你决定，随时可以改。"
+          }
+        }
+      }
+    },
+    "onboarding.history.privacy" : {
+      "comment" : "首次引导上方灰色小字：本地承诺",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ledger stays on this phone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账本只存在这台手机上"
+          }
+        }
+      }
+    },
+    "onboarding.history.revise.hint" : {
+      "comment" : "首次引导点灰色小字回去修改的辅助提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go back and change this."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回到这一行修改。"
+          }
+        }
+      }
+    },
+    "onboarding.account.ask.title" : {
+      "comment" : "首次引导询问是否用过芽豆系列",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used another Yado app before?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用过芽豆系列的其他 App 吗？"
+          }
+        }
+      }
+    },
+    "onboarding.account.ask.message" : {
+      "comment" : "首次引导说明芽豆系列共用账号",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado apps share one account. If you've used one, sign in with the same account here."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比如芽豆有物。芽豆系列共用一个账号，用过的话登录同一个就行。"
+          }
+        }
+      }
+    },
+    "onboarding.account.ask.used" : {
+      "comment" : "首次引导：用过芽豆系列，去登录",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yes, Sign In"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用过，登录"
+          }
+        }
+      }
+    },
+    "onboarding.account.ask.firstTime" : {
+      "comment" : "首次引导：第一次用芽豆系列",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I'm New"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第一次用"
+          }
+        }
+      }
+    },
+    "onboarding.account.offline" : {
+      "comment" : "首次引导登录没成功时的一行小字",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't connect. Using this phone for now."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没连上，先在本机用"
+          }
+        }
+      }
+    },
+    "onboarding.account.localContinue" : {
+      "comment" : "首次引导登录或同步没成功时继续的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue on This Phone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先在本机用"
+          }
+        }
+      }
+    },
+    "onboarding.account.welcome.title" : {
+      "comment" : "首次引导认出已登录的芽豆账号；%@ 为昵称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome back, %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欢迎回来，%@。"
+          }
+        }
+      }
+    },
+    "onboarding.account.welcome.title.noname" : {
+      "comment" : "首次引导认出已登录但没有昵称的芽豆账号",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome back."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欢迎回来。"
+          }
+        }
+      }
+    },
+    "onboarding.account.welcome.message" : {
+      "comment" : "首次引导认出芽豆账号后的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Yado account works here too."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的芽豆账号，这里直接能用。"
+          }
+        }
+      }
+    },
+    "onboarding.sync.title" : {
+      "comment" : "首次引导登录后询问是否同步",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync your ledger to the cloud?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要把账本同步到云端吗？"
+          }
+        }
+      }
+    },
+    "onboarding.sync.message" : {
+      "comment" : "首次引导同步询问的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your ledger is uploaded to Yado's servers so it's there on a new phone or any of your devices. Leave it off and it stays only on this phone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开启后，账本会上传到芽豆的服务器，换手机、多台设备都能看到。不开启，账本就只存在本机。"
+          }
+        }
+      }
+    },
+    "onboarding.sync.enable" : {
+      "comment" : "首次引导开启同步的选项",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn On Sync"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开启同步"
+          }
+        }
+      }
+    },
+    "onboarding.sync.localOnly" : {
+      "comment" : "首次引导只存在本机的选项，与开启同步同样醒目",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep on This Phone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只存在本机"
+          }
+        }
+      }
+    },
+    "onboarding.sync.footnote" : {
+      "comment" : "首次引导同步询问下方的补充",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can change this anytime in Settings."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以后可以在设置里随时开关。"
+          }
+        }
+      }
+    },
+    "onboarding.sync.syncing" : {
+      "comment" : "首次引导正在开启同步",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to the cloud…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在连上云端…"
+          }
+        }
+      }
+    },
+    "onboarding.sync.synced.title" : {
+      "comment" : "首次引导同步开启成功",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync is on."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步已开启。"
+          }
+        }
+      }
+    },
+    "onboarding.sync.synced.accounts" : {
+      "comment" : "首次引导从云端拉下来的账户；%@ 为账户名称列表",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synced from the cloud: %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已从云端同步下来：%@。"
+          }
+        }
+      }
+    },
+    "onboarding.sync.synced.empty" : {
+      "comment" : "首次引导云端还没有数据",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing in the cloud yet. Start here on this phone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "云端还没有账本，就从这台手机开始记。"
+          }
+        }
+      }
+    },
+    "onboarding.sync.failed.title" : {
+      "comment" : "首次引导同步没开成",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't reach the cloud."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没连上云端。"
+          }
+        }
+      }
+    },
+    "onboarding.sync.failed.message" : {
+      "comment" : "首次引导同步没开成时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your ledger stays on this phone for now. You can turn on sync later in Settings."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账本先存在本机，以后可以在设置里再打开同步。"
+          }
+        }
+      }
+    },
+    "onboarding.voice.title" : {
+      "comment" : "首次引导语音演示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Say it once, log several"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "说一句，记好几笔"
+          }
+        }
+      }
+    },
+    "onboarding.voice.message" : {
+      "comment" : "首次引导语音演示的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One sentence can add several entries, and delete or fix others too."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一句话里可以同时记好几笔，也能顺手删掉、改掉。"
+          }
+        }
+      }
+    },
+    "onboarding.voice.play" : {
+      "comment" : "首次引导播放示例句的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play the Example"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "说出示例句"
+          }
+        }
+      }
+    },
+    "onboarding.voice.segment.lunch" : {
+      "comment" : "首次引导示例句第一段：新增午饭",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lunch 32 on WeChat"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "午饭 32 微信付"
+          }
+        }
+      }
+    },
+    "onboarding.voice.segment.taxi" : {
+      "comment" : "首次引导示例句第二段：新增打车",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "taxi 28"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打车 28"
+          }
+        }
+      }
+    },
+    "onboarding.voice.segment.coffee" : {
+      "comment" : "首次引导示例句第三段：删除咖啡",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "delete this morning's coffee"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "早上那杯咖啡删掉"
+          }
+        }
+      }
+    },
+    "onboarding.voice.separator" : {
+      "comment" : "首次引导示例句各段之间的分隔",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : ", "
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "，"
+          }
+        }
+      }
+    },
+    "onboarding.voice.footnote" : {
+      "comment" : "首次引导语音演示下方的说明；语音需要联网识别",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is an example and won't touch your ledger. Voice bookkeeping needs sign-in, and speech is recognized online."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这是示例，不会写进你的账本。真正使用时需要登录，说的话要联网识别。"
+          }
+        }
+      }
+    },
+    "onboarding.sample.badge" : {
+      "comment" : "首次引导示例数据的标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sample"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "示例"
+          }
+        }
+      }
+    },
+    "onboarding.sample.today" : {
+      "comment" : "首次引导示例账本与趋势里的今天",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天"
+          }
+        }
+      }
+    },
+    "onboarding.sample.coffee" : {
+      "comment" : "首次引导示例流水：咖啡",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coffee"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "咖啡"
+          }
+        }
+      }
+    },
+    "onboarding.sample.lunch" : {
+      "comment" : "首次引导示例流水：午饭",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lunch"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "午饭"
+          }
+        }
+      }
+    },
+    "onboarding.sample.taxi" : {
+      "comment" : "首次引导示例流水：打车",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Taxi"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打车"
+          }
+        }
+      }
+    },
+    "onboarding.insight.title" : {
+      "comment" : "首次引导财务演示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See where it goes and what's left"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "钱去哪了、还剩多少，都看得到"
+          }
+        }
+      }
+    },
+    "onboarding.insight.tab.spending" : {
+      "comment" : "首次引导财务演示标签：分类排行",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "花在哪"
+          }
+        }
+      }
+    },
+    "onboarding.insight.tab.trend" : {
+      "comment" : "首次引导财务演示标签：趋势",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trend"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "怎么变"
+          }
+        }
+      }
+    },
+    "onboarding.insight.tab.worth" : {
+      "comment" : "首次引导财务演示标签：净资产",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What's Left"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还剩多少"
+          }
+        }
+      }
+    },
+    "onboarding.insight.spending.caption" : {
+      "comment" : "首次引导分类排行卡上的总额说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spent in the last 7 days"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "近 7 天支出"
+          }
+        }
+      }
+    },
+    "onboarding.insight.trend.caption" : {
+      "comment" : "首次引导趋势卡的说明；%@ 为今天的支出",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You spent %@ today, about your 7-day average."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天花了 %@，和这 7 天的平均差不多。"
+          }
+        }
+      }
+    },
+    "onboarding.insight.trend.average" : {
+      "comment" : "首次引导趋势卡上的日均线",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily avg"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日均"
+          }
+        }
+      }
+    },
+    "onboarding.insight.trend.note" : {
+      "comment" : "首次引导趋势卡下方，把今天的数字和语音演示连起来",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today's total is the lunch and taxi you just logged."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天这笔，就是刚才那句话记下的午饭和打车。"
+          }
+        }
+      }
+    },
+    "onboarding.startPage.title" : {
+      "comment" : "首次引导询问启动页面",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which page should open first?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 App，先看哪一页？"
+          }
+        }
+      }
+    },
+    "onboarding.startPage.home.subtitle" : {
+      "comment" : "首次引导启动页面选项：记账",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log first"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先记一笔"
+          }
+        }
+      }
+    },
+    "onboarding.startPage.accounts.subtitle" : {
+      "comment" : "首次引导启动页面选项：账户",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See my money first"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先看我的钱"
+          }
+        }
+      }
+    },
+    "onboarding.startPage.note" : {
+      "comment" : "首次引导 Tab 栏预览下方的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The tab bar follows your choice"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "底部导航会按你的选择排好"
+          }
+        }
+      }
+    },
+    "onboarding.accounts.title" : {
+      "comment" : "首次引导建账户的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where's your money?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的钱放在哪？"
+          }
+        }
+      }
+    },
+    "onboarding.accounts.message" : {
+      "comment" : "首次引导建账户的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick the ones you use. Balances can wait. Add bank cards and other accounts later on the Accounts tab."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选几个常用的，余额可以先不填。银行卡等其他账户，之后在账户页添加。"
+          }
+        }
+      }
+    },
+    "onboarding.accounts.amount.placeholder" : {
+      "comment" : "首次引导账户余额输入的占位文字",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可不填"
+          }
+        }
+      }
+    },
+    "onboarding.accounts.amount.accessibility" : {
+      "comment" : "首次引导账户余额输入的辅助标签；%@ 为账户名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance for %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 的余额"
+          }
+        }
+      }
+    },
+    "onboarding.accounts.done" : {
+      "comment" : "首次引导选好账户后继续",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That's All"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "就这些"
+          }
+        }
+      }
+    },
+    "onboarding.accounts.none" : {
+      "comment" : "首次引导不选账户直接继续",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip for Now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先不建账户"
+          }
+        }
+      }
+    },
+    "onboarding.plant.title" : {
+      "comment" : "首次引导小结的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Here's your first page:"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这一页写下了："
+          }
+        }
+      }
+    },
+    "onboarding.plant.done.title" : {
+      "comment" : "首次引导种下之后的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planted."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "种下了。"
+          }
+        }
+      }
+    },
+    "onboarding.plant.note" : {
+      "comment" : "首次引导小结末尾的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can change any of these in Settings."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些随时可以在设置里改。"
+          }
+        }
+      }
+    },
+    "onboarding.plant.hold" : {
+      "comment" : "首次引导按住种下的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold to Plant Your First Bean"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按住，种下第一颗豆"
+          }
+        }
+      }
+    },
+    "onboarding.plant.done" : {
+      "comment" : "首次引导种下之后的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planted"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "种下了"
+          }
+        }
+      }
+    },
+    "onboarding.plant.failed" : {
+      "comment" : "首次引导写入失败的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't save. Try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没写进去，再按一次试试。"
+          }
+        }
+      }
+    },
+    "onboarding.plant.revise.hint" : {
+      "comment" : "首次引导小结行的辅助提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go back and change this."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回到这一行修改。"
+          }
+        }
+      }
+    },
+    "onboarding.summary.storage.local" : {
+      "comment" : "首次引导小结：账本存在哪里",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ledger: on this phone only"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账本：只存在本机"
+          }
+        }
+      }
+    },
+    "onboarding.summary.storage.cloud" : {
+      "comment" : "首次引导小结：账本已开启同步",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ledger: syncing to the cloud"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账本：已开启云同步"
+          }
+        }
+      }
+    },
+    "onboarding.summary.account.signedIn" : {
+      "comment" : "首次引导小结：已登录账号；%@ 为昵称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado account: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆账号：%@"
+          }
+        }
+      }
+    },
+    "onboarding.summary.account.signedIn.noname" : {
+      "comment" : "首次引导小结：已登录但没有昵称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado account: signed in"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆账号：已登录"
+          }
+        }
+      }
+    },
+    "onboarding.summary.account.firstTime" : {
+      "comment" : "首次引导上方小字：第一次用芽豆",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New to Yado"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第一次用芽豆"
+          }
+        }
+      }
+    },
+    "onboarding.summary.startPage" : {
+      "comment" : "首次引导小结：启动页面；%@ 为页面名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens to: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开先看：%@"
+          }
+        }
+      }
+    },
+    "onboarding.summary.accounts" : {
+      "comment" : "首次引导小结：建的账户；%@ 为账户名称列表",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accounts: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账户：%@"
+          }
+        }
+      }
+    },
+    "onboarding.summary.accounts.none" : {
+      "comment" : "首次引导小结：没有建账户",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accounts: none yet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账户：先不建"
+          }
+        }
+      }
+    },
+    "onboarding.summary.accounts.cloud" : {
+      "comment" : "首次引导小结：账户从云端同步",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accounts: synced from the cloud"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账户：已从云端同步"
+          }
+        }
+      }
+    },
+    "onboarding.signIn.note" : {
+      "comment" : "首次引导登录邀请下方的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing in doesn't upload your ledger. Sync is up to you."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录不会上传账本，同不同步由你决定。"
+          }
+        }
+      }
+    },
+    "onboarding.signIn.later" : {
+      "comment" : "首次引导登录邀请：以后再说",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maybe Later"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以后再说"
+          }
+        }
+      }
+    },
+    "onboarding.landing.title" : {
+      "comment" : "首次引导最后一行",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Page one, done."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第一页，写好了。"
+          }
+        }
+      }
+    },
+    "settings.section.about" : {
+      "comment" : "设置页“关于”分组标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关于"
+          }
+        }
+      }
+    },
+    "settings.onboarding.replay" : {
+      "comment" : "设置页重看首次引导的入口",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replay Introduction"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重看引导"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

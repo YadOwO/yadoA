@@ -3,7 +3,7 @@ import SwiftUI
 
 /// “我的 › 设置”二级页面：集中放置设一次就很少再动的偏好、数据维护和退出登录。
 ///
-/// 分组顺序为通用、记账、数据、危险操作、账号；重置数据单独成卡，避免与导入导出相邻误触。
+/// 分组顺序为通用、记账、数据、关于、危险操作、账号；重置数据单独成卡，避免与导入导出相邻误触。
 struct SettingsView: View {
     @Environment(\.locale) private var locale
     @Environment(\.modelContext) private var modelContext
@@ -34,6 +34,10 @@ struct SettingsView: View {
     @State private var isSignOutFailurePresented = false
     /// 正在退出登录（含退出前的最后一次同步）。
     @State private var isSigningOut = false
+    /// 正在重看首次引导；只演示，不写入数据，也不触发登录。
+    @State private var isOnboardingReplayPresented = false
+    /// 重看引导的状态，每次打开时新建，从开场重新演示。
+    @State private var onboardingReplay: OnboardingStore?
 
     var body: some View {
         ScrollView {
@@ -112,6 +116,16 @@ struct SettingsView: View {
                         .labelStyle(ProfileExportLabelStyle())
                 }
 
+                ProfileSettingsSection("settings.section.about") {
+                    Button {
+                        onboardingReplay = OnboardingStore(mode: .replay)
+                        isOnboardingReplayPresented = true
+                    } label: {
+                        ProfileSettingsRow(titleKey: "settings.onboarding.replay", symbol: "leaf")
+                    }
+                    .accessibilityIdentifier("settings-onboarding-replay")
+                }
+
                 // 重置会清空本机全部记账数据，单独成卡与常规数据操作拉开距离
                 ProfileSettingsSection(nil, seed: "settings.reset") {
                     DataResetEntryView(container: modelContext.container)
@@ -141,6 +155,14 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $isDefaultSelectionPresented) {
             NavigationStack { DefaultAccountSelectionView() }
+        }
+        .fullScreenCover(isPresented: $isOnboardingReplayPresented) {
+            if let onboardingReplay {
+                OnboardingView(store: onboardingReplay) {
+                    isOnboardingReplayPresented = false
+                }
+                .environment(authStore)
+            }
         }
         .alert(text("auth.sign_out.confirm.title"), isPresented: $isSignOutConfirmationPresented) {
             Button(text("auth.sign_out.action"), role: .destructive) {

@@ -94,6 +94,8 @@ struct VoiceMicButton: View {
             .accessibilityHidden(true)
         }
         .appHaptic(.selection, trigger: controller.isCancelArmed)
+        // 首次引导结束时豆子落到这里
+        .voiceEntryBeacon()
         .accessibilityElement()
         .accessibilityLabel(text("voice.mic.label"))
         .accessibilityHint(text("voice.mic.hint"))
@@ -179,6 +181,8 @@ struct VoiceMicAccessory: View {
         }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: controller.isRecording)
         .appHaptic(.selection, trigger: controller.isCancelArmed)
+        // 首次引导结束时豆子落到这里
+        .voiceEntryBeacon()
         .accessibilityElement()
         .accessibilityLabel(text("voice.mic.label"))
         .accessibilityHint(text("voice.mic.hint"))

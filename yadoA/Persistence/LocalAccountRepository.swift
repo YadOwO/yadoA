@@ -132,21 +132,44 @@ final class LocalAccountRepository {
         locale: Locale = .current,
         now: Date = .now
     ) throws {
-        let account = try Account.validating(draft: draft, locale: locale, now: now)
+        try save([draft], locale: locale, now: now)
+    }
+
+    /// 一次保存多个账户：全部校验通过才写入，要么都成功，要么都不生效。
+    ///
+    /// 还没有默认记账账户时，按传入顺序把第一个符合资格的账户设为默认。首次引导“种下”时用它一次写入用户选的账户。
+    /// - Parameters:
+    ///   - drafts: 按用户选择顺序排列的账户草稿。
+    ///   - locale: 解析金额时使用的语言环境。
+    ///   - now: 注入的创建和更新时间。
+    /// - Throws: 任一草稿校验失败、UUID 重复或保存失败时抛出，此时不写入任何账户。
+    func save(
+        _ drafts: [AccountDraft],
+        locale: Locale = .current,
+        now: Date = .now
+    ) throws {
+        guard !drafts.isEmpty else { return }
+        let accounts = try drafts.map { try Account.validating(draft: $0, locale: locale, now: now) }
         let context = makeContext()
-        guard try context.account(id: draft.id) == nil else {
-            throw AccountRepositoryError.duplicateID(draft.id)
+        var seenIDs: Set<UUID> = []
+        for draft in drafts {
+            guard seenIDs.insert(draft.id).inserted, try context.account(id: draft.id) == nil else {
+                throw AccountRepositoryError.duplicateID(draft.id)
+            }
         }
 
         try persistChanges(in: context) {
-            context.insert(account)
             let preference = try canonicalPreference(in: context)
-            let accounts = try allAccounts(in: context) + [account]
-            if BookkeepingPreference.resolvedAccountID(
-                preference: preference,
-                accounts: accounts
-            ) == nil, account.isEligibleForDefault {
-                preference.defaultAccountID = account.id
+            var knownAccounts = try allAccounts(in: context)
+            for account in accounts {
+                context.insert(account)
+                knownAccounts.append(account)
+                if BookkeepingPreference.resolvedAccountID(
+                    preference: preference,
+                    accounts: knownAccounts
+                ) == nil, account.isEligibleForDefault {
+                    preference.defaultAccountID = account.id
+                }
             }
         }
     }

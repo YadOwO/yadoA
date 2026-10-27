@@ -34,6 +34,12 @@ struct yadoAApp: App {
                 UserDefaults.standard.removeObject(forKey: BookkeepingSearchHistory.storageKey)
                 // 启动页面偏好同样存在 UserDefaults 里，隔离启动时恢复为记账页，保证自动化落点与 Tab 顺序稳定。
                 UserDefaults.standard.removeObject(forKey: AppStartPage.storageKey)
+                // 首次引导会盖住首页，自动化默认跳过；显式传入参数时从头演示引导
+                UserDefaults.standard.removeObject(forKey: OnboardingStore.progressKey)
+                UserDefaults.standard.set(
+                    !ProcessInfo.processInfo.arguments.contains("--ui-testing-onboarding"),
+                    forKey: OnboardingStore.completedKey
+                )
                 if ProcessInfo.processInfo.arguments.contains("--ui-testing-home-fixture") {
                     if ProcessInfo.processInfo.arguments.contains("--ui-testing-reset-home-summary-visibility") {
                         UserDefaults.standard.set(false, forKey: "home.summary.amountsVisible")

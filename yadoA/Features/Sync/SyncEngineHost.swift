@@ -30,6 +30,9 @@ private struct SyncEngineHostModifier: ViewModifier {
     /// 生命周期操作失败时的文案键。
     @State private var errorKey: String?
 
+    /// 首次引导是否已完成；引导进行中由引导自己询问是否同步，这里不再弹询问。
+    @AppStorage(OnboardingStore.completedKey) private var isOnboardingCompleted = false
+
     func body(content: Content) -> some View {
         content
             .environment(engine)
@@ -115,7 +118,8 @@ private struct SyncEngineHostModifier: ViewModifier {
     private func presentEnablePromptIfReady() {
         guard isEnablePromptPending, !signInPresentation.isPresented else { return }
         isEnablePromptPending = false
-        guard authStore.isAuthenticated, let lifecycle else { return }
+        // 引导里登录时，同步由引导的“要把账本同步到云端吗”一行询问
+        guard isOnboardingCompleted, authStore.isAuthenticated, let lifecycle else { return }
         lifecycle.refreshState()
         if !lifecycle.state.isBound {
             isEnablePromptPresented = true

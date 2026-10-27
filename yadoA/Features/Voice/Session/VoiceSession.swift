@@ -484,6 +484,28 @@ enum VoiceSessionSummary {
     ///   - locale: 文案使用的语言环境。
     /// - Returns: 本地化提示；没有变更时为「这句话我没能处理」一类的兜底文案。
     static func text(for changes: [VoiceEntryChange], locale: Locale) -> String {
+        text(forItems: changes.map { Item(kind: $0.kind, label: $0.label, formattedAmount: $0.formattedAmount) }, locale: locale)
+    }
+
+    /// 结果提示里的一笔变更：只需要类型、称呼和金额，首次引导的演示也用它生成同样的提示。
+    struct Item: Equatable {
+        /// 变更类型。
+        let kind: VoiceEntryChange.Kind
+
+        /// 称呼这笔流水的文字，例如「午饭」。
+        let label: String
+
+        /// 不带正负号的本地化金额。
+        let formattedAmount: String
+    }
+
+    /// 按变更摘要生成结果提示。
+    ///
+    /// - Parameters:
+    ///   - changes: 本轮的变更摘要，按执行顺序排列。
+    ///   - locale: 文案使用的语言环境。
+    /// - Returns: 本地化提示；没有变更时为兜底文案。
+    static func text(forItems changes: [Item], locale: Locale) -> String {
         let listFormatter = ListFormatter()
         listFormatter.locale = locale
         func items(_ kind: VoiceEntryChange.Kind) -> [String] {

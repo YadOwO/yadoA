@@ -202,7 +202,7 @@ enum SproutTimeline {
 }
 
 /// 芽豆插画在 240×240 设计画布上的几何定义。
-private enum SproutGeometry {
+enum SproutGeometry {
     /// 设计画布边长。
     static let canvas: CGFloat = 240
 
@@ -296,7 +296,7 @@ private enum SproutGeometry {
 }
 
 /// 插画的墨线，按书写顺序拆成三部分：叶子要绕着与茎的连接点摆动，必须和地面、茎分开绘制。
-private enum SproutLinePart: CaseIterable {
+enum SproutLinePart: CaseIterable {
     /// 地面、根须和茎，固定不动。
     case base
     /// 左叶及叶脉。
@@ -392,7 +392,7 @@ private enum SproutLinePart: CaseIterable {
 }
 
 /// 墨线的一部分：按整条墨线的书写进度，只画出属于自己的那一段，三部分接起来就是一笔写完。
-private struct SproutStrokePart: Shape {
+struct SproutStrokePart: Shape {
     /// 画哪一部分。
     let part: SproutLinePart
     /// 整条墨线的书写进度，0 为未落笔，1 为写完。
@@ -412,7 +412,7 @@ private struct SproutStrokePart: Shape {
 }
 
 /// 豆子左上方的三道闪光短线，像刚冒出来时闪了一下。
-private struct SproutSparkleShape: Shape {
+struct SproutSparkleShape: Shape {
     func path(in rect: CGRect) -> Path {
         let center = SproutGeometry.beanCenter
         var path = Path()
