@@ -100,9 +100,13 @@ struct VoiceSessionContractTests {
     func encodesRequestAndEvents() throws {
         let request = VoiceSessionTurnRequest(
             locale: "zh-Hans",
+            capabilities: [.accountTools],
             now: "2026-10-20T12:30:00-07:00",
             defaultAccountId: nil,
-            accounts: [VoiceAccountOption(id: "A1", name: "微信", isActive: true)],
+            accounts: [
+                VoiceAccountOption(id: "A1", name: "微信", isActive: true, type: "virtualAccount", balance: "12.5"),
+                VoiceAccountOption(id: "A2", name: "花呗", isActive: true, type: "creditCard", balance: "-800"),
+            ],
             categories: [VoiceCategoryOption(id: "other", name: "其他", type: .expense)],
             events: [
                 .user(text: "午饭 28", selectedOptionId: nil),
@@ -114,6 +118,10 @@ struct VoiceSessionContractTests {
         )
         let object = try jsonObject(request)
         #expect(object["defaultAccountId"] is NSNull)
+        #expect(object["capabilities"] as? [String] == ["account_tools"])
+        let accounts = try #require(object["accounts"] as? [[String: Any]])
+        #expect(accounts.map { $0["type"] as? String } == ["virtualAccount", "creditCard"])
+        #expect(accounts.map { $0["balance"] as? String } == ["12.5", "-800"])
         let events = try #require(object["events"] as? [[String: Any]])
         #expect(events.map { $0["kind"] as? String } == ["user", "tool_call", "tool_result", "tool_result", "assistant"])
         #expect(!events[0].keys.contains("selectedOptionId"))
@@ -147,7 +155,7 @@ struct VoiceSessionContractTests {
         ]
         let endpoint = try #require(URL(string: "https://example.invalid"))
         let request = VoiceSessionTurnRequest(
-            locale: "zh-Hans", now: "2026-10-20T12:30:00-07:00", defaultAccountId: nil,
+            locale: "zh-Hans", capabilities: [], now: "2026-10-20T12:30:00-07:00", defaultAccountId: nil,
             accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)]
         )
         for (authError, expected) in cases {
@@ -176,6 +184,14 @@ struct VoiceSessionContractTests {
         #expect(VoiceSessionAPI.error(statusCode: 502, body: Data()) == .serviceUnavailable)
         #expect(VoiceSessionAPI.error(statusCode: 401, body: Data()) == .unauthorized)
         #expect(VoiceSessionAPI.error(statusCode: 400, body: Data()) == .invalidContract)
+    }
+
+    @Test("账户余额按带符号、最多两位小数的十进制字符串发送")
+    func formatsAccountBalance() {
+        #expect(VoiceSessionContext.balanceString(Decimal(string: "3000")!) == "3000")
+        #expect(VoiceSessionContext.balanceString(Decimal(string: "-12.5")!) == "-12.5")
+        #expect(VoiceSessionContext.balanceString(Decimal(string: "0.125")!) == "0.13")
+        #expect(VoiceSessionContext.balanceString(.zero) == "0")
     }
 
     @Test("上下文的语言与时刻格式")

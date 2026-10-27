@@ -522,6 +522,14 @@ nonisolated struct VoiceAccountOption: Encodable, Equatable, Sendable {
 
     /// 是否可以新增或改入流水。
     var isActive: Bool
+
+    /// 账户类型，即 `AccountType.rawValue`，最多 32 字；服务端不认识的类型按资产处理。
+    var type: String
+
+    /// 当前余额，带符号、最多两位小数的十进制字符串；信用卡、负债为欠款金额。
+    ///
+    /// 服务端据此回答余额、总资产等问题，每一步都要按本地最新余额发送。
+    var balance: String
 }
 
 /// 上下文中的一个分类；支出与收入下的 key 可能相同，需与 `type` 一起确定。
@@ -536,10 +544,24 @@ nonisolated struct VoiceCategoryOption: Encodable, Equatable, Sendable {
     var type: VoiceEntryType
 }
 
+/// 向服务端声明的客户端能力；服务端只会下发声明过的工具。
+nonisolated enum VoiceSessionCapability: String, Encodable, Equatable, Sendable {
+    /// 账户工具：调整余额、转账、新建、修改、删除账户。声明后每个账户都必须带类型和余额。
+    case accountTools = "account_tools"
+
+    /// 当前版本声明的能力。
+    ///
+    /// 账户工具的解码与执行完成前不声明 `accountTools`：声明后服务端会下发账户工具调用，App 无法解码会导致整轮失败。
+    static let declared: [VoiceSessionCapability] = []
+}
+
 /// 一次请求：会话上下文与截至目前的全部事件。
 nonisolated struct VoiceSessionTurnRequest: Encodable, Equatable, Sendable {
     /// 界面语言：`zh-Hans` 或 `en`。
     var locale: String
+
+    /// 客户端支持的能力。
+    var capabilities: [VoiceSessionCapability]
 
     /// 设备本地时刻，带时区偏移的 ISO 8601。
     var now: String
@@ -557,12 +579,13 @@ nonisolated struct VoiceSessionTurnRequest: Encodable, Equatable, Sendable {
     var events: [VoiceSessionEvent]
 
     private enum CodingKeys: String, CodingKey {
-        case locale, now, defaultAccountId, accounts, categories, events
+        case locale, capabilities, now, defaultAccountId, accounts, categories, events
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(locale, forKey: .locale)
+        try container.encode(capabilities, forKey: .capabilities)
         try container.encode(now, forKey: .now)
         try container.encode(defaultAccountId, forKey: .defaultAccountId)
         try container.encode(accounts, forKey: .accounts)
@@ -672,6 +695,9 @@ nonisolated enum VoiceSessionLimits {
 
     /// 账户、分类名称的最大长度。
     static let maxOptionNameLength = 50
+
+    /// 账户类型的最大长度。
+    static let maxAccountTypeLength = 32
 
     /// 查询结果中备注的最大长度。
     static let maxResultNoteLength = 200

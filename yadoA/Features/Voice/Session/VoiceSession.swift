@@ -345,6 +345,7 @@ final class VoiceSession {
         let context = currentContext()
         return VoiceSessionTurnRequest(
             locale: VoiceSessionContext.localeCode(for: locale),
+            capabilities: VoiceSessionCapability.declared,
             now: VoiceSessionContext.timestamp(now(), timeZone: calendar.timeZone),
             defaultAccountId: context.defaultAccountID,
             accounts: context.accounts,

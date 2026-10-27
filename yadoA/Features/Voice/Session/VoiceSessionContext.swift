@@ -30,12 +30,16 @@ struct VoiceSessionContext: Equatable {
         let sortedAccounts = accounts.filter(\.isActive) + accounts.filter { !$0.isActive }
         let accountOptions = sortedAccounts.prefix(VoiceSessionLimits.maxAccounts).compactMap { account -> VoiceAccountOption? in
             let name = String(account.name.prefix(VoiceSessionLimits.maxOptionNameLength))
-            guard !name.isEmpty else { return nil }
+            let type = String(account.typeRawValue.prefix(VoiceSessionLimits.maxAccountTypeLength))
+            // 名称或类型为空的是损坏数据，不符合契约，不发送
+            guard !name.isEmpty, !type.isEmpty else { return nil }
             return VoiceAccountOption(
                 id: account.id.uuidString,
                 name: name,
                 // 只有可记账的 CNY 账户才能新增或改入流水
-                isActive: account.supportsBookkeeping && account.currencyCode == "CNY"
+                isActive: account.supportsBookkeeping && account.currencyCode == "CNY",
+                type: type,
+                balance: balanceString(account.balance)
             )
         }
         let categoryOptions = BookkeepingEntryType.allCases.flatMap { direction in
@@ -61,6 +65,16 @@ struct VoiceSessionContext: Equatable {
     /// 提供给语音识别的专有名词：启用账户与分类的名称，提高「招行卡」「微信」等的识别率。
     var contextualStrings: [String] {
         accounts.filter(\.isActive).map(\.name) + categories.map(\.name)
+    }
+
+    /// 把账户余额转为契约中带符号、最多两位小数的十进制字符串。
+    ///
+    /// 本地余额本应只有两位小数，这里仍先四舍五入，避免异常数据让整个请求不合契约。
+    static func balanceString(_ balance: Decimal) -> String {
+        var source = balance
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &source, 2, .plain)
+        return VoiceToolExecutor.amountString(rounded)
     }
 
     /// 契约中的界面语言：中文界面为 `zh-Hans`，其余为 `en`。
