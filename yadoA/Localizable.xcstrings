@@ -12087,6 +12087,24 @@
         }
       }
     },
+    "onboarding.plant.note.replay" : {
+      "comment" : "重看引导时小结下方的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is a replay. Your settings and accounts won't change."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这是重看，不会改动你现有的设置和账户。"
+          }
+        }
+      }
+    },
     "onboarding.plant.revise.hint" : {
       "comment" : "首次引导小结行的辅助提示",
       "extractionState" : "manual",

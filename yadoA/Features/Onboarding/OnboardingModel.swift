@@ -152,7 +152,7 @@ struct OnboardingProgress: Codable, Equatable {
 /// 首次引导的状态：当前写到哪一行、回答草稿，以及跳过、回改、种下、完成。
 ///
 /// 中途退出时进度保存在本机，下次从同一行继续；“种下”时才一次写入账户、启动页面并标记完成。
-/// 重看引导时只演示，不保存进度、不写入任何数据。
+/// 重看引导时走一遍除登录、同步以外的所有行，但不保存进度、不写入任何数据。
 @MainActor
 @Observable
 final class OnboardingStore: Identifiable {
@@ -160,7 +160,7 @@ final class OnboardingStore: Identifiable {
     enum Mode: Equatable {
         /// 第一次打开 App。
         case firstLaunch
-        /// 从设置里重看：只演示，不写入数据，也不触发登录。
+        /// 从设置里重看：走一遍演示、设置和种下，不写入数据，也不触发登录和同步。
         case replay
     }
 
@@ -222,8 +222,9 @@ final class OnboardingStore: Identifiable {
     /// - Parameter isSignedIn: 当前是否已登录；已登录时不再出现登录邀请。
     /// - Returns: 从开场到落地的行。
     func sequence(isSignedIn: Bool) -> [OnboardingStep] {
+        // 重看时跳过账号这一行（会真的登录、开同步），也没有登录邀请和撕纸，种下后直接关闭
         if mode == .replay {
-            return [.opening, .privacy, .voiceDemo, .insight]
+            return [.opening, .privacy, .voiceDemo, .insight, .startPage, .accounts, .plant]
         }
         var steps: [OnboardingStep] = [.opening, .privacy, .account, .voiceDemo, .insight, .startPage]
         if !draft.hasCloudAccounts {

@@ -34,7 +34,7 @@ struct SettingsView: View {
     @State private var isSignOutFailurePresented = false
     /// 正在退出登录（含退出前的最后一次同步）。
     @State private var isSigningOut = false
-    /// 正在重看的首次引导，每次打开时新建、从开场重新演示；只演示，不写入数据，也不触发登录。
+    /// 正在重看的首次引导，每次打开时新建、从开场重新走；不写入数据，也不触发登录和同步。
     @State private var onboardingReplay: OnboardingStore?
 
     var body: some View {

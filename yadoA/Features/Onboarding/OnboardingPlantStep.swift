@@ -106,7 +106,7 @@ struct OnboardingPlantStep: View {
 
     /// 前面每一行的回答，墨色重写一遍，每行前面一个小对勾；种下前可以点回去改。
     private var summary: some View {
-        let items = OnboardingSummary.items(draft: store.draft, displayName: authStore.displayName, locale: locale)
+        let items = summaryItems
         return VStack(alignment: .leading, spacing: 4) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 Button {
@@ -138,7 +138,7 @@ struct OnboardingPlantStep: View {
                 .animation(.easeOut(duration: 0.3), value: inkedCount)
                 .accessibilityHint(Text(text("onboarding.plant.revise.hint")))
             }
-            Text(text("onboarding.plant.note"))
+            Text(text(store.mode == .replay ? "onboarding.plant.note.replay" : "onboarding.plant.note"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .padding(.top, 6)
@@ -147,9 +147,15 @@ struct OnboardingPlantStep: View {
         }
     }
 
+    /// 清单的各行；重看时没有问账号和同步，不写账本存在哪里和账号这两行，免得和实际情况对不上。
+    private var summaryItems: [OnboardingSummaryItem] {
+        let items = OnboardingSummary.items(draft: store.draft, displayName: authStore.displayName, locale: locale)
+        return store.mode == .replay ? items.filter { $0.step != .account } : items
+    }
+
     /// 一行一行写出清单，每写一行一下。
     private func inkSummary() async {
-        let count = OnboardingSummary.items(draft: store.draft, displayName: authStore.displayName, locale: locale).count
+        let count = summaryItems.count
         guard inkedCount == 0 else { return }
         if reduceMotion {
             inkedCount = count

@@ -27,11 +27,13 @@ struct OnboardingStoreTests {
         #expect(!store.sequence(isSignedIn: true).contains(.accounts))
     }
 
-    @Test("重看引导只演示开场、本地承诺和两个演示")
-    func replayOnlyDemonstrates() throws {
+    @Test("重看引导走完演示、设置和种下，跳过账号、登录邀请和撕纸")
+    func replaySkipsAccountAndLanding() throws {
         let store = OnboardingStore(mode: .replay, defaults: try makeDefaults("replay"))
 
-        #expect(store.sequence(isSignedIn: false) == [.opening, .privacy, .voiceDemo, .insight])
+        #expect(store.sequence(isSignedIn: false) == [
+            .opening, .privacy, .voiceDemo, .insight, .startPage, .accounts, .plant,
+        ])
     }
 
     @Test("中途退出后从保存的那一行继续，草稿保留")
