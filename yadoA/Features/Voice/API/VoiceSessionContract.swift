@@ -47,6 +47,30 @@ nonisolated enum VoiceToolName: String, Codable, Equatable, Sendable {
 
     /// 删除一笔流水。
     case deleteTransaction = "delete_transaction"
+
+    /// 调整账户余额。
+    case adjustBalance = "adjust_balance"
+
+    /// 账户之间转账；只有一边账户时为单边余额调整。
+    case transfer
+
+    /// 新建账户。
+    case createAccount = "create_account"
+
+    /// 修改账户资料、设为默认、停用或恢复。
+    case updateAccount = "update_account"
+
+    /// 删除账户。
+    case deleteAccount = "delete_account"
+}
+
+/// 新建账户时由 AI 推断或取了默认值的字段，界面上标「待确认」。
+nonisolated enum VoiceAccountInferredField: String, Codable, Equatable, Sendable {
+    /// 判断不出类型，按自定义资产处理。
+    case type
+
+    /// 没说余额，按 0 处理。
+    case balance
 }
 
 // MARK: - 工具入参（服务端 → App）
@@ -184,13 +208,42 @@ nonisolated struct VoiceCreateTransactionInput: Codable, Equatable, Sendable {
     }
 }
 
-/// 修改备注的方式：`patch` 中不出现表示不改，`null` 表示清空。
-nonisolated enum VoiceNotePatch: Equatable, Sendable {
-    /// 改为新备注。
+/// 可清空的文本字段（备注、卡号后四位）的修改方式：`patch` 中不出现表示不改，`null` 表示清空。
+nonisolated enum VoiceTextPatch: Equatable, Sendable {
+    /// 改为新值。
     case set(String)
 
-    /// 清空备注。
+    /// 清空。
     case clear
+
+    /// 从 `patch` 中解码一个可清空的字段。
+    ///
+    /// - Parameters:
+    ///   - container: `patch` 的解码容器。
+    ///   - key: 字段名。
+    /// - Returns: 字段不出现时为 `nil`，为 `null` 时为清空。
+    static func decode<Key: CodingKey>(from container: KeyedDecodingContainer<Key>, forKey key: Key) throws -> VoiceTextPatch? {
+        guard container.contains(key) else { return nil }
+        return try container.decodeNil(forKey: key) ? .clear : .set(container.decode(String.self, forKey: key))
+    }
+
+    /// 把一个可清空的字段编码进 `patch`。
+    ///
+    /// - Parameters:
+    ///   - patch: 修改方式；为 `nil` 时不写这个字段。
+    ///   - container: `patch` 的编码容器。
+    ///   - key: 字段名。
+    static func encode<Key: CodingKey>(
+        _ patch: VoiceTextPatch?,
+        to container: inout KeyedEncodingContainer<Key>,
+        forKey key: Key
+    ) throws {
+        switch patch {
+        case let .set(value): try container.encode(value, forKey: key)
+        case .clear: try container.encodeNil(forKey: key)
+        case nil: break
+        }
+    }
 }
 
 /// `update_transaction` 中要修改的字段；`nil` 表示不改。
@@ -211,7 +264,7 @@ nonisolated struct VoiceTransactionPatch: Codable, Equatable, Sendable {
     var date: String?
 
     /// 备注的修改方式。
-    var note: VoiceNotePatch?
+    var note: VoiceTextPatch?
 
     private enum CodingKeys: String, CodingKey {
         case type, amount, accountId, categoryId, date, note
@@ -224,7 +277,7 @@ nonisolated struct VoiceTransactionPatch: Codable, Equatable, Sendable {
         accountId: String? = nil,
         categoryId: String? = nil,
         date: String? = nil,
-        note: VoiceNotePatch? = nil
+        note: VoiceTextPatch? = nil
     ) {
         self.type = type
         self.amount = amount
@@ -241,13 +294,7 @@ nonisolated struct VoiceTransactionPatch: Codable, Equatable, Sendable {
         accountId = try container.decodeIfPresent(String.self, forKey: .accountId)
         categoryId = try container.decodeIfPresent(String.self, forKey: .categoryId)
         date = try container.decodeIfPresent(String.self, forKey: .date)
-        if container.contains(.note) {
-            note = try container.decodeNil(forKey: .note)
-                ? .clear
-                : .set(container.decode(String.self, forKey: .note))
-        } else {
-            note = nil
-        }
+        note = try VoiceTextPatch.decode(from: container, forKey: .note)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -257,11 +304,7 @@ nonisolated struct VoiceTransactionPatch: Codable, Equatable, Sendable {
         try container.encodeIfPresent(accountId, forKey: .accountId)
         try container.encodeIfPresent(categoryId, forKey: .categoryId)
         try container.encodeIfPresent(date, forKey: .date)
-        switch note {
-        case let .set(value): try container.encode(value, forKey: .note)
-        case .clear: try container.encodeNil(forKey: .note)
-        case nil: break
-        }
+        try VoiceTextPatch.encode(note, to: &container, forKey: .note)
     }
 }
 
@@ -278,6 +321,189 @@ nonisolated struct VoiceUpdateTransactionInput: Codable, Equatable, Sendable {
 nonisolated struct VoiceDeleteTransactionInput: Codable, Equatable, Sendable {
     /// 要删除的流水 UUID 字符串。
     var id: String
+}
+
+/// `adjust_balance` 的入参：把余额调到目标值，或按差额增减；`targetBalance` 与 `delta` 恰好一个不为 `nil`。
+nonisolated struct VoiceAdjustBalanceInput: Codable, Equatable, Sendable {
+    /// 启用中的账户 UUID 字符串。
+    var accountId: String
+
+    /// 调整后的余额，带符号的十进制字符串；信用卡、负债为欠款。
+    var targetBalance: String?
+
+    /// 余额增减额，不为 0；执行时加到当时的余额上。信用卡、负债为欠款的增减。
+    var delta: String?
+
+    /// 调整原因，最多 30 字。
+    var note: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case accountId, targetBalance, delta, note
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(accountId, forKey: .accountId)
+        // 契约要求可空字段必须出现，没有值时为 null
+        try container.encode(targetBalance, forKey: .targetBalance)
+        try container.encode(delta, forKey: .delta)
+        try container.encode(note, forKey: .note)
+    }
+}
+
+/// `transfer` 的入参。
+///
+/// 两边账户都有时记一笔转账；只有一边时，只给这个账户记一笔余额调整，增减方向与转账一致
+/// （例如只转入信用卡时欠款减少）。
+nonisolated struct VoiceTransferInput: Codable, Equatable, Sendable {
+    /// 转出账户 UUID 字符串；用户选择不选账户时为 `nil`。
+    var fromAccountId: String?
+
+    /// 转入账户 UUID 字符串；用户选择不选账户时为 `nil`。
+    var toAccountId: String?
+
+    /// 大于零的十进制金额字符串。
+    var amount: String
+
+    /// 记账日 `YYYY-MM-DD`。
+    var date: String
+
+    /// 备注，最多 30 字。
+    var note: String?
+
+    /// 金额由 AI 推断，界面上标「待确认」。
+    var isAmountUncertain: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case fromAccountId, toAccountId, amount, date, note, isAmountUncertain
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(fromAccountId, forKey: .fromAccountId)
+        try container.encode(toAccountId, forKey: .toAccountId)
+        try container.encode(amount, forKey: .amount)
+        try container.encode(date, forKey: .date)
+        try container.encode(note, forKey: .note)
+        try container.encode(isAmountUncertain, forKey: .isAmountUncertain)
+    }
+}
+
+/// `create_account` 的入参；服务端已补齐默认值。
+nonisolated struct VoiceCreateAccountInput: Codable, Equatable, Sendable {
+    /// 账户类型，即 `AccountType.rawValue`；不认识时按参数不合法处理。
+    var type: String
+
+    /// 账户模板 id，例如 `debitCard.cmb`；储蓄卡、信用卡、虚拟账户、投资账户必有，其余类型为 `nil`。
+    var templateId: String?
+
+    /// 账户名称，最多 50 字；为 `nil` 时使用模板名称或类型名称。
+    var name: String?
+
+    /// 期初余额，非负十进制字符串；信用卡、负债为欠款金额。
+    var balance: String
+
+    /// 卡号后四位；只有储蓄卡、信用卡会有。
+    var lastFourDigits: String?
+
+    /// 备注，最多 30 字。
+    var note: String?
+
+    /// 由 AI 推断或取了默认值的字段。
+    var inferredFields: [VoiceAccountInferredField]
+
+    private enum CodingKeys: String, CodingKey {
+        case type, templateId, name, balance, lastFourDigits, note, inferredFields
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(type, forKey: .type)
+        try container.encode(templateId, forKey: .templateId)
+        try container.encode(name, forKey: .name)
+        try container.encode(balance, forKey: .balance)
+        try container.encode(lastFourDigits, forKey: .lastFourDigits)
+        try container.encode(note, forKey: .note)
+        try container.encode(inferredFields, forKey: .inferredFields)
+    }
+}
+
+/// `update_account` 中要修改的字段；`nil` 表示不改。
+///
+/// App 按「恢复 → 改资料 → 设为默认 → 停用」的顺序执行。服务端保证：不会停用默认记账账户，不会同时停用并设为默认，
+/// 已停用的账户只有同时恢复时才会改其他字段；恢复时若没有有效的默认账户且该账户可以当默认，会同时设为默认。
+nonisolated struct VoiceAccountPatch: Codable, Equatable, Sendable {
+    /// 新名称，最多 50 字。
+    var name: String?
+
+    /// 备注的修改方式。
+    var note: VoiceTextPatch?
+
+    /// 卡号后四位的修改方式。
+    var lastFourDigits: VoiceTextPatch?
+
+    /// 是否设为默认记账账户；契约中只会出现 `true`，`false` 表示不改。
+    var setsDefault: Bool
+
+    /// `false` 停用，`true` 恢复。
+    var isActive: Bool?
+
+    private enum CodingKeys: String, CodingKey {
+        case name, note, lastFourDigits
+        case setsDefault = "isDefault"
+        case isActive
+    }
+
+    /// 成员逐一初始化，全部默认不改。
+    init(
+        name: String? = nil,
+        note: VoiceTextPatch? = nil,
+        lastFourDigits: VoiceTextPatch? = nil,
+        setsDefault: Bool = false,
+        isActive: Bool? = nil
+    ) {
+        self.name = name
+        self.note = note
+        self.lastFourDigits = lastFourDigits
+        self.setsDefault = setsDefault
+        self.isActive = isActive
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        note = try VoiceTextPatch.decode(from: container, forKey: .note)
+        lastFourDigits = try VoiceTextPatch.decode(from: container, forKey: .lastFourDigits)
+        setsDefault = try container.decodeIfPresent(Bool.self, forKey: .setsDefault) ?? false
+        isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(name, forKey: .name)
+        try VoiceTextPatch.encode(note, to: &container, forKey: .note)
+        try VoiceTextPatch.encode(lastFourDigits, to: &container, forKey: .lastFourDigits)
+        // 契约只接受 true，不设为默认时不写这个字段
+        if setsDefault {
+            try container.encode(true, forKey: .setsDefault)
+        }
+        try container.encodeIfPresent(isActive, forKey: .isActive)
+    }
+}
+
+/// `update_account` 的入参。
+nonisolated struct VoiceUpdateAccountInput: Codable, Equatable, Sendable {
+    /// 要修改的账户 UUID 字符串。
+    var accountId: String
+
+    /// 要修改的字段。
+    var patch: VoiceAccountPatch
+}
+
+/// `delete_account` 的入参；服务端保证不是默认记账账户、不是已停用账户。
+nonisolated struct VoiceDeleteAccountInput: Codable, Equatable, Sendable {
+    /// 要删除的账户 UUID 字符串。
+    var accountId: String
 }
 
 /// 服务端下发的一次工具调用；App 执行后要把它原样放回事件中回传。
@@ -297,11 +523,28 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
     /// 删除流水。
     case deleteTransaction(id: String, input: VoiceDeleteTransactionInput)
 
+    /// 调整账户余额。
+    case adjustBalance(id: String, input: VoiceAdjustBalanceInput)
+
+    /// 转账；只有一边账户时为单边余额调整。
+    case transfer(id: String, input: VoiceTransferInput)
+
+    /// 新建账户。
+    case createAccount(id: String, input: VoiceCreateAccountInput)
+
+    /// 修改账户。
+    case updateAccount(id: String, input: VoiceUpdateAccountInput)
+
+    /// 删除账户。
+    case deleteAccount(id: String, input: VoiceDeleteAccountInput)
+
     /// 调用 id，在整个会话内唯一。
     var id: String {
         switch self {
         case let .searchTransactions(id, _), let .summarizeTransactions(id, _),
-             let .createTransaction(id, _), let .updateTransaction(id, _), let .deleteTransaction(id, _):
+             let .createTransaction(id, _), let .updateTransaction(id, _), let .deleteTransaction(id, _),
+             let .adjustBalance(id, _), let .transfer(id, _),
+             let .createAccount(id, _), let .updateAccount(id, _), let .deleteAccount(id, _):
             id
         }
     }
@@ -314,6 +557,11 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
         case .createTransaction: .createTransaction
         case .updateTransaction: .updateTransaction
         case .deleteTransaction: .deleteTransaction
+        case .adjustBalance: .adjustBalance
+        case .transfer: .transfer
+        case .createAccount: .createAccount
+        case .updateAccount: .updateAccount
+        case .deleteAccount: .deleteAccount
         }
     }
 
@@ -335,6 +583,16 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
             self = try .updateTransaction(id: id, input: container.decode(VoiceUpdateTransactionInput.self, forKey: .input))
         case .deleteTransaction:
             self = try .deleteTransaction(id: id, input: container.decode(VoiceDeleteTransactionInput.self, forKey: .input))
+        case .adjustBalance:
+            self = try .adjustBalance(id: id, input: container.decode(VoiceAdjustBalanceInput.self, forKey: .input))
+        case .transfer:
+            self = try .transfer(id: id, input: container.decode(VoiceTransferInput.self, forKey: .input))
+        case .createAccount:
+            self = try .createAccount(id: id, input: container.decode(VoiceCreateAccountInput.self, forKey: .input))
+        case .updateAccount:
+            self = try .updateAccount(id: id, input: container.decode(VoiceUpdateAccountInput.self, forKey: .input))
+        case .deleteAccount:
+            self = try .deleteAccount(id: id, input: container.decode(VoiceDeleteAccountInput.self, forKey: .input))
         }
     }
 
@@ -348,6 +606,11 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
         case let .createTransaction(_, input): try container.encode(input, forKey: .input)
         case let .updateTransaction(_, input): try container.encode(input, forKey: .input)
         case let .deleteTransaction(_, input): try container.encode(input, forKey: .input)
+        case let .adjustBalance(_, input): try container.encode(input, forKey: .input)
+        case let .transfer(_, input): try container.encode(input, forKey: .input)
+        case let .createAccount(_, input): try container.encode(input, forKey: .input)
+        case let .updateAccount(_, input): try container.encode(input, forKey: .input)
+        case let .deleteAccount(_, input): try container.encode(input, forKey: .input)
         }
     }
 }
@@ -356,14 +619,20 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
 
 /// 工具执行失败的原因。
 nonisolated enum VoiceToolErrorCode: String, Codable, Equatable, Sendable {
-    /// 流水不存在。
+    /// 流水或账户不存在。
     case notFound = "not_found"
 
-    /// 余额调整，或已停用账户下的流水，不能修改、删除。
+    /// 余额调整，或已停用账户下的流水，不能修改、删除；或要操作的账户已停用。
     case notEditable = "not_editable"
 
-    /// 参数不合法，例如账户已停用、分类已删除、日期无效。
+    /// 参数不合法，例如账户已停用、分类已删除、日期无效、调整后余额与当前相同。
     case invalidInput = "invalid_input"
+
+    /// 停用账户时余额不为 0。
+    case balanceNotZero = "balance_not_zero"
+
+    /// 删除账户时账户还有流水。
+    case hasTransactions = "has_transactions"
 
     /// 其他本地错误，例如保存失败。
     case failed
@@ -423,8 +692,11 @@ nonisolated enum VoiceToolOutput: Encodable, Equatable, Sendable {
     /// 汇总成功。
     case summary(count: Int, expenseTotal: String, incomeTotal: String)
 
-    /// 新增成功，携带新流水的 UUID 字符串。
+    /// 新增成功，携带新流水、新转账流水或新账户的 UUID 字符串。
     case created(id: String)
+
+    /// 余额调整成功，携带调整前后的余额（带符号的十进制字符串）。
+    case balanceAdjusted(before: String, after: String)
 
     /// 修改或删除成功。
     case succeeded
@@ -436,7 +708,7 @@ nonisolated enum VoiceToolOutput: Encodable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case ok, code, total, items, count, expenseTotal, incomeTotal, id
+        case ok, code, total, items, count, expenseTotal, incomeTotal, id, balanceBefore, balanceAfter
     }
 
     func encode(to encoder: Encoder) throws {
@@ -454,6 +726,9 @@ nonisolated enum VoiceToolOutput: Encodable, Equatable, Sendable {
             try container.encode(incomeTotal, forKey: .incomeTotal)
         case let .created(id):
             try container.encode(id, forKey: .id)
+        case let .balanceAdjusted(before, after):
+            try container.encode(before, forKey: .balanceBefore)
+            try container.encode(after, forKey: .balanceAfter)
         case .succeeded:
             break
         }
@@ -549,10 +824,8 @@ nonisolated enum VoiceSessionCapability: String, Encodable, Equatable, Sendable 
     /// 账户工具：调整余额、转账、新建、修改、删除账户。声明后每个账户都必须带类型和余额。
     case accountTools = "account_tools"
 
-    /// 当前版本声明的能力。
-    ///
-    /// 账户工具的解码与执行完成前不声明 `accountTools`：声明后服务端会下发账户工具调用，App 无法解码会导致整轮失败。
-    static let declared: [VoiceSessionCapability] = []
+    /// 当前版本声明的能力；声明某项能力前，它对应的工具必须都能解码和执行。
+    static let declared: [VoiceSessionCapability] = [.accountTools]
 }
 
 /// 一次请求：会话上下文与截至目前的全部事件。

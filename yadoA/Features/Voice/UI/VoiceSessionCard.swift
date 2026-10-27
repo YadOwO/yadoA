@@ -245,37 +245,17 @@ private struct VoiceSessionTurnView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             ForEach(turn.changes) { change in
-                // 删除或撤销后流水已不存在，既无法定位也没有详情可看
-                let isAvailable = change.kind != .deleted && !turn.isUndone
-                HStack(spacing: 2) {
-                    // 卡片盖在明细上，点一笔就在首页定位它；一句话改了好几笔时逐笔点着看
-                    Button {
-                        onLocateChange(change)
-                    } label: {
-                        VoiceEntryChangeRow(change: change, isUndone: turn.isUndone)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!isAvailable)
-                    .accessibilityHint(isAvailable ? Text(text("voice.change.locate.hint")) : Text(verbatim: ""))
-
-                    // 卡片外的点击会关闭会话，详情入口放在行尾；不可用时保留占位，各行金额仍然对齐
-                    Button {
-                        onOpenTransaction(change.transactionID)
-                    } label: {
-                        Image(systemName: "info.circle")
-                            .font(.body)
-                            .foregroundStyle(.secondary)
+                switch change {
+                case let .entry(entryChange):
+                    entryRow(entryChange)
+                case let .account(accountChange):
+                    // 余额调整、转账与账户改动不在首页明细里，不能定位，也没有流水详情；行尾留出同宽占位，金额仍然对齐
+                    HStack(spacing: 2) {
+                        VoiceAccountChangeRow(change: accountChange, isUndone: turn.isUndone)
+                        Color.clear
                             .frame(width: 32, height: 32)
-                            .contentShape(Rectangle())
+                            .accessibilityHidden(true)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(!isAvailable)
-                    .opacity(isAvailable ? 1 : 0)
-                    .accessibilityHidden(!isAvailable)
-                    .accessibilityLabel(AccountLocalization.formatted(
-                        "voice.change.detail.accessibility", value: change.label, locale: locale
-                    ))
                 }
             }
             // DEBUG 包与 TestFlight 包显示这句话的耗时，点开看每一步
@@ -295,6 +275,42 @@ private struct VoiceSessionTurnView: View {
     /// 是否为最近一轮；追问候选项、登录和手动记账只对最近一轮有意义。
     private var isLatest: Bool {
         session.latestTurn?.id == turn.id
+    }
+
+    /// 一笔收支流水的改动：点行在首页定位它，行尾打开详情。
+    private func entryRow(_ change: VoiceEntryChange) -> some View {
+        // 删除或撤销后流水已不存在，既无法定位也没有详情可看
+        let isAvailable = change.kind != .deleted && !turn.isUndone
+        return HStack(spacing: 2) {
+            // 卡片盖在明细上，点一笔就在首页定位它；一句话改了好几笔时逐笔点着看
+            Button {
+                onLocateChange(change)
+            } label: {
+                VoiceEntryChangeRow(change: change, isUndone: turn.isUndone)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!isAvailable)
+            .accessibilityHint(isAvailable ? Text(text("voice.change.locate.hint")) : Text(verbatim: ""))
+
+            // 卡片外的点击会关闭会话，详情入口放在行尾；不可用时保留占位，各行金额仍然对齐
+            Button {
+                onOpenTransaction(change.transactionID)
+            } label: {
+                Image(systemName: "info.circle")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!isAvailable)
+            .opacity(isAvailable ? 1 : 0)
+            .accessibilityHidden(!isAvailable)
+            .accessibilityLabel(AccountLocalization.formatted(
+                "voice.change.detail.accessibility", value: change.label, locale: locale
+            ))
+        }
     }
 
     /// 本轮可用的操作。

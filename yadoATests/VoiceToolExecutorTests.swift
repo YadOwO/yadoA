@@ -38,7 +38,7 @@ struct VoiceToolExecutorTests {
         #expect(transaction.savedAt == savedAt)
         #expect(try balance(accountID, in: container) == Decimal(string: "71.50"))
 
-        let change = try #require(execution.change)
+        let change = try #require(execution.change?.entryChange)
         #expect(change.kind == .created)
         #expect(change.label == "午饭")
         #expect(change.inferredFields == [.account])
@@ -95,7 +95,7 @@ struct VoiceToolExecutorTests {
         #expect(transaction.amount == 40)
         #expect(transaction.note == "打车")
         #expect(try balance(accountID, in: container) == 60)
-        let change = try #require(execution.change)
+        let change = try #require(execution.change?.entryChange)
         #expect(change.kind == .updated)
         #expect(change.inverse == .replace(previous))
         #expect(change.transactionDay == 20261020)
@@ -139,14 +139,14 @@ struct VoiceToolExecutorTests {
         let execution = executor.execute(.deleteTransaction(id: "c1", input: VoiceDeleteTransactionInput(id: id.uuidString)))
         #expect(execution.result.output == .succeeded)
         #expect(try balance(accountID, in: container) == 100)
-        let change = try #require(execution.change)
+        let change = try #require(execution.change?.entryChange)
         #expect(change.label == "奶茶")
         guard case .deleted = change.highlight else {
             Issue.record("删除应登记残影提示")
             return
         }
 
-        let highlights = try executor.revert([change])
+        let highlights = try executor.revert([.entry(change)])
         let restored = try fetchTransaction(id, in: container)
         #expect(restored.savedAt == originalSavedAt)
         #expect(restored.note == "奶茶")
@@ -185,7 +185,7 @@ struct VoiceToolExecutorTests {
         let accountID = try makeAccount(balance: 100, in: container)
         let executor = makeExecutor(container)
         let first = executor.execute(.createTransaction(id: "c1", input: createInput(accountID: accountID, amount: "28")))
-        let change = try #require(first.change)
+        let change = try #require(first.change?.entryChange)
         // 伪造一个已不存在的流水的删除，使整批撤销失败
         let missing = VoiceEntryChange(
             kind: .created, transactionID: UUID(), transactionDay: 20261020, row: nil, accountName: nil, label: "x",
@@ -193,7 +193,7 @@ struct VoiceToolExecutorTests {
         )
 
         #expect(throws: (any Error).self) {
-            _ = try executor.revert([missing, change])
+            _ = try executor.revert([.entry(missing), .entry(change)])
         }
         #expect(try ModelContext(container).fetchCount(FetchDescriptor<AccountTransaction>()) == 1)
         #expect(try balance(accountID, in: container) == 72)

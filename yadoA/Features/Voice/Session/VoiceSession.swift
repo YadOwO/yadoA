@@ -56,8 +56,8 @@ final class VoiceSession {
         /// 处理结果。
         var outcome: Outcome = .processing
 
-        /// 本轮成功写入的流水变更，按执行顺序排列。
-        var changes: [VoiceEntryChange] = []
+        /// 本轮成功写入的改动（收支流水与账户相关），按执行顺序排列。
+        var changes: [VoiceChange] = []
 
         /// 本轮是否已被撤销。
         var isUndone = false
@@ -165,8 +165,8 @@ final class VoiceSession {
         return turn
     }
 
-    /// 本会话中仍然有效的流水变更（不含已撤销的轮次）。
-    var activeChanges: [VoiceEntryChange] {
+    /// 本会话中仍然有效的改动（不含已撤销的轮次）。
+    var activeChanges: [VoiceChange] {
         turns.filter { !$0.isUndone }.flatMap(\.changes)
     }
 
@@ -263,7 +263,8 @@ final class VoiceSession {
                         isAllSucceeded = isAllSucceeded && execution.result.output.isSuccess
                         if let change = execution.change {
                             updateTurn(turnID) { $0.changes.append(change) }
-                            if let entryHighlight = change.highlight {
+                            // 余额调整、转账与账户改动不在首页明细中展示，只有收支流水需要提示
+                            if let entryHighlight = change.entryChange?.highlight {
                                 highlight.mark(entryHighlight)
                             }
                         }
@@ -478,14 +479,24 @@ final class VoiceSession {
 
 /// 在本地生成一轮的结果提示，例如「已记 2 笔：午饭 ¥28.00、打车 ¥35.00」。
 enum VoiceSessionSummary {
-    /// 生成结果提示。
+    /// 生成结果提示：先按新增、修改、删除分段说明收支流水，再逐句说明账户相关的改动。
     ///
     /// - Parameters:
-    ///   - changes: 本轮的流水变更，按执行顺序排列。
+    ///   - changes: 本轮的改动，按执行顺序排列。
     ///   - locale: 文案使用的语言环境。
-    /// - Returns: 本地化提示；没有变更时为「这句话我没能处理」一类的兜底文案。
-    static func text(for changes: [VoiceEntryChange], locale: Locale) -> String {
-        text(forItems: changes.map { Item(kind: $0.kind, label: $0.label, formattedAmount: $0.formattedAmount) }, locale: locale)
+    /// - Returns: 本地化提示；没有改动时为「这句话我没能处理」一类的兜底文案。
+    static func text(for changes: [VoiceChange], locale: Locale) -> String {
+        let entries = changes.compactMap(\.entryChange)
+        let accountSentences = changes.compactMap { change -> String? in
+            guard case let .account(accountChange) = change else { return nil }
+            return accountChange.summary
+        }
+        guard !accountSentences.isEmpty else {
+            return text(forItems: entries.map { Item($0) }, locale: locale)
+        }
+        let entryText = entries.isEmpty ? [] : [text(forItems: entries.map { Item($0) }, locale: locale)]
+        return (entryText + accountSentences)
+            .joined(separator: AccountLocalization.string("voice.summary.separator", locale: locale))
     }
 
     /// 结果提示里的一笔变更：只需要类型、称呼和金额，首次引导的演示也用它生成同样的提示。
@@ -535,6 +546,13 @@ enum VoiceSessionSummary {
         }
         guard !parts.isEmpty else { return AccountLocalization.string("voice.summary.none", locale: locale) }
         return parts.joined(separator: AccountLocalization.string("voice.summary.separator", locale: locale))
+    }
+}
+
+extension VoiceSessionSummary.Item {
+    /// 由一笔收支流水的改动生成摘要。
+    fileprivate init(_ change: VoiceEntryChange) {
+        self.init(kind: change.kind, label: change.label, formattedAmount: change.formattedAmount)
     }
 }
 

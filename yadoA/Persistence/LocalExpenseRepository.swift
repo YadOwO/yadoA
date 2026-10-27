@@ -116,33 +116,50 @@ final class LocalExpenseRepository {
     /// - Throws: 任一变更不符合约束或保存失败时抛出对应错误，此时没有任何变更生效。
     func apply(_ mutations: [BookkeepingEntryMutation]) throws {
         let modelContext = container.makeManualSaveContext()
-        for mutation in mutations {
-            switch mutation {
-            case let .insert(snapshot):
-                guard try !modelContext.containsTransaction(id: snapshot.id) else {
-                    throw ExpenseRepositoryError.duplicateID(snapshot.id)
-                }
-                let transaction = try snapshot.validatedTransaction()
-                let (account, accountType) = try Self.bookkeepingAccount(id: transaction.accountID, in: modelContext)
-                try requireAvailableCategory(of: transaction.validatedPayload(), in: modelContext)
-                account.balance = try Self.updatedBalance(
-                    account.balance, by: snapshot.amount,
-                    effect: accountType.expenseBalanceEffect, entryType: snapshot.entryType
-                )
-                modelContext.insert(transaction)
-            case let .replace(snapshot):
-                guard let transaction = try modelContext.transaction(id: snapshot.id) else {
-                    throw ExpenseRepositoryError.transactionNotFound(snapshot.id)
-                }
-                try replace(transaction, with: snapshot.validatedTransaction(), in: modelContext)
-            case let .delete(id):
-                guard let transaction = try modelContext.transaction(id: id) else {
-                    throw ExpenseRepositoryError.transactionNotFound(id)
-                }
-                try Self.deleteTransactionsReversingBalances([transaction], in: modelContext)
+        do {
+            for mutation in mutations {
+                try apply(mutation, in: modelContext)
             }
+        } catch {
+            modelContext.rollback()
+            throw error
         }
         try modelContext.saveOrRollback(beforeSave: beforeSave)
+    }
+
+    /// 在调用方的 context 中执行一条收支变更；不保存。
+    ///
+    /// 撤销一轮语音改动时，收支变更要和账户相关的反向变更在同一次保存中提交，因此单独开放。
+    ///
+    /// - Parameters:
+    ///   - mutation: 要执行的变更。
+    ///   - modelContext: 调用方的 manual-save context。
+    /// - Throws: 变更不符合约束时抛出对应错误，由调用方回滚。
+    func apply(_ mutation: BookkeepingEntryMutation, in modelContext: ModelContext) throws {
+        switch mutation {
+        case let .insert(snapshot):
+            guard try !modelContext.containsTransaction(id: snapshot.id) else {
+                throw ExpenseRepositoryError.duplicateID(snapshot.id)
+            }
+            let transaction = try snapshot.validatedTransaction()
+            let (account, accountType) = try Self.bookkeepingAccount(id: transaction.accountID, in: modelContext)
+            try requireAvailableCategory(of: transaction.validatedPayload(), in: modelContext)
+            account.balance = try Self.updatedBalance(
+                account.balance, by: snapshot.amount,
+                effect: accountType.expenseBalanceEffect, entryType: snapshot.entryType
+            )
+            modelContext.insert(transaction)
+        case let .replace(snapshot):
+            guard let transaction = try modelContext.transaction(id: snapshot.id) else {
+                throw ExpenseRepositoryError.transactionNotFound(snapshot.id)
+            }
+            try replace(transaction, with: snapshot.validatedTransaction(), in: modelContext)
+        case let .delete(id):
+            guard let transaction = try modelContext.transaction(id: id) else {
+                throw ExpenseRepositoryError.transactionNotFound(id)
+            }
+            try Self.deleteTransactionsReversingBalances([transaction], in: modelContext)
+        }
     }
 
     /// 用已校验的替换值改写一笔收支，并修正新旧账户的余额；不保存。

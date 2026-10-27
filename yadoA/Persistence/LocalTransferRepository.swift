@@ -98,17 +98,32 @@ final class LocalTransferRepository {
     /// - Throws: 流水不存在、不是转账、任一账户不可用或保存失败时抛出错误。
     func delete(id: UUID) throws {
         let context = container.makeManualSaveContext()
+        do {
+            try Self.delete(id: id, in: context)
+        } catch {
+            context.rollback()
+            throw error
+        }
+        try context.saveOrRollback(beforeSave: beforeSave)
+    }
+
+    /// 在调用方的 context 中删除一笔转账并改回两边余额；不保存。撤销语音转账时与其他反向变更一起提交。
+    ///
+    /// - Parameters:
+    ///   - id: 待删除转账的稳定 UUID。
+    ///   - context: 调用方的 manual-save context。
+    /// - Throws: 流水不存在、不是转账、任一账户不可用或金额计算失败时抛出错误，由调用方回滚。
+    static func delete(id: UUID, in context: ModelContext) throws {
         guard let transaction = try context.transaction(id: id) else {
             throw TransferRepositoryError.transactionNotFound(id)
         }
         guard case let .transfer(toAccountID, amount)? = try? transaction.validatedPayload() else {
             throw TransferRepositoryError.notTransfer(id)
         }
-        let from = try Self.transferAccount(id: transaction.accountID, in: context)
-        let to = try Self.transferAccount(id: toAccountID, in: context)
-        try Self.apply(-amount, from: from, to: to)
+        let from = try transferAccount(id: transaction.accountID, in: context)
+        let to = try transferAccount(id: toAccountID, in: context)
+        try apply(-amount, from: from, to: to)
         context.delete(transaction)
-        try context.saveOrRollback(beforeSave: beforeSave)
     }
 
     /// 把转账金额同时应用到两个账户；撤销时传入负数金额。

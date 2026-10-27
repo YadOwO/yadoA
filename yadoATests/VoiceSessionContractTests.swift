@@ -96,6 +96,80 @@ struct VoiceSessionContractTests {
         #expect(decoded == clear)
     }
 
+    @Test("账户工具调用解码，原样回传时可空字段编码为 null")
+    func decodesAndEncodesAccountToolCalls() throws {
+        let json = """
+        {"status":"tool_calls","toolCalls":[
+          {"id":"c1","name":"adjust_balance","input":{"accountId":"A1","targetBalance":null,"delta":"-12.5","note":null}},
+          {"id":"c2","name":"transfer","input":{"fromAccountId":null,"toAccountId":"A2","amount":"300",
+            "date":"2026-10-20","note":"还花呗","isAmountUncertain":false}},
+          {"id":"c3","name":"create_account","input":{"type":"debitCard","templateId":"debitCard.cmb","name":null,
+            "balance":"0","lastFourDigits":"1234","note":null,"inferredFields":["balance"]}},
+          {"id":"c4","name":"update_account","input":{"accountId":"A1",
+            "patch":{"name":"零钱","lastFourDigits":null,"isDefault":true}}},
+          {"id":"c5","name":"delete_account","input":{"accountId":"A3"}}
+        ],"canFinishLocally":true}
+        """
+        let response = try JSONDecoder().decode(VoiceSessionTurnResponse.self, from: Data(json.utf8))
+        guard case let .toolCalls(calls, _, _) = response else {
+            Issue.record("应为 tool_calls")
+            return
+        }
+        #expect(calls.map(\.name) == [.adjustBalance, .transfer, .createAccount, .updateAccount, .deleteAccount])
+        guard case let .adjustBalance(_, adjust) = calls[0],
+              case let .transfer(_, transfer) = calls[1],
+              case let .createAccount(_, create) = calls[2],
+              case let .updateAccount(_, update) = calls[3]
+        else {
+            Issue.record("调用类型不符")
+            return
+        }
+        #expect(adjust.targetBalance == nil)
+        #expect(adjust.delta == "-12.5")
+        #expect(transfer.fromAccountId == nil)
+        #expect(transfer.toAccountId == "A2")
+        #expect(create.name == nil)
+        #expect(create.inferredFields == [.balance])
+        #expect(update.patch == VoiceAccountPatch(name: "零钱", lastFourDigits: .clear, setsDefault: true))
+
+        // 原样回传：必填的可空字段编码为 null，修改中不改的字段不出现
+        let adjustInput = try #require(try jsonObject(calls[0])["input"] as? [String: Any])
+        #expect(adjustInput["targetBalance"] is NSNull)
+        #expect(adjustInput["note"] is NSNull)
+        let transferInput = try #require(try jsonObject(calls[1])["input"] as? [String: Any])
+        #expect(transferInput["fromAccountId"] is NSNull)
+        let createInput = try #require(try jsonObject(calls[2])["input"] as? [String: Any])
+        #expect(createInput["name"] is NSNull)
+        #expect(createInput["templateId"] as? String == "debitCard.cmb")
+        let patch = try #require((try jsonObject(calls[3])["input"] as? [String: Any])?["patch"] as? [String: Any])
+        #expect(patch["lastFourDigits"] is NSNull)
+        #expect(patch["isDefault"] as? Bool == true)
+        #expect(!patch.keys.contains("note"))
+        #expect(!patch.keys.contains("isActive"))
+        for call in calls {
+            #expect(try JSONDecoder().decode(VoiceToolCall.self, from: JSONEncoder().encode(call)) == call)
+        }
+    }
+
+    @Test("账户修改只写要改的字段，不设为默认时不写 isDefault")
+    func encodesAccountPatchSparsely() throws {
+        let restore = try jsonObject(VoiceAccountPatch(isActive: true))
+        #expect(restore.keys.sorted() == ["isActive"])
+        let clearNote = try jsonObject(VoiceAccountPatch(note: .clear))
+        #expect(clearNote.keys.sorted() == ["note"])
+        #expect(clearNote["note"] is NSNull)
+    }
+
+    @Test("账户工具的执行结果按契约编码")
+    func encodesAccountToolOutputs() throws {
+        let adjusted = try jsonObject(VoiceToolOutput.balanceAdjusted(before: "100", after: "87.5"))
+        #expect(adjusted["ok"] as? Bool == true)
+        #expect(adjusted["balanceBefore"] as? String == "100")
+        #expect(adjusted["balanceAfter"] as? String == "87.5")
+        #expect(try jsonObject(VoiceToolOutput.failure(.balanceNotZero))["code"] as? String == "balance_not_zero")
+        #expect(try jsonObject(VoiceToolOutput.failure(.hasTransactions))["code"] as? String == "has_transactions")
+    }
+
     @Test("请求与事件按契约编码")
     func encodesRequestAndEvents() throws {
         let request = VoiceSessionTurnRequest(

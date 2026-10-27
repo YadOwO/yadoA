@@ -8355,6 +8355,420 @@
         }
       }
     },
+    "voice.account.action.adjustBalance" : {
+      "comment" : "Voice card: action shown before an account whose balance was adjusted.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance adjustment"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "调整余额"
+          }
+        }
+      }
+    },
+    "voice.account.action.transfer" : {
+      "comment" : "Voice card: action shown before a transfer between two accounts.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transfer"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "转账"
+          }
+        }
+      }
+    },
+    "voice.account.action.transferOut" : {
+      "comment" : "Voice card: money moved out of one account with no destination account chosen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Out"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "转出"
+          }
+        }
+      }
+    },
+    "voice.account.action.transferIn" : {
+      "comment" : "Voice card: money moved into one account with no source account chosen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "转入"
+          }
+        }
+      }
+    },
+    "voice.account.action.create" : {
+      "comment" : "Voice card: action shown before a newly created account.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新建账户"
+          }
+        }
+      }
+    },
+    "voice.account.action.setDefault" : {
+      "comment" : "Voice card: action shown before an account made the default bookkeeping account.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设为默认"
+          }
+        }
+      }
+    },
+    "voice.account.action.deactivate" : {
+      "comment" : "Voice card: action shown before a deactivated account.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deactivated"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已停用"
+          }
+        }
+      }
+    },
+    "voice.account.action.restore" : {
+      "comment" : "Voice card: action shown before a restored account.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restored"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已恢复"
+          }
+        }
+      }
+    },
+    "voice.account.transferTitle" : {
+      "comment" : "Voice card: transfer title. %1$@ is the source account, %2$@ the destination.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ → %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ → %2$@"
+          }
+        }
+      }
+    },
+    "voice.account.balanceBefore" : {
+      "comment" : "Voice card: the account balance before the adjustment. %@ is an amount.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原 %@"
+          }
+        }
+      }
+    },
+    "voice.account.balanceAfter" : {
+      "comment" : "Voice card: the account balance after a one-sided transfer. %@ is an amount.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Now %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "调整后 %@"
+          }
+        }
+      }
+    },
+    "voice.inferred.accountType" : {
+      "comment" : "Field the AI guessed when creating an account.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account type"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账户类型"
+          }
+        }
+      }
+    },
+    "voice.inferred.balance" : {
+      "comment" : "Field filled with 0 because the user did not say a balance.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "余额"
+          }
+        }
+      }
+    },
+    "voice.summary.balanceAdjusted" : {
+      "comment" : "%1$@ is the account, %2$@ is Balance, Debt or Amount, %3$@ is the new amount.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set %1$@ %2$@ to %3$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已把%1$@的%2$@调整为 %3$@"
+          }
+        }
+      }
+    },
+    "voice.summary.transferred" : {
+      "comment" : "%1$@ is the source account, %2$@ the amount, %3$@ the destination account.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transferred %2$@ from %1$@ to %3$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已从%1$@转 %2$@ 到%3$@"
+          }
+        }
+      }
+    },
+    "voice.summary.transferredOut" : {
+      "comment" : "%1$@ is the account, %2$@ the amount moved out of it.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moved %2$@ out of %1$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已从%1$@转出 %2$@"
+          }
+        }
+      }
+    },
+    "voice.summary.transferredIn" : {
+      "comment" : "%1$@ is the account, %2$@ the amount moved into it.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moved %2$@ into %1$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已转入 %2$@ 到%1$@"
+          }
+        }
+      }
+    },
+    "voice.summary.accountCreated" : {
+      "comment" : "%@ is the new account.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added account %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已新建账户：%@"
+          }
+        }
+      }
+    },
+    "voice.summary.accountUpdated" : {
+      "comment" : "%@ is the edited account.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated account %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已修改账户：%@"
+          }
+        }
+      }
+    },
+    "voice.summary.accountSetDefault" : {
+      "comment" : "%@ is the account made the default bookkeeping account.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set %@ as the default account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已把%@设为默认记账账户"
+          }
+        }
+      }
+    },
+    "voice.summary.accountDeactivated" : {
+      "comment" : "%@ is the deactivated account.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deactivated account %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已停用账户：%@"
+          }
+        }
+      }
+    },
+    "voice.summary.accountRestored" : {
+      "comment" : "%@ is the restored account.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restored account %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已恢复账户：%@"
+          }
+        }
+      }
+    },
+    "voice.summary.accountDeleted" : {
+      "comment" : "%@ is the deleted account.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted account %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已删除账户：%@"
+          }
+        }
+      }
+    },
     "voice.failure.signIn" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -203,11 +203,11 @@ struct VoiceSessionTests {
     @Test("本地结果提示按新增、修改、删除分段")
     func summaryText() {
         let locale = Locale(identifier: "zh-Hans")
-        func change(_ kind: VoiceEntryChange.Kind, _ label: String) -> VoiceEntryChange {
-            VoiceEntryChange(
+        func change(_ kind: VoiceEntryChange.Kind, _ label: String) -> VoiceChange {
+            .entry(VoiceEntryChange(
                 kind: kind, transactionID: UUID(), transactionDay: 20261020, row: nil, accountName: nil, label: label,
                 formattedAmount: "¥1.00", inferredFields: [], inverse: .delete(UUID()), highlight: nil
-            )
+            ))
         }
         let text = VoiceSessionSummary.text(
             for: [change(.created, "午饭"), change(.created, "打车"), change(.deleted, "奶茶")],

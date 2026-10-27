@@ -91,7 +91,7 @@ struct VoiceSessionCardTests {
             await fixture.session.send("香蕉 \(amount) 元")
 
             let turn = try #require(fixture.session.undoableTurn)
-            transactionID = try #require(turn.changes.first?.transactionID)
+            transactionID = try #require(turn.changes.first?.entryChange?.transactionID)
             try await fixture.waitForBottom(scrollView)
         }
 
@@ -105,7 +105,7 @@ struct VoiceSessionCardTests {
             )),
         ], canFinishLocally: true))
         await fixture.session.send("删除香蕉")
-        #expect(fixture.session.latestTurn?.changes.first?.kind == .deleted)
+        #expect(fixture.session.latestTurn?.changes.first?.entryChange?.kind == .deleted)
         try await fixture.waitForBottom(scrollView)
     }
 

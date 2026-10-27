@@ -23,6 +23,12 @@ enum BalanceAdjustmentRepositoryError: Error, Equatable {
 
     /// 草稿目标总余额无效。
     case invalidTargetBalance
+
+    /// 要删除的流水不存在。
+    case transactionNotFound(UUID)
+
+    /// 要删除的流水不是余额调整。
+    case notBalanceAdjustment(UUID)
 }
 
 /// 在主 actor 上原子设置账户目标总余额并新增调整流水的本地仓库。
@@ -51,14 +57,16 @@ final class LocalBalanceAdjustmentRepository {
     ///
     /// - Parameters:
     ///   - draft: Sheet 提交时复制的稳定草稿。
-    ///   - now: 同时用于业务日与保存时间的注入时刻。
+    ///   - now: 保存时间；没有指定记账日时也作为业务日。
     ///   - calendar: 生成当天 `YYYYMMDD` 时使用的日历。
+    ///   - transactionDay: 指定的 `YYYYMMDD` 记账日，例如语音里说了日期的单边转账；为空时取当天。
     /// - Returns: 成功保存的值类型回执，或没有变化的当前余额。
     /// - Throws: 草稿、账户、币种、精度、UUID 或持久化不符合约束时抛出错误。
     func save(
         _ draft: BalanceAdjustmentDraft,
         now: Date = .now,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        transactionDay: Int? = nil
     ) throws -> BalanceAdjustmentSaveResult {
         let modelContext = container.makeManualSaveContext()
 
@@ -92,7 +100,7 @@ final class LocalBalanceAdjustmentRepository {
             accountID: draft.accountID,
             balanceBefore: account.balance,
             balanceAfter: targetBalance,
-            transactionDay: TransactionDay.encode(now, calendar: calendar),
+            transactionDay: transactionDay ?? TransactionDay.encode(now, calendar: calendar),
             note: draft.note,
             savedAt: now
         )
@@ -100,5 +108,35 @@ final class LocalBalanceAdjustmentRepository {
         account.balance = targetBalance
         try modelContext.saveOrRollback(beforeSave: beforeSave)
         return .saved(currentBalance: targetBalance)
+    }
+
+    /// 在调用方的 context 中删除一笔余额调整，并从账户余额中扣回它的差额；不保存。
+    ///
+    /// 只用于撤销语音会话刚写入的调整：按差额扣回而不是还原成调整前的余额，期间其他流水对余额的影响得以保留，
+    /// 与 `AccountBalanceRebuilder` 只累加差额的规则一致。
+    ///
+    /// - Parameters:
+    ///   - id: 待删除余额调整的稳定 UUID。
+    ///   - context: 调用方的 manual-save context。
+    /// - Throws: 流水不存在、不是余额调整、账户不存在或已停用、金额计算失败时抛出错误，由调用方回滚。
+    static func delete(id: UUID, in context: ModelContext) throws {
+        guard let transaction = try context.transaction(id: id) else {
+            throw BalanceAdjustmentRepositoryError.transactionNotFound(id)
+        }
+        guard case let .balanceAdjustment(_, _, delta)? = try? transaction.validatedPayload() else {
+            throw BalanceAdjustmentRepositoryError.notBalanceAdjustment(id)
+        }
+        guard let account = try context.account(id: transaction.accountID) else {
+            throw BalanceAdjustmentRepositoryError.accountNotFound(transaction.accountID)
+        }
+        // 与转账、收支一致：停用账户的余额不能再变，否则会出现余额不为 0 的停用账户
+        guard account.isActive else {
+            throw BalanceAdjustmentRepositoryError.accountDeactivated(account.id)
+        }
+        guard let balance = account.balance.exactlyAdding(-delta) else {
+            throw ExpenseRepositoryError.balanceCalculationFailed
+        }
+        account.balance = balance
+        context.delete(transaction)
     }
 }

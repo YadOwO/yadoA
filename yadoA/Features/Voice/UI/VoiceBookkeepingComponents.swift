@@ -319,6 +319,51 @@ struct VoiceEntryChangeRow: View {
     }
 }
 
+/// 一轮中的一次账户相关改动：图标、动作、账户名称、说明与金额，样式与流水行一致。
+struct VoiceAccountChangeRow: View {
+    /// 账户相关改动。
+    let change: VoiceAccountChange
+
+    /// 所在轮次是否已撤销；已撤销时整行划掉、变淡。
+    var isUndone = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: change.symbolName)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28, height: 28)
+                .background(Color.accentColor.opacity(0.08), in: Circle())
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(change.actionText)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(change.title)
+                        .font(.subheadline.weight(.medium))
+                        .lineLimit(1)
+                }
+                if let detail = change.detail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if let formattedAmount = change.formattedAmount {
+                Text(formattedAmount)
+                    .font(.system(.subheadline, design: .serif).monospacedDigit())
+                    .lineLimit(1)
+            }
+        }
+        .strikethrough(isUndone)
+        .opacity(isUndone ? 0.45 : 1)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 extension VoiceSessionFailure {
     /// 失败时展示给用户的提示。
     ///
