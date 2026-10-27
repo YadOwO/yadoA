@@ -6,7 +6,7 @@ import SwiftUI
 /// - 墨水写字时一层很轻的“笔尖划纸”纹理，长短跟着这一行的书写时长；
 /// - 豆子落到纸上是整段最重的一下，紧跟一次回弹的余震；
 /// - 记下一笔是清脆的一下，删掉一笔稍重稍闷；
-/// - 按住种下时豆子压进土里一下，接着一段持续震动随芽长高而增强，扎根、破土、叶子长出时各一下；没按够松手时一段缩回的余震；
+/// - 第一页每写出一行清单清脆的一下，芽跟着长一节时一小段笔尖纹理；豆子落到芽尖时同样是最重的一下；
 /// - 撕下这页纸是一段由弱到强的纹理。
 ///
 /// 设备不支持 Core Haptics 或引擎启动失败时退回 `AppHaptics`；同样受设置里的触感开关控制。
@@ -16,9 +16,6 @@ final class OnboardingHaptics {
 
     /// 触感引擎，引导出现时创建，消失时停止。
     private var engine: CHHapticEngine?
-
-    /// 按住种下时的持续震动；松手时停止。
-    private var holdPlayer: CHHapticAdvancedPatternPlayer?
 
     // MARK: - 生命周期
 
@@ -43,8 +40,6 @@ final class OnboardingHaptics {
 
     /// 停止引擎并释放。
     func stop() {
-        try? holdPlayer?.stop(atTime: CHHapticTimeImmediate)
-        holdPlayer = nil
         engine?.stop()
         engine = nil
     }
@@ -151,87 +146,6 @@ final class OnboardingHaptics {
     /// 完成：整段引导里的成功提示，使用系统的成功触感。
     func success() {
         AppHaptics.play(.success)
-    }
-
-    // MARK: - 种下
-
-    /// 按住种下途中的一下：扎根、破土、长出叶子。
-    struct HoldAccent {
-        /// 相对这次按下的时刻，单位为秒。
-        let time: Double
-        /// 强度，0...1。
-        let intensity: Float
-        /// 锐度，0...1。
-        let sharpness: Float
-    }
-
-    /// 手指按下、豆子压进土里：低沉的一下。
-    func press() {
-        play([transient(at: 0, intensity: 0.55, sharpness: 0.15)], fallback: .press)
-    }
-
-    /// 按住：一段持续震动，从当前进度接着往下，强度和锐度随芽长高而升高；扎根、破土、叶子长出时各一下。
-    ///
-    /// - Parameters:
-    ///   - progress: 按下时芽已经长到的进度，0...1；松手后再按会从这里接着长。
-    ///   - duration: 从当前进度长满还需要的时长。
-    ///   - accents: 途中各一下的时刻与力度。
-    func beginHold(from progress: Double, duration: Double, accents: [HoldAccent]) {
-        guard duration > 0.02 else { return }
-        guard let engine else {
-            AppHaptics.play(.begin)
-            return
-        }
-        let start = Float(min(max(progress, 0), 1))
-        var events = [continuous(at: 0, duration: duration, intensity: 1, sharpness: 0.5)]
-        events += accents.map { transient(at: $0.time, intensity: $0.intensity, sharpness: $0.sharpness) }
-        let intensity = CHHapticParameterCurve(
-            parameterID: .hapticIntensityControl,
-            controlPoints: [
-                .init(relativeTime: 0, value: 0.12 + 0.7 * start),
-                .init(relativeTime: duration, value: 0.82),
-            ],
-            relativeTime: 0
-        )
-        let sharpness = CHHapticParameterCurve(
-            parameterID: .hapticSharpnessControl,
-            controlPoints: [
-                .init(relativeTime: 0, value: -0.4 + 0.7 * start),
-                .init(relativeTime: duration, value: 0.3),
-            ],
-            relativeTime: 0
-        )
-        do {
-            try? holdPlayer?.stop(atTime: CHHapticTimeImmediate)
-            let pattern = try CHHapticPattern(events: events, parameterCurves: [intensity, sharpness])
-            let player = try engine.makeAdvancedPlayer(with: pattern)
-            try player.start(atTime: CHHapticTimeImmediate)
-            holdPlayer = player
-        } catch {
-            // 触感只是点缀，失败时不打断按住
-        }
-    }
-
-    /// 没按够就松手、芽缩回土里：一段由弱到无的低沉纹理。
-    ///
-    /// - Parameter duration: 缩回的时长。
-    func retract(duration: Double) {
-        guard duration > 0.05 else { return }
-        let curve = CHHapticParameterCurve(
-            parameterID: .hapticIntensityControl,
-            controlPoints: [
-                .init(relativeTime: 0, value: 1),
-                .init(relativeTime: duration, value: 0),
-            ],
-            relativeTime: 0
-        )
-        play([continuous(at: 0, duration: duration, intensity: 0.35, sharpness: 0.1)], curves: [curve])
-    }
-
-    /// 松手：立即停止持续震动。
-    func endHold() {
-        try? holdPlayer?.stop(atTime: CHHapticTimeImmediate)
-        holdPlayer = nil
     }
 
     // MARK: - 撕纸

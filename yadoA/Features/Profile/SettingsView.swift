@@ -156,9 +156,16 @@ struct SettingsView: View {
         // 用 item 呈现：同一次点击里先建状态再置 isPresented 时，封面内容会读到旧的空值而白屏
         .fullScreenCover(item: $onboardingReplay) { replay in
             OnboardingView(store: replay) {
-                onboardingReplay = nil
+                // 纸已经撕走或淡出，底下就是设置页，直接收起封面，不再播一遍下滑
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    onboardingReplay = nil
+                }
             }
             .environment(authStore)
+            // 封面透明，撕下最后一页时露出底下的设置页
+            .presentationBackground(.clear)
         }
         .alert(text("auth.sign_out.confirm.title"), isPresented: $isSignOutConfirmationPresented) {
             Button(text("auth.sign_out.action"), role: .destructive) {

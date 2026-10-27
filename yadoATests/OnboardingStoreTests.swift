@@ -14,12 +14,12 @@ struct OnboardingStoreTests {
         return defaults
     }
 
-    @Test("未登录时最后一页前有登录邀请，已登录时没有；云端已有账户时跳过建账户")
+    @Test("未登录时第一页之前有登录邀请，已登录时没有；第一页总是最后一行；云端已有账户时跳过建账户")
     func sequenceFollowsSignInAndCloudAccounts() throws {
         let store = OnboardingStore(defaults: try makeDefaults("sequence"))
 
         #expect(store.sequence(isSignedIn: false) == [
-            .opening, .privacy, .account, .voiceDemo, .insight, .startPage, .accounts, .plant, .signIn, .landing,
+            .opening, .privacy, .account, .voiceDemo, .insight, .startPage, .accounts, .signIn, .plant,
         ])
         #expect(!store.sequence(isSignedIn: true).contains(.signIn))
 
@@ -27,7 +27,7 @@ struct OnboardingStoreTests {
         #expect(!store.sequence(isSignedIn: true).contains(.accounts))
     }
 
-    @Test("重看引导走完演示、设置和种下，跳过账号、登录邀请和撕纸")
+    @Test("重看引导走完演示、设置和第一页，跳过账号和登录邀请")
     func replaySkipsAccountAndLanding() throws {
         let store = OnboardingStore(mode: .replay, defaults: try makeDefaults("replay"))
 
@@ -65,6 +65,21 @@ struct OnboardingStoreTests {
         #expect(store.step == .plant)
     }
 
+    @Test("在登录邀请里登录后回到账号那一行补问同步，答完直接到第一页")
+    func signInRevisitsAccountThenReturnsToFirstPage() throws {
+        let store = OnboardingStore(defaults: try makeDefaults("revisit"))
+        while store.step != .signIn {
+            store.advance(isSignedIn: false)
+        }
+
+        store.revisit(.account)
+        #expect(store.step == .account)
+        #expect(!store.isGoingBack)
+
+        store.advance(isSignedIn: true)
+        #expect(store.step == .plant)
+    }
+
     @Test("跳过只标记完成，不写入任何草稿")
     func skipWritesNothing() throws {
         let defaults = try makeDefaults("skip")
@@ -79,7 +94,7 @@ struct OnboardingStoreTests {
         #expect(defaults.string(forKey: AppStartPage.storageKey) == nil)
     }
 
-    @Test("种下时一次写入账户和启动页面，第一个账户成为默认记账账户")
+    @Test("第一页点按钮时一次写入账户和启动页面，第一个账户成为默认记账账户")
     func commitWritesEverything() throws {
         let defaults = try makeDefaults("commit")
         let container = try AccountDataContainer.inMemory().modelContainer
@@ -107,7 +122,7 @@ struct OnboardingStoreTests {
         #expect(store.isCommitted)
     }
 
-    @Test("种下失败时什么都不写，可以再按一次")
+    @Test("写入失败时什么都不写，可以再点一次")
     func failedCommitWritesNothing() throws {
         let defaults = try makeDefaults("failedCommit")
         let container = try AccountDataContainer.inMemory().modelContainer
@@ -126,7 +141,7 @@ struct OnboardingStoreTests {
         #expect(!store.isCommitted)
     }
 
-    @Test("开启同步后云端已有账户时，种下不再建账户")
+    @Test("开启同步后云端已有账户时，写入时不再建账户")
     func commitSkipsAccountsWhenCloudHasThem() throws {
         let defaults = try makeDefaults("cloudAccounts")
         let container = try AccountDataContainer.inMemory().modelContainer
@@ -141,7 +156,7 @@ struct OnboardingStoreTests {
         #expect(OnboardingStore.isCompleted(in: defaults))
     }
 
-    @Test("重看引导种下时不写入任何数据")
+    @Test("重看引导点按钮时不写入任何数据")
     func replayCommitWritesNothing() throws {
         let defaults = try makeDefaults("replayCommit")
         let container = try AccountDataContainer.inMemory().modelContainer

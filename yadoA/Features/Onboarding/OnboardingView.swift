@@ -4,8 +4,8 @@ import SwiftUI
 /// 首次引导：在一张纸上一问一答地写下用户的“第一页”。
 ///
 /// 一次只写一行；答完的行缩成上方一行灰色小字，点它可以回去改。一颗账本红的豆子贯穿全程：
-/// 落到纸上，跟着顶部横线往前滚，在每一行里停到对应的位置，种下后弹到芽尖，最后落到首页的语音记账入口。
-/// 所有写入集中在“种下”那一刻；跳过、登录失败或中途退出，最后都落到能用的首页。
+/// 落到纸上，跟着顶部横线往前滚，在每一行里停到对应的位置，第一页写完时落到芽尖，最后随撕纸落到首页的语音记账入口。
+/// 所有写入集中在最后一页点按钮那一刻；跳过、登录失败或中途退出，最后都落到能用的首页。
 struct OnboardingView: View {
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -47,12 +47,7 @@ struct OnboardingView: View {
         .overlayPreferenceValue(OnboardingBeanSlotKey.self) { slot in
             GeometryReader { proxy in
                 let target = beanTarget(slot: slot, proxy: proxy)
-                OnboardingBean(
-                    frame: target.frame,
-                    isVisible: target.isVisible,
-                    squashCount: beanSquash,
-                    isTracking: target.isTracking
-                )
+                OnboardingBean(frame: target.frame, isVisible: target.isVisible, squashCount: beanSquash)
             }
             .ignoresSafeArea()
         }
@@ -129,7 +124,7 @@ struct OnboardingView: View {
         }
         .padding(.horizontal, 24)
         .padding(.top, 4)
-        .opacity(store.step == .opening || store.step == .landing ? 0 : 1)
+        .opacity(store.step == .opening ? 0 : 1)
         .animation(.easeOut(duration: 0.3), value: store.step == .opening)
     }
 
@@ -198,23 +193,21 @@ struct OnboardingView: View {
             OnboardingStartPageStep(store: store, haptics: haptics, onContinue: next)
         case .accounts:
             OnboardingAccountsStep(store: store, haptics: haptics, onContinue: next)
+        case .signIn:
+            OnboardingSignInStep(haptics: haptics, onSignedIn: askSyncAfterSignIn, onContinue: next)
         case .plant:
             OnboardingPlantStep(
                 store: store,
                 haptics: haptics,
                 onPlant: plant,
                 onBeanLanded: landBean,
-                onContinue: next,
+                onFinish: tear,
                 onRevise: { step in
                     withAnimation(.spring(duration: 0.5, bounce: 0.12)) {
                         store.goBack(to: step)
                     }
                 }
             )
-        case .signIn:
-            OnboardingSignInStep(haptics: haptics, onContinue: next)
-        case .landing:
-            OnboardingLandingStep(haptics: haptics, onTear: tear)
         }
     }
 
@@ -228,23 +221,20 @@ struct OnboardingView: View {
         )
     }
 
-    /// 种下之后、撕纸时都不能再跳过。
+    /// 写入之后、撕纸时都不能再跳过。
     private var showsSkip: Bool {
-        store.mode == .replay || (!store.isCommitted && store.step != .landing)
+        !isTearing && (store.mode == .replay || !store.isCommitted)
     }
 
     // MARK: - 豆子
 
     /// 豆子此刻要停的位置：撕纸时落到语音入口；还没落下时在停放处正上方的纸外。
-    private func beanTarget(
-        slot: OnboardingBeanSlot?,
-        proxy: GeometryProxy
-    ) -> (frame: CGRect, isVisible: Bool, isTracking: Bool) {
+    private func beanTarget(slot: OnboardingBeanSlot?, proxy: GeometryProxy) -> (frame: CGRect, isVisible: Bool) {
         let window = proxy.frame(in: .global)
         if isTearing {
             guard let landingTarget else {
                 // 没有语音入口可落时，豆子跟着纸一起掉出屏幕
-                return (CGRect(x: proxy.size.width / 2 - 9, y: proxy.size.height + 80, width: 18, height: 18), true, false)
+                return (CGRect(x: proxy.size.width / 2 - 9, y: proxy.size.height + 80, width: 18, height: 18), true)
             }
             let diameter: CGFloat = 18
             return (
@@ -254,18 +244,17 @@ struct OnboardingView: View {
                     width: diameter,
                     height: diameter
                 ),
-                true,
-                false
+                true
             )
         }
         guard let slot else {
-            return (CGRect(x: proxy.size.width / 2 - 10, y: -80, width: 20, height: 20), false, false)
+            return (CGRect(x: proxy.size.width / 2 - 10, y: -80, width: 20, height: 20), false)
         }
         let frame = proxy[slot.anchor]
         guard isBeanDropped else {
-            return (frame.offsetBy(dx: 0, dy: -(frame.maxY + 80)), slot.isVisible, false)
+            return (frame.offsetBy(dx: 0, dy: -(frame.maxY + 80)), slot.isVisible)
         }
-        return (frame, slot.isVisible, slot.isTracking)
+        return (frame, slot.isVisible)
     }
 
     /// 豆子从纸外落到纸上，落定时整段最重的一下。
@@ -309,7 +298,16 @@ struct OnboardingView: View {
         }
     }
 
-    /// 种下：一次写入所有草稿。
+    /// 在登录邀请里登录成功：回到账号那一行问一次要不要同步，答完直接回到第一页。
+    private func askSyncAfterSignIn() {
+        store.draft.accountOutcome = .signedIn
+        store.draft.syncChoice = nil
+        withAnimation(.spring(duration: 0.55, bounce: 0.12)) {
+            store.revisit(.account)
+        }
+    }
+
+    /// 写入：一次写入所有草稿。
     ///
     /// - Returns: 写入成功时为 true；失败时什么都没写，可以再按一次。
     private func plant() -> Bool {
@@ -321,9 +319,15 @@ struct OnboardingView: View {
         }
     }
 
-    /// 撕下这页纸：露出首页，豆子落到语音记账入口上，入口跳一下，然后移除引导。
+    /// 撕下这页纸：露出首页，豆子落到语音记账入口上，入口跳一下、旁边浮出一句提示，然后移除引导。
+    ///
+    /// 重看时底下是设置页，豆子跟着纸一起落下。
     private func tear() async {
-        landingTarget = VoiceEntryBeacon.shared.frame
+        if store.mode == .firstLaunch {
+            // 写入后首页按新的启动页面重建，等它排好、语音入口报上新位置
+            try? await Task.sleep(for: .milliseconds(150))
+            landingTarget = VoiceEntryBeacon.shared.frame
+        }
         let duration = reduceMotion ? 0.3 : 0.75
         haptics.tear(duration: duration)
         withAnimation(.easeIn(duration: duration)) {
@@ -334,6 +338,7 @@ struct OnboardingView: View {
             haptics.landing(rebound: reduceMotion ? nil : 0.16)
             beanSquash += 1
             VoiceEntryBeacon.shared.pulse()
+            VoiceEntryBeacon.shared.showHint()
         }
         try? await Task.sleep(for: .milliseconds(reduceMotion ? 200 : 650))
         onFinish()

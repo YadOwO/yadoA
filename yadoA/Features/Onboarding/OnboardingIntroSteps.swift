@@ -525,7 +525,7 @@ struct OnboardingAccountStep: View {
 
 // MARK: - 登录邀请
 
-/// 登录邀请：只在未登录时出现。列出登录后能做的事，并说明登录不会上传账本；可以以后再说。
+/// 登录邀请：只在未登录时出现，排在第一页之前。列出登录后能做的事，并说明登录不会上传账本；可以以后再说。
 struct OnboardingSignInStep: View {
     @Environment(\.locale) private var locale
     @Environment(AuthStore.self) private var authStore
@@ -534,7 +534,10 @@ struct OnboardingSignInStep: View {
     /// 触感。
     let haptics: OnboardingHaptics
 
-    /// 进入下一行。
+    /// 登录成功、登录页关上后调用，由外层补问要不要同步。
+    let onSignedIn: () -> Void
+
+    /// 以后再说，进入下一行。
     let onContinue: () -> Void
 
     /// 标题写完后依次画出权益图标。
@@ -590,9 +593,10 @@ struct OnboardingSignInStep: View {
                 .accessibilityIdentifier("onboarding-sign-in-later")
         }
         .onChange(of: signInPresentation.isPresented) { _, isPresented in
-            // 登录成功、登录页关上后直接往下走；没登录就留在这一行
+            // 登录成功、登录页关上后补问同步；没登录就留在这一行
             if !isPresented, authStore.isAuthenticated {
-                onContinue()
+                haptics.success()
+                onSignedIn()
             }
         }
     }
@@ -610,44 +614,5 @@ enum OnboardingSymbolTransition {
             return AnyTransition(.symbolEffect(.drawOn))
         }
         return AnyTransition(.symbolEffect(.appear))
-    }
-}
-
-// MARK: - 落地
-
-/// 落地：写出“第一页，写好了。”，然后这页纸被撕走。
-struct OnboardingLandingStep: View {
-    @Environment(\.locale) private var locale
-
-    /// 触感。
-    let haptics: OnboardingHaptics
-
-    /// 写完后撕下这页纸。
-    let onTear: () async -> Void
-
-    var body: some View {
-        VStack {
-            Spacer()
-            HStack(alignment: .lastTextBaseline, spacing: 10) {
-                OnboardingInkText(
-                    text: AccountLocalization.string("onboarding.landing.title", locale: locale),
-                    font: .system(size: 30, weight: .regular, design: .serif),
-                    haptics: haptics,
-                    onWritten: {
-                        Task {
-                            try? await Task.sleep(for: .milliseconds(600))
-                            await onTear()
-                        }
-                    }
-                )
-                Color.clear
-                    .frame(width: 16, height: 16)
-                    .onboardingBeanSlot()
-            }
-            .padding(.horizontal, 24)
-            Spacer()
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
     }
 }

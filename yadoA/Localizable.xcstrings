@@ -10899,6 +10899,24 @@
         }
       }
     },
+    "onboarding.landing.hint" : {
+      "comment" : "首次引导结束时语音记账入口旁的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap here and just say what you spent"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点这里，说一句话就能记一笔"
+          }
+        }
+      }
+    },
     "onboarding.opening.enter" : {
       "comment" : "首次引导开场唯一的按钮，进入产品",
       "extractionState" : "manual",
@@ -11950,31 +11968,31 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Here's your first page:"
+            "value" : "Your First Page"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这一页写下了："
+            "value" : "你的第一页"
           }
         }
       }
     },
-    "onboarding.plant.done.title" : {
-      "comment" : "首次引导种下之后的标题",
+    "onboarding.plant.replayDone" : {
+      "comment" : "重看引导最后一页的按钮",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Planted."
+            "value" : "Done"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "种下了。"
+            "value" : "写好了"
           }
         }
       }
@@ -11997,78 +12015,6 @@
         }
       }
     },
-    "onboarding.plant.hold" : {
-      "comment" : "首次引导种植区下方的提示：按住豆子种下",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Press and hold the bean to plant it"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "按住这颗豆子，把它种下去"
-          }
-        }
-      }
-    },
-    "onboarding.plant.holdLonger" : {
-      "comment" : "首次引导没按够就松手时的提示",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hold a little longer, until both leaves are out."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "再按久一点，等两片叶子长出来。"
-          }
-        }
-      }
-    },
-    "onboarding.plant.tap" : {
-      "comment" : "首次引导点按种下的按钮（减弱动态效果、VoiceOver）",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Plant Your First Bean"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "种下第一颗豆"
-          }
-        }
-      }
-    },
-    "onboarding.plant.done" : {
-      "comment" : "首次引导种下之后的按钮",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Planted"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "种下了"
-          }
-        }
-      }
-    },
     "onboarding.plant.failed" : {
       "comment" : "首次引导写入失败的提示",
       "extractionState" : "manual",
@@ -12082,7 +12028,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "没写进去，再按一次试试。"
+            "value" : "没写进去，再点一次试试。"
           }
         }
       }
@@ -12101,6 +12047,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "这是重看，不会改动你现有的设置和账户。"
+          }
+        }
+      }
+    },
+    "onboarding.plant.start" : {
+      "comment" : "首次引导最后一页的按钮：写入设置并去记第一笔",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record Your First Entry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始记第一笔"
           }
         }
       }
@@ -12317,24 +12281,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "以后再说"
-          }
-        }
-      }
-    },
-    "onboarding.landing.title" : {
-      "comment" : "首次引导最后一行",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Page one, done."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "第一页，写好了。"
           }
         }
       }

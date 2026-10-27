@@ -6,7 +6,7 @@ import SwiftUI
 struct OnboardingStartPageStep: View {
     @Environment(\.locale) private var locale
 
-    /// 引导状态；选择写进草稿，种下时才生效。
+    /// 引导状态；选择写进草稿，第一页点按钮时才生效。
     let store: OnboardingStore
 
     /// 触感。
@@ -127,7 +127,7 @@ struct OnboardingAccountsStep: View {
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// 引导状态；选择和余额写进草稿，种下时才建账户。
+    /// 引导状态；选择和余额写进草稿，第一页点按钮时才建账户。
     let store: OnboardingStore
 
     /// 触感。

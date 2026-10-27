@@ -18,12 +18,10 @@ enum OnboardingStep: String, Codable, CaseIterable {
     case startPage
     /// 建账户：钱放在哪。
     case accounts
-    /// 小结与种下：一次写入前面所有回答。
-    case plant
     /// 登录邀请：只在未登录时出现。
     case signIn
-    /// 落地：撕下这页纸，豆子落到语音记账入口。
-    case landing
+    /// 第一页：前面的回答写成一份清单，芽随之长出；点按钮一次写入所有回答，撕下这页纸进入首页。
+    case plant
 }
 
 /// 账号这一步的结果。
@@ -113,7 +111,7 @@ enum OnboardingAccountOption: String, Codable, CaseIterable, Identifiable {
 
 extension AppStartPage: Codable {}
 
-/// 引导中的回答草稿；“种下”之前不写入账本和设置。
+/// 引导中的回答草稿；最后一页点按钮之前不写入账本和设置。
 struct OnboardingDraft: Codable, Equatable {
     /// 账号这一步的结果；还没答时为 nil。
     var accountOutcome: OnboardingAccountOutcome?
@@ -149,9 +147,9 @@ struct OnboardingProgress: Codable, Equatable {
     var answered: [OnboardingStep] = []
 }
 
-/// 首次引导的状态：当前写到哪一行、回答草稿，以及跳过、回改、种下、完成。
+/// 首次引导的状态：当前写到哪一行、回答草稿，以及跳过、回改、写入、完成。
 ///
-/// 中途退出时进度保存在本机，下次从同一行继续；“种下”时才一次写入账户、启动页面并标记完成。
+/// 中途退出时进度保存在本机，下次从同一行继续；最后一页点按钮时才一次写入账户、启动页面并标记完成。
 /// 重看引导时走一遍除登录、同步以外的所有行，但不保存进度、不写入任何数据。
 @MainActor
 @Observable
@@ -160,7 +158,7 @@ final class OnboardingStore: Identifiable {
     enum Mode: Equatable {
         /// 第一次打开 App。
         case firstLaunch
-        /// 从设置里重看：走一遍演示、设置和种下，不写入数据，也不触发登录和同步。
+        /// 从设置里重看：走一遍演示、设置和第一页，不写入数据，也不触发登录和同步。
         case replay
     }
 
@@ -191,7 +189,7 @@ final class OnboardingStore: Identifiable {
     /// 已经答过的行，按答题顺序排列。
     private(set) var answered: [OnboardingStep]
 
-    /// 是否已经种下：写入完成后不能再回到前面改答案。
+    /// 是否已经写入：写入完成后不能再回到前面改答案。
     private(set) var isCommitted = false
 
     /// 最近一次换行是否是回到前面的某一行，决定过渡方向。
@@ -210,9 +208,7 @@ final class OnboardingStore: Identifiable {
         let progress = mode == .firstLaunch
             ? defaults.data(forKey: Self.progressKey).flatMap { try? JSONDecoder().decode(OnboardingProgress.self, from: $0) }
             : nil
-        // 种下之后的行依赖已写入的数据，进度里不应出现；万一出现就从小结重新开始
-        let savedStep = progress?.step ?? .opening
-        step = [.signIn, .landing].contains(savedStep) ? .plant : savedStep
+        step = progress?.step ?? .opening
         draft = progress?.draft ?? OnboardingDraft()
         answered = progress?.answered ?? []
     }
@@ -220,9 +216,9 @@ final class OnboardingStore: Identifiable {
     /// 本次引导依次要写的行。
     ///
     /// - Parameter isSignedIn: 当前是否已登录；已登录时不再出现登录邀请。
-    /// - Returns: 从开场到落地的行。
+    /// - Returns: 从开场到第一页的行；第一页总是最后一行。
     func sequence(isSignedIn: Bool) -> [OnboardingStep] {
-        // 重看时跳过账号这一行（会真的登录、开同步），也没有登录邀请和撕纸，种下后直接关闭
+        // 重看时跳过账号这一行和登录邀请，它们会真的登录、开同步
         if mode == .replay {
             return [.opening, .privacy, .voiceDemo, .insight, .startPage, .accounts, .plant]
         }
@@ -230,12 +226,11 @@ final class OnboardingStore: Identifiable {
         if !draft.hasCloudAccounts {
             steps.append(.accounts)
         }
-        steps.append(.plant)
         // 在登录邀请这一行登录成功时仍保留它，后面的行才找得到位置
         if !isSignedIn || step == .signIn {
             steps.append(.signIn)
         }
-        steps.append(.landing)
+        steps.append(.plant)
         return steps
     }
 
@@ -266,12 +261,23 @@ final class OnboardingStore: Identifiable {
         return true
     }
 
-    /// 点上方的灰色小字，回到那一行改答案；后面答过的保留。种下之后不能再回去。
+    /// 点上方的灰色小字，回到那一行改答案；后面答过的保留。写入之后不能再回去。
     ///
     /// - Parameter target: 要回到的行，必须是已经答过的。
     func goBack(to target: OnboardingStep) {
         guard !isCommitted, answered.contains(target), target != step else { return }
         isGoingBack = true
+        step = target
+        save()
+    }
+
+    /// 回到答过的某一行补问一句，过渡仍是往下写；例如在登录邀请里登录后，回到账号那一行问要不要同步。
+    ///
+    /// 补完后 `advance` 会直接回到后面第一个还没答的行。
+    /// - Parameter target: 要补问的行，必须是已经答过的。
+    func revisit(_ target: OnboardingStep) {
+        guard !isCommitted, answered.contains(target), target != step else { return }
+        isGoingBack = false
         step = target
         save()
     }
@@ -283,7 +289,7 @@ final class OnboardingStore: Identifiable {
         defaults.removeObject(forKey: Self.progressKey)
     }
 
-    /// 种下：一次写入账户和启动页面，并标记引导完成；任何一步失败都不写入。
+    /// 写入：一次写入账户和启动页面，并标记引导完成；任何一步失败都不写入。
     ///
     /// 重看引导时什么都不写。
     /// - Parameters:
@@ -296,7 +302,7 @@ final class OnboardingStore: Identifiable {
         isCommitted = true
     }
 
-    /// 保存进度；种下之后和重看引导时不保存。
+    /// 保存进度；写入之后和重看引导时不保存。
     private func save() {
         guard mode == .firstLaunch, !isCommitted else { return }
         let progress = OnboardingProgress(step: step, draft: draft, answered: answered)
@@ -306,7 +312,7 @@ final class OnboardingStore: Identifiable {
     }
 }
 
-/// 种下时的一次性写入。
+/// 最后一页点按钮时的一次性写入。
 enum OnboardingCommit {
     /// 写入账户与启动页面，并标记引导完成。
     ///
