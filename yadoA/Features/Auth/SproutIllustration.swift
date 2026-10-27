@@ -309,21 +309,9 @@ enum SproutLinePart: CaseIterable {
         var path = Path()
         switch self {
         case .base:
-            // 地面：一条略有起伏的横线。
-            path.move(to: CGPoint(x: 42, y: 199))
-            path.addCurve(to: CGPoint(x: 118, y: 196), control1: CGPoint(x: 70, y: 191), control2: CGPoint(x: 94, y: 203))
-            path.addCurve(to: CGPoint(x: 192, y: 197), control1: CGPoint(x: 144, y: 189), control2: CGPoint(x: 170, y: 203))
-
-            // 根须：从茎底向下分出两笔。
-            path.move(to: CGPoint(x: 117, y: 198))
-            path.addCurve(to: CGPoint(x: 101, y: 217), control1: CGPoint(x: 115, y: 207), control2: CGPoint(x: 109, y: 213))
-            path.move(to: CGPoint(x: 120, y: 198))
-            path.addCurve(to: CGPoint(x: 138, y: 214), control1: CGPoint(x: 124, y: 206), control2: CGPoint(x: 131, y: 211))
-
-            // 茎：自地面向上，微微摆动，止于豆子底部。
-            path.move(to: CGPoint(x: 118, y: 196))
-            path.addCurve(to: CGPoint(x: 116, y: 120), control1: CGPoint(x: 104, y: 170), control2: CGPoint(x: 128, y: 142))
-            path.addCurve(to: CGPoint(x: 113, y: 85), control1: CGPoint(x: 108, y: 106), control2: CGPoint(x: 111, y: 93))
+            path.addPath(Self.groundPath)
+            path.addPath(Self.rootsPath)
+            path.addPath(Self.stemPath)
         case .leftLeaf:
             // 左叶：从茎上绕出一片，再回到茎上。
             path.move(to: Self.leftLeafBase)
@@ -371,6 +359,37 @@ enum SproutLinePart: CaseIterable {
         }
         return path
     }
+
+    /// 地面：一条略有起伏的横线。
+    static var groundPath: Path {
+        var path = Path()
+        path.move(to: CGPoint(x: 42, y: 199))
+        path.addCurve(to: CGPoint(x: 118, y: 196), control1: CGPoint(x: 70, y: 191), control2: CGPoint(x: 94, y: 203))
+        path.addCurve(to: CGPoint(x: 192, y: 197), control1: CGPoint(x: 144, y: 189), control2: CGPoint(x: 170, y: 203))
+        return path
+    }
+
+    /// 根须：从茎底向下分出两笔。
+    static var rootsPath: Path {
+        var path = Path()
+        path.move(to: CGPoint(x: 117, y: 198))
+        path.addCurve(to: CGPoint(x: 101, y: 217), control1: CGPoint(x: 115, y: 207), control2: CGPoint(x: 109, y: 213))
+        path.move(to: CGPoint(x: 120, y: 198))
+        path.addCurve(to: CGPoint(x: 138, y: 214), control1: CGPoint(x: 124, y: 206), control2: CGPoint(x: 131, y: 211))
+        return path
+    }
+
+    /// 茎：自地面向上，微微摆动，止于豆子底部。
+    static var stemPath: Path {
+        var path = Path()
+        path.move(to: stemBase)
+        path.addCurve(to: CGPoint(x: 116, y: 120), control1: CGPoint(x: 104, y: 170), control2: CGPoint(x: 128, y: 142))
+        path.addCurve(to: CGPoint(x: 113, y: 85), control1: CGPoint(x: 108, y: 106), control2: CGPoint(x: 111, y: 93))
+        return path
+    }
+
+    /// 茎从地面长出的那一点。
+    static let stemBase = CGPoint(x: 118, y: 196)
 
     /// 左叶与茎的连接点。
     private static let leftLeafBase = CGPoint(x: 114, y: 150)

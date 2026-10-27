@@ -113,6 +113,9 @@ nonisolated struct OnboardingBeanSlot {
 
     /// 豆子是否显示；落地前藏在纸外，交给别的视图画时隐藏。
     let isVisible: Bool
+
+    /// 豆子是否紧跟这个位置逐帧移动、不走弹簧；按住种下时豆子跟着芽尖往上走。
+    let isTracking: Bool
 }
 
 /// 收集当前要停放豆子的位置。
@@ -133,9 +136,17 @@ extension View {
     ///   - priority: 优先级，步骤里的位置用默认的 1，盖过顶部横线上的停放位置。
     ///   - isActive: 为 false 时不标记。
     ///   - isVisible: 豆子停在这里时是否显示。
-    func onboardingBeanSlot(priority: Int = 1, isActive: Bool = true, isVisible: Bool = true) -> some View {
+    ///   - isTracking: 为 true 时豆子逐帧紧跟这个位置，不走弹簧。
+    func onboardingBeanSlot(
+        priority: Int = 1,
+        isActive: Bool = true,
+        isVisible: Bool = true,
+        isTracking: Bool = false
+    ) -> some View {
         anchorPreference(key: OnboardingBeanSlotKey.self, value: .bounds) { anchor in
-            isActive ? OnboardingBeanSlot(anchor: anchor, priority: priority, isVisible: isVisible) : nil
+            isActive
+                ? OnboardingBeanSlot(anchor: anchor, priority: priority, isVisible: isVisible, isTracking: isTracking)
+                : nil
         }
     }
 }
@@ -153,6 +164,9 @@ struct OnboardingBean: View {
     /// 每加 1 压扁一下，对应一次落定。
     let squashCount: Int
 
+    /// 是否逐帧紧跟位置；为 true 时位置变化不走弹簧。
+    var isTracking = false
+
     var body: some View {
         let diameter = min(frame.width, frame.height)
         let isStill = reduceMotion
@@ -168,7 +182,7 @@ struct OnboardingBean: View {
             }
             .opacity(isVisible ? 1 : 0)
             .position(x: frame.midX, y: frame.midY)
-            .animation(reduceMotion ? .easeInOut(duration: 0.25) : Self.travel, value: frame)
+            .animation(isTracking ? nil : reduceMotion ? .easeInOut(duration: 0.25) : Self.travel, value: frame)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }

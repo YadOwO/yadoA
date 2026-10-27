@@ -47,7 +47,12 @@ struct OnboardingView: View {
         .overlayPreferenceValue(OnboardingBeanSlotKey.self) { slot in
             GeometryReader { proxy in
                 let target = beanTarget(slot: slot, proxy: proxy)
-                OnboardingBean(frame: target.frame, isVisible: target.isVisible, squashCount: beanSquash)
+                OnboardingBean(
+                    frame: target.frame,
+                    isVisible: target.isVisible,
+                    squashCount: beanSquash,
+                    isTracking: target.isTracking
+                )
             }
             .ignoresSafeArea()
         }
@@ -231,12 +236,15 @@ struct OnboardingView: View {
     // MARK: - 豆子
 
     /// 豆子此刻要停的位置：撕纸时落到语音入口；还没落下时在停放处正上方的纸外。
-    private func beanTarget(slot: OnboardingBeanSlot?, proxy: GeometryProxy) -> (frame: CGRect, isVisible: Bool) {
+    private func beanTarget(
+        slot: OnboardingBeanSlot?,
+        proxy: GeometryProxy
+    ) -> (frame: CGRect, isVisible: Bool, isTracking: Bool) {
         let window = proxy.frame(in: .global)
         if isTearing {
             guard let landingTarget else {
                 // 没有语音入口可落时，豆子跟着纸一起掉出屏幕
-                return (CGRect(x: proxy.size.width / 2 - 9, y: proxy.size.height + 80, width: 18, height: 18), true)
+                return (CGRect(x: proxy.size.width / 2 - 9, y: proxy.size.height + 80, width: 18, height: 18), true, false)
             }
             let diameter: CGFloat = 18
             return (
@@ -246,17 +254,18 @@ struct OnboardingView: View {
                     width: diameter,
                     height: diameter
                 ),
-                true
+                true,
+                false
             )
         }
         guard let slot else {
-            return (CGRect(x: proxy.size.width / 2 - 10, y: -80, width: 20, height: 20), false)
+            return (CGRect(x: proxy.size.width / 2 - 10, y: -80, width: 20, height: 20), false, false)
         }
         let frame = proxy[slot.anchor]
         guard isBeanDropped else {
-            return (frame.offsetBy(dx: 0, dy: -(frame.maxY + 80)), slot.isVisible)
+            return (frame.offsetBy(dx: 0, dy: -(frame.maxY + 80)), slot.isVisible, false)
         }
-        return (frame, slot.isVisible)
+        return (frame, slot.isVisible, slot.isTracking)
     }
 
     /// 豆子从纸外落到纸上，落定时整段最重的一下。

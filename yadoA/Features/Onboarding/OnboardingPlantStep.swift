@@ -1,8 +1,11 @@
 import SwiftUI
 
-/// 小结与种下：前面的回答重新写成一份清单；按住按钮，豆子埋进地里，芽随时间长出，长满时豆子弹到芽尖。
+/// 小结与种下：前面的回答重新写成一份清单；下方一块地上躺着那颗豆子，按住它种下去。
 ///
-/// 长满的那一刻一次写入所有草稿；失败时在纸上提示，可以再按一次。松手就缩回，什么都不写。
+/// 按下时豆子压进土里，先往下扎根，再破土长出茎，把豆子一路顶上去，两片叶子依次展开，长满时豆子停在芽尖上。
+/// 手指一直按在豆子上，芽就在指尖上方长出来，进度就是芽本身，不另画进度条。
+/// 长满的那一刻一次写入所有草稿；失败时芽缩回、在下方提示，可以再按一次。
+/// 叶子开始展开后松手也会自己长完；更早松手芽缩回土里，什么都不写。
 /// 开启“减弱动态效果”或使用 VoiceOver 时改为点按。
 struct OnboardingPlantStep: View {
     @Environment(\.locale) private var locale
@@ -19,7 +22,7 @@ struct OnboardingPlantStep: View {
     /// 一次写入所有草稿；成功返回 true。
     let onPlant: () -> Bool
 
-    /// 豆子弹到芽尖、落定。
+    /// 豆子在芽尖上落定。
     let onBeanLanded: () -> Void
 
     /// 种下之后进入下一行。
@@ -28,11 +31,17 @@ struct OnboardingPlantStep: View {
     /// 点清单里的一行，回到那一行改。
     let onRevise: (OnboardingStep) -> Void
 
-    /// 按满所需的时长。
-    static let holdDuration: Double = 1.8
+    /// 从按下到长满所需的时长。
+    static let holdDuration: Double = 1.6
 
     /// 松手后缩回比长出快的倍数。
-    private static let retractSpeed: Double = 2.4
+    private static let retractSpeed: Double = 2.6
+
+    /// 过了不回头的进度后松手，自己长完比按着长快的倍数。
+    private static let finishSpeed: Double = 2
+
+    /// 种植区的边长。
+    private static let bedSize: CGFloat = 180
 
     /// 标题写完后依次写出清单。
     @State private var isDetailVisible = false
@@ -40,14 +49,14 @@ struct OnboardingPlantStep: View {
     /// 已经写出的清单行数。
     @State private var inkedCount = 0
 
-    /// 芽的生长进度，0 为只有地面，1 为长满。
-    @State private var growth: CGFloat = 0
-
-    /// 当前的实际生长进度与变化速度，用来在动画进行中算出“现在长到哪了”。
-    @State private var growthClock = GrowthClock()
+    /// 按住进度随时间的变化；界面每一帧按它推算芽长到了哪里。
+    @State private var clock = GrowthClock()
 
     /// 手指是否按着。
     @State private var isPressing = false
+
+    /// 松手时已经过了不回头的进度，正在自己长完。
+    @State private var isFinishing = false
 
     /// 是否已经种下。
     @State private var isPlanted = false
@@ -55,11 +64,14 @@ struct OnboardingPlantStep: View {
     /// 闪光短线的书写进度。
     @State private var sparkleProgress: CGFloat = 0
 
+    /// 没按够就松了手，提示再按久一点。
+    @State private var isHoldTooShort = false
+
     /// 写入失败。
     @State private var hasFailed = false
 
-    /// 按满后种下的计时。
-    @State private var holdTask: Task<Void, Never>?
+    /// 长满后种下、缩回后归零的计时。
+    @State private var growthTask: Task<Void, Never>?
 
     var body: some View {
         OnboardingPage {
@@ -72,29 +84,22 @@ struct OnboardingPlantStep: View {
 
             summary
                 .padding(.top, 20)
-
-            sprout
-                .frame(maxWidth: .infinity)
-                .padding(.top, 12)
         } actions: {
-            if hasFailed {
-                Text(text("onboarding.plant.failed"))
-                    .font(.footnote)
-                    .foregroundStyle(Color(.ledgerRed))
-                    .transition(.opacity)
-            }
-            holdButton
-                .onboardingReveal(isDetailVisible, delay: 0.4)
-                .disabled(!isDetailVisible || isPlanted)
+            plantingBed
         }
         .onChange(of: isDetailVisible) { _, isVisible in
             guard isVisible else { return }
             Task { await inkSummary() }
         }
         .onDisappear {
-            holdTask?.cancel()
+            growthTask?.cancel()
             haptics.endHold()
         }
+    }
+
+    /// 减弱动态效果或 VoiceOver 下改为点按种下。
+    private var isTapMode: Bool {
+        reduceMotion || isVoiceOverEnabled
     }
 
     // MARK: - 清单
@@ -127,7 +132,7 @@ struct OnboardingPlantStep: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .disabled(isPlanted)
+                .disabled(isPlanted || isPressing || isFinishing)
                 .opacity(index < inkedCount ? 1 : 0)
                 .offset(x: index < inkedCount || reduceMotion ? 0 : -6)
                 .animation(.easeOut(duration: 0.3), value: inkedCount)
@@ -157,158 +162,262 @@ struct OnboardingPlantStep: View {
         }
     }
 
-    // MARK: - 芽
+    // MARK: - 种植区
 
-    /// 发芽插画的墨线，按生长进度一笔一笔画出；豆子不在这里画，由引导里那颗豆子停到这里。
-    private var sprout: some View {
-        let size: CGFloat = 190
+    /// 一块地和地上的豆子，按住这块地就是按住豆子；下方一行提示，点按模式下是种下按钮。
+    private var plantingBed: some View {
+        VStack(spacing: 4) {
+            TimelineView(.animation(paused: isPlanted || isTapMode)) { context in
+                sprout(progress: clock.value(at: context.date), date: context.date)
+            }
+            .frame(width: Self.bedSize, height: Self.bedSize)
+            .contentShape(Rectangle())
+            .gesture(holdGesture)
+            .accessibilityElement()
+            .accessibilityLabel(text("onboarding.plant.tap"))
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { plantAtOnce() }
+            .accessibilityHidden(isTapMode)
+            .accessibilityIdentifier("onboarding-plant-bed")
+
+            footer
+                .onboardingReveal(isDetailVisible, delay: 0.4)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// 某一进度下的芽：地面一直在；根、茎、两片叶子按各自的区间长出；豆子的停放处跟着芽尖走。
+    ///
+    /// - Parameters:
+    ///   - progress: 按住进度，0...1。
+    ///   - date: 当前帧的时刻，用来画等待按下时的波纹。
+    private func sprout(progress: Double, date: Date) -> some View {
+        let size = Self.bedSize
         let scale = size / SproutGeometry.canvas
         let line = StrokeStyle(lineWidth: 4.8 * scale, lineCap: .round, lineJoin: .round)
         let beanDiameter = SproutGeometry.beanRadius * 2 * scale
+        let bean = OnboardingSproutGrowth.beanCenter(at: progress)
+        let isStill = reduceMotion
         return ZStack(alignment: .topLeading) {
-            // 还没长时先露出一道地面，告诉用户豆子要埋在这里
-            HandDrawnRule(seed: 91)
-                .stroke(Color.primary.opacity(0.3), style: StrokeStyle(lineWidth: 1.2, lineCap: .round))
-                .frame(width: size * 0.62, height: 3)
-                .position(x: size * 0.49, y: 198 * scale)
-                .opacity(growth > 0.05 ? 0 : 1)
+            OnboardingSproutStroke(stroke: SproutLinePart.groundPath, progress: 1)
+                .stroke(Color.primary, style: line)
 
-            ForEach(SproutLinePart.allCases, id: \.self) { part in
-                SproutStrokePart(part: part, progress: growth)
+            // 根在土里，墨色淡一些
+            OnboardingSproutStroke(stroke: SproutLinePart.rootsPath, progress: OnboardingSproutGrowth.roots(at: progress))
+                .stroke(Color.primary.opacity(0.45), style: line)
+
+            OnboardingSproutStroke(stroke: SproutLinePart.stemPath, progress: OnboardingSproutGrowth.stem(at: progress))
+                .stroke(Color.primary, style: line)
+
+            soilFlecks(progress: progress, scale: scale)
+
+            ForEach([SproutLinePart.leftLeaf, .rightLeaf], id: \.self) { part in
+                let unfold = OnboardingSproutGrowth.leaf(part, at: progress)
+                OnboardingSproutStroke(stroke: part.path, progress: unfold)
                     .stroke(Color.primary, style: line)
+                    // 叶子贴着茎合拢着长出来，边长边展开
+                    .rotationEffect(.degrees(part.liftDirection * 30 * Double(1 - unfold)), anchor: part.anchor)
+                    // 种下的那一刻两片叶子一起上甩，再回弹落定
+                    .keyframeAnimator(initialValue: 0.0, trigger: isPlanted) { content, wobble in
+                        content.rotationEffect(.degrees(isStill ? 0 : wobble * part.liftDirection), anchor: part.anchor)
+                    } keyframes: { _ in
+                        SpringKeyframe(8, duration: 0.12)
+                        SpringKeyframe(-3, duration: 0.18)
+                        SpringKeyframe(0, duration: 0.5, spring: .bouncy)
+                    }
             }
 
             SproutSparkleShape()
                 .trim(from: 0, to: sparkleProgress)
                 .stroke(Color.primary.opacity(0.5), style: StrokeStyle(lineWidth: 2.8 * scale, lineCap: .round))
 
+            if showsRipple(progress: progress) {
+                ripple(date: date, diameter: beanDiameter)
+                    .position(x: bean.x * scale, y: bean.y * scale)
+            }
+
             Color.clear
                 .frame(width: beanDiameter, height: beanDiameter)
-                .onboardingBeanSlot()
-                .position(beanPosition(scale: scale, diameter: beanDiameter))
+                .onboardingBeanSlot(isTracking: !isPlanted && (isPressing || progress > 0))
+                .position(x: bean.x * scale, y: bean.y * scale)
         }
         .frame(width: size, height: size)
-        .accessibilityHidden(true)
     }
 
-    /// 豆子的位置：没按时躺在地面上，按住时埋进地里一半，种下后弹到芽尖。
-    private func beanPosition(scale: CGFloat, diameter: CGFloat) -> CGPoint {
-        if isPlanted {
-            return CGPoint(x: SproutGeometry.beanCenter.x * scale, y: SproutGeometry.beanCenter.y * scale)
+    /// 破土的一瞬，茎两侧各溅起一小粒土，往外飞一点就消失。
+    private func soilFlecks(progress: Double, scale: CGFloat) -> some View {
+        let burst = OnboardingSproutGrowth.soilBurst(at: progress)
+        let base = SproutLinePart.stemBase
+        return ForEach([-1.0, 1.0], id: \.self) { side in
+            Capsule()
+                .fill(Color.primary.opacity(0.55 * (1 - burst)))
+                .frame(width: 7 * scale, height: 2.6 * scale)
+                .rotationEffect(.degrees(side * -28))
+                .position(
+                    x: (base.x + side * (9 + 16 * burst)) * scale,
+                    y: (base.y - 4 - 12 * burst + 8 * burst * burst) * scale
+                )
+                .opacity(burst > 0 && burst < 1 ? 1 : 0)
         }
-        let groundY = 197 * scale
-        let y = isPressing ? groundY + 2 : groundY - diameter / 2
-        return CGPoint(x: 118 * scale, y: y)
+    }
+
+    /// 等待按下时，豆子周围一圈账本红的波纹往外扩散，告诉用户按这里。
+    private func ripple(date: Date, diameter: CGFloat) -> some View {
+        let period = 1.8
+        let phase = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period) / period
+        let spread = min(phase / 0.7, 1)
+        return Circle()
+            .stroke(Color(.ledgerRed).opacity(0.5 * (1 - spread)), lineWidth: 1.5)
+            .frame(width: diameter, height: diameter)
+            .scaleEffect(1 + 0.9 * UnitCurve.easeOut.value(at: spread))
+    }
+
+    /// 标题和清单写完、还没按下也没种下时才有波纹。
+    private func showsRipple(progress: Double) -> Bool {
+        isDetailVisible && !isTapMode && !isPressing && !isPlanted && progress == 0
+    }
+
+    /// 种植区下方：按住模式下是一行提示，按着时隐去；点按模式下是种下按钮。
+    @ViewBuilder
+    private var footer: some View {
+        if isTapMode {
+            if hasFailed {
+                Text(text("onboarding.plant.failed"))
+                    .font(.footnote)
+                    .foregroundStyle(Color(.ledgerRed))
+            }
+            Button(text(isPlanted ? "onboarding.plant.done" : "onboarding.plant.tap")) {
+                plantAtOnce()
+            }
+            .buttonStyle(OnboardingPrimaryButtonStyle())
+            .disabled(!isDetailVisible || isPlanted)
+            .accessibilityIdentifier("onboarding-plant")
+        } else {
+            Text(text(hintKey))
+                .font(.subheadline)
+                .foregroundStyle(hasFailed ? AnyShapeStyle(Color(.ledgerRed)) : AnyShapeStyle(.secondary))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentTransition(.opacity)
+                .opacity(isPressing || isFinishing || isPlanted ? 0 : 1)
+                .animation(.easeOut(duration: 0.2), value: isPressing)
+                .animation(.easeOut(duration: 0.2), value: hintKey)
+                .accessibilityHidden(true)
+        }
+    }
+
+    /// 按住模式下的提示：失败时说没写进去，没按够时说再按久一点，平时说按住豆子。
+    private var hintKey: String {
+        if hasFailed { return "onboarding.plant.failed" }
+        if isHoldTooShort { return "onboarding.plant.holdLonger" }
+        return "onboarding.plant.hold"
     }
 
     // MARK: - 按住
 
-    /// 按住种下的按钮：按着时墨色从左往右铺满；减弱动态效果或 VoiceOver 下改为点按。
-    @ViewBuilder
-    private var holdButton: some View {
-        let title = text(isPlanted ? "onboarding.plant.done" : "onboarding.plant.hold")
-        if reduceMotion || isVoiceOverEnabled {
-            Button(title) {
-                complete()
+    /// 手指落下即按下，抬起即松手；手指移动不影响。
+    private var holdGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { _ in
+                if !isPressing { press() }
             }
-            .buttonStyle(OnboardingPrimaryButtonStyle())
-            .accessibilityIdentifier("onboarding-plant")
+            .onEnded { _ in
+                release()
+            }
+    }
+
+    /// 按下：豆子压进土里，芽从当前进度接着长；长满时由计时种下。
+    private func press() {
+        guard isDetailVisible, !isTapMode, !isPlanted, !isFinishing else { return }
+        let current = clock.value(at: .now)
+        let remaining = Self.holdDuration * (1 - current)
+        isPressing = true
+        hasFailed = false
+        isHoldTooShort = false
+        clock = GrowthClock(value: current, date: .now, rate: 1 / Self.holdDuration)
+        haptics.press()
+        haptics.beginHold(from: current, duration: remaining, accents: holdAccents(from: current))
+        schedule(after: remaining) { complete() }
+    }
+
+    /// 松手：叶子已经开始展开时自己长完；更早松手芽缩回土里。
+    private func release() {
+        guard isPressing else { return }
+        isPressing = false
+        haptics.endHold()
+        let current = clock.value(at: .now)
+        if current >= OnboardingSproutGrowth.pointOfNoReturn {
+            isFinishing = true
+            clock = GrowthClock(value: current, date: .now, rate: Self.finishSpeed / Self.holdDuration)
+            schedule(after: Self.holdDuration * (1 - current) / Self.finishSpeed) { complete() }
         } else {
-            Text(title)
-                .font(.body.weight(.semibold))
-                .frame(maxWidth: .infinity, minHeight: 52)
-                .background(alignment: .leading) {
-                    GeometryReader { proxy in
-                        Capsule()
-                            .fill(Color.accentColor.opacity(0.16))
-                            .frame(width: max(52, proxy.size.width * growth))
-                            .opacity(growth > 0 ? 1 : 0)
-                    }
-                }
-                .background {
-                    HandDrawnBox(cornerRadius: 26, seed: 97)
-                        .stroke(Color.primary.opacity(0.85), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
-                }
-                .scaleEffect(isPressing ? 0.97 : 1)
-                .animation(.spring(duration: 0.25, bounce: 0.4), value: isPressing)
-                .contentShape(Capsule())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { _ in
-                            if !isPressing { pressChanged(true) }
-                        }
-                        .onEnded { _ in
-                            pressChanged(false)
-                        }
-                )
-                .accessibilityElement()
-                .accessibilityLabel(title)
-                .accessibilityAddTraits(.isButton)
-                .accessibilityAction { complete() }
-                .accessibilityIdentifier("onboarding-plant")
-        }
-    }
-
-    /// 按下开始长，松手缩回；按满由计时触发种下。
-    private func pressChanged(_ pressing: Bool) {
-        guard !isPlanted else { return }
-        let current = growthClock.value(at: .now)
-        if pressing {
-            isPressing = true
-            hasFailed = false
-            let remaining = Self.holdDuration * (1 - current)
-            growthClock = GrowthClock(value: current, date: .now, rate: 1 / Self.holdDuration)
-            haptics.beginHold(duration: remaining, accents: leafAccents(from: current))
-            withAnimation(.linear(duration: remaining)) {
-                growth = 1
-            }
-            holdTask?.cancel()
-            holdTask = Task {
-                try? await Task.sleep(for: .seconds(remaining))
-                guard !Task.isCancelled else { return }
-                complete()
-            }
-        } else {
-            isPressing = false
-            holdTask?.cancel()
-            haptics.endHold()
-            let duration = Self.holdDuration * current / Self.retractSpeed
-            growthClock = GrowthClock(value: current, date: .now, rate: -Self.retractSpeed / Self.holdDuration)
-            withAnimation(.easeOut(duration: max(duration, 0.15))) {
-                growth = 0
+            retract(from: current)
+            withAnimation(.easeOut(duration: 0.2)) {
+                isHoldTooShort = current > 0.08
             }
         }
     }
 
-    /// 两片叶子开始长出的时刻，相对这次按下。
-    private func leafAccents(from current: Double) -> [Double] {
-        [SproutLinePart.leftLeaf, .rightLeaf].compactMap { part -> Double? in
-            let start = part.drawRange.lowerBound
-            return start > current ? (start - current) * Self.holdDuration : nil
+    /// 芽从某个进度缩回土里，豆子回到地面上。
+    private func retract(from current: Double) {
+        let duration = Self.holdDuration * current / Self.retractSpeed
+        clock = GrowthClock(value: current, date: .now, rate: -Self.retractSpeed / Self.holdDuration)
+        haptics.retract(duration: min(duration, 0.4))
+        schedule(after: duration) { clock = GrowthClock() }
+    }
+
+    /// 取消上一个计时，过一段时间后执行。
+    private func schedule(after seconds: Double, _ action: @escaping @MainActor () -> Void) {
+        growthTask?.cancel()
+        growthTask = Task {
+            try? await Task.sleep(for: .seconds(max(seconds, 0)))
+            guard !Task.isCancelled else { return }
+            action()
         }
     }
 
-    /// 长满：写入草稿；成功后豆子弹到芽尖并发出闪光，停一下再往下走。
+    /// 扎根、破土、两片叶子展开的时刻，相对这次按下；已经过去的不再震。
+    private func holdAccents(from current: Double) -> [OnboardingHaptics.HoldAccent] {
+        OnboardingSproutGrowth.accents.compactMap { accent -> OnboardingHaptics.HoldAccent? in
+            guard accent.progress > current else { return nil }
+            return OnboardingHaptics.HoldAccent(
+                time: (accent.progress - current) * Self.holdDuration,
+                intensity: accent.intensity,
+                sharpness: accent.sharpness
+            )
+        }
+    }
+
+    /// 点按模式：芽直接长满并种下。
+    private func plantAtOnce() {
+        guard isDetailVisible, !isPlanted else { return }
+        growthTask?.cancel()
+        clock = GrowthClock(value: 1)
+        complete()
+    }
+
+    /// 长满：写入草稿；成功后豆子在芽尖上落定、闪一下，停一会儿再往下走；失败时芽缩回。
     private func complete() {
         guard !isPlanted else { return }
-        holdTask?.cancel()
+        growthTask?.cancel()
         haptics.endHold()
         isPressing = false
+        isFinishing = false
         guard onPlant() else {
             AppHaptics.play(.error)
-            growthClock = GrowthClock()
-            withAnimation(.easeOut(duration: 0.4)) {
+            withAnimation(.easeOut(duration: 0.2)) {
                 hasFailed = true
-                growth = 0
+            }
+            if isTapMode {
+                clock = GrowthClock()
+            } else {
+                retract(from: 1)
             }
             return
         }
-        withAnimation(.easeOut(duration: 0.2)) {
-            growth = 1
-        }
+        clock = GrowthClock(value: 1)
         isPlanted = true
         Task {
-            try? await Task.sleep(for: OnboardingBean.landingDelay)
             onBeanLanded()
             withAnimation(.easeOut(duration: 0.35)) {
                 sparkleProgress = 1
@@ -326,18 +435,104 @@ struct OnboardingPlantStep: View {
     }
 }
 
-/// 生长进度随时间线性变化的记录：动画进行中界面拿不到实际进度，按开始时的值、时间和速度推算。
+/// 按住进度随时间线性变化的记录：按开始时的值、时间和速度推算任一时刻的进度。
 private struct GrowthClock {
     /// 记录时的进度。
     var value: Double = 0
     /// 记录的时刻。
     var date = Date.now
-    /// 每秒的变化量，长出为正、缩回为负。
+    /// 每秒的变化量，长出为正、缩回为负，静止为 0。
     var rate: Double = 0
 
     /// 推算某一时刻的进度，限制在 0...1。
     func value(at now: Date) -> Double {
         min(max(value + rate * now.timeIntervalSince(date), 0), 1)
+    }
+}
+
+/// 按住进度怎样分给芽的各部分：先压进土里、往下扎根，再破土长茎把豆子顶上去，最后两片叶子依次展开。
+///
+/// 各段的区间互相叠一点，长出来是连着的；坐标都在 `SproutGeometry` 的设计画布上。
+private enum OnboardingSproutGrowth {
+    /// 豆子压进土里。
+    static let sinkRange: ClosedRange<Double> = 0...0.08
+    /// 往下扎根。
+    static let rootsRange: ClosedRange<Double> = 0.03...0.28
+    /// 破土长茎，把豆子顶上去。
+    static let stemRange: ClosedRange<Double> = 0.2...0.62
+    /// 左叶展开。
+    static let leftLeafRange: ClosedRange<Double> = 0.56...0.8
+    /// 右叶展开。
+    static let rightLeafRange: ClosedRange<Double> = 0.7...0.94
+    /// 叶子已经开始展开，过了这里松手也会自己长完。
+    static let pointOfNoReturn = 0.62
+
+    /// 途中各一下：扎根轻而闷，破土清脆，两片叶子依次一下。
+    static let accents: [(progress: Double, intensity: Float, sharpness: Float)] = [
+        (rootsRange.lowerBound, 0.3, 0.2),
+        (stemRange.lowerBound + 0.02, 0.85, 0.9),
+        (leftLeafRange.lowerBound, 0.6, 0.6),
+        (rightLeafRange.lowerBound, 0.7, 0.7),
+    ]
+
+    /// 根须的书写进度。
+    static func roots(at progress: Double) -> CGFloat {
+        CGFloat(UnitCurve.easeOut.value(at: local(progress, in: rootsRange)))
+    }
+
+    /// 茎的书写进度：破土时快，越往上越慢。
+    static func stem(at progress: Double) -> CGFloat {
+        CGFloat(UnitCurve.easeOut.value(at: local(progress, in: stemRange)))
+    }
+
+    /// 叶子的书写与展开进度。
+    static func leaf(_ part: SproutLinePart, at progress: Double) -> CGFloat {
+        let range = part == .leftLeaf ? leftLeafRange : rightLeafRange
+        return CGFloat(UnitCurve.easeInOut.value(at: local(progress, in: range)))
+    }
+
+    /// 破土溅起的土粒飞出的进度，0 为还没破土，1 为已经消失。
+    static func soilBurst(at progress: Double) -> Double {
+        min(local(progress, in: stemRange) / 0.35, 1)
+    }
+
+    /// 豆子的圆心：躺在地面上 → 压进土里 → 被茎尖顶着往上走，到顶时正好停在插画里芽尖的位置。
+    static func beanCenter(at progress: Double) -> CGPoint {
+        let radius = SproutGeometry.beanRadius
+        let base = SproutLinePart.stemBase
+        // 压进土里时豆子下沉到地面线穿过它下半部
+        let pressedDepth = 0.35
+        let stemProgress = local(progress, in: stemRange)
+        guard stemProgress > 0 else {
+            let sink = UnitCurve.easeOut.value(at: local(progress, in: sinkRange))
+            let restY = base.y - radius - 1
+            let pressedY = base.y - radius * pressedDepth
+            return CGPoint(x: base.x, y: restY + (pressedY - restY) * sink)
+        }
+        let tip = SproutLinePart.stemPath
+            .trimmedPath(from: 0, to: UnitCurve.easeOut.value(at: stemProgress))
+            .currentPoint ?? base
+        // 刚破土时豆子还陷在土里，茎长到三成时豆子整个托在茎尖上
+        let lift = pressedDepth + (1 - pressedDepth) * UnitCurve.easeInOut.value(at: min(stemProgress / 0.3, 1))
+        return CGPoint(x: tip.x, y: tip.y - radius * lift)
+    }
+
+    /// 进度在某个区间里走到了几成。
+    private static func local(_ progress: Double, in range: ClosedRange<Double>) -> Double {
+        min(max((progress - range.lowerBound) / (range.upperBound - range.lowerBound), 0), 1)
+    }
+}
+
+/// 设计画布上的一段墨线，按进度从头画到某处，缩放到所在区域。
+private struct OnboardingSproutStroke: Shape {
+    /// 设计画布上的路径。
+    let stroke: Path
+    /// 书写进度，0 为未落笔，1 为写完。
+    var progress: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        guard progress > 0 else { return Path() }
+        return SproutGeometry.fit(stroke, in: rect).trimmedPath(from: 0, to: min(progress, 1))
     }
 }
 

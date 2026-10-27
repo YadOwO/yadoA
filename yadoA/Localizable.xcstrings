@@ -11998,19 +11998,55 @@
       }
     },
     "onboarding.plant.hold" : {
-      "comment" : "首次引导按住种下的按钮",
+      "comment" : "首次引导种植区下方的提示：按住豆子种下",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hold to Plant Your First Bean"
+            "value" : "Press and hold the bean to plant it"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "按住，种下第一颗豆"
+            "value" : "按住这颗豆子，把它种下去"
+          }
+        }
+      }
+    },
+    "onboarding.plant.holdLonger" : {
+      "comment" : "首次引导没按够就松手时的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold a little longer, until both leaves are out."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再按久一点，等两片叶子长出来。"
+          }
+        }
+      }
+    },
+    "onboarding.plant.tap" : {
+      "comment" : "首次引导点按种下的按钮（减弱动态效果、VoiceOver）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plant Your First Bean"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "种下第一颗豆"
           }
         }
       }

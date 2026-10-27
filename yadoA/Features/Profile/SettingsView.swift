@@ -34,9 +34,7 @@ struct SettingsView: View {
     @State private var isSignOutFailurePresented = false
     /// 正在退出登录（含退出前的最后一次同步）。
     @State private var isSigningOut = false
-    /// 正在重看首次引导；只演示，不写入数据，也不触发登录。
-    @State private var isOnboardingReplayPresented = false
-    /// 重看引导的状态，每次打开时新建，从开场重新演示。
+    /// 正在重看的首次引导，每次打开时新建、从开场重新演示；只演示，不写入数据，也不触发登录。
     @State private var onboardingReplay: OnboardingStore?
 
     var body: some View {
@@ -119,7 +117,6 @@ struct SettingsView: View {
                 ProfileSettingsSection("settings.section.about") {
                     Button {
                         onboardingReplay = OnboardingStore(mode: .replay)
-                        isOnboardingReplayPresented = true
                     } label: {
                         ProfileSettingsRow(titleKey: "settings.onboarding.replay", symbol: "leaf")
                     }
@@ -156,13 +153,12 @@ struct SettingsView: View {
         .sheet(isPresented: $isDefaultSelectionPresented) {
             NavigationStack { DefaultAccountSelectionView() }
         }
-        .fullScreenCover(isPresented: $isOnboardingReplayPresented) {
-            if let onboardingReplay {
-                OnboardingView(store: onboardingReplay) {
-                    isOnboardingReplayPresented = false
-                }
-                .environment(authStore)
+        // 用 item 呈现：同一次点击里先建状态再置 isPresented 时，封面内容会读到旧的空值而白屏
+        .fullScreenCover(item: $onboardingReplay) { replay in
+            OnboardingView(store: replay) {
+                onboardingReplay = nil
             }
+            .environment(authStore)
         }
         .alert(text("auth.sign_out.confirm.title"), isPresented: $isSignOutConfirmationPresented) {
             Button(text("auth.sign_out.action"), role: .destructive) {

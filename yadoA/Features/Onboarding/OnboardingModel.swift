@@ -155,7 +155,7 @@ struct OnboardingProgress: Codable, Equatable {
 /// 重看引导时只演示，不保存进度、不写入任何数据。
 @MainActor
 @Observable
-final class OnboardingStore {
+final class OnboardingStore: Identifiable {
     /// 引导的用途。
     enum Mode: Equatable {
         /// 第一次打开 App。
