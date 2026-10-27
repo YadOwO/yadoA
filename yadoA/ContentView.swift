@@ -14,13 +14,12 @@ struct ContentView: View {
     /// 整屏登录页的展示状态，任何页面需要登录时都通过它打开。
     @State private var signInPresentation = SignInPresentation()
     /// 首次引导；已完成或跳过过时为 nil。引导盖在首页上，撕下最后一页时露出底下的首页。
+    ///
+    /// 引导写入时首页不能整棵重建，否则盖在上面的引导会跟着重建、从头再放一遍；启动页面的落点和 Tab 顺序由首页自己跟上。
     @State private var onboarding: OnboardingStore? = OnboardingStore.isCompleted() ? nil : OnboardingStore()
-    /// 引导是否已完成；第一页点按钮写入时变为 true，首页随之重建，按引导里选的启动页面落点和排好 Tab。
-    @AppStorage(OnboardingStore.completedKey) private var isOnboardingCompleted = false
 
     var body: some View {
         AppTabView()
-            .id(isOnboardingCompleted)
             // 引导盖着时，底下的首页不响应 VoiceOver
             .accessibilityHidden(onboarding != nil)
             // 引导结束时在语音入口旁边浮出一句提示

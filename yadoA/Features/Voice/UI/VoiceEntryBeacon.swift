@@ -3,8 +3,8 @@ import SwiftUI
 
 /// 语音记账入口对外的位置、“跳一下”信号和一句提示。
 ///
-/// 首次引导结束时，豆子要落到语音入口上，入口跳一下，旁边浮出一句怎么用的提示。入口可能在 Tab Bar 附属栏里，
-/// 也可能悬浮在记账页里，和引导不在同一棵视图下，因此由入口把自己在窗口中的位置报上来，引导读位置、发信号。
+/// 首次引导撕下最后一页后，语音入口跳一下，旁边浮出一句怎么用的提示。入口可能在 Tab Bar 附属栏里，
+/// 也可能悬浮在记账页里，和引导不在同一棵视图下，因此由入口把自己在窗口中的位置报上来，提示按位置摆放，引导只发信号。
 @MainActor
 @Observable
 final class VoiceEntryBeacon {
@@ -140,7 +140,7 @@ private struct VoiceEntryBeaconModifier: ViewModifier {
             .keyframeAnimator(initialValue: CGFloat(1), trigger: beacon.pulseCount) { content, scale in
                 content.scaleEffect(isStill ? 1 : scale)
             } keyframes: { _ in
-                // 豆子落上来先压一下，再弹起回到原大小
+                // 先压一下，再弹起回到原大小
                 SpringKeyframe(0.9, duration: 0.1)
                 SpringKeyframe(1.08, duration: 0.18)
                 SpringKeyframe(1, duration: 0.45, spring: .bouncy)

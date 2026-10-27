@@ -4,7 +4,7 @@ import SwiftUI
 /// 首次引导：在一张纸上一问一答地写下用户的“第一页”。
 ///
 /// 一次只写一行；答完的行缩成上方一行灰色小字，点它可以回去改。一颗账本红的豆子贯穿全程：
-/// 落到纸上，跟着顶部横线往前滚，在每一行里停到对应的位置，第一页写完时落到芽尖，最后随撕纸落到首页的语音记账入口。
+/// 落到纸上，跟着顶部横线往前滚，在每一行里停到对应的位置，第一页写完时落到芽尖，最后跟着撕下的纸一起落走。
 /// 所有写入集中在最后一页点按钮那一刻；跳过、登录失败或中途退出，最后都落到能用的首页。
 struct OnboardingView: View {
     @Environment(\.locale) private var locale
@@ -29,9 +29,6 @@ struct OnboardingView: View {
 
     /// 这页纸是否正在被撕走。
     @State private var isTearing = false
-
-    /// 撕纸时豆子要落到的语音入口位置，窗口坐标；入口不在屏幕上时为 nil。
-    @State private var landingTarget: CGRect?
 
     /// 跳过时整页淡出。
     @State private var isDismissing = false
@@ -228,24 +225,10 @@ struct OnboardingView: View {
 
     // MARK: - 豆子
 
-    /// 豆子此刻要停的位置：撕纸时落到语音入口；还没落下时在停放处正上方的纸外。
+    /// 豆子此刻要停的位置：撕纸时跟着纸一起掉出屏幕；还没落下时在停放处正上方的纸外。
     private func beanTarget(slot: OnboardingBeanSlot?, proxy: GeometryProxy) -> (frame: CGRect, isVisible: Bool) {
-        let window = proxy.frame(in: .global)
         if isTearing {
-            guard let landingTarget else {
-                // 没有语音入口可落时，豆子跟着纸一起掉出屏幕
-                return (CGRect(x: proxy.size.width / 2 - 9, y: proxy.size.height + 80, width: 18, height: 18), true)
-            }
-            let diameter: CGFloat = 18
-            return (
-                CGRect(
-                    x: landingTarget.midX - window.minX - diameter / 2,
-                    y: landingTarget.midY - window.minY - diameter / 2,
-                    width: diameter,
-                    height: diameter
-                ),
-                true
-            )
+            return (CGRect(x: proxy.size.width / 2 - 9, y: proxy.size.height + 80, width: 18, height: 18), true)
         }
         guard let slot else {
             return (CGRect(x: proxy.size.width / 2 - 10, y: -80, width: 20, height: 20), false)
@@ -319,28 +302,22 @@ struct OnboardingView: View {
         }
     }
 
-    /// 撕下这页纸：露出首页，豆子落到语音记账入口上，入口跳一下、旁边浮出一句提示，然后移除引导。
+    /// 撕下这页纸：整张纸连同豆子一起向下落走，露出底下的页面，然后移除引导。
     ///
-    /// 重看时底下是设置页，豆子跟着纸一起落下。
+    /// 首次引导和重看走同一段：首次时底下是按选好的启动页面落点的首页，纸落走后语音入口跳一下、旁边浮出一句提示；
+    /// 重看时底下是设置页。
     private func tear() async {
-        if store.mode == .firstLaunch {
-            // 写入后首页按新的启动页面重建，等它排好、语音入口报上新位置
-            try? await Task.sleep(for: .milliseconds(150))
-            landingTarget = VoiceEntryBeacon.shared.frame
-        }
         let duration = reduceMotion ? 0.3 : 0.75
         haptics.tear(duration: duration)
         withAnimation(.easeIn(duration: duration)) {
             isTearing = true
         }
-        try? await Task.sleep(for: reduceMotion ? .milliseconds(300) : OnboardingBean.landingDelay)
-        if landingTarget != nil {
-            haptics.landing(rebound: reduceMotion ? nil : 0.16)
-            beanSquash += 1
+        try? await Task.sleep(for: reduceMotion ? .milliseconds(500) : OnboardingBean.landingDelay + .milliseconds(650))
+        if store.mode == .firstLaunch {
+            // 入口不在屏幕上（启动页面是账户）时两者都没有可见效果
             VoiceEntryBeacon.shared.pulse()
             VoiceEntryBeacon.shared.showHint()
         }
-        try? await Task.sleep(for: .milliseconds(reduceMotion ? 200 : 650))
         onFinish()
     }
 

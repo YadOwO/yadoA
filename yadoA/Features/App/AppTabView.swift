@@ -99,6 +99,8 @@ struct AppTabView: View {
     @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
     /// 冷启动时落在用户选择的启动页面；之后在设置里修改不会打断当前所在 Tab。
     @State private var selectedTab: AppTab = AppStartPage.stored().tab
+    /// 首次引导是否已完成；引导写入或跳过时变为 true，此时落到引导里选的启动页面。
+    @AppStorage(OnboardingStore.completedKey) private var isOnboardingCompleted = false
     @State private var homePath: [HomeRoute] = []
     @State private var accountsPath: [AccountsRoute] = []
     @State private var profilePath: [ProfileRoute] = []
@@ -121,6 +123,11 @@ struct AppTabView: View {
         // 系统 Tab Bar 原地重排时图标与标题会错位，顺序变化时整体重建；
         // 各导航路径保存在本视图，重建后仍然保留。
         .id(startPage)
+        // 引导盖在首页上，写入时首页不整棵重建，只在这里切到选好的启动页面；挂在 .id 外面，重排 Tab 时不会漏掉
+        .onChange(of: isOnboardingCompleted) { _, isCompleted in
+            guard isCompleted else { return }
+            selectedTab = startPage.tab
+        }
     }
 
     /// 各一级 Tab 的根页面及其导航栈。
