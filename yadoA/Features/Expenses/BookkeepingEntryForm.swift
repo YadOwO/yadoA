@@ -45,8 +45,8 @@ struct BookkeepingEntryFormConfiguration {
 
 /// 新增记账与编辑记账共用的票据页面。
 ///
-/// 版式与记账详情的收据一致：上半是分类和金额，一条线之后逐行写标题、账户、日期和备注，
-/// 区别只在于这里的每一项都可以填写。导航标题、取消按钮等入口差异由外层页面负责。
+/// 版式与记账详情的收据一致：上半是分类和金额，一条线之后逐行写备注、账户和日期，
+/// 区别只在于这里的每一项都可以填写。备注决定列表主行，所以紧跟金额，账户和日期多用默认值放在后面。导航标题、取消按钮等入口差异由外层页面负责。
 struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
     @Environment(\.locale) private var locale
     @Query private var accounts: [Account]
@@ -177,11 +177,11 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
             categoryAndAmount
                 .padding(.bottom, 14)
 
-            accountRow
-            fieldRule(seed: 63)
-            dateRow
-            fieldRule(seed: 64)
             noteRow
+            fieldRule(seed: 63)
+            accountRow
+            fieldRule(seed: 64)
+            dateRow
         }
         .padding(.horizontal, 20)
         .padding(.top, 24)
