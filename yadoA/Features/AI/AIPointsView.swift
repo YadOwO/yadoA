@@ -146,6 +146,7 @@ struct AIPointsView: View {
             Text(text("auth.sign_in.action"))
                 .font(.body.weight(.medium))
                 .padding(.horizontal, 8)
+                .onAccentForeground()
         }
         .buttonStyle(.borderedProminent)
         .buttonBorderShape(.capsule)

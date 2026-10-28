@@ -146,6 +146,7 @@ struct SyncSettingsView: View {
                 Text(text("auth.sign_in.action"))
                     .font(.body.weight(.medium))
                     .padding(.horizontal, 8)
+                    .onAccentForeground()
             }
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.capsule)
@@ -157,6 +158,7 @@ struct SyncSettingsView: View {
                     Task { await resolveEpochMismatch(.uploadLocalData) }
                 }
                 .buttonStyle(.borderedProminent)
+                .onAccentForeground()
                 .accessibilityIdentifier("sync-epoch-upload")
 
                 Button(text("sync.epochMismatch.stop")) {
