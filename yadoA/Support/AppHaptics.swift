@@ -39,7 +39,8 @@ enum AppHaptic: CaseIterable, Equatable {
         case .warning: .warning
         case .error: .error
         case .destructive: .impact(weight: .medium)
-        case .restore: .impact(weight: .light)
+        // 显式降低强度：SensoryFeedback 的相等判断不区分轻重档位，靠强度保证比删除轻
+        case .restore: .impact(weight: .light, intensity: 0.6)
         case .begin: .impact(weight: .medium)
         case .commit: .impact(weight: .light, intensity: 0.7)
         case .dismiss: .impact(flexibility: .soft, intensity: 0.5)
@@ -79,7 +80,9 @@ enum AppHaptics {
             UINotificationFeedbackGenerator().notificationOccurred(.error)
         case .destructive, .begin:
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        case .restore, .tap:
+        case .restore:
+            UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.6)
+        case .tap:
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         case .commit:
             UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.7)
