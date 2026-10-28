@@ -48,6 +48,14 @@ final class HomeRecentEntryHighlight {
     /// 尚未被首页展示的流水变更，按登记顺序排列。
     private(set) var pending: [Entry] = []
 
+    /// 显示在屏幕上的首页明细数量；首页重建时新旧两份可能交错出现和消失，用计数而不是开关。
+    @ObservationIgnored private var visibleHomeCount = 0
+
+    /// 首页明细是否显示在屏幕上。语音记账只在这时登记提示，在别的页面记的账回到首页时不自动跳转。
+    var isHomeVisible: Bool {
+        visibleHomeCount > 0
+    }
+
     private init() {}
 
     /// 新增或修改保存成功后登记这笔流水；同一笔流水尚未展示的旧提示会被替换。
@@ -66,6 +74,16 @@ final class HomeRecentEntryHighlight {
     /// - Parameter deletedRow: 删除前生成的首页行快照。
     func markDeleted(_ deletedRow: HomeOverviewDeletedRow) {
         mark(id: deletedRow.row.id, transactionDay: deletedRow.transactionDay, change: .deleted(deletedRow))
+    }
+
+    /// 首页明细出现在屏幕上。
+    func homeDidAppear() {
+        visibleHomeCount += 1
+    }
+
+    /// 首页明细离开屏幕。
+    func homeDidDisappear() {
+        visibleHomeCount = max(0, visibleHomeCount - 1)
     }
 
     /// 取走全部待展示的提示；每条提示只会被展示一次。

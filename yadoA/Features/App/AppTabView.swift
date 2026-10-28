@@ -73,6 +73,21 @@ enum HomeRoute: Hashable {
     case transactionDetail(UUID)
 }
 
+/// 图表导航栈支持的二级页面。
+enum ChartsRoute: Hashable {
+    /// 分类统计页面，沿用图表当前的收支类型、周期与业务日锚点。
+    case categoryBreakdown(entryType: BookkeepingEntryType, period: ChartPeriod, anchorDay: Int)
+
+    /// 路由对应的页面。
+    @MainActor @ViewBuilder
+    var destination: some View {
+        switch self {
+        case let .categoryBreakdown(entryType, period, anchorDay):
+            CategoryBreakdownView(entryType: entryType, period: period, anchorDay: anchorDay)
+        }
+    }
+}
+
 /// 账户导航栈支持的二级页面。
 enum AccountsRoute: Hashable {
     /// 指定账户的详情页面。
@@ -84,11 +99,44 @@ enum AccountsRoute: Hashable {
 
 /// “我的”导航栈支持的二级页面。
 ///
-/// 只登记需要在 Tab 重建后恢复的页面：在设置页修改启动页面会重建 TabView，
-/// 设置页必须走路径导航才能在重建后仍停留在原处。
+/// 根页面进入的二级页面都走路径导航：根导航据路径判断是否停在一级页面，决定语音入口是否显示；
+/// 在设置页修改启动页面会重建 TabView，路径保存在根导航，重建后仍停留在原处。
 enum ProfileRoute: Hashable {
+    /// 账单页面。
+    case bills
+
+    /// 分类管理页面。
+    case categories
+
+    /// 云端同步页面。
+    case sync
+
     /// 设置页面。
     case settings
+
+    /// 开发调试页面；只在 DEBUG 包有入口和页面。
+    case developer
+
+    /// 路由对应的页面。
+    @MainActor @ViewBuilder
+    var destination: some View {
+        switch self {
+        case .bills:
+            BillView()
+        case .categories:
+            CategoryManagementView()
+        case .sync:
+            SyncSettingsView()
+        case .settings:
+            SettingsView()
+        case .developer:
+            #if DEBUG
+            DeveloperView()
+            #else
+            EmptyView()
+            #endif
+        }
+    }
 }
 
 /// 应用根级导航：记账、图表、账户与“我的”四个一级入口。
@@ -102,10 +150,23 @@ struct AppTabView: View {
     /// 首次引导是否已完成；引导写入或跳过时变为 true，此时落到引导里选的启动页面。
     @AppStorage(OnboardingStore.completedKey) private var isOnboardingCompleted = false
     @State private var homePath: [HomeRoute] = []
+    @State private var chartsPath: [ChartsRoute] = []
     @State private var accountsPath: [AccountsRoute] = []
     @State private var profilePath: [ProfileRoute] = []
-    /// 记账页语音记账的共享状态；麦克风可能在 Tab Bar 附属栏里，与记账页的会话卡片分属两处，由这里统一持有。
+    /// 语音记账的共享状态；麦克风可能在 Tab Bar 附属栏里，与各一级页面的会话卡片分属两处，由这里统一持有。
     @State private var voice = VoiceBookkeepingState()
+
+    /// 当前 Tab 是否停在一级页面；语音入口和会话卡片只在一级页面出现。
+    ///
+    /// 各一级页面进入二级页面都走路径导航，路径为空即停在一级页面。
+    private var isAtTabRoot: Bool {
+        switch selectedTab {
+        case .home: homePath.isEmpty
+        case .charts: chartsPath.isEmpty
+        case .accounts: accountsPath.isEmpty
+        case .profile: profilePath.isEmpty
+        }
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -118,16 +179,50 @@ struct AppTabView: View {
             }
         }
         .tabBarMinimizeOnScrollDownIfAvailable()
-        // 麦克风只在记账页根页面出现，进入二级页面或切到其他 Tab 时收起
-        .voiceMicAccessoryIfAvailable(isEnabled: selectedTab == .home && homePath.isEmpty, voice: voice)
+        // 麦克风在四个一级页面常显，进入二级页面时收起
+        .voiceMicAccessoryIfAvailable(isEnabled: isAtTabRoot, voice: voice)
         // 系统 Tab Bar 原地重排时图标与标题会错位，顺序变化时整体重建；
         // 各导航路径保存在本视图，重建后仍然保留。
         .id(startPage)
+        // 会话、计时与弹层挂在 .id 外面，重排 Tab 时不会重建
+        .voiceBookkeepingHost(voice)
+        // 当前 Tab 往下进页面时结束会话；只按导航路径变深判断，切到停在二级页面的 Tab 不算
+        .onChange(of: homePath.count) { oldDepth, newDepth in
+            endVoiceSessionIfPushed(on: .home, from: oldDepth, to: newDepth)
+        }
+        .onChange(of: chartsPath.count) { oldDepth, newDepth in
+            endVoiceSessionIfPushed(on: .charts, from: oldDepth, to: newDepth)
+        }
+        .onChange(of: accountsPath.count) { oldDepth, newDepth in
+            endVoiceSessionIfPushed(on: .accounts, from: oldDepth, to: newDepth)
+        }
+        .onChange(of: profilePath.count) { oldDepth, newDepth in
+            endVoiceSessionIfPushed(on: .profile, from: oldDepth, to: newDepth)
+        }
+        // 卡片上点了一笔流水：回到记账页根页面，由记账页取走请求并定位；路径变浅不会结束会话
+        .onChange(of: voice.pendingLocate) { _, change in
+            guard change != nil else { return }
+            homePath = []
+            selectedTab = .home
+        }
         // 引导盖在首页上，写入时首页不整棵重建，只在这里切到选好的启动页面；挂在 .id 外面，重排 Tab 时不会漏掉
         .onChange(of: isOnboardingCompleted) { _, isCompleted in
             guard isCompleted else { return }
             selectedTab = startPage.tab
         }
+    }
+
+    /// 当前 Tab 往下进了页面时结束语音会话。
+    ///
+    /// 只是切到一个停在二级页面的 Tab 时路径不变，会话保留：卡片和麦克风随页面收起，回到一级页面时卡片还在，
+    /// 闲置计时照常进行。从图表点“记一笔”会同时切到记账页并进入记账表单，这时记账页路径变深，同样结束会话。
+    /// - Parameters:
+    ///   - tab: 路径发生变化的 Tab。
+    ///   - oldDepth: 变化前的导航深度。
+    ///   - newDepth: 变化后的导航深度。
+    private func endVoiceSessionIfPushed(on tab: AppTab, from oldDepth: Int, to newDepth: Int) {
+        guard tab == selectedTab, newDepth > oldDepth else { return }
+        voice.endSession()
     }
 
     /// 各一级 Tab 的根页面及其导航栈。
@@ -155,18 +250,22 @@ struct AppTabView: View {
                         }
                     }
             }
-            .environment(voice)
         case .charts:
-            NavigationStack {
+            NavigationStack(path: $chartsPath) {
                 ChartView {
                     // 记账入口只在记账页导航栈里，切过去后直接进入记一笔页面。
                     selectedTab = .home
                     homePath = [.expenseEntry]
                 }
+                .voiceBookkeepingDock()
+                .navigationDestination(for: ChartsRoute.self) { route in
+                    route.destination
+                }
             }
         case .accounts:
             NavigationStack(path: $accountsPath) {
                 AccountListView()
+                    .voiceBookkeepingDock()
                     .navigationDestination(for: AccountsRoute.self) { route in
                         switch route {
                         case let .detail(accountID):
@@ -179,11 +278,9 @@ struct AppTabView: View {
         case .profile:
             NavigationStack(path: $profilePath) {
                 ProfileView()
+                    .voiceBookkeepingDock()
                     .navigationDestination(for: ProfileRoute.self) { route in
-                        switch route {
-                        case .settings:
-                            SettingsView()
-                        }
+                        route.destination
                     }
             }
         }

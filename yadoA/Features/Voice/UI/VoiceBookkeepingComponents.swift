@@ -120,7 +120,7 @@ struct VoiceMicAccessory: View {
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
     @Environment(AuthStore.self) private var authStore
 
-    /// 与记账页会话卡片共享的语音状态。
+    /// 与各一级页面会话卡片共享的语音状态。
     let voice: VoiceBookkeepingState
 
     private var controller: VoiceInputController {
@@ -155,7 +155,7 @@ struct VoiceMicAccessory: View {
         .font(font)
         .foregroundStyle(tint)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // 告诉记账页附属栏顶边在哪，会话卡片和提示据此避开附属栏
+        // 告诉一级页面附属栏顶边在哪，会话卡片和提示据此避开附属栏
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.frame(in: .global).minY
         } action: { minY in
@@ -401,6 +401,15 @@ extension VoiceSession.Turn {
     var failure: VoiceSessionFailure? {
         if case let .failed(failure) = outcome { return failure }
         return nil
+    }
+
+    /// 本轮改动过、仍然存在的账户；已撤销的轮次为空。账户页列表据此在对应账户上补笔迹。
+    var changedAccountIDs: Set<UUID> {
+        guard !isUndone else { return [] }
+        return Set(changes.flatMap { change -> [UUID] in
+            guard case let .account(accountChange) = change else { return [] }
+            return accountChange.accountIDs
+        })
     }
 
     /// 是否可以带上这句话去手动记账：追问还没回答，或本轮没能完成。

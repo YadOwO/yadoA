@@ -314,7 +314,7 @@ struct OnboardingView: View {
         }
         try? await Task.sleep(for: reduceMotion ? .milliseconds(500) : OnboardingBean.landingDelay + .milliseconds(650))
         if store.mode == .firstLaunch {
-            // 入口不在屏幕上（启动页面是账户）时两者都没有可见效果
+            // 语音入口在每个一级页面常显，不论启动页面选的是哪个都能落到它上面
             VoiceEntryBeacon.shared.pulse()
             VoiceEntryBeacon.shared.showHint()
         }

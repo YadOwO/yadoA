@@ -14,10 +14,13 @@ enum VoiceEntryHighlight: Equatable {
 }
 
 extension HomeRecentEntryHighlight {
-    /// 登记一条语音记账产生的首页提示。
+    /// 登记一条语音记账产生的首页提示；首页不在屏幕上时不登记。
     ///
+    /// 语音只在用户正看着首页时原地提示。在别的页面说的、或在别的页面撤销的，回到首页时不再自动跳月份标红，
+    /// 想看哪一笔点会话卡片上的结果定位。
     /// - Parameter highlight: 变更对应的提示。
     func mark(_ highlight: VoiceEntryHighlight) {
+        guard isHomeVisible else { return }
         switch highlight {
         case let .added(id, transactionDay):
             mark(id: id, transactionDay: transactionDay)
@@ -91,11 +94,16 @@ enum VoiceAccountInverse: Equatable {
 
 /// 一次工具执行成功写入的账户相关改动：余额调整、转账、新建、修改或删除账户。
 ///
-/// 余额调整与转账不在首页明细中展示，账户改动也没有流水可看，所以结果里只列出、不能定位；
+/// 余额调整与转账不在首页明细中展示，结果里点这一行打开账户详情，而不是在首页定位；
 /// 文字在执行时按当时的语言生成，账户之后改名也不影响已展示的结果。
 struct VoiceAccountChange: Equatable, Identifiable {
     /// 本次改动的唯一标识。
     let id = UUID()
+
+    /// 改动涉及、改动后仍然存在的账户，转账时依次为转出、转入账户；删除账户时为空。
+    ///
+    /// 结果里点这一行打开第一个账户的详情，账户页列表在这些账户上补笔迹提示。
+    let accountIDs: [UUID]
 
     /// 行首的动作，例如「调整余额」「转账」「新建账户」「已停用」。
     let actionText: String
@@ -499,6 +507,7 @@ struct VoiceToolExecutor {
         }
         let name = displayName(of: account)
         let change = VoiceAccountChange(
+            accountIDs: [accountID],
             actionText: text("voice.account.action.adjustBalance"),
             title: name,
             symbolName: symbolName(of: account),
@@ -554,6 +563,7 @@ struct VoiceToolExecutor {
             let fromName = displayName(of: from)
             let toName = displayName(of: to)
             let change = VoiceAccountChange(
+                accountIDs: [from.id, to.id],
                 actionText: text("voice.account.action.transfer"),
                 title: String(format: text("voice.account.transferTitle"), locale: locale, fromName, toName),
                 symbolName: "arrow.left.arrow.right",
@@ -584,6 +594,7 @@ struct VoiceToolExecutor {
             }
             let name = displayName(of: account)
             let change = VoiceAccountChange(
+                accountIDs: [account.id],
                 actionText: text(isOutgoing ? "voice.account.action.transferOut" : "voice.account.action.transferIn"),
                 title: name,
                 symbolName: symbolName(of: account),
@@ -641,6 +652,7 @@ struct VoiceToolExecutor {
             }
         }
         let change = VoiceAccountChange(
+            accountIDs: [id],
             actionText: text("voice.account.action.create"),
             title: name,
             symbolName: template?.symbolName ?? type.symbolName,
@@ -710,6 +722,7 @@ struct VoiceToolExecutor {
             "voice.change.updated"
         }
         let result = VoiceAccountChange(
+            accountIDs: [id],
             actionText: text(actionKey),
             title: name,
             symbolName: symbolName(of: account),
@@ -737,6 +750,7 @@ struct VoiceToolExecutor {
         }
         let name = displayName(of: account)
         let change = VoiceAccountChange(
+            accountIDs: [],
             actionText: text("voice.change.deleted"),
             title: name,
             symbolName: symbolName(of: account),

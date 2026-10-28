@@ -8130,19 +8130,37 @@
       }
     },
     "voice.change.locate.hint" : {
-      "comment" : "VoiceOver hint on a transaction in the voice card: tapping scrolls the home list to it.",
+      "comment" : "VoiceOver hint on a transaction in the voice card: tapping switches to the Ledger tab if needed and scrolls its list to it.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows this transaction in the list."
+            "value" : "Shows this transaction in the Ledger list."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在列表中定位这笔流水。"
+            "value" : "在记账页列表中定位这笔流水。"
+          }
+        }
+      }
+    },
+    "voice.change.account.hint" : {
+      "comment" : "VoiceOver hint on an account change (balance adjustment, transfer, account edit) in the voice card: tapping opens the account's details.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the account details."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开账户详情。"
           }
         }
       }

@@ -37,6 +37,26 @@ struct HomeRecentEntryHighlightTests {
         #expect(entries.first?.change == .updated(previous: nil))
     }
 
+    @Test("语音记账只在首页可见时登记提示，普通记账不受影响")
+    func voiceMarksOnlyWhileHomeVisible() {
+        let highlight = HomeRecentEntryHighlight.shared
+        _ = highlight.consume()
+        let offscreen = UUID()
+        let onscreen = UUID()
+        let manual = UUID()
+
+        // 在别的页面用语音记的账，回到首页时不自动跳转
+        highlight.mark(VoiceEntryHighlight.added(id: offscreen, transactionDay: 20261020))
+        highlight.mark(id: manual, transactionDay: 20261020)
+        #expect(highlight.consume().map(\.id) == [manual])
+
+        highlight.homeDidAppear()
+        highlight.mark(VoiceEntryHighlight.added(id: onscreen, transactionDay: 20261020))
+        highlight.homeDidDisappear()
+        #expect(highlight.consume().map(\.id) == [onscreen])
+        #expect(!highlight.isHomeVisible)
+    }
+
     // MARK: - 定位目标
 
     @Test("一批变更切到笔数最多的月份，只在该月的流水里取锚点")

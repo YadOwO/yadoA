@@ -249,7 +249,7 @@ final class VoiceSession {
                 requestTimings.append(Self.requestTiming(
                     trace, outcome: response.timingOutcome, buildMs: buildMs, startedAt: requestStartedAt
                 ))
-                // 等待期间会话已结束（例如离开记账页），结果不再展示
+                // 等待期间会话已结束（例如关闭卡片或进入二级页面），结果不再展示
                 guard turnGeneration == generation else { return }
                 switch response {
                 case let .toolCalls(calls, canFinishLocally, followUpAsk):

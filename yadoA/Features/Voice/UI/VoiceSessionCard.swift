@@ -12,11 +12,14 @@ struct VoiceSessionCard: View {
     /// 按住说话的交互逻辑，提供实时转写。
     let input: VoiceInputController
 
-    /// 在首页明细里定位一笔流水。
+    /// 在记账页明细里定位一笔流水；不在记账页时先切过去。
     let onLocateChange: (VoiceEntryChange) -> Void
 
     /// 打开一笔流水的详情。
     let onOpenTransaction: (UUID) -> Void
+
+    /// 打开一个账户的详情。
+    let onOpenAccount: (UUID) -> Void
 
     /// 带着这句话去手动记账。
     let onManualEntry: (String) -> Void
@@ -180,6 +183,7 @@ struct VoiceSessionCard: View {
                         turn: turn,
                         onLocateChange: onLocateChange,
                         onOpenTransaction: onOpenTransaction,
+                        onOpenAccount: onOpenAccount,
                         onManualEntry: onManualEntry,
                         onSignIn: onSignIn
                     )
@@ -216,11 +220,14 @@ private struct VoiceSessionTurnView: View {
     /// 这一轮。
     let turn: VoiceSession.Turn
 
-    /// 在首页明细里定位一笔流水。
+    /// 在记账页明细里定位一笔流水；不在记账页时先切过去。
     let onLocateChange: (VoiceEntryChange) -> Void
 
     /// 打开一笔流水的详情。
     let onOpenTransaction: (UUID) -> Void
+
+    /// 打开一个账户的详情。
+    let onOpenAccount: (UUID) -> Void
 
     /// 带着这句话去手动记账。
     let onManualEntry: (String) -> Void
@@ -249,13 +256,7 @@ private struct VoiceSessionTurnView: View {
                 case let .entry(entryChange):
                     entryRow(entryChange)
                 case let .account(accountChange):
-                    // 余额调整、转账与账户改动不在首页明细里，不能定位，也没有流水详情；行尾留出同宽占位，金额仍然对齐
-                    HStack(spacing: 2) {
-                        VoiceAccountChangeRow(change: accountChange, isUndone: turn.isUndone)
-                        Color.clear
-                            .frame(width: 32, height: 32)
-                            .accessibilityHidden(true)
-                    }
+                    accountRow(accountChange)
                 }
             }
             // DEBUG 包与 TestFlight 包显示这句话的耗时，点开看每一步
@@ -277,12 +278,12 @@ private struct VoiceSessionTurnView: View {
         session.latestTurn?.id == turn.id
     }
 
-    /// 一笔收支流水的改动：点行在首页定位它，行尾打开详情。
+    /// 一笔收支流水的改动：点行在记账页明细里定位它（不在记账页时先切过去），行尾打开详情。
     private func entryRow(_ change: VoiceEntryChange) -> some View {
         // 删除或撤销后流水已不存在，既无法定位也没有详情可看
         let isAvailable = change.kind != .deleted && !turn.isUndone
         return HStack(spacing: 2) {
-            // 卡片盖在明细上，点一笔就在首页定位它；一句话改了好几笔时逐笔点着看
+            // 点一笔就在记账页明细里定位它，卡片跟着过去；一句话改了好几笔时逐笔点着看
             Button {
                 onLocateChange(change)
             } label: {
@@ -311,6 +312,32 @@ private struct VoiceSessionTurnView: View {
                 "voice.change.detail.accessibility", value: change.label, locale: locale
             ))
         }
+    }
+
+    /// 一次账户相关的改动：余额调整、转账与账户改动不在记账页明细里，点整行以弹层打开账户详情，转账时打开转出账户。
+    private func accountRow(_ change: VoiceAccountChange) -> some View {
+        // 删除或撤销后账户可能已不存在，不再打开详情
+        let accountID = turn.isUndone ? nil : change.accountIDs.first
+        return Button {
+            if let accountID {
+                onOpenAccount(accountID)
+            }
+        } label: {
+            HStack(spacing: 2) {
+                VoiceAccountChangeRow(change: change, isUndone: turn.isUndone)
+                // 与流水行尾的详情按钮同宽同样式；不可用时保留占位，各行金额仍然对齐
+                Image(systemName: "info.circle")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 32, height: 32)
+                    .opacity(accountID == nil ? 0 : 1)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(accountID == nil)
+        .accessibilityHint(accountID == nil ? Text(verbatim: "") : Text(text("voice.change.account.hint")))
     }
 
     /// 本轮可用的操作。

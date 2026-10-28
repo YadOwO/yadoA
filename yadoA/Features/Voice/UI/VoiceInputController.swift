@@ -114,7 +114,7 @@ final class VoiceInputController {
         !isPressing && recognizer.state != .idle
     }
 
-    /// 进入记账页时提前加载识别模型，按下后马上就能边说边出字；还没授权时不做，免得在用户同意前就准备识别。
+    /// 进入一级页面时提前加载识别模型，按下后马上就能边说边出字；还没授权时不做，免得在用户同意前就准备识别。
     ///
     /// - Parameters:
     ///   - locale: 识别语言。

@@ -177,7 +177,8 @@ struct VoiceSessionCardTests {
             window.rootViewController = UIHostingController(rootView:
                 VoiceSessionCard(
                     session: session, input: input,
-                    onLocateChange: { _ in }, onOpenTransaction: { _ in }, onManualEntry: { _ in }, onSignIn: {}, onEnd: {}
+                    onLocateChange: { _ in }, onOpenTransaction: { _ in }, onOpenAccount: { _ in },
+                    onManualEntry: { _ in }, onSignIn: {}, onEnd: {}
                 )
                 .environment(\.locale, Self.locale)
                 .animation(.easeOut(duration: 0.2), value: session.latestTurn)

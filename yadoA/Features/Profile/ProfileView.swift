@@ -4,6 +4,7 @@ import SwiftUI
 /// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、分类）、云端同步和“设置”二级页。
 ///
 /// 语言、外观、默认账户、导入导出、退出登录等低频项统一收进 `SettingsView`，已停用账户由“账户”Tab 承载。
+/// 进入二级页面都走路径导航（见 `ProfileRoute`），根导航据此判断是否显示语音入口。
 struct ProfileView: View {
     @Environment(\.locale) private var locale
     /// 全局登录状态；登录与否只影响页头身份，不影响本地账本。
@@ -23,27 +24,21 @@ struct ProfileView: View {
 
                 ProfileSettingsSection(nil, seed: "profile.section.bookkeeping") {
                     // 账单是按月、按年回看的汇总，不是日常记账操作，放在这里不占记账页导航栏。
-                    NavigationLink {
-                        BillView()
-                    } label: {
+                    NavigationLink(value: ProfileRoute.bills) {
                         ProfileSettingsRow(titleKey: "bill.title", symbol: "doc.text")
                     }
                     .accessibilityIdentifier("profile-bills")
 
                     ProfileSettingsRowDivider()
 
-                    NavigationLink {
-                        CategoryManagementView()
-                    } label: {
+                    NavigationLink(value: ProfileRoute.categories) {
                         ProfileSettingsRow(titleKey: "category.management.title", symbol: "square.grid.2x2")
                     }
                     .accessibilityIdentifier("profile-category-management")
                 }
 
                 ProfileSettingsSection(nil, seed: "profile.section.data") {
-                    NavigationLink {
-                        SyncSettingsView()
-                    } label: {
+                    NavigationLink(value: ProfileRoute.sync) {
                         ProfileSettingsRow(
                             titleKey: "sync.title",
                             symbol: "icloud",
@@ -56,7 +51,6 @@ struct ProfileView: View {
 
                     ProfileSettingsRowDivider()
 
-                    // 走路径导航：在设置页修改启动页面会重建 TabView，路径保存在 AppTabView 才能停留在设置页
                     NavigationLink(value: ProfileRoute.settings) {
                         ProfileSettingsRow(titleKey: "settings.title", symbol: "gearshape")
                     }
@@ -158,9 +152,7 @@ struct ProfileView: View {
     #if DEBUG
     /// 头像右上角的「开发」页面入口，是否显示见 `DeveloperTools.isEnabled`。
     private var developerEntry: some View {
-        NavigationLink {
-            DeveloperView()
-        } label: {
+        NavigationLink(value: ProfileRoute.developer) {
             Image(systemName: "hammer")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.primary)
@@ -251,7 +243,7 @@ struct ProfileView: View {
 #Preview {
     NavigationStack {
         ProfileView()
-            .navigationDestination(for: ProfileRoute.self) { _ in SettingsView() }
+            .navigationDestination(for: ProfileRoute.self) { $0.destination }
     }
         .environment(AuthStore())
         .environment(SignInPresentation())

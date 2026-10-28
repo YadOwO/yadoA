@@ -12,6 +12,9 @@ struct VoiceSessionTests {
         let fixture = try Fixture()
         fixture.api.responses = [.success(.toolCalls([fixture.createCall("c1", amount: "28", note: "午饭")], canFinishLocally: true))]
         _ = HomeRecentEntryHighlight.shared.consume()
+        // 用户正看着首页时语音记账才登记首页提示
+        HomeRecentEntryHighlight.shared.homeDidAppear()
+        defer { HomeRecentEntryHighlight.shared.homeDidDisappear() }
 
         await fixture.session.send("  午饭 28  ")
 

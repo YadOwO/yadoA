@@ -256,6 +256,9 @@ struct AccountListView: View {
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 语音记账共享状态；预览中没有注入时为 nil。
+    @Environment(VoiceBookkeepingState.self) private var voice: VoiceBookkeepingState?
     @Query private var queriedAccounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
     @State private var isPresentingCreation = false
@@ -263,6 +266,13 @@ struct AccountListView: View {
     @State private var isPresentingDeactivated = false
     /// 正在填写的转账；为空时不显示转账表单。
     @State private var transferDraft: TransferDraft?
+    /// 账户列表当前是否显示在屏幕上；切到别的 Tab 或进入详情时不播放语音改动提示。
+    @State private var isVisible = false
+    /// 正在播放的语音改动提示；到期后清除。
+    @State private var voiceMark: AccountListVoiceMark?
+
+    /// 语音改动提示从出现到笔迹淡出所需的总时长，之后清除标记。
+    private static let voiceMarkLifetime: Duration = .milliseconds(4000)
 
     var body: some View {
         let accounts = AccountListPresentation.sorted(queriedAccounts)
@@ -310,6 +320,15 @@ struct AccountListView: View {
                 .accessibilityIdentifier("account-list-management")
             }
         }
+        .onAppear { isVisible = true }
+        .onDisappear { isVisible = false }
+        // 用户正看着账户页时语音改了账户：在这些账户的名称和金额下补一道笔迹，并把第一个滚到可见处
+        .onChange(of: voice?.session?.latestTurn?.outcome) { _, outcome in
+            guard isVisible, outcome != .processing, let turn = voice?.session?.latestTurn else { return }
+            let accountIDs = turn.changedAccountIDs
+            guard !accountIDs.isEmpty else { return }
+            showVoiceMark(AccountListVoiceMark(accountIDs: accountIDs))
+        }
         .sheet(isPresented: $isPresentingCreation) {
             AccountCreationView { draft in
                 // 独占写入 context 的失败回滚不会影响 SwiftUI 环境中的其他修改。
@@ -342,6 +361,17 @@ struct AccountListView: View {
             .presentationDragIndicator(.visible)
         }
         .paperPage()
+    }
+
+    /// 播放一次语音改动提示，到期后只清除这一次，不影响之后的新提示。
+    private func showVoiceMark(_ mark: AccountListVoiceMark) {
+        voiceMark = mark
+        Task {
+            try? await Task.sleep(for: Self.voiceMarkLifetime)
+            if voiceMark == mark {
+                voiceMark = nil
+            }
+        }
     }
 
     /// 从账户列表发起转账时预选的转出账户：有默认记账账户时用它，否则先不选。
@@ -389,34 +419,47 @@ struct AccountListView: View {
             accounts: accounts
         )
 
-        return List {
-            AccountSummaryCard(presentation: summary)
-                .listRowInsets(
-                    EdgeInsets(top: 12, leading: 2, bottom: 8, trailing: 2)
-                )
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+        return ScrollViewReader { proxy in
+            List {
+                AccountSummaryCard(presentation: summary)
+                    .listRowInsets(
+                        EdgeInsets(top: 12, leading: 2, bottom: 8, trailing: 2)
+                    )
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
 
-            Section {
-                ForEach(accounts) { account in
-                    let presentation = AccountListPresentation.row(
-                        for: account,
-                        locale: locale,
-                        isDefault: account.id == defaultAccountID
-                    )
-                    NavigationLink(value: AccountsRoute.detail(account.id)) {
-                        AccountListRow(presentation: presentation)
+                Section {
+                    ForEach(accounts) { account in
+                        let presentation = AccountListPresentation.row(
+                            for: account,
+                            locale: locale,
+                            isDefault: account.id == defaultAccountID
+                        )
+                        NavigationLink(value: AccountsRoute.detail(account.id)) {
+                            AccountListRow(
+                                presentation: presentation,
+                                voiceMarkToken: voiceMark.flatMap { $0.accountIDs.contains(account.id) ? $0.token : nil }
+                            )
+                        }
+                        .navigationLinkIndicatorVisibility(.hidden)
+                        .ledgerRow(
+                            seed: account.id.handDrawnSeed,
+                            showsRule: account.id != accounts.last?.id
+                        )
+                        .accessibilityIdentifier("account-list-row-\(account.id.uuidString)")
+                        .id(account.id)
                     }
-                    .navigationLinkIndicatorVisibility(.hidden)
-                    .ledgerRow(
-                        seed: account.id.handDrawnSeed,
-                        showsRule: account.id != accounts.last?.id
-                    )
-                    .accessibilityIdentifier("account-list-row-\(account.id.uuidString)")
+                }
+            }
+            .listStyle(.insetGrouped)
+            .onChange(of: voiceMark) { _, mark in
+                guard let mark, let first = accounts.first(where: { mark.accountIDs.contains($0.id) }) else { return }
+                // 会话卡片压在列表下半部分，把账户滚到偏上的位置；列表一屏放得下时不会移动
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) {
+                    proxy.scrollTo(first.id, anchor: UnitPoint(x: 0.5, y: 0.2))
                 }
             }
         }
-        .listStyle(.insetGrouped)
     }
 
     /// 构造具有稳定自动化标识的主要添加按钮。
@@ -519,9 +562,28 @@ private struct AccountSummaryMetric: View {
 struct AccountListRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.locale) private var locale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let presentation: AccountRowPresentation
 
+    /// 语音改动提示的标识；有值时在名称和金额下补一道笔迹，换了新标识会从头再画一次。只有账户页列表会传。
+    var voiceMarkToken: UUID?
+
+    /// 提示笔迹的书写进度。
+    @State private var markProgress: CGFloat = 0
+
+    /// 提示笔迹是否可见；收尾时整道线淡出，而不是倒着擦掉。
+    @State private var isMarkVisible = false
+
     var body: some View {
+        rowContent
+            .task(id: voiceMarkToken) {
+                await playVoiceMark()
+            }
+    }
+
+    /// 常规字号左右排列，辅助功能字号上下排列。
+    @ViewBuilder
+    private var rowContent: some View {
         if dynamicTypeSize.isAccessibilitySize {
             VStack(alignment: .leading, spacing: 8) {
                 identityContent
@@ -547,6 +609,7 @@ struct AccountListRow: View {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(presentation.name)
                         .font(.headline)
+                        .modifier(voiceUnderline(seed: 3))
                     if presentation.isDefault {
                         Text(AccountLocalization.string("account.default.badge", locale: locale))
                             .font(.caption.weight(.semibold))
@@ -572,6 +635,7 @@ struct AccountListRow: View {
                 .foregroundStyle(.secondary)
             Text(presentation.formattedAmount)
                 .font(.system(.body, design: .serif).monospacedDigit())
+                .modifier(voiceUnderline(seed: 9))
         }
         .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .ignore)
@@ -582,6 +646,73 @@ struct AccountListRow: View {
         )
         .accessibilityIdentifier("account-list-amount-\(presentation.id.uuidString)")
     }
+
+    /// 名称或金额下的提示笔迹。
+    ///
+    /// - Parameter seed: 区分两处笔迹形状的种子。
+    private func voiceUnderline(seed: UInt64) -> AccountRowVoiceUnderline {
+        AccountRowVoiceUnderline(
+            seed: presentation.id.handDrawnSeed &+ seed,
+            progress: markProgress,
+            isVisible: isMarkVisible
+        )
+    }
+
+    /// 播放语音改动提示：等滚动停稳后写出笔迹，停留片刻后淡出；标识清空时复位。
+    private func playVoiceMark() async {
+        markProgress = 0
+        isMarkVisible = false
+        guard voiceMarkToken != nil else { return }
+        isMarkVisible = true
+        do {
+            try await Task.sleep(for: .milliseconds(300))
+            if reduceMotion {
+                markProgress = 1
+            } else {
+                withAnimation(.easeInOut(duration: 0.4)) { markProgress = 1 }
+            }
+            try await Task.sleep(for: .milliseconds(1800))
+            withAnimation(.easeInOut(duration: reduceMotion ? 0.4 : 0.8)) {
+                isMarkVisible = false
+            }
+        } catch {
+            // 行被回收或提示被替换时直接结束，新的提示会从头再播
+        }
+    }
+}
+
+/// 语音改动账户后在名称和金额下补的一道墨色细线，与首页修改提示的下划线一致。
+private struct AccountRowVoiceUnderline: ViewModifier {
+    /// 笔迹种子。
+    let seed: UInt64
+
+    /// 书写进度。
+    let progress: CGFloat
+
+    /// 是否可见。
+    let isVisible: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .bottom) {
+                HandDrawnRule(seed: seed)
+                    .trim(from: 0, to: progress)
+                    .stroke(Color.primary.opacity(0.45), style: StrokeStyle(lineWidth: 1.2, lineCap: .round))
+                    .frame(height: 3)
+                    .offset(y: 4)
+                    .opacity(isVisible ? 1 : 0)
+                    .accessibilityHidden(true)
+            }
+    }
+}
+
+/// 账户页一次语音改动提示：本轮改动过的账户与本次提示标识。
+private struct AccountListVoiceMark: Equatable {
+    /// 本轮改动过、仍在列表中的账户。
+    let accountIDs: Set<UUID>
+
+    /// 每次提示的唯一标识；同一账户连续两轮改动时，旧提示到期不会误删新提示。
+    let token = UUID()
 }
 
 #Preview {

@@ -2,28 +2,22 @@ import SwiftData
 import SwiftUI
 import UIKit
 
-/// 记账页底部的语音记账区域：唯一的会话卡片和麦克风按钮，并负责登录、权限提示与详情、手动记账弹层。
+/// 一级页面底部的语音记账区域：唯一的会话卡片、悬浮麦克风和一次性提示。
 ///
-/// 只有按住说话一种输入方式，没有轻点和打字。会话在离开记账页、关闭卡片或闲置约 2 分钟后结束。
+/// 只有按住说话一种输入方式，没有轻点和打字。四个一级页面各挂一份，共用根导航持有的同一个会话，切换 Tab 时卡片跟过去；
+/// 会话在当前页面往下进入二级页面、关闭卡片或闲置约 2 分钟后结束；切到停在二级页面的 Tab 时会话保留，卡片随页面收起。创建会话、计时、播报和弹层只需要一份，由 `voiceBookkeepingHost(_:)` 挂在根导航上。
 /// 麦克风放进 Tab Bar 附属栏时（见 `VoiceMicPlacement`），这里只显示卡片和提示，麦克风由 `VoiceMicAccessory` 显示。
 struct VoiceBookkeepingDock: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(AuthStore.self) private var authStore
     @Environment(SignInPresentation.self) private var signInPresentation
+    @Environment(AuthStore.self) private var authStore
     @Environment(VoiceBookkeepingState.self) private var voice
     @Environment(\.locale) private var locale
-    @Environment(\.calendar) private var calendar
 
-    /// 点选卡片上的一笔流水时回调，由首页切到对应月份并滚过去。
-    let onLocateChange: (VoiceEntryChange) -> Void
-
-    /// 麦克风按钮（含上下留白）占用的高度变化时回调，首页据此给列表末尾留白；麦克风在附属栏里时为 0。
+    /// 麦克风按钮（含上下留白）占用的高度变化时回调，页面据此给列表末尾留白；麦克风在附属栏里时为 0。
     let onButtonHeightChange: (CGFloat) -> Void
 
-    @State private var presentedTransaction: VoicePresentedTransaction?
-    @State private var manualEntryNote: VoiceManualEntryNote?
-
-    /// 语音区域（铺满首页内容区）底边在窗口中的位置，用来算它与附属栏的重叠。
+    /// 语音区域（铺满页面内容区）底边在窗口中的位置，用来算它与附属栏的重叠。
     @State private var dockMaxY: CGFloat?
 
     /// 麦克风是否放在 Tab Bar 附属栏里，而不是悬浮在这里。
@@ -41,11 +35,12 @@ struct VoiceBookkeepingDock: View {
                 VoiceSessionCard(
                     session: session,
                     input: input,
-                    onLocateChange: onLocateChange,
-                    onOpenTransaction: { presentedTransaction = VoicePresentedTransaction(id: $0) },
-                    onManualEntry: { manualEntryNote = VoiceManualEntryNote(text: $0) },
-                    onSignIn: signIn,
-                    onEnd: endSession
+                    onLocateChange: { voice.pendingLocate = $0 },
+                    onOpenTransaction: { voice.presentedTransaction = VoicePresentedTransaction(id: $0) },
+                    onOpenAccount: { voice.presentedAccount = VoicePresentedAccount(id: $0) },
+                    onManualEntry: { voice.manualEntryNote = VoiceManualEntryNote(text: $0) },
+                    onSignIn: { signInPresentation.present(reason: .voiceBookkeeping) },
+                    onEnd: { voice.endSession() }
                 )
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
@@ -57,9 +52,11 @@ struct VoiceBookkeepingDock: View {
                     VoiceMicButton(
                         controller: input,
                         isProcessing: voice.isProcessing,
-                        onPressBegan: beginPress,
+                        onPressBegan: { voice.beginPress(isSignedIn: authStore.isAuthenticated, locale: locale) },
                         onText: { voice.send($0) },
-                        onAccessibilityToggle: toggleRecording
+                        onAccessibilityToggle: {
+                            voice.toggleRecording(isSignedIn: authStore.isAuthenticated, locale: locale)
+                        }
                     )
                 }
                 .padding(.vertical, 12)
@@ -73,7 +70,7 @@ struct VoiceBookkeepingDock: View {
         // 附属栏不在内容区的安全区里，按实际重叠量抬到附属栏上方
         .padding(.bottom, isMicInAccessory ? Self.accessorySpacing + accessoryOverlap : 0)
         .padding(.horizontal, 16)
-        // 铺满首页内容区，卡片外的空白处才能接住点击；空白处本身不参与命中，卡片不显示时不影响列表
+        // 铺满页面内容区，卡片外的空白处才能接住点击；空白处本身不参与命中，卡片不显示时不影响列表
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         // 量的是铺满后的外框，不受上面抬高的影响，不会来回触发
         .onGeometryChange(for: CGFloat.self) { proxy in
@@ -87,7 +84,7 @@ struct VoiceBookkeepingDock: View {
                 // 卡片外的任何触摸只用来关闭卡片：松手即关，列表不会被点开或滚动
                 Color.clear
                     .contentShape(Rectangle())
-                    .gesture(DragGesture(minimumDistance: 0).onEnded { _ in endSession() })
+                    .gesture(DragGesture(minimumDistance: 0).onEnded { _ in voice.endSession() })
                     .accessibilityHidden(true)
                     .accessibilityIdentifier("voice-card-dismiss-area")
             }
@@ -100,90 +97,14 @@ struct VoiceBookkeepingDock: View {
                 // 附属栏计入列表的底部安全区，列表不用再额外留白
                 onButtonHeightChange(0)
             }
-            if voice.session == nil {
-                voice.session = VoiceSession(
-                    container: modelContext.container,
-                    api: VoiceSessionAPI { [authStore] in try await authStore.accessTokenForAIService() },
-                    locale: locale,
-                    calendar: calendar
-                )
-            }
-            // 账户、分类只能在别的页面修改，回到记账页时会重新执行这里
-            voice.contextualStrings = session?.currentContext().contextualStrings ?? []
+            // 账户、分类可能在别的页面改过，每次回到一级页面重新读一次
+            voice.contextualStrings = VoiceSessionContext.make(
+                container: modelContext.container,
+                locale: locale
+            ).contextualStrings
             input.prepareRecognizer(locale: locale, contextualStrings: voice.contextualStrings)
         }
-        .onChange(of: locale) { _, newValue in
-            voice.session?.locale = newValue
-            input.prepareRecognizer(locale: newValue, contextualStrings: voice.contextualStrings)
-        }
-        .onChange(of: calendar) { _, newValue in voice.session?.calendar = newValue }
-        // 一次性提示展示一会儿后自动消失；换了新提示时重新计时
-        .task(id: input.transientHint) {
-            guard let hint = input.transientHint else { return }
-            UIAccessibility.post(notification: .announcement, argument: hint)
-            do {
-                try await Task.sleep(for: .seconds(Self.hintDuration))
-            } catch {
-                return
-            }
-            voice.input.transientHint = nil
-        }
-        // 闲置约 2 分钟后自动结束会话；每轮结束都会重新计时
-        .task(id: session?.lastActivityAt) {
-            guard session?.lastActivityAt != nil else { return }
-            try? await Task.sleep(for: .seconds(VoiceSession.idleTimeout))
-            session?.endIfIdle()
-        }
-        // 每轮结束后用触感和 VoiceOver 播报结果
-        .onChange(of: session?.latestTurn?.outcome) { _, outcome in
-            announce(outcome)
-        }
-        .appHaptic(trigger: session?.latestTurn?.outcome) { _, outcome -> AppHaptic? in
-            switch outcome {
-            case .reply?, .ask?: .success
-            case .failed?: .error
-            case .processing?, nil: nil
-            }
-        }
-        .onDisappear {
-            // 离开记账页即结束会话；详情与手动记账都是盖在首页上的弹层，不会触发这里
-            endSession()
-        }
-        .sheet(item: $presentedTransaction) { item in
-            NavigationStack {
-                BookkeepingTransactionDetailView(transactionID: item.id)
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(text("common.done")) { presentedTransaction = nil }
-                        }
-                    }
-            }
-        }
-        .sheet(item: $manualEntryNote) { item in
-            NavigationStack {
-                DiningExpenseEntryView(
-                    draft: DiningExpenseDraft(
-                        transactionDay: TransactionDay.encode(.now, calendar: calendar),
-                        note: item.text
-                    )
-                ) { draft in
-                    try LocalExpenseRepository(container: modelContext.container).save(draft)
-                }
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(text("common.cancel")) { manualEntryNote = nil }
-                    }
-                }
-            }
-        }
-        .voiceInputAlerts(input, onSignIn: signIn)
-        .alert(text("voice.undo.failed"), isPresented: undoFailureBinding) {
-            Button(text("common.close"), role: .cancel) {}
-        }
     }
-
-    /// 一次性提示的展示时长（秒）。
-    private static let hintDuration: Double = 1.5
 
     /// 麦克风在附属栏里时，卡片和提示与附属栏顶边的间距。
     private static let accessorySpacing: CGFloat = 10
@@ -207,7 +128,7 @@ struct VoiceBookkeepingDock: View {
 
     /// 语音区域底边伸到附属栏后面的距离。
     ///
-    /// 记账页内容区的底部安全区只算 Tab Bar、不算附属栏，按安全区排版的卡片和提示会压在附属栏后面，
+    /// 页面内容区的底部安全区只算 Tab Bar、不算附属栏，按安全区排版的卡片和提示会压在附属栏后面，
     /// 这里用两者在窗口中的实际位置算出重叠部分，整体抬上去；Tab Bar 收起、附属栏下移时随之变化。
     private var accessoryOverlap: CGFloat {
         guard isMicInAccessory, let accessoryMinY = voice.accessoryMinY, let dockMaxY else { return 0 }
@@ -239,28 +160,152 @@ struct VoiceBookkeepingDock: View {
     private var isOutsideTapDismissEnabled: Bool {
         isCardVisible && !input.isPressing
     }
+}
 
-    // MARK: - 动作
+/// 给没有自己留白逻辑的一级页面挂上语音区域：悬浮麦克风的高度计入底部安全区，滚动内容末尾能滚到麦克风上方。
+private struct VoiceBookkeepingDockModifier: ViewModifier {
+    /// 悬浮麦克风（含上下留白）的高度；麦克风在附属栏里时为 0。
+    @State private var micClearance: CGFloat = 0
 
-    /// 按下麦克风：未登录时松手后弹窗询问是否去登录，已登录时开始收音。
-    private func beginPress() {
-        voice.beginPress(isSignedIn: authStore.isAuthenticated, locale: locale)
+    func body(content: Content) -> some View {
+        content
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Color.clear.frame(height: micClearance)
+            }
+            // 挂在留白外面：卡片和麦克风按原本的安全区贴着 Tab Bar 摆放
+            .overlay(alignment: .bottom) {
+                VoiceBookkeepingDock { height in
+                    micClearance = height
+                }
+            }
+    }
+}
+
+extension View {
+    /// 在一级页面底部挂上语音记账区域，并给悬浮麦克风留出底部空间。
+    ///
+    /// 记账页的明细有自己的底部留白，直接使用 `VoiceBookkeepingDock`；其他一级页面用这个修饰符。
+    func voiceBookkeepingDock() -> some View {
+        modifier(VoiceBookkeepingDockModifier())
     }
 
-    /// 无障碍模式下切换收音。
-    private func toggleRecording() {
-        voice.toggleRecording(isSignedIn: authStore.isAuthenticated, locale: locale)
+    /// 在根导航上挂上语音记账只需要一份的部分，并把语音状态放进环境。
+    ///
+    /// - Parameter voice: 根导航持有的语音状态。
+    func voiceBookkeepingHost(_ voice: VoiceBookkeepingState) -> some View {
+        modifier(VoiceBookkeepingHost(voice: voice))
+    }
+}
+
+/// 语音记账在根导航上只需要一份的部分：创建会话，闲置与提示计时、结果播报与触感，以及卡片打开的弹层和各类提示。
+///
+/// 会话卡片在每个一级页面各挂一份，这些副作用若跟着卡片走，没显示的 Tab 里也会重复执行，因此统一挂在根导航上。
+/// 详情和手动记账以弹层盖在当前页面上，不离开一级页面，关掉后会话卡片还在，可以接着说。
+private struct VoiceBookkeepingHost: ViewModifier {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(AuthStore.self) private var authStore
+    @Environment(SignInPresentation.self) private var signInPresentation
+    @Environment(\.locale) private var locale
+    @Environment(\.calendar) private var calendar
+
+    /// 根导航持有的语音状态。
+    @Bindable var voice: VoiceBookkeepingState
+
+    private var session: VoiceSession? { voice.session }
+
+    func body(content: Content) -> some View {
+        content
+            .environment(voice)
+            .task {
+                guard voice.session == nil else { return }
+                voice.session = VoiceSession(
+                    container: modelContext.container,
+                    api: VoiceSessionAPI { [authStore] in try await authStore.accessTokenForAIService() },
+                    locale: locale,
+                    calendar: calendar
+                )
+            }
+            .onChange(of: locale) { _, newValue in
+                voice.session?.locale = newValue
+                voice.input.prepareRecognizer(locale: newValue, contextualStrings: voice.contextualStrings)
+            }
+            .onChange(of: calendar) { _, newValue in voice.session?.calendar = newValue }
+            // 一次性提示展示一会儿后自动消失；换了新提示时重新计时
+            .task(id: voice.input.transientHint) {
+                guard let hint = voice.input.transientHint else { return }
+                UIAccessibility.post(notification: .announcement, argument: hint)
+                do {
+                    try await Task.sleep(for: .seconds(Self.hintDuration))
+                } catch {
+                    return
+                }
+                voice.input.transientHint = nil
+            }
+            // 闲置约 2 分钟后自动结束会话；每轮结束都会重新计时
+            .task(id: session?.lastActivityAt) {
+                guard session?.lastActivityAt != nil else { return }
+                try? await Task.sleep(for: .seconds(VoiceSession.idleTimeout))
+                session?.endIfIdle()
+            }
+            // 每轮结束后用触感和 VoiceOver 播报结果
+            .onChange(of: session?.latestTurn?.outcome) { _, outcome in
+                announce(outcome)
+            }
+            .appHaptic(trigger: session?.latestTurn?.outcome) { _, outcome -> AppHaptic? in
+                switch outcome {
+                case .reply?, .ask?: .success
+                case .failed?: .error
+                case .processing?, nil: nil
+                }
+            }
+            .sheet(item: $voice.presentedTransaction) { item in
+                NavigationStack {
+                    BookkeepingTransactionDetailView(transactionID: item.id)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button(text("common.done")) { voice.presentedTransaction = nil }
+                            }
+                        }
+                }
+            }
+            .sheet(item: $voice.presentedAccount) { item in
+                NavigationStack {
+                    AccountDetailView(accountID: item.id)
+                        .toolbar {
+                            // 账户详情右侧已有编辑和更多菜单，完成放在左侧
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button(text("common.done")) { voice.presentedAccount = nil }
+                            }
+                        }
+                }
+            }
+            .sheet(item: $voice.manualEntryNote) { item in
+                NavigationStack {
+                    DiningExpenseEntryView(
+                        draft: DiningExpenseDraft(
+                            transactionDay: TransactionDay.encode(.now, calendar: calendar),
+                            note: item.text
+                        )
+                    ) { draft in
+                        try LocalExpenseRepository(container: modelContext.container).save(draft)
+                    }
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(text("common.cancel")) { voice.manualEntryNote = nil }
+                        }
+                    }
+                }
+            }
+            .voiceInputAlerts(voice.input) {
+                signInPresentation.present(reason: .voiceBookkeeping)
+            }
+            .alert(text("voice.undo.failed"), isPresented: undoFailureBinding) {
+                Button(text("common.close"), role: .cancel) {}
+            }
     }
 
-    /// 结束会话，同时作废还在收尾的语音输入。
-    private func endSession() {
-        voice.endSession()
-    }
-
-    /// 打开整屏登录页并说明语音记账为什么要登录；登录成功回到记账页后按住麦克风即可继续。
-    private func signIn() {
-        signInPresentation.present(reason: .voiceBookkeeping)
-    }
+    /// 一次性提示的展示时长（秒）。
+    private static let hintDuration: Double = 1.5
 
     /// VoiceOver 播报本轮结果。
     private func announce(_ outcome: VoiceSession.Turn.Outcome?) {
@@ -367,6 +412,12 @@ extension View {
 /// 从会话卡片打开详情的流水。
 struct VoicePresentedTransaction: Identifiable {
     /// 流水 UUID。
+    let id: UUID
+}
+
+/// 从会话卡片打开详情的账户。
+struct VoicePresentedAccount: Identifiable {
+    /// 账户 UUID。
     let id: UUID
 }
 

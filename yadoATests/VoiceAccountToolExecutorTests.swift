@@ -35,6 +35,7 @@ struct VoiceAccountToolExecutorTests {
         #expect(try transactionCount(in: container) == 2)
         let change = try #require(delta.change?.accountChange)
         #expect(change.title == "微信")
+        #expect(change.accountIDs == [wallet])
         #expect(change.summary.contains("467.50"))
 
         _ = try executor.revert([target.change, delta.change].compactMap { $0 })
@@ -139,6 +140,8 @@ struct VoiceAccountToolExecutorTests {
         }
         #expect(try balance(bank, in: container) == 2700)
         #expect(try balance(card, in: container) == 500)
+        // 点结果行打开转出账户，账户页两边都补笔迹
+        #expect(both.change?.accountChange?.accountIDs == [bank, card])
 
         let oneSided = executor.execute(.transfer(id: "c2", input: VoiceTransferInput(
             fromAccountId: nil, toAccountId: card.uuidString, amount: "100",
@@ -153,6 +156,7 @@ struct VoiceAccountToolExecutorTests {
         #expect(try adjustment.validatedPayload() == .balanceAdjustment(before: 500, after: 400, delta: -100))
         #expect(adjustment.transactionDay == 20261019)
         #expect(try #require(oneSided.change?.accountChange?.detail).contains("待确认"))
+        #expect(oneSided.change?.accountChange?.accountIDs == [card])
 
         _ = try executor.revert([both.change, oneSided.change].compactMap { $0 })
         #expect(try balance(bank, in: container) == 3000)
@@ -187,6 +191,7 @@ struct VoiceAccountToolExecutorTests {
         #expect(try #require(try fetchAccount(customID, in: container)).name == AccountType.customAsset.title(locale: locale))
         #expect(try defaultAccountID(in: container) == bankID)
         #expect(try #require(custom.change?.accountChange?.detail).contains("待确认"))
+        #expect(bank.change?.accountChange?.accountIDs == [bankID])
 
         _ = try executor.revert([bank.change, custom.change].compactMap { $0 })
         #expect(try accountCount(in: container) == 0)
@@ -259,6 +264,7 @@ struct VoiceAccountToolExecutorTests {
         #expect(try defaultAccountID(in: container) == wallet)
         let change = try #require(execution.change?.accountChange)
         #expect(change.summary.contains("零钱"))
+        #expect(change.accountIDs == [wallet])
 
         _ = try executor.revert([execution.change].compactMap { $0 })
         let reverted = try #require(try fetchAccount(wallet, in: container))
@@ -432,6 +438,8 @@ struct VoiceAccountToolExecutorTests {
         #expect(blocked.result.output == .failure(.hasTransactions))
         #expect(deleted.result.output == .succeeded)
         #expect(try fetchAccount(spare, in: container) == nil)
+        // 账户已删除，结果行没有详情可打开
+        #expect(deleted.change?.accountChange?.accountIDs == [])
 
         _ = try executor.revert([deleted.change].compactMap { $0 })
         let restored = try #require(try fetchAccount(spare, in: container))
@@ -479,7 +487,7 @@ struct VoiceAccountToolExecutorTests {
             formattedAmount: "¥28.00", inferredFields: [], inverse: .delete(UUID()), highlight: nil
         ))
         let transfer = VoiceChange.account(VoiceAccountChange(
-            actionText: "转账", title: "招行 → 微信", symbolName: "arrow.left.arrow.right", formattedAmount: "¥500.00",
+            accountIDs: [UUID(), UUID()], actionText: "转账", title: "招行 → 微信", symbolName: "arrow.left.arrow.right", formattedAmount: "¥500.00",
             detail: nil, summary: "已从招行转 ¥500.00 到微信", inverse: .removeTransfer(UUID())
         ))
 
@@ -487,6 +495,29 @@ struct VoiceAccountToolExecutorTests {
         #expect(mixed.hasPrefix("已记 1 笔"))
         #expect(mixed.hasSuffix("已从招行转 ¥500.00 到微信"))
         #expect(VoiceSessionSummary.text(for: [transfer], locale: locale) == "已从招行转 ¥500.00 到微信")
+    }
+
+    @Test("本轮改动过的账户：合并各条账户改动涉及的账户，跳过收支与删除的账户，已撤销的轮次为空")
+    func turnCollectsChangedAccounts() {
+        let bank = UUID()
+        let wallet = UUID()
+        func accountChange(_ accountIDs: [UUID]) -> VoiceChange {
+            .account(VoiceAccountChange(
+                accountIDs: accountIDs, actionText: "", title: "", symbolName: "", formattedAmount: nil,
+                detail: nil, summary: "", inverse: .removeBalanceAdjustment(UUID())
+            ))
+        }
+        let entry = VoiceChange.entry(VoiceEntryChange(
+            kind: .created, transactionID: UUID(), transactionDay: 20261020, row: nil, accountName: nil, label: "午饭",
+            formattedAmount: "¥28.00", inferredFields: [], inverse: .delete(UUID()), highlight: nil
+        ))
+        var turn = VoiceSession.Turn(userText: "从招行转 500 到微信，微信余额改成 800", eventStartIndex: 0)
+        turn.changes = [accountChange([bank, wallet]), accountChange([wallet]), accountChange([]), entry]
+
+        #expect(turn.changedAccountIDs == [bank, wallet])
+
+        turn.isUndone = true
+        #expect(turn.changedAccountIDs.isEmpty)
     }
 
     // MARK: - 辅助

@@ -52,6 +52,8 @@ private struct HomeQueryContent: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 语音记账共享状态；卡片上点选的流水通过它交给首页定位。
+    @Environment(VoiceBookkeepingState.self) private var voice
     @Binding private var areAmountsVisible: Bool
     @Query private var transactions: [AccountTransaction]
     @Query private var categories: [BookkeepingCategory]
@@ -130,13 +132,11 @@ private struct HomeQueryContent: View {
         .paperPage()
         // 会话卡片浮在明细之上。iPhone 的 iOS 26.1 起麦克风在 Tab Bar 附属栏里，卡片出现在附属栏上方；
         // 其他情况麦克风悬浮在这里且不带整条底栏，居中放置以避开右侧的金额列，卡片出现在它上方。
+        // 明细自己按麦克风高度留白，不用 `voiceBookkeepingDock()` 的安全区留白。
         .overlay(alignment: .bottom) {
-            VoiceBookkeepingDock(
-                onLocateChange: locate,
-                onButtonHeightChange: { height in
-                    addButtonClearance = height
-                }
-            )
+            VoiceBookkeepingDock { height in
+                addButtonClearance = height
+            }
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -150,16 +150,24 @@ private struct HomeQueryContent: View {
                 selectedMonth = presentation.initialMonth
             }
             isVisible = true
+            recentEntryHighlight.homeDidAppear()
             // 从别的页面返回，带动画滚动会和返回转场叠加
             showRecentEntryHighlightIfNeeded(animated: false)
+            // 在别的 Tab 点了卡片上的流水，切过来后再定位；放在最后，定位的月份不被上面的提示改掉
+            locatePendingChangeIfNeeded(animated: false)
         }
         .onDisappear {
             isVisible = false
+            recentEntryHighlight.homeDidDisappear()
         }
         // 截图记账以全屏模态盖在首页之上，关闭时不会再次触发 onAppear，需要直接响应登记。
         // 语音记账在首页上直接改数据，也走这里，此时用户正看着列表，滚动带动画。
         .onChange(of: recentEntryHighlight.pending) { _, _ in
             showRecentEntryHighlightIfNeeded(animated: true)
+        }
+        // 在首页上点了卡片上的流水，直接定位
+        .onChange(of: voice.pendingLocate) { _, _ in
+            locatePendingChangeIfNeeded(animated: true)
         }
         .sheet(isPresented: $isMonthPickerPresented) {
             NavigationStack {
@@ -193,11 +201,22 @@ extension HomeQueryContent {
         present(recentEntryHighlight.consume(), animated: animated)
     }
 
+    /// 首页可见时取走语音卡片上点选的流水并定位；从别的 Tab 切过来时首页还没出现，等出现时再取。
+    ///
+    /// - Parameter animated: 是否带动画滚动；刚切过来时列表才出现，直接定位。
+    private func locatePendingChangeIfNeeded(animated: Bool) {
+        guard isVisible, let change = voice.pendingLocate else { return }
+        voice.pendingLocate = nil
+        locate(change, animated: animated)
+    }
+
     /// 在明细里定位语音卡片上点选的一笔流水：切到它现在所在的月份、滚到汇总下方，并重新播放一次提示。
     ///
     /// 按流水当前的记账日定位，之后的轮次改过日期也能找到；流水已被删除时不做任何事。
-    /// - Parameter change: 卡片上点选的流水变更，删除和已撤销的变更不会走到这里。
-    private func locate(_ change: VoiceEntryChange) {
+    /// - Parameters:
+    ///   - change: 卡片上点选的流水变更，删除和已撤销的变更不会走到这里。
+    ///   - animated: 是否带动画滚动。
+    private func locate(_ change: VoiceEntryChange, animated: Bool) {
         guard let transaction = transactions.first(where: { $0.id == change.transactionID }) else { return }
         // 修改不再对比旧值：之后的轮次可能又改过，只在标题和金额下补笔迹提示"就是这笔"
         let entry = HomeRecentEntryHighlight.Entry(
@@ -206,7 +225,7 @@ extension HomeQueryContent {
             change: change.kind == .updated ? .updated(previous: nil) : .added,
             savedAt: .now
         )
-        present([entry], animated: true)
+        present([entry], animated: animated)
     }
 
     /// 播放一批流水变更的提示：新增标红写对勾、修改划掉旧值换上新值、删除划掉后收起；

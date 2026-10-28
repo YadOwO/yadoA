@@ -118,13 +118,13 @@ struct ChartView: View {
             // 空账本没有可统计的分类，分类统计入口随空状态一起隐藏。
             if !transactions.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        CategoryBreakdownView(
+                    NavigationLink(
+                        value: ChartsRoute.categoryBreakdown(
                             entryType: selectedEntryType,
                             period: selectedPeriod,
                             anchorDay: TransactionDay.encode(chart.anchorDate, calendar: environmentCalendar)
                         )
-                    } label: {
+                    ) {
                         Label(
                             AccountLocalization.string("chart.category.title", locale: locale),
                             systemImage: "chart.pie"
@@ -524,6 +524,7 @@ private extension Decimal {
 #Preview {
     NavigationStack {
         ChartView()
+            .navigationDestination(for: ChartsRoute.self) { $0.destination }
     }
     .modelContainer(
         for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
@@ -536,6 +537,7 @@ private extension Decimal {
     if let container = try? HomeDesignPreviewData.makeContainer() {
         NavigationStack {
             ChartView()
+                .navigationDestination(for: ChartsRoute.self) { $0.destination }
         }
         .modelContainer(container)
         .environment(\.locale, Locale(identifier: "zh-Hans"))
