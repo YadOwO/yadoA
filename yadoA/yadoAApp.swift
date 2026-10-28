@@ -13,9 +13,14 @@ struct yadoAApp: App {
     /// 仅由 UI 自动化参数显式启用的隔离内存容器；生产启动不会创建它。
     private let uiTestingDataContainer: AccountDataContainer?
     /// 全局登录状态，注入环境后由“我的”页读取；不参与本地账本的读写。
-    @State private var authStore = AuthStore()
+    @State private var authStore: AuthStore
+    /// 当前账号的 AI 点数，“我的”入口、AI 点数页和语音记账共用；凭证与账号取自 `authStore`。
+    @State private var aiPoints: AIPointsStore
 
     init() {
+        let authStore = AuthStore()
+        _authStore = State(initialValue: authStore)
+        _aiPoints = State(initialValue: AIPointsStore(authStore: authStore))
         #if DEBUG
         // yadoA-local / yadoA Scheme 通过启动环境变量指定是否为本地开发包，以及 AI 服务和同步服务的本地地址
         AIServiceEnvironment.applyLaunchEnvironment(ProcessInfo.processInfo.environment)
@@ -83,6 +88,7 @@ struct yadoAApp: App {
                 }
             }
             .environment(authStore)
+            .environment(aiPoints)
             .modifier(AppDisplayPreferencesModifier())
         }
     }

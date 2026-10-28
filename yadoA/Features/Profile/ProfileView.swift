@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、分类）、云端同步和“设置”二级页。
+/// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、分类）、AI 点数、云端同步和“设置”二级页。
 ///
 /// 语言、外观、默认账户、导入导出、退出登录等低频项统一收进 `SettingsView`，已停用账户由“账户”Tab 承载。
 /// 进入二级页面都走路径导航（见 `ProfileRoute`），根导航据此判断是否显示语音入口。
@@ -13,6 +13,8 @@ struct ProfileView: View {
     @Environment(SignInPresentation.self) private var signInPresentation
     /// 云端同步的绑定与开关；预览中没有注入时为 nil。
     @Environment(SyncLifecycle.self) private var syncLifecycle: SyncLifecycle?
+    /// 当前账号的 AI 点数；预览中没有注入时为 nil。
+    @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
 
     /// 修改个人资料弹层，打开时携带当时的资料快照。
     @State private var editingProfile: AccountProfile?
@@ -35,6 +37,19 @@ struct ProfileView: View {
                         ProfileSettingsRow(titleKey: "category.management.title", symbol: "square.grid.2x2")
                     }
                     .accessibilityIdentifier("profile-category-management")
+                }
+
+                ProfileSettingsSection(nil, seed: "profile.section.ai") {
+                    NavigationLink(value: ProfileRoute.aiPoints) {
+                        ProfileSettingsRow(
+                            titleKey: "ai.points.title",
+                            symbol: "sparkles",
+                            value: aiPointsValue,
+                            // 余额不够说一句时用账本红提醒，其余保持灰色
+                            valueTint: authStore.isAuthenticated && aiPoints?.isExhausted == true ? Color(.ledgerRed) : nil
+                        )
+                    }
+                    .accessibilityIdentifier("profile-ai-points")
                 }
 
                 ProfileSettingsSection(nil, seed: "profile.section.data") {
@@ -73,6 +88,25 @@ struct ProfileView: View {
             // 进入页面或登录状态变化时拉一次最新资料，其他端改过昵称也能及时同步
             await authStore.refreshProfile()
         }
+        .task(id: authStore.isAuthenticated) {
+            // 每次回到“我的”都刷新一次余额，其他芽豆 App 用掉的点数也能及时反映
+            await aiPoints?.refresh()
+        }
+    }
+
+    /// AI 点数行尾的值：未登录时提示登录后可用，已登录时显示余额，还没取到时留空。
+    private var aiPointsValue: String {
+        guard authStore.isAuthenticated else {
+            return text("ai.points.row.signedOut")
+        }
+        guard let balance = aiPoints?.balance else {
+            return ""
+        }
+        return AccountLocalization.formatted(
+            "ai.points.row.balance",
+            value: balance.formatted(.number.locale(locale)),
+            locale: locale
+        )
     }
 
     /// 当前账号是否已开启云端同步；决定「云端同步」行的状态值和页头副标题。

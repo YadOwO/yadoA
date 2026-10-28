@@ -60,25 +60,36 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
     /// 获取 AI 服务 access token 的动作。
     private let accessToken: () async throws -> String
 
+    /// 每次请求开始时取一个余额回报动作；回报动作记着发起请求时的账号，响应回来时已换账号就丢弃。
+    ///
+    /// 服务端带回的余额来自扣点成功的响应头，或点数不足时错误详情里的余额。
+    private let pointsReporter: () -> (Int) -> Void
+
     /// 单次请求的超时时长；服务端一步最多调用模型两次，每次超时 20 秒。
     static let requestTimeout: TimeInterval = 45
 
     /// 计费轮次 ID 的请求头，与 yado_ai `shared/billing/headers.ts` 一致。
     static let turnIDHeader = "X-AI-Turn-Id"
 
+    /// 结算后余额的响应头，与 yado_ai `shared/billing/headers.ts` 一致；只在实际扣点模式下返回。
+    static let pointsBalanceHeader = "X-AI-Points-Balance"
+
     /// 创建客户端。
     ///
     /// - Parameters:
     ///   - endpoint: AI 服务地址；为空时每次请求取 `AIServiceEnvironment.currentEndpoint`，开发者设置里切换后立即生效。
     ///   - session: 网络会话。
+    ///   - pointsReporter: 每次请求开始时取余额回报动作，用于就地刷新点数显示；通常是 `AIPointsStore.balanceReporter()`。
     ///   - accessToken: 获取 access token 的动作，抛出 `ServiceAuthError`。
     init(
         endpoint: URL? = nil,
         session: URLSession = .shared,
+        pointsReporter: @escaping () -> (Int) -> Void = { { _ in } },
         accessToken: @escaping () async throws -> String
     ) {
         self.endpointOverride = endpoint
         self.session = session
+        self.pointsReporter = pointsReporter
         self.accessToken = accessToken
     }
 
@@ -88,6 +99,8 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
     }
 
     func send(_ request: VoiceSessionTurnRequest, turnID: UUID, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse {
+        // 在取凭证前记下账号：请求期间换了账号，带回的余额不会记到新账号上
+        let reportPointsBalance = pointsReporter()
         let tokenStartedAt = VoiceTimingClock.now
         let token: String
         do {
@@ -141,6 +154,10 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
             throw VoiceSessionAPIError.invalidContract
         }
         trace.record(httpResponse)
+        // 扣点已在服务端结算，先回报余额，响应体解码失败也不影响余额显示
+        if let balance = Self.pointsBalance(from: httpResponse, body: data) {
+            reportPointsBalance(balance)
+        }
         guard httpResponse.statusCode == 200 else {
             throw Self.error(statusCode: httpResponse.statusCode, body: data)
         }
@@ -148,6 +165,23 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
             return try JSONDecoder().decode(VoiceSessionTurnResponse.self, from: data)
         } catch {
             throw VoiceSessionAPIError.invalidContract
+        }
+    }
+
+    /// 从响应中读出服务端结算后的余额。
+    ///
+    /// - Parameters:
+    ///   - response: HTTP 响应，200 时从 `X-AI-Points-Balance` 响应头读取。
+    ///   - body: 响应体，402 时从错误详情的 `balance` 读取。
+    /// - Returns: 余额；模拟模式、结算失败或其他状态码时为 nil。
+    static func pointsBalance(from response: HTTPURLResponse, body: Data) -> Int? {
+        switch response.statusCode {
+        case 200:
+            return response.value(forHTTPHeaderField: pointsBalanceHeader).flatMap { Int($0) }
+        case 402:
+            return (try? JSONDecoder().decode(VoiceSessionErrorBody.self, from: body))?.details?.balance
+        default:
+            return nil
         }
     }
 
@@ -180,10 +214,13 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
 
 /// 服务端统一错误响应中需要读取的部分。
 private nonisolated struct VoiceSessionErrorBody: Decodable {
-    /// 限流错误的详情。
+    /// 错误详情；不同错误码带不同字段。
     nonisolated struct Details: Decodable {
-        /// 触发的限流规则：`per_minute` 或 `per_day`。
+        /// 限流错误触发的规则：`per_minute` 或 `per_day`。
         let rule: String?
+
+        /// 点数不足时的当前余额。
+        let balance: Int?
     }
 
     /// 错误码。

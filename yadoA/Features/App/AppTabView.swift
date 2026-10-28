@@ -111,6 +111,9 @@ enum ProfileRoute: Hashable {
     /// 云端同步页面。
     case sync
 
+    /// AI 点数页面：余额、扣点规则与点数明细。
+    case aiPoints
+
     /// 设置页面。
     case settings
 
@@ -127,6 +130,8 @@ enum ProfileRoute: Hashable {
             CategoryManagementView()
         case .sync:
             SyncSettingsView()
+        case .aiPoints:
+            AIPointsView()
         case .settings:
             SettingsView()
         case .developer:

@@ -207,6 +207,8 @@ private struct VoiceBookkeepingHost: ViewModifier {
     @Environment(SignInPresentation.self) private var signInPresentation
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
+    /// 当前账号的 AI 点数；每句话结算后用服务端带回的余额就地更新。预览中没有注入时为 nil。
+    @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
 
     /// 根导航持有的语音状态。
     @Bindable var voice: VoiceBookkeepingState
@@ -220,7 +222,9 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 guard voice.session == nil else { return }
                 voice.session = VoiceSession(
                     container: modelContext.container,
-                    api: VoiceSessionAPI { [authStore] in try await authStore.accessTokenForAIService() },
+                    api: VoiceSessionAPI(pointsReporter: { [aiPoints] in aiPoints?.balanceReporter() ?? { _ in } }) { [authStore] in
+                        try await authStore.accessTokenForAIService()
+                    },
                     locale: locale,
                     calendar: calendar
                 )
