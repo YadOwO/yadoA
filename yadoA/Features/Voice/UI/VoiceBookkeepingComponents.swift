@@ -374,6 +374,8 @@ extension VoiceSessionFailure {
         case .sessionExpired: "voice.failure.sessionExpired"
         case let .rateLimited(isDaily): isDaily ? "voice.failure.rateLimitedDaily" : "voice.failure.rateLimited"
         case .sessionTooLong: "voice.failure.sessionTooLong"
+        case .insufficientPoints: "voice.failure.insufficientPoints"
+        case .turnInvalid: "voice.failure.turnInvalid"
         case .serviceUnavailable: "voice.failure.serviceUnavailable"
         case .network: "voice.failure.network"
         }

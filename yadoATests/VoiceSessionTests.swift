@@ -136,6 +136,39 @@ struct VoiceSessionTests {
         #expect(fixture.session.undoableTurn == nil)
     }
 
+    @Test("计费轮次 ID：同一句的续步沿用，回答追问时换新的")
+    func reusesBillingTurnIDWithinSentence() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.toolCalls([fixture.createCall("c1", amount: "28")], canFinishLocally: false)),
+            .success(.ask(question: "打车花了多少钱？", options: [])),
+            .success(.toolCalls([fixture.createCall("c2", amount: "25")], canFinishLocally: true)),
+        ]
+
+        await fixture.session.send("午饭 28，还打了车")
+        await fixture.session.send("25")
+
+        let turnIDs = fixture.api.turnIDs
+        #expect(turnIDs.count == 3)
+        #expect(turnIDs[0] == turnIDs[1])
+        #expect(turnIDs[2] != turnIDs[0])
+    }
+
+    @Test("点数不足时不改动数据，移出本轮事件，可以手动记账或重说")
+    func insufficientPointsDropsTurn() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [.failure(.insufficientPoints)]
+
+        await fixture.session.send("午饭 28")
+
+        let turn = try #require(fixture.session.latestTurn)
+        #expect(turn.outcome == .failed(.insufficientPoints))
+        #expect(turn.offersManualEntry)
+        #expect(!turn.isInContext)
+        #expect(fixture.session.events.isEmpty)
+        #expect(try fixture.balance() == 100)
+    }
+
     @Test("已经写入后请求失败时保留写入，按已执行内容提示结果")
     func failureAfterWriteKeepsChanges() async throws {
         let fixture = try Fixture()
@@ -346,12 +379,16 @@ private final class FakeVoiceSessionAPI: VoiceSessionTurnSending {
     /// 每次请求的追踪信息。
     private(set) var traces: [VoiceRequestTrace] = []
 
+    /// 每次请求带的计费轮次 ID。
+    private(set) var turnIDs: [UUID] = []
+
     /// 每次请求填回的服务端耗时，模拟响应头中的 `Server-Timing`。
     var serverTiming = "pre;dur=1.2, prepare;dur=0.4, ttft-1;dur=900, gen-1;dur=1200;desc=\"in=3000 out=96\", check-1;dur=2, total;dur=2104"
 
-    func send(_ request: VoiceSessionTurnRequest, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse {
+    func send(_ request: VoiceSessionTurnRequest, turnID: UUID, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse {
         requests.append(request)
         traces.append(trace)
+        turnIDs.append(turnID)
         trace.server = VoiceServerTiming.parse(serverTiming)
         trace.requestID = "req-\(traces.count)"
         guard !responses.isEmpty else { throw VoiceSessionAPIError.serviceUnavailable }

@@ -17,6 +17,12 @@ enum VoiceSessionAPIError: Error, Equatable {
     /// 会话内容过长，需要结束后重新开始。
     case sessionTooLong
 
+    /// AI 点数不足，服务端没有调用模型。
+    case insufficientPoints
+
+    /// 计费轮次不合法（超时、超过请求次数上限或与首次请求不一致），本轮需要结束后重说。
+    case turnInvalid
+
     /// 模型调用失败、超时或服务尚未配置模型。
     case serviceUnavailable
 
@@ -36,10 +42,11 @@ protocol VoiceSessionTurnSending {
     ///
     /// - Parameters:
     ///   - request: 会话上下文与全部事件。
+    ///   - turnID: 计费轮次 ID：用户每说一句（包括回答追问）生成新的，同一句的续步沿用，服务端据此每句只扣一次点数。
     ///   - trace: 追踪信息：带上会话、句序号与请求序号，并填回各段耗时；失败时也填回已经测到的部分。
     /// - Returns: 工具调用、追问或回复。
     /// - Throws: `VoiceSessionAPIError`。
-    func send(_ request: VoiceSessionTurnRequest, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse
+    func send(_ request: VoiceSessionTurnRequest, turnID: UUID, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse
 }
 
 /// 调用 yado_ai `POST /v1/yadoa/voice-session/turn` 的网络客户端。
@@ -55,6 +62,9 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
 
     /// 单次请求的超时时长；服务端一步最多调用模型两次，每次超时 20 秒。
     static let requestTimeout: TimeInterval = 45
+
+    /// 计费轮次 ID 的请求头，与 yado_ai `shared/billing/headers.ts` 一致。
+    static let turnIDHeader = "X-AI-Turn-Id"
 
     /// 创建客户端。
     ///
@@ -77,7 +87,7 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
         endpointOverride ?? AIServiceEnvironment.currentEndpoint
     }
 
-    func send(_ request: VoiceSessionTurnRequest, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse {
+    func send(_ request: VoiceSessionTurnRequest, turnID: UUID, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse {
         let tokenStartedAt = VoiceTimingClock.now
         let token: String
         do {
@@ -97,6 +107,7 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
         urlRequest.timeoutInterval = Self.requestTimeout
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        urlRequest.setValue(turnID.uuidString, forHTTPHeaderField: Self.turnIDHeader)
         // 服务端日志据此把同一句话的多次请求串起来
         urlRequest.setValue(trace.sessionID, forHTTPHeaderField: VoiceRequestTrace.Header.sessionID)
         urlRequest.setValue(String(trace.turn), forHTTPHeaderField: VoiceRequestTrace.Header.turn)
@@ -150,6 +161,10 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
         switch statusCode {
         case 401:
             return .unauthorized
+        case 402:
+            return .insufficientPoints
+        case 409:
+            return .turnInvalid
         case 413:
             return .sessionTooLong
         case 429:

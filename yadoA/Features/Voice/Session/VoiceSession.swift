@@ -17,6 +17,12 @@ enum VoiceSessionFailure: Equatable {
     /// 会话内容过长，需要结束后重新开始。
     case sessionTooLong
 
+    /// AI 点数不足。
+    case insufficientPoints
+
+    /// 本轮已失效（例如处理时间过长），需要重说一遍。
+    case turnInvalid
+
     /// AI 服务暂时不可用或请求超时。
     case serviceUnavailable
 
@@ -208,6 +214,8 @@ final class VoiceSession {
         }
         turnCount += 1
         let turnIndex = turnCount
+        // 一句话一个计费轮次：这句的续步沿用，用户下一句（包括回答追问）重新生成
+        let billingTurnID = UUID()
         let turnStartedAt = VoiceTimingClock.now
         let signposter = VoiceTimingLog.signposter
         let turnSignpost = signposter.beginInterval("VoiceTurn", id: signposter.makeSignpostID(), "turn \(turnIndex)")
@@ -239,7 +247,7 @@ final class VoiceSession {
                 )
                 let response: VoiceSessionTurnResponse
                 do {
-                    response = try await api.send(request, trace: trace)
+                    response = try await api.send(request, turnID: billingTurnID, trace: trace)
                 } catch {
                     signposter.endInterval("VoiceRequest", requestSignpost)
                     requestTimings.append(Self.requestTiming(trace, outcome: .failed, buildMs: buildMs, startedAt: requestStartedAt))
@@ -471,6 +479,8 @@ final class VoiceSession {
         case .sessionExpired, .unauthorized: .sessionExpired
         case let .rateLimited(isDaily): .rateLimited(isDaily: isDaily)
         case .sessionTooLong: .sessionTooLong
+        case .insufficientPoints: .insufficientPoints
+        case .turnInvalid: .turnInvalid
         case .network: .network
         case .serviceUnavailable, .timeout, .invalidContract, nil: .serviceUnavailable
         }

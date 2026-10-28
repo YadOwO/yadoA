@@ -8838,6 +8838,40 @@
         }
       }
     },
+    "voice.failure.insufficientPoints" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough AI points. You can still enter manually."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 点数不足，可以先手动记账。"
+          }
+        }
+      }
+    },
+    "voice.failure.turnInvalid" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This request couldn't be completed. Please say it again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这句没能处理完，请重新说一遍。"
+          }
+        }
+      }
+    },
     "voice.failure.serviceUnavailable" : {
       "extractionState" : "manual",
       "localizations" : {

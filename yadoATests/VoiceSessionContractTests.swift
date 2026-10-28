@@ -240,7 +240,7 @@ struct VoiceSessionContractTests {
             }
             let trace = VoiceRequestTrace(sessionID: "S", turn: 1, request: 1)
             await #expect(throws: expected) {
-                try await api.send(request, trace: trace)
+                try await api.send(request, turnID: UUID(), trace: trace)
             }
             #expect((trace.tokenMs ?? 0) >= 20)
             #expect(trace.transportMs == nil)
@@ -248,7 +248,7 @@ struct VoiceSessionContractTests {
         }
     }
 
-    @Test("错误状态码映射：429 区分每分钟与每天")
+    @Test("错误状态码映射：429 区分每分钟与每天，402 点数不足，409 轮次失效")
     func mapsErrorStatusCodes() {
         let daily = Data(#"{"code":"TOO_MANY_REQUESTS","message":"x","details":{"rule":"per_day"}}"#.utf8)
         let minute = Data(#"{"code":"TOO_MANY_REQUESTS","message":"x","details":{"rule":"per_minute"}}"#.utf8)
@@ -257,6 +257,8 @@ struct VoiceSessionContractTests {
         #expect(VoiceSessionAPI.error(statusCode: 413, body: Data()) == .sessionTooLong)
         #expect(VoiceSessionAPI.error(statusCode: 502, body: Data()) == .serviceUnavailable)
         #expect(VoiceSessionAPI.error(statusCode: 401, body: Data()) == .unauthorized)
+        #expect(VoiceSessionAPI.error(statusCode: 402, body: Data()) == .insufficientPoints)
+        #expect(VoiceSessionAPI.error(statusCode: 409, body: Data()) == .turnInvalid)
         #expect(VoiceSessionAPI.error(statusCode: 400, body: Data()) == .invalidContract)
     }
 
