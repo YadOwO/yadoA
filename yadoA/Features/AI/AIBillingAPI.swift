@@ -26,7 +26,7 @@ enum AIBillingAPIError: Error, Equatable {
 
 /// 查询点数余额、流水与每轮点数的能力；测试注入假实现。
 protocol AIBillingFetching {
-    /// 查询当前账号的余额；首次查询时服务端创建钱包并发放新用户赠送。
+    /// 查询当前账号的余额；本产品首次查询时服务端发放本产品的新用户赠送。
     ///
     /// - Returns: 余额。
     /// - Throws: `AIBillingAPIError`。
@@ -50,7 +50,7 @@ protocol AIBillingFetching {
 final class AIBillingAPI: AIBillingFetching {
     /// 客户端用到的接口。
     enum Route: Equatable {
-        /// `GET /v1/billing/wallet`：余额。
+        /// `GET /v1/billing/wallet`：余额与各批点数的过期时刻。
         case wallet
 
         /// `GET /v1/billing/entries`：流水分页。
@@ -68,18 +68,30 @@ final class AIBillingAPI: AIBillingFetching {
             }
         }
 
-        /// 查询参数。
+        /// 查询参数；余额和流水都要带本产品代号，服务端缺这个参数时返回 400。
         var queryItems: [URLQueryItem] {
-            guard case let .entries(cursor, limit) = self else { return [] }
-            var items = [URLQueryItem(name: "limit", value: String(limit))]
-            if let cursor {
-                items.append(URLQueryItem(name: "cursor", value: cursor))
+            switch self {
+            case .wallet:
+                return [URLQueryItem(name: "product", value: AIBillingAPI.product)]
+            case let .entries(cursor, limit):
+                var items = [
+                    URLQueryItem(name: "product", value: AIBillingAPI.product),
+                    URLQueryItem(name: "limit", value: String(limit))
+                ]
+                if let cursor {
+                    items.append(URLQueryItem(name: "cursor", value: cursor))
+                }
+                return items
+            case .models:
+                return []
             }
-            return items
         }
     }
 
-    /// 单次请求的超时时长；查询接口只读库，不调用模型。
+    /// 本产品代号，与 yado_ai `config/billing.ts` 的 `PRODUCT_CODES` 一致；服务端按它发放本产品的新用户赠送。
+    static let product = "yadoa"
+
+    /// 单次请求的超时时长；查询接口只访问数据库，不调用模型。
     static let requestTimeout: TimeInterval = 15
 
     /// 每页流水条数；服务端上限 50。

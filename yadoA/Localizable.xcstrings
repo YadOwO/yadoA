@@ -13076,6 +13076,42 @@
         }
       }
     },
+    "ai.entry.grant.initial.product" : {
+      "comment" : "AI 点数明细中新用户赠送的标题，%@ 为赠送来源的产品名，例如“芽豆资产”",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ welcome bonus"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@新用户赠送"
+          }
+        }
+      }
+    },
+    "ai.product.yadoa" : {
+      "comment" : "AI 点数明细中产品 yadoa 的名称，与应用显示名一致",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado Asset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆资产"
+          }
+        }
+      }
+    },
     "ai.entry.grant" : {
       "extractionState" : "manual",
       "localizations" : {

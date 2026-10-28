@@ -31,7 +31,7 @@ struct AIPointsTests {
           {"id":"12","kind":"charge","points":-2,"balanceAfter":98,"feature":"yadoa.voice_session",
            "model":"qwen3.8-27b","reason":null,"createdAt":"2026-10-28T02:32:00.000Z"},
           {"id":"3","kind":"grant","points":100,"balanceAfter":100,"feature":null,"model":null,
-           "reason":"initial_grant","createdAt":"2026-10-27T09:10:00Z"},
+           "reason":"initial_grant","product":"yadoa","createdAt":"2026-10-27T09:10:00Z"},
           {"id":"2","kind":"bonus_v2","points":5,"balanceAfter":0,"feature":null,"model":null,
            "reason":null,"createdAt":"2026-10-27T09:00:00.000Z"},
           {"id":"1","kind":"expire","points":-5,"balanceAfter":0,"feature":null,"model":null,
@@ -44,6 +44,8 @@ struct AIPointsTests {
         #expect(page.entries[0].feature == AICreditEntry.voiceSessionFeature)
         #expect(page.entries[0].createdAt == Date(timeIntervalSince1970: 1_793_154_720))
         #expect(page.entries[1].reason == AICreditEntry.initialGrantReason)
+        #expect(page.entries[1].product == "yadoa")
+        #expect(page.entries[0].product == nil)
         #expect(page.entries[1].createdAt == Date(timeIntervalSince1970: 1_793_092_200))
 
         let lastPage = try JSONDecoder().decode(
@@ -76,24 +78,40 @@ struct AIPointsTests {
         }
     }
 
-    @Test("明细标题与图标：扣点按能力、赠送按原因区分，不认识的用类型兜底")
+    @Test("明细标题与图标：扣点按能力、赠送按原因区分，新用户赠送带来源产品名，不认识的用类型兜底")
     func mapsEntryPresentation() {
         let voice = Self.entry(kind: .charge, points: -2, feature: AICreditEntry.voiceSessionFeature)
         let otherCharge = Self.entry(kind: .charge, points: -1, feature: "yadoi.item_extract")
-        let welcome = Self.entry(kind: .grant, points: 100, reason: AICreditEntry.initialGrantReason)
-        let compensation = Self.entry(kind: .grant, points: 50, reason: "compensation")
+        let welcome = Self.entry(kind: .grant, points: 100, reason: AICreditEntry.initialGrantReason, product: "yadoa")
+        let welcomeWithoutProduct = Self.entry(kind: .grant, points: 100, reason: AICreditEntry.initialGrantReason)
+        let welcomeFromUnknownProduct = Self.entry(
+            kind: .grant,
+            points: 100,
+            reason: AICreditEntry.initialGrantReason,
+            product: "yadox"
+        )
+        let compensation = Self.entry(kind: .grant, points: 50, reason: "compensation", product: "yadoa")
 
         #expect(voice.titleKey == "ai.entry.voiceSession")
         #expect(voice.symbol == "mic")
         #expect(otherCharge.titleKey == "ai.entry.charge")
         #expect(otherCharge.symbol == "sparkles")
-        #expect(welcome.titleKey == "ai.entry.grant.initial")
+        #expect(welcome.titleKey == "ai.entry.grant.initial.product")
+        #expect(welcomeWithoutProduct.titleKey == "ai.entry.grant.initial")
+        #expect(welcomeFromUnknownProduct.titleKey == "ai.entry.grant.initial")
         #expect(compensation.titleKey == "ai.entry.grant")
         #expect(Self.entry(kind: .refund, points: 2).titleKey == "ai.entry.refund")
         #expect(Self.entry(kind: .adjust, points: -20).titleKey == "ai.entry.adjust")
         #expect(Self.entry(kind: .expire, points: -5, reason: "expired").titleKey == "ai.entry.expire")
         #expect(Self.entry(kind: .expire, points: -5).symbol == "hourglass")
         #expect(Self.entry(kind: .unknown, points: 1).titleKey == "ai.entry.other")
+
+        let simplifiedChinese = Locale(identifier: "zh-Hans")
+        #expect(welcome.title(locale: simplifiedChinese) == "芽豆资产新用户赠送")
+        #expect(welcome.title(locale: Locale(identifier: "en")) == "Yado Asset welcome bonus")
+        #expect(welcomeWithoutProduct.title(locale: simplifiedChinese) == "新用户赠送")
+        #expect(welcomeFromUnknownProduct.title(locale: simplifiedChinese) == "新用户赠送")
+        #expect(voice.title(locale: simplifiedChinese) == "语音记账")
 
         let english = Locale(identifier: "en_US")
         #expect(welcome.signedPoints(locale: english) == "+100")
@@ -115,23 +133,23 @@ struct AIPointsTests {
 
     // MARK: - 接口
 
-    @Test("查询请求的路径、分页参数与鉴权头")
+    @Test("查询请求的路径、产品代号、分页参数与鉴权头")
     func buildsBillingRequests() throws {
         let endpoint = try #require(URL(string: "https://example.invalid"))
         let api = AIBillingAPI(endpoint: endpoint) { "token" }
 
         let wallet = api.makeURLRequest(.wallet, token: "abc")
         #expect(wallet.httpMethod == "GET")
-        #expect(wallet.url?.absoluteString == "https://example.invalid/v1/billing/wallet")
+        #expect(wallet.url?.absoluteString == "https://example.invalid/v1/billing/wallet?product=yadoa")
         #expect(wallet.value(forHTTPHeaderField: "Authorization") == "Bearer abc")
         #expect(wallet.timeoutInterval == AIBillingAPI.requestTimeout)
 
         let firstPage = api.makeURLRequest(.entries(cursor: nil, limit: 20), token: "abc")
         #expect(firstPage.url?.path() == "/v1/billing/entries")
-        #expect(firstPage.url?.query() == "limit=20")
+        #expect(firstPage.url?.query() == "product=yadoa&limit=20")
 
         let nextPage = api.makeURLRequest(.entries(cursor: "41", limit: 20), token: "abc")
-        #expect(nextPage.url?.query() == "limit=20&cursor=41")
+        #expect(nextPage.url?.query() == "product=yadoa&limit=20&cursor=41")
 
         let models = api.makeURLRequest(.models, token: "abc")
         #expect(models.url?.absoluteString == "https://example.invalid/v1/models")
@@ -489,7 +507,8 @@ struct AIPointsTests {
         kind: AICreditEntryKind = .charge,
         points: Int = -2,
         feature: String? = nil,
-        reason: String? = nil
+        reason: String? = nil,
+        product: String? = nil
     ) -> AICreditEntry {
         AICreditEntry(
             id: id,
@@ -498,6 +517,7 @@ struct AIPointsTests {
             balanceAfter: 0,
             feature: feature,
             reason: reason,
+            product: product,
             createdAt: Date(timeIntervalSince1970: 1_793_154_720)
         )
     }

@@ -3,6 +3,7 @@ import Foundation
 // 与 yado_ai `GET /v1/billing/wallet`、`GET /v1/billing/entries`、`GET /v1/models` 对应的数据契约，结构以服务端 openapi.json 为准。
 //
 // 点数跨芽豆系列 App 共用，同一账号只有一个余额；点数是整数，不是金额。这里只解码客户端用得到的字段。
+// 新用户赠送按产品各发一次：查询时带上本产品代号，服务端据此发放本产品的赠送，流水里记着赠送来自哪个产品。
 
 // MARK: - 时间
 
@@ -128,11 +129,14 @@ nonisolated struct AICreditEntry: Decodable, Equatable, Identifiable, Sendable {
     /// 固定的原因标签，例如 `initial_grant`（新用户赠送）；没有时为 nil。
     let reason: String?
 
+    /// 新用户赠送来自哪个产品，例如 `yadoa`；其他流水和服务端没有返回这个字段时为 nil。
+    let product: String?
+
     /// 入账时间。
     let createdAt: Date
 
     private enum CodingKeys: String, CodingKey {
-        case id, kind, points, balanceAfter, feature, reason, createdAt
+        case id, kind, points, balanceAfter, feature, reason, product, createdAt
     }
 
     /// 逐字段创建，供测试和预览使用。
@@ -143,6 +147,7 @@ nonisolated struct AICreditEntry: Decodable, Equatable, Identifiable, Sendable {
         balanceAfter: Int,
         feature: String? = nil,
         reason: String? = nil,
+        product: String? = nil,
         createdAt: Date
     ) {
         self.id = id
@@ -151,6 +156,7 @@ nonisolated struct AICreditEntry: Decodable, Equatable, Identifiable, Sendable {
         self.balanceAfter = balanceAfter
         self.feature = feature
         self.reason = reason
+        self.product = product
         self.createdAt = createdAt
     }
 
@@ -162,6 +168,7 @@ nonisolated struct AICreditEntry: Decodable, Equatable, Identifiable, Sendable {
         balanceAfter = try container.decode(Int.self, forKey: .balanceAfter)
         feature = try container.decodeIfPresent(String.self, forKey: .feature)
         reason = try container.decodeIfPresent(String.self, forKey: .reason)
+        product = try container.decodeIfPresent(String.self, forKey: .product)
         let createdAtText = try container.decode(String.self, forKey: .createdAt)
         guard let createdAt = AIBillingTimestamp.parse(createdAtText) else {
             throw DecodingError.dataCorruptedError(
@@ -223,13 +230,31 @@ extension AICreditEntry {
     /// 新用户赠送的原因标签，与 yado_ai `shared/billing/wallet.ts` 一致。
     static let initialGrantReason = "initial_grant"
 
-    /// 明细标题的本地化 key：扣点按能力区分，赠送按原因区分，其余按类型；不认识的能力或原因用类型兜底。
+    /// 各产品名称的本地化 key，按 yado_ai `config/billing.ts` 的 `PRODUCT_CODES`；不在这里的产品显示不带产品名的标题。
+    static let productNameKeys: [String: String] = [
+        "yadoa": "ai.product.yadoa"
+    ]
+
+    /// 新用户赠送来源产品名称的本地化 key；不是新用户赠送、没有产品或不认识的产品为 nil。
+    var grantProductNameKey: String? {
+        guard kind == .grant, reason == Self.initialGrantReason, let product else { return nil }
+        return Self.productNameKeys[product]
+    }
+
+    /// 明细标题的本地化 key：扣点按能力区分，赠送按原因区分（新用户赠送认识来源产品时带产品名），其余按类型；
+    /// 不认识的能力或原因用类型兜底。
     var titleKey: String {
         switch kind {
         case .charge:
             feature == Self.voiceSessionFeature ? "ai.entry.voiceSession" : "ai.entry.charge"
         case .grant:
-            reason == Self.initialGrantReason ? "ai.entry.grant.initial" : "ai.entry.grant"
+            if grantProductNameKey != nil {
+                "ai.entry.grant.initial.product"
+            } else if reason == Self.initialGrantReason {
+                "ai.entry.grant.initial"
+            } else {
+                "ai.entry.grant"
+            }
         case .refund:
             "ai.entry.refund"
         case .adjust:
@@ -257,6 +282,21 @@ extension AICreditEntry {
         case .unknown:
             "circle.dashed"
         }
+    }
+
+    /// 明细标题，例如“语音记账”“芽豆资产新用户赠送”。
+    ///
+    /// - Parameter locale: 文案使用的语言环境。
+    /// - Returns: 本地化后的标题。
+    func title(locale: Locale) -> String {
+        guard let grantProductNameKey else {
+            return AccountLocalization.string(titleKey, locale: locale)
+        }
+        return AccountLocalization.formatted(
+            titleKey,
+            value: AccountLocalization.string(grantProductNameKey, locale: locale),
+            locale: locale
+        )
     }
 
     /// 带正负号的变动点数，例如 `+100`、`-2`。

@@ -323,7 +323,7 @@ private struct AICreditEntryRow: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(AccountLocalization.string(entry.titleKey, locale: locale))
+                Text(entry.title(locale: locale))
                     .font(.body)
                 Text(Self.formattedTime(entry.createdAt, locale: locale))
                     .font(.footnote)
