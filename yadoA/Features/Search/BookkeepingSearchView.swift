@@ -153,7 +153,7 @@ struct BookkeepingSearchView: View {
                             Text(
                                 AccountLocalization.formatted(
                                     "bookkeeping.detail.open",
-                                    value: row.categoryTitle,
+                                    value: row.lines.title,
                                     locale: locale
                                 )
                             )
@@ -628,10 +628,10 @@ private struct BookkeepingSearchRowView: View {
                 : AnyLayout(HStackLayout(alignment: .center, spacing: 8))
             layout {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(highlighted(row.categoryTitle))
+                    Text(highlighted(row.lines.title))
                         .font(.body.weight(.medium))
-                    if let note = row.note {
-                        Text(highlighted(note))
+                    if let subtitle = row.lines.subtitle {
+                        Text(highlighted(subtitle))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)

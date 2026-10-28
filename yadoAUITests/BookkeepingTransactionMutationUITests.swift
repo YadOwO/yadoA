@@ -15,13 +15,14 @@ final class BookkeepingTransactionMutationUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Edit Transaction"].waitForExistence(timeout: 3))
         capture(app, name: "Full transaction editor")
 
-        replaceText(app.textFields["expense-edit-title"], with: "Unsaved draft")
+        XCTAssertFalse(app.textFields["expense-edit-title"].exists, "编辑页不再有标题输入框")
+        replaceText(noteField(in: app), with: "Unsaved draft")
         app.buttons["expense-edit-cancel"].tap()
         let discard = app.buttons["Discard Changes"]
         XCTAssertTrue(discard.waitForExistence(timeout: 3))
         discard.tap()
         XCTAssertTrue(app.navigationBars["Edit Transaction"].waitForNonExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["bookkeeping-detail-title"].label.contains("Search legacy title"))
+        XCTAssertTrue(app.staticTexts["bookkeeping-detail-title"].label.contains("和朋友吃火锅"))
         app.buttons["bookkeeping-detail-edit"].tap()
         XCTAssertTrue(app.buttons["expense-edit-type-income"].waitForExistence(timeout: 3))
         app.buttons["expense-edit-type-income"].tap()
@@ -30,7 +31,6 @@ final class BookkeepingTransactionMutationUITests: XCTestCase {
         XCTAssertTrue(refund.waitForExistence(timeout: 3))
         refund.tap()
 
-        replaceText(app.textFields["expense-edit-title"], with: "Corrected lunch")
         replaceText(app.textFields["expense-edit-amount"], with: "40.50")
         app.buttons["expense-edit-account"].tap()
         let target = app.buttons.matching(
@@ -41,9 +41,7 @@ final class BookkeepingTransactionMutationUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(target.waitForExistence(timeout: 3))
         target.tap()
-        let note = app.textViews["expense-edit-note"].exists
-            ? app.textViews["expense-edit-note"] : app.textFields["expense-edit-note"]
-        replaceText(note, with: "Refund confirmed")
+        replaceText(noteField(in: app), with: "Refund confirmed")
         app.datePickers["expense-edit-date"].tap()
         let day = app.staticTexts["15"].firstMatch
         XCTAssertTrue(day.waitForExistence(timeout: 3))
@@ -55,13 +53,14 @@ final class BookkeepingTransactionMutationUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Transaction Details"].waitForExistence(timeout: 3))
         let title = app.staticTexts["bookkeeping-detail-title"]
         XCTAssertTrue(title.waitForExistence(timeout: 3))
-        XCTAssertEqual(title.label, "Title, Corrected lunch")
+        // 备注即详情主标题，不再单独列一行。
+        XCTAssertEqual(title.label, "Note, Refund confirmed")
         XCTAssertTrue(app.staticTexts["bookkeeping-detail-account"].label.contains("Home fixture account"))
         XCTAssertTrue(app.staticTexts["bookkeeping-detail-amount"].label.contains("40.50"))
         XCTAssertTrue(app.staticTexts["bookkeeping-detail-category"].label.contains("Refund"))
         XCTAssertTrue(app.staticTexts["bookkeeping-detail-type"].label.contains("Income"))
         XCTAssertTrue(app.staticTexts["bookkeeping-detail-date"].label.contains("15"))
-        XCTAssertEqual(app.descendants(matching: .any)["bookkeeping-detail-note"].label, "Note, Refund confirmed")
+        XCTAssertFalse(app.descendants(matching: .any)["bookkeeping-detail-note"].exists)
         capture(app, name: "Updated transaction detail")
         app.navigationBars["Transaction Details"].buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
@@ -132,6 +131,13 @@ final class BookkeepingTransactionMutationUITests: XCTestCase {
         XCTAssertTrue(result.waitForExistence(timeout: 3))
         result.tap()
         XCTAssertTrue(app.navigationBars["Transaction Details"].waitForExistence(timeout: 3))
+    }
+
+    /// 编辑页的备注输入框；多行输入在不同系统上可能暴露为 textView 或 textField。
+    @MainActor
+    private func noteField(in app: XCUIApplication) -> XCUIElement {
+        app.textViews["expense-edit-note"].exists
+            ? app.textViews["expense-edit-note"] : app.textFields["expense-edit-note"]
     }
 
     /// 优先使用系统编辑菜单全选，避免新系统把 Command-A 忽略后直接插入旧内容前。

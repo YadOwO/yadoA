@@ -379,9 +379,9 @@ struct DiningExpensePersistenceTests {
                 accountID: accountID,
                 entryType: .income,
                 incomeCategoryKey: IncomeCategory.bonus.rawValue,
-                title: "季度奖金",
                 amountText: "30",
-                transactionDay: 20260901
+                transactionDay: 20260901,
+                note: "季度奖金"
             )
         )
 
@@ -390,13 +390,13 @@ struct DiningExpensePersistenceTests {
                 == Decimal(130)
         )
         #expect(
-            try transaction(id: transactionID, in: dataContainer.modelContainer)?.title
+            try transaction(id: transactionID, in: dataContainer.modelContainer)?.note
                 == "季度奖金"
         )
     }
 
-    @Test("快速修改标题和金额会同步修正资产账户余额")
-    func updateExpenseTitleAndAmountAdjustsAssetBalance() throws {
+    @Test("快速修改备注和金额会同步修正资产账户余额")
+    func updateExpenseNoteAndAmountAdjustsAssetBalance() throws {
         let dataContainer = try AccountDataContainer.inMemory()
         let accountID = UUID()
         let transactionID = UUID()
@@ -415,16 +415,16 @@ struct DiningExpensePersistenceTests {
             DiningExpenseEditDraft(
                 id: transactionID,
                 accountID: accountID,
-                title: "午餐",
                 amountText: "20.00",
-                transactionDay: 20260901
+                transactionDay: 20260901,
+                note: "午餐"
             )
         )
 
         let updatedTransaction = try #require(
             try transaction(id: transactionID, in: dataContainer.modelContainer)
         )
-        #expect(updatedTransaction.title == "午餐")
+        #expect(updatedTransaction.note == "午餐")
         #expect(updatedTransaction.amount == Decimal(20))
         #expect(
             try account(id: accountID, in: dataContainer.modelContainer)?.balance
@@ -457,7 +457,6 @@ struct DiningExpensePersistenceTests {
             DiningExpenseEditDraft(
                 id: transactionID,
                 accountID: accountID,
-                title: "晚餐",
                 amountText: "12.50",
                 transactionDay: 20260901
             )
@@ -469,7 +468,7 @@ struct DiningExpensePersistenceTests {
         )
     }
 
-    @Test("快速修改保存失败会同时回滚标题、金额和账户余额")
+    @Test("快速修改保存失败会同时回滚备注、金额和账户余额")
     func failedUpdateRollsBackAllChanges() throws {
         let dataContainer = try AccountDataContainer.inMemory()
         let accountID = UUID()
@@ -494,15 +493,15 @@ struct DiningExpensePersistenceTests {
         let draft = DiningExpenseEditDraft(
             id: transactionID,
                 accountID: accountID,
-            title: "不应保存",
             amountText: "20",
-                transactionDay: 20260901
+                transactionDay: 20260901,
+            note: "不应保存"
         )
 
         #expect(throws: InjectedExpenseSaveFailure.self) {
             try updateRepository.update(draft)
         }
-        #expect(try transaction(id: transactionID, in: dataContainer.modelContainer)?.title == nil)
+        #expect(try transaction(id: transactionID, in: dataContainer.modelContainer)?.note == nil)
         #expect(
             try transaction(id: transactionID, in: dataContainer.modelContainer)?.amount
                 == Decimal(string: "12.34")
@@ -514,7 +513,7 @@ struct DiningExpensePersistenceTests {
 
         shouldFail = false
         try updateRepository.update(draft)
-        #expect(try transaction(id: transactionID, in: dataContainer.modelContainer)?.title == "不应保存")
+        #expect(try transaction(id: transactionID, in: dataContainer.modelContainer)?.note == "不应保存")
     }
 
     @Test("文件容器重开后保留流水与更新后的账户金额")

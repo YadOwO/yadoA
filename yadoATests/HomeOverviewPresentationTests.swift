@@ -177,7 +177,8 @@ struct HomeOverviewPresentationTests {
         #expect(monthPresentation.dayGroups[0].expenseTotal == Decimal(string: "2.34"))
         #expect(monthPresentation.dayGroups[1].expenseTotal == Decimal(string: "0.66"))
         #expect(monthPresentation.dayGroups[0].rows.map(\.id) == [newestID])
-        #expect(monthPresentation.dayGroups[0].rows[0].note == "午餐")
+        #expect(monthPresentation.dayGroups[0].rows[0].title == "午餐")
+        #expect(monthPresentation.dayGroups[0].rows[0].subtitle == "Dining")
         #expect(monthPresentation.dayGroups[0].rows[0].formattedAmount == Decimal(-2.34).formatted(
             .currency(code: "CNY").locale(Locale(identifier: "en_US"))
         ))
@@ -273,14 +274,14 @@ struct HomeOverviewPresentationTests {
         #expect(chinese.dayGroups[0].rows[0].accessibilityLabel.contains("餐饮"))
     }
 
-    @Test("首页优先展示用户自定义标题")
-    func prefersCustomTitleForRow() throws {
+    @Test("首页主行优先展示备注，副行写分类名")
+    func prefersNoteForRowTitle() throws {
         let transaction = try dining(
             id: UUID(),
             accountID: UUID(),
             amount: "12.34",
             transactionDay: 20260813,
-            title: "工作午餐"
+            note: "工作午餐"
         )
         let month = try #require(HomeMonth(year: 2026, month: 8))
         let presentation = HomeOverviewPresentation(
@@ -291,9 +292,31 @@ struct HomeOverviewPresentationTests {
         ).presentation(for: month)
 
         #expect(presentation.dayGroups[0].rows[0].title == "工作午餐")
+        #expect(presentation.dayGroups[0].rows[0].subtitle == "餐饮")
     }
 
-    @Test("修改前后逐项对比图标、标题、备注和金额")
+    @Test("备注与分类名相同时只写一行")
+    func noteEqualToCategoryShowsSingleLine() throws {
+        let transaction = try dining(
+            id: UUID(),
+            accountID: UUID(),
+            amount: "12.34",
+            transactionDay: 20260813,
+            note: "餐饮"
+        )
+        let month = try #require(HomeMonth(year: 2026, month: 8))
+        let presentation = HomeOverviewPresentation(
+            transactions: [transaction],
+            now: try #require(date(year: 2026, month: 8, day: 20)),
+            calendar: utcCalendar,
+            locale: Locale(identifier: "zh-Hans")
+        ).presentation(for: month)
+
+        #expect(presentation.dayGroups[0].rows[0].title == "餐饮")
+        #expect(presentation.dayGroups[0].rows[0].subtitle == nil)
+    }
+
+    @Test("修改前后逐项对比图标、主行、副行和金额")
     func revisionDetectsChangedFields() throws {
         let id = UUID()
         let accountID = UUID()
@@ -318,7 +341,7 @@ struct HomeOverviewPresentationTests {
         let revision = HomeOverviewRowRevision(previous: before, current: after)
         #expect(revision.isSymbolChanged)
         #expect(revision.isTitleChanged)
-        #expect(revision.isNoteChanged)
+        #expect(revision.isSubtitleChanged)
         #expect(revision.isAmountChanged)
         #expect(revision.hasVisibleChanges)
 
@@ -428,7 +451,6 @@ struct HomeOverviewPresentationTests {
         accountID: UUID,
         amount: String,
         transactionDay: Int,
-        title: String? = nil,
         note: String = "",
         savedAt: Date = Date(timeIntervalSince1970: 1_786_608_000)
     ) throws -> AccountTransaction {
@@ -437,7 +459,6 @@ struct HomeOverviewPresentationTests {
             accountID: accountID,
             amount: try #require(Decimal(string: amount)),
             transactionDay: transactionDay,
-            title: title,
             note: note,
             savedAt: savedAt
         )

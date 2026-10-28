@@ -65,7 +65,6 @@ struct AccountTransactionModelTests {
             accountID: accountID,
             amount: amount,
             transactionDay: 20260813,
-            title: "  午餐  ",
             note: "  午餐\n",
             savedAt: savedAt
         )
@@ -77,7 +76,6 @@ struct AccountTransactionModelTests {
         #expect(transaction.categoryRawValue == ExpenseCategory.dining.rawValue)
         #expect(transaction.category == .dining)
         #expect(transaction.amount == amount)
-        #expect(transaction.title == "午餐")
         #expect(transaction.balanceBefore == nil)
         #expect(transaction.balanceAfter == nil)
         #expect(transaction.balanceDelta == nil)
@@ -85,19 +83,6 @@ struct AccountTransactionModelTests {
         #expect(transaction.transactionDay == 20260813)
         #expect(transaction.note == "午餐")
         #expect(transaction.savedAt == savedAt)
-    }
-
-    @Test("空白标题保存为 nil")
-    func blankTitleBecomesNil() throws {
-        let transaction = try AccountTransaction.validatingDiningExpense(
-            id: UUID(),
-            accountID: UUID(),
-            amount: 1,
-            transactionDay: 20260813,
-            title: " \n\t"
-        )
-
-        #expect(transaction.title == nil)
     }
 
     @Test(

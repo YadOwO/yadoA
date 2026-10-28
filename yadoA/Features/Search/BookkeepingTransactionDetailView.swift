@@ -177,9 +177,7 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         if let transaction = transactions.first(where: { $0.id == transactionID }),
-                           let draft = DiningExpenseEditDraft(
-                               transaction: transaction, locale: locale, catalog: catalog
-                           ) {
+                           let draft = DiningExpenseEditDraft(transaction: transaction, catalog: catalog) {
                             onEdit(draft)
                         }
                     } label: {
@@ -268,14 +266,6 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                     )
                     .accessibilityIdentifier("bookkeeping-detail-account-status")
                 }
-
-                if let note = presentation.note {
-                    LedgerField(
-                        title: AccountLocalization.string("account.detail.note", locale: locale),
-                        value: note
-                    )
-                    .accessibilityIdentifier("bookkeeping-detail-note")
-                }
             }
         }
         .padding(.horizontal, 20)
@@ -308,7 +298,7 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                     .font(.title3.weight(.semibold))
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityLabel(Text(
-                        "\(AccountLocalization.string("expense.edit.title.field", locale: locale)), \(presentation.title)"
+                        "\(AccountLocalization.string(titleFieldKey(presentation), locale: locale)), \(presentation.title)"
                     ))
                     .accessibilityIdentifier("bookkeeping-detail-title")
 
@@ -360,6 +350,11 @@ private struct BookkeepingTransactionDetailQueryContent: View {
         _ state: BookkeepingTransactionAccountState
     ) -> String {
         state.localizedTitle(locale: locale)
+    }
+
+    /// 主标题播报时的字段名：主标题是备注时读「备注」，回退到分类名时读「分类」。
+    private func titleFieldKey(_ presentation: BookkeepingTransactionDetailPresentation) -> String {
+        presentation.note == nil ? "bookkeeping.search.detail.category" : "account.detail.note"
     }
 }
 

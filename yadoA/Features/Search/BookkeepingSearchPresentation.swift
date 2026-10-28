@@ -246,8 +246,13 @@ struct BookkeepingSearchRowPresentation: Identifiable, Equatable {
     /// 已清理的可选备注。
     let note: String?
 
-    /// 包含分类、金额、日期、账户状态和备注的播报文本。
+    /// 包含主行、副行、金额、日期和账户状态的播报文本。
     let accessibilityLabel: String
+
+    /// 与首页一致的两行文字：主行是备注或分类名，副行在写了备注时是分类名。
+    var lines: BookkeepingEntryLines {
+        BookkeepingEntryLines(note: note, categoryTitle: categoryTitle)
+    }
 }
 
 /// 记账搜索结果按业务日分组后的展示数据。
@@ -580,20 +585,19 @@ struct BookkeepingSearchPresentation {
         let formattedDate = BookkeepingDateFormatting.shortDate(date, locale: locale, calendar: calendar)
         let note = sanitizedOptionalText(transaction.note)
         let accountStatus = accountState.localizedTitle(locale: locale)
-        let title = sanitizedOptionalText(transaction.title) ?? categoryTitle
+        let lines = BookkeepingEntryLines(note: note, categoryTitle: categoryTitle)
         let spokenParts = [
-            title,
-            categoryTitle,
+            lines.title,
+            lines.subtitle,
             formattedAmount,
             formattedDate,
             accountName,
-            accountStatus,
-            note
+            accountStatus
         ].compactMap { $0 }
 
         return BookkeepingTransactionDetailPresentation(
             id: transaction.id,
-            title: title,
+            title: lines.title,
             entryType: searchablePayload.entryType,
             categoryTitle: categoryTitle,
             categorySymbolName: categorySymbolName,
@@ -730,13 +734,14 @@ struct BookkeepingSearchPresentation {
         let formattedAmount = displayAmount.formatted(
             .currency(code: transaction.transaction.currencyCode).locale(locale)
         )
+        let lines = BookkeepingEntryLines(note: transaction.note, categoryTitle: transaction.categoryTitle)
         let spokenParts = [
-            transaction.categoryTitle,
+            lines.title,
+            lines.subtitle,
             formattedAmount,
             formattedDate,
             transaction.accountName,
-            transaction.accountState.localizedTitle(locale: locale),
-            transaction.note
+            transaction.accountState.localizedTitle(locale: locale)
         ].compactMap { $0 }
 
         return BookkeepingSearchRowPresentation(
@@ -787,7 +792,7 @@ struct BookkeepingTransactionDetailPresentation: Equatable {
     /// 流水稳定标识。
     let id: UUID
 
-    /// 用户标题，旧流水回退到分类名。
+    /// 详情主标题：备注，没写备注时为分类名。
     let title: String
 
     /// 收入与支出方向，供详情明确展示。
@@ -814,7 +819,7 @@ struct BookkeepingTransactionDetailPresentation: Equatable {
     /// 账户当前生命周期状态。
     let accountState: BookkeepingTransactionAccountState
 
-    /// 已清理的可选备注。
+    /// 已清理的可选备注；有值时就是主标题，详情不再单独列一行。
     let note: String?
 
     /// 包含详情字段和账户状态的播报文本。

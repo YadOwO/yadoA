@@ -36,7 +36,7 @@ struct AccountBalanceRebuilderTests {
         try expenses.update(
             DiningExpenseEditDraft(
                 id: lunch.id, accountID: creditID, expenseCategoryKey: ExpenseCategory.dining.rawValue,
-                title: "午饭", amountText: "40", transactionDay: 20261020
+                amountText: "40", transactionDay: 20261020, note: "午饭"
             )
         )
         try expenses.save(DiningExpenseDraft(accountID: cashID, amountText: "12", transactionDay: 20261001))
@@ -182,7 +182,6 @@ struct AccountBalanceRebuilderTests {
                     type: AccountTransactionType.expense.rawValue,
                     category: ExpenseCategory.dining.rawValue,
                     amount: "30",
-                    title: nil,
                     balanceBefore: nil,
                     balanceAfter: nil,
                     balanceDelta: nil,

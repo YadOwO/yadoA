@@ -133,7 +133,6 @@ struct BackupImportServiceTests {
             type: AccountTransactionType.expense.rawValue,
             category: ExpenseCategory.dining.rawValue,
             amount: amount,
-            title: nil,
             balanceBefore: nil,
             balanceAfter: nil,
             balanceDelta: nil,
@@ -155,7 +154,6 @@ struct BackupImportServiceTests {
             type: AccountTransactionType.transfer.rawValue,
             category: nil,
             amount: "20",
-            title: nil,
             balanceBefore: nil,
             balanceAfter: nil,
             balanceDelta: nil,
@@ -446,7 +444,7 @@ struct BackupImportServiceTests {
         for key in [BookkeepingCategoryKey.customKey(for: UUID()), deletedKey, "pets"] {
             let transaction = BackupTransaction(
                 id: UUID(), accountID: Self.accountID, type: AccountTransactionType.expense.rawValue,
-                category: key, amount: "1", title: nil, balanceBefore: nil, balanceAfter: nil,
+                category: key, amount: "1", balanceBefore: nil, balanceAfter: nil,
                 balanceDelta: nil, currencyCode: "CNY", transactionDay: 20260902, note: nil,
                 savedAt: Date(timeIntervalSince1970: 30)
             )

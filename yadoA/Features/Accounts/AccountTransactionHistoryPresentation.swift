@@ -12,7 +12,7 @@ struct AccountTransactionHistoryRowPresentation: Identifiable, Equatable {
     /// 是否为转账；转账可以在账户详情里删除并撤回两边余额。
     let isTransfer: Bool
 
-    /// 当前语言环境下的流水类型标题。
+    /// 主行文字：收支为备注（没写时为分类名称），余额调整和转账为类型标题。
     let title: String
 
     /// 支出、转出使用负向金额，收入、转入带加号，余额调整使用显式带符号差额。
@@ -24,10 +24,10 @@ struct AccountTransactionHistoryRowPresentation: Identifiable, Equatable {
     /// 当前语言环境下的公历业务日期。
     let formattedDate: String
 
-    /// 已清理的可选流水备注。
-    let note: String?
+    /// 副行文字：收支写了备注时为分类名称，余额调整和转账为备注。
+    let subtitle: String?
 
-    /// 包含类型、金额、余额关系、日期和备注的完整播报文本。
+    /// 包含主行、金额、余额关系、日期和副行的完整播报文本。
     let accessibilityLabel: String
 }
 
@@ -182,6 +182,7 @@ enum AccountTransactionHistoryPresentation {
         accountNames: [UUID: String] = [:]
     ) -> AccountTransactionHistoryRowPresentation {
         let title: String
+        let subtitle: String?
         let formattedAmount: String
         let balanceTransition: String?
         let spokenBalanceTransition: String?
@@ -190,16 +191,24 @@ enum AccountTransactionHistoryPresentation {
         switch payload {
         case let .expense(_, amount):
             canOpenBookkeepingDetail = true
-            title = transaction.title
-                ?? payload.categoryTitle(locale: locale, catalog: catalog) ?? ""
+            let lines = BookkeepingEntryLines(
+                note: transaction.note,
+                categoryTitle: payload.categoryTitle(locale: locale, catalog: catalog) ?? ""
+            )
+            title = lines.title
+            subtitle = lines.subtitle
             formattedAmount = formattedCurrency(-amount, code: transaction.currencyCode, locale: locale)
             balanceTransition = nil
             spokenBalanceTransition = nil
 
         case let .income(_, amount):
             canOpenBookkeepingDetail = true
-            title = transaction.title
-                ?? payload.categoryTitle(locale: locale, catalog: catalog) ?? ""
+            let lines = BookkeepingEntryLines(
+                note: transaction.note,
+                categoryTitle: payload.categoryTitle(locale: locale, catalog: catalog) ?? ""
+            )
+            title = lines.title
+            subtitle = lines.subtitle
             formattedAmount = formattedSignedCurrency(
                 amount,
                 code: transaction.currencyCode,
@@ -214,6 +223,7 @@ enum AccountTransactionHistoryPresentation {
                 "account.detail.history.balance_adjustment",
                 locale: locale
             )
+            subtitle = transaction.note
             formattedAmount = formattedSignedCurrency(
                 balanceDelta,
                 code: transaction.currencyCode,
@@ -262,6 +272,7 @@ enum AccountTransactionHistoryPresentation {
                 value: counterpartName,
                 locale: locale
             )
+            subtitle = transaction.note
             formattedAmount = isIncoming
                 ? formattedSignedCurrency(amount, code: transaction.currencyCode, locale: locale)
                 : formattedCurrency(-amount, code: transaction.currencyCode, locale: locale)
@@ -274,7 +285,7 @@ enum AccountTransactionHistoryPresentation {
             formattedAmount,
             spokenBalanceTransition,
             formattedDate,
-            transaction.note
+            subtitle
         ].compactMap { $0 }
 
         let isTransfer: Bool
@@ -292,7 +303,7 @@ enum AccountTransactionHistoryPresentation {
             formattedAmount: formattedAmount,
             balanceTransition: balanceTransition,
             formattedDate: formattedDate,
-            note: transaction.note,
+            subtitle: subtitle,
             accessibilityLabel: spokenParts.joined(separator: ", ")
         )
     }

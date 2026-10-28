@@ -96,7 +96,7 @@ struct AccountTransactionHistoryPresentationTests {
         )
     }
 
-    @Test("中英文展示餐饮负向金额日期且空备注保持缺省")
+    @Test("有备注时主行是备注、副行是分类，空备注时主行回退到分类且没有副行")
     func rowLocalizesDiningAndPreservesOptionalNote() throws {
         let amount = try #require(Decimal(string: "12.34"))
         let withNote = try AccountTransaction.validatingDiningExpense(
@@ -140,8 +140,10 @@ struct AccountTransactionHistoryPresentationTests {
             )
         )
 
-        #expect(english.title == "Dining")
-        #expect(chinese.title == "餐饮")
+        #expect(english.title == "午餐")
+        #expect(english.subtitle == "Dining")
+        #expect(chinese.subtitle == "餐饮")
+        #expect(blankNote.title == "餐饮")
         #expect(
             english.formattedAmount == (-amount).formatted(
                 .currency(code: "CNY").locale(englishLocale)
@@ -150,8 +152,9 @@ struct AccountTransactionHistoryPresentationTests {
         #expect(english.balanceTransition == nil)
         #expect(english.formattedDate.contains("2026"))
         #expect(chinese.formattedDate.contains("8"))
-        #expect(english.note == "午餐")
-        #expect(blankNote.note == nil)
+        #expect(english.accessibilityLabel.hasPrefix("午餐, "))
+        #expect(english.accessibilityLabel.hasSuffix(", Dining"))
+        #expect(blankNote.subtitle == nil)
     }
 
     @Test("余额调整展示显式差额与前后余额")
@@ -196,7 +199,8 @@ struct AccountTransactionHistoryPresentationTests {
             )
         )
         #expect(negativeRow.accessibilityLabel.contains("余额从"))
-        #expect(negativeRow.note == nil)
+        #expect(positiveRow.subtitle == "校准")
+        #expect(negativeRow.subtitle == nil)
     }
 
     @Test("同一笔转账在转出、转入账户里方向相反，并写出对方账户")

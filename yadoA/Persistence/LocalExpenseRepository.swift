@@ -203,7 +203,6 @@ final class LocalExpenseRepository {
         transaction.accountID = replacement.accountID
         transaction.typeRawValue = replacement.typeRawValue
         transaction.categoryRawValue = replacement.categoryRawValue
-        transaction.title = replacement.title
         transaction.amount = replacement.amount
         transaction.transactionDay = replacement.transactionDay
         transaction.note = replacement.note

@@ -988,13 +988,13 @@ struct HomeOverviewRowContent: View {
                         .foregroundStyle(isAddedMarked ? Color(.ledgerRed) : Color.primary)
                         .contentTransition(.interpolate)
                         .modifier(revisionMarks(isChanged: revision?.isTitleChanged, marksWithoutVisibleChanges: true, seed: 1))
-                    if let note = displayed.note {
-                        Text(note)
+                    if let subtitle = displayed.subtitle {
+                        Text(subtitle)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .contentTransition(.interpolate)
-                            .modifier(revisionMarks(isChanged: revision?.isNoteChanged, marksWithoutVisibleChanges: false, seed: 2))
+                            .modifier(revisionMarks(isChanged: revision?.isSubtitleChanged, marksWithoutVisibleChanges: false, seed: 2))
                             .transition(.opacity)
                     }
                 }

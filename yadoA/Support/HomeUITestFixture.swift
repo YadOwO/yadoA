@@ -50,7 +50,6 @@ enum HomeUITestFixture {
                 accountID: accountID,
                 amount: Decimal(string: item.1) ?? 0,
                 transactionDay: transactionDay(for: month, day: index.isMultiple(of: 2) ? 8 : 13),
-                title: index == 2 ? "Home fixture entry" : nil,
                 note: index == 2 ? "Home fixture" : ""
             )
             context.insert(transaction)
@@ -117,7 +116,7 @@ enum HomeUITestFixture {
                 accountID: activeAccountID,
                 amount: 12.50,
                 transactionDay: transactionDay(for: now),
-                title: "Export fixture expense",
+                note: "Export fixture expense",
                 savedAt: now.addingTimeInterval(-2)
             )
         )
@@ -128,7 +127,7 @@ enum HomeUITestFixture {
                 category: .salary,
                 amount: 100,
                 transactionDay: transactionDay(for: now),
-                title: "Export fixture income",
+                note: "Export fixture income",
                 savedAt: now.addingTimeInterval(-1)
             )
         )
@@ -193,7 +192,6 @@ enum HomeUITestFixture {
                 accountID: activeAccountID,
                 amount: 30,
                 transactionDay: day(8),
-                title: "Search legacy title",
                 note: "和朋友吃火锅",
                 savedAt: now.addingTimeInterval(-3)
             )

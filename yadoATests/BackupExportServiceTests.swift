@@ -135,7 +135,7 @@ struct BackupExportServiceTests {
         )
         #expect(
             transactionKeys == [
-                "id", "accountID", "type", "category", "amount", "title",
+                "id", "accountID", "type", "category", "amount",
                 "balanceBefore", "balanceAfter", "balanceDelta", "counterpartAccountID", "currencyCode",
                 "transactionDay", "note", "savedAt",
             ]

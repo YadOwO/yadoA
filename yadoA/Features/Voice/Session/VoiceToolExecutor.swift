@@ -342,12 +342,6 @@ struct VoiceToolExecutor {
         case .clear: updated.note = nil
         case nil: break
         }
-        // 手动编辑会把分类名写成标题；换了分类时若标题仍是旧分类名，清空标题，让展示跟随新分类
-        if updated.categoryKey != previous.categoryKey || updated.entryType != previous.entryType,
-           let title = previous.title,
-           title == target.catalog.resolvedItem(direction: previous.entryType, key: previous.categoryKey).title(locale: locale) {
-            updated.title = nil
-        }
 
         do {
             try repository.apply([.replace(updated)])
@@ -465,11 +459,12 @@ struct VoiceToolExecutor {
         )
     }
 
-    /// 结果提示里称呼一笔流水的文字：优先备注，其次标题，最后分类名称。
+    /// 结果提示里称呼一笔流水的文字：与列表主行一致，优先备注，没有时用分类名称。
     private func label(for snapshot: BookkeepingEntrySnapshot, catalog: BookkeepingCategoryCatalog) -> String {
-        snapshot.note
-            ?? snapshot.title
-            ?? catalog.resolvedItem(direction: snapshot.entryType, key: snapshot.categoryKey).title(locale: locale)
+        BookkeepingEntryLines(
+            note: snapshot.note,
+            categoryTitle: catalog.resolvedItem(direction: snapshot.entryType, key: snapshot.categoryKey).title(locale: locale)
+        ).title
     }
 
     /// 本地化 CNY 金额；负数（例如透支后的余额）带负号。
@@ -862,16 +857,15 @@ struct VoiceToolExecutor {
         guard let matches = matchingEntries(input.filter, in: context) else { return .failure(.invalidInput) }
         let activeAccountIDs = Self.activeAccountIDs(in: context)
         let items = matches.prefix(max(1, min(input.limit, 20))).map { entry in
-            let combinedNote = [entry.title, entry.note].compactMap { $0 }.joined(separator: " · ")
-            return VoiceTransactionItem(
+            VoiceTransactionItem(
                 id: entry.id.uuidString,
                 date: Self.dateString(from: entry.transactionDay),
                 type: VoiceEntryType(entry.entryType),
                 amount: Self.amountString(entry.amount),
                 categoryId: entry.categoryKey,
                 accountId: entry.accountID.uuidString,
-                // 标题常是商家或用途，和备注一起提供给模型识别「打车那笔」
-                note: combinedNote.isEmpty ? nil : String(combinedNote.prefix(VoiceSessionLimits.maxResultNoteLength)),
+                // 备注常是商家或用途，提供给模型识别「打车那笔」
+                note: entry.note.map { String($0.prefix(VoiceSessionLimits.maxResultNoteLength)) },
                 isEditable: activeAccountIDs.contains(entry.accountID)
             )
         }
@@ -923,6 +917,7 @@ struct VoiceToolExecutor {
         )
         descriptor.sortBy = AccountTransactionOrdering.sortDescriptors
         guard let transactions = try? context.fetch(descriptor) else { return nil }
+        let catalog = Self.catalog(in: context)
 
         return transactions.compactMap(BookkeepingEntrySnapshot.init(transaction:)).filter { entry in
             if let entryType, entry.entryType != entryType { return false }
@@ -930,9 +925,12 @@ struct VoiceToolExecutor {
             if let accountIDs, !accountIDs.contains(entry.accountID) { return false }
             if let minimum = amountMin.flatMap({ $0 }), entry.amount < minimum { return false }
             if let maximum = amountMax.flatMap({ $0 }), entry.amount > maximum { return false }
+            // 与页面搜索一致：关键词命中备注或分类名称都算，没写备注的流水也能按分类名找到
             if let keyword, !keyword.isEmpty {
-                let text = [entry.title, entry.note].compactMap { $0 }.joined(separator: " ")
-                if !text.localizedCaseInsensitiveContains(keyword) { return false }
+                let categoryTitle = catalog.resolvedItem(direction: entry.entryType, key: entry.categoryKey).title(locale: locale)
+                guard entry.note?.localizedCaseInsensitiveContains(keyword) == true
+                    || categoryTitle.localizedCaseInsensitiveContains(keyword)
+                else { return false }
             }
             return true
         }

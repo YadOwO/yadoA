@@ -289,8 +289,7 @@ enum SyncRecordApplier {
                 counterpartAccountID: dto.counterpartAccountID,
                 transactionDay: dto.transactionDay,
                 note: dto.note ?? "",
-                savedAt: dto.savedAt,
-                title: dto.title
+                savedAt: dto.savedAt
             )
         } catch is BackupImportError {
             throw InvalidRecord()

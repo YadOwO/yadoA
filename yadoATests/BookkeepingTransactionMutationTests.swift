@@ -21,7 +21,7 @@ struct BookkeepingTransactionMutationTests {
 
         let edit = DiningExpenseEditDraft(
             id: id, accountID: destination, expenseCategoryKey: ExpenseCategory.shopping.rawValue,
-            title: "  书包  ", amountText: "30.50", transactionDay: 20260902, note: "  开学用品  "
+            amountText: "30.50", transactionDay: 20260902, note: "  开学用品  "
         )
         try repository.update(edit)
         try repository.update(edit)
@@ -29,7 +29,6 @@ struct BookkeepingTransactionMutationTests {
         let transaction = try fetchTransaction(id, in: container)
         #expect(transaction.accountID == destination)
         #expect(transaction.category == .shopping)
-        #expect(transaction.title == "书包")
         #expect(transaction.amount == Decimal(string: "30.50"))
         #expect(transaction.transactionDay == 20260902)
         #expect(transaction.note == "开学用品")
@@ -56,7 +55,7 @@ struct BookkeepingTransactionMutationTests {
                     id: id, accountID: accountID, entryType: newDirection,
                     expenseCategoryKey: ExpenseCategory.travel.rawValue,
                     incomeCategoryKey: IncomeCategory.bonus.rawValue,
-                    title: "修正方向", amountText: "30", transactionDay: 20260901
+                    amountText: "30", transactionDay: 20260901
                 ))
                 let increases = (type == .cash) == (newDirection == .income)
                 #expect(try balance(accountID, in: container) == (increases ? 130 : 70))
@@ -104,7 +103,7 @@ struct BookkeepingTransactionMutationTests {
             BalanceAdjustmentDraft(id: adjustmentID, accountID: accountID, amountText: "500")
         )
         var draft = DiningExpenseEditDraft(
-            id: id, accountID: accountID, expenseCategoryKey: ExpenseCategory.travel.rawValue, title: "改日期",
+            id: id, accountID: accountID, expenseCategoryKey: ExpenseCategory.travel.rawValue,
             amountText: "20", transactionDay: 20260101, note: " "
         )
         try repository.update(draft)
@@ -138,7 +137,7 @@ struct BookkeepingTransactionMutationTests {
             if fails { throw MutationSaveFailure() }
         })
         let draft = DiningExpenseEditDraft(
-            id: id, accountID: target, title: "修改", amountText: "30", transactionDay: 20260902
+            id: id, accountID: target, amountText: "30", transactionDay: 20260902
         )
         #expect(throws: MutationSaveFailure.self) { try repository.update(draft) }
         #expect(try balance(source, in: container) == 80)
@@ -165,7 +164,7 @@ struct BookkeepingTransactionMutationTests {
             id: id, accountID: source, amountText: "20", transactionDay: 20260901
         ))
         var edit = DiningExpenseEditDraft(
-            id: id, accountID: target, title: "修改", amountText: "30", transactionDay: 20260230
+            id: id, accountID: target, amountText: "30", transactionDay: 20260230
         )
         #expect(throws: AccountTransactionValidationError.invalidTransactionDay) { try repository.update(edit) }
         edit.transactionDay = 20260902
@@ -192,7 +191,7 @@ struct BookkeepingTransactionMutationTests {
     func editDraftPreservesIncomeAndRejectsAdjustments() throws {
         let transaction = try AccountTransaction.validatingIncome(
             id: UUID(), accountID: UUID(), category: .bonus,
-            amount: 12.34, transactionDay: 20260915, title: "奖金", note: "月度奖金"
+            amount: 12.34, transactionDay: 20260915, note: "月度奖金"
         )
         let draft = try #require(DiningExpenseEditDraft(transaction: transaction))
         #expect(draft.id == transaction.id)

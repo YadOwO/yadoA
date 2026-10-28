@@ -42,13 +42,12 @@ enum BackupImportUITestFixture {
                     type: AccountTransactionType.expense.rawValue,
                     category: ExpenseCategory.dining.rawValue,
                     amount: "34",
-                    title: "Restored expense",
                     balanceBefore: nil,
                     balanceAfter: nil,
                     balanceDelta: nil,
                     currencyCode: "CNY",
                     transactionDay: 20260926,
-                    note: nil,
+                    note: "Restored expense",
                     savedAt: savedAt
                 )
             ],

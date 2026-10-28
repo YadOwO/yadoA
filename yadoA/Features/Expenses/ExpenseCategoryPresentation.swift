@@ -108,6 +108,33 @@ extension AccountTransactionPayload {
     }
 }
 
+/// 收支流水在列表、详情和语音提示里统一的两行文字。
+///
+/// 写了备注时主行是备注、副行是分类名称；没写备注（或备注与分类名称相同）时主行直接是分类名称，没有副行。
+struct BookkeepingEntryLines: Equatable {
+    /// 主行文字。
+    let title: String
+
+    /// 副行文字；只在主行是备注时为分类名称。
+    let subtitle: String?
+
+    /// 按备注是否有效决定两行文字。
+    ///
+    /// - Parameters:
+    ///   - note: 流水的原始备注，空白视为没写。
+    ///   - categoryTitle: 当前语言环境下的分类名称。
+    init(note: String?, categoryTitle: String) {
+        let cleanedNote = note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if cleanedNote.isEmpty || cleanedNote == categoryTitle {
+            title = categoryTitle
+            subtitle = nil
+        } else {
+            title = cleanedNote
+            subtitle = categoryTitle
+        }
+    }
+}
+
 /// 收支方向的本地化展示配置。
 extension BookkeepingEntryType {
     /// String Catalog 中稳定的收支方向键。

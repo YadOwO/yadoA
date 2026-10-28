@@ -320,7 +320,7 @@ enum OnboardingSamples {
         amount.formatted(.currency(code: "CNY").locale(locale))
     }
 
-    /// 生成一行首页流水：标题是分类，备注是这笔的称呼，支出金额带负号。
+    /// 生成一行首页流水：与真实首页一致，主行是备注、副行是分类，支出金额带负号。
     private static func row(
         id: UUID,
         category: ExpenseCategory,
@@ -329,16 +329,15 @@ enum OnboardingSamples {
         locale: Locale
     ) -> HomeOverviewRowPresentation {
         let item = BookkeepingCategoryCatalog.presets.resolvedItem(direction: .expense, key: category.rawValue)
-        let title = item.title(locale: locale)
-        let note = text(noteKey, locale)
+        let lines = BookkeepingEntryLines(note: text(noteKey, locale), categoryTitle: item.title(locale: locale))
         let formattedAmount = currency(-amount, locale: locale)
         return HomeOverviewRowPresentation(
             id: id,
-            title: title,
+            title: lines.title,
             symbolName: item.symbolName,
             formattedAmount: formattedAmount,
-            note: note,
-            accessibilityLabel: "\(title), \(note), \(formattedAmount)"
+            subtitle: lines.subtitle,
+            accessibilityLabel: [lines.title, lines.subtitle, formattedAmount].compactMap { $0 }.joined(separator: ", ")
         )
     }
 

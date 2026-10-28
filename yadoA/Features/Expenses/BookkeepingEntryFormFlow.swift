@@ -11,9 +11,6 @@ protocol BookkeepingEntryFormFlow: ObservableObject {
     /// 当前方向下已确认的分类 key；尚未选择时返回 `nil`。
     var formCategoryKey: String? { get }
 
-    /// 可编辑的流水标题；返回 `nil` 表示这份草稿没有标题字段，页面不展示标题行。
-    var formTitle: String? { get }
-
     /// 使用英文句点的金额字符缓冲区。
     var formAmountText: String { get }
 
@@ -23,7 +20,7 @@ protocol BookkeepingEntryFormFlow: ObservableObject {
     /// 当前业务日对应的日期，供系统日期选择器使用。
     var formTransactionDate: Date { get }
 
-    /// 备注原始值。
+    /// 备注原始值；留空时流水展示回退到分类名称。
     var formNote: String { get }
 
     /// 当前是否正在保存。
@@ -47,9 +44,6 @@ protocol BookkeepingEntryFormFlow: ObservableObject {
     /// 已选分类连同流水一起被删除、没有迁移目标时撤销选择。
     func clearCategory()
 
-    /// 修改标题；没有标题字段的草稿忽略这次输入。
-    func updateTitle(_ title: String)
-
     /// 接收金额输入，统一小数点格式并限制最多两位小数。
     func updateAmountText(_ amountText: String, decimalSeparator: String)
 
@@ -66,13 +60,11 @@ protocol BookkeepingEntryFormFlow: ObservableObject {
     func submit(onSaved: @escaping @MainActor () -> Void) async
 }
 
-/// 新增记账流程：分类需要用户明确确认，草稿没有标题字段。
+/// 新增记账流程：分类需要用户明确确认。
 extension DiningExpenseEntryFlow: BookkeepingEntryFormFlow {
     var formEntryType: BookkeepingEntryType { draft.entryType }
 
     var formCategoryKey: String? { selectedCategoryKey }
-
-    var formTitle: String? { nil }
 
     var formAmountText: String { draft.amountText }
 
@@ -83,8 +75,6 @@ extension DiningExpenseEntryFlow: BookkeepingEntryFormFlow {
     var formNote: String { draft.note }
 
     var isEntryRemoved: Bool { false }
-
-    func updateTitle(_ title: String) {}
 
     func selectFormAccount(id: UUID) {
         selectAccount(id: id)
@@ -100,8 +90,6 @@ extension DiningExpenseEditFlow: BookkeepingEntryFormFlow {
         guard !directionsAwaitingCategory.contains(draft.entryType) else { return nil }
         return draft.entryType == .expense ? draft.expenseCategoryKey : draft.incomeCategoryKey
     }
-
-    var formTitle: String? { draft.title }
 
     var formAmountText: String { draft.amountText }
 

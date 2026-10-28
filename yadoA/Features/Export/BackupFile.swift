@@ -235,9 +235,6 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
     /// 支出/收入的正数字符串金额；其他类型为 `nil`。
     let amount: String?
 
-    /// 用户可选的流水标题。
-    let title: String?
-
     /// 余额调整前值的字符串金额；其他类型为 `nil`。
     let balanceBefore: String?
 
@@ -269,7 +266,6 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         type = transaction.typeRawValue
         category = transaction.categoryRawValue
         amount = transaction.amount?.description
-        title = transaction.title
         balanceBefore = transaction.balanceBefore?.description
         balanceAfter = transaction.balanceAfter?.description
         balanceDelta = transaction.balanceDelta?.description
@@ -290,7 +286,6 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         try container.encode(type, forKey: .type)
         try container.encode(category, forKey: .category)
         try container.encode(amount, forKey: .amount)
-        try container.encode(title, forKey: .title)
         try container.encode(balanceBefore, forKey: .balanceBefore)
         try container.encode(balanceAfter, forKey: .balanceAfter)
         try container.encode(balanceDelta, forKey: .balanceDelta)
@@ -308,7 +303,6 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         type: String,
         category: String?,
         amount: String?,
-        title: String?,
         balanceBefore: String?,
         balanceAfter: String?,
         balanceDelta: String?,
@@ -323,7 +317,6 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         self.type = type
         self.category = category
         self.amount = amount
-        self.title = title
         self.balanceBefore = balanceBefore
         self.balanceAfter = balanceAfter
         self.balanceDelta = balanceDelta
@@ -344,7 +337,6 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         type = try container.decodeIfPresent(String.self, forKey: .type) ?? ""
         category = try container.decodeIfPresent(String.self, forKey: .category)
         amount = try container.decodeIfPresent(String.self, forKey: .amount)
-        title = try container.decodeIfPresent(String.self, forKey: .title)
         balanceBefore = try container.decodeIfPresent(String.self, forKey: .balanceBefore)
         balanceAfter = try container.decodeIfPresent(String.self, forKey: .balanceAfter)
         balanceDelta = try container.decodeIfPresent(String.self, forKey: .balanceDelta)
@@ -523,7 +515,6 @@ extension BackupTransaction {
         case type
         case category
         case amount
-        case title
         case balanceBefore
         case balanceAfter
         case balanceDelta

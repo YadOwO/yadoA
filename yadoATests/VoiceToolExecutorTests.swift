@@ -69,18 +69,13 @@ struct VoiceToolExecutorTests {
         #expect(try balance(deactivated, in: container) == 100)
     }
 
-    @Test("修改金额与分类；标题仍是旧分类名时清空，让展示跟随新分类")
-    func updateClearsStaleCategoryTitle() throws {
+    @Test("修改金额、分类与备注，提示里用新备注称呼这笔")
+    func updateChangesAmountCategoryAndNote() throws {
         let container = try AccountDataContainer.inMemory().modelContainer
         let accountID = try makeAccount(balance: 100, in: container)
         let id = UUID()
         let repository = LocalExpenseRepository(container: container)
         try repository.save(DiningExpenseDraft(id: id, accountID: accountID, amountText: "20", transactionDay: 20261020))
-        // 手动编辑会把分类名写成标题
-        let diningTitle = BookkeepingCategoryCatalog.presets.resolvedItem(direction: .expense, key: "dining").title(locale: locale)
-        try repository.update(DiningExpenseEditDraft(
-            id: id, accountID: accountID, title: diningTitle, amountText: "20", transactionDay: 20261020
-        ))
         let previous = try #require(BookkeepingEntrySnapshot(transaction: fetchTransaction(id, in: container)))
 
         let execution = makeExecutor(container).execute(.updateTransaction(id: "c1", input: VoiceUpdateTransactionInput(
@@ -91,7 +86,6 @@ struct VoiceToolExecutorTests {
         #expect(execution.result.output == .succeeded)
         let transaction = try fetchTransaction(id, in: container)
         #expect(transaction.category == .transportation)
-        #expect(transaction.title == nil)
         #expect(transaction.amount == 40)
         #expect(transaction.note == "打车")
         #expect(try balance(accountID, in: container) == 60)
@@ -99,6 +93,7 @@ struct VoiceToolExecutorTests {
         #expect(change.kind == .updated)
         #expect(change.inverse == .replace(previous))
         #expect(change.transactionDay == 20261020)
+        #expect(change.label == "打车")
     }
 
     @Test("已停用账户下的流水不能修改或删除，不存在的流水返回 not_found")
@@ -205,7 +200,7 @@ struct VoiceToolExecutorTests {
         let accountID = try makeAccount(balance: 100, in: container)
         let snapshot = BookkeepingEntrySnapshot(
             id: UUID(), accountID: accountID, entryType: .expense, categoryKey: "dining",
-            amount: 10, title: "早餐", transactionDay: 20261020, note: nil, savedAt: savedAt
+            amount: 10, transactionDay: 20261020, note: "早餐", savedAt: savedAt
         )
 
         let missingID = UUID()
@@ -217,7 +212,7 @@ struct VoiceToolExecutorTests {
 
         try LocalExpenseRepository(container: container).apply([.insert(snapshot)])
         let inserted = try fetchTransaction(snapshot.id, in: container)
-        #expect(inserted.title == "早餐")
+        #expect(inserted.note == "早餐")
         #expect(inserted.savedAt == savedAt)
         #expect(try balance(accountID, in: container) == 90)
     }
@@ -257,6 +252,18 @@ struct VoiceToolExecutorTests {
         #expect(items.map(\.isEditable) == [false, true])
         #expect(items.map(\.amount) == ["20", "35"])
         #expect(items.first?.note == "打车上班")
+
+        // 没写备注的工资收入按分类名称也能用关键词找到
+        let byCategory = executor.execute(.searchTransactions(id: "c4", input: VoiceSearchTransactionsInput(
+            filter: VoiceTransactionFilter(dateFrom: "2026-10-01", dateTo: "2026-10-31", keyword: "工资"), limit: 10
+        )))
+        guard case let .searchResult(categoryTotal, categoryItems) = byCategory.result.output else {
+            Issue.record("应返回查询结果")
+            return
+        }
+        #expect(categoryTotal == 1)
+        #expect(categoryItems.first?.amount == "5000")
+        #expect(categoryItems.first?.note == nil)
 
         let summary = executor.execute(.summarizeTransactions(id: "c2", input: VoiceSummarizeTransactionsInput(
             filter: VoiceTransactionFilter(dateFrom: "2026-10-01", dateTo: "2026-10-31")

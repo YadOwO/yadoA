@@ -5,7 +5,7 @@ import Testing
 @Suite("记账详情投影", .serialized)
 @MainActor
 struct BookkeepingTransactionDetailPresentationTests {
-    @Test("详情展示用户标题、方向和完整字段")
+    @Test("详情以备注为主标题，并展示方向和完整字段")
     func detailShowsCompleteBookkeepingFields() throws {
         let accountID = UUID()
         let transaction = try AccountTransaction.validatingDiningExpense(
@@ -13,8 +13,7 @@ struct BookkeepingTransactionDetailPresentationTests {
             accountID: accountID,
             amount: Decimal(string: "30.50")!,
             transactionDay: 20260826,
-            title: "工作午餐",
-            note: "和朋友吃火锅"
+            note: "工作午餐"
         )
         let account = makeAccount(id: accountID, name: "日常现金")
 
@@ -35,10 +34,34 @@ struct BookkeepingTransactionDetailPresentationTests {
         #expect(detail.transactionDay == 20260826)
         #expect(detail.accountName == "日常现金")
         #expect(detail.accountState == .active)
-        #expect(detail.note == "和朋友吃火锅")
+        #expect(detail.note == "工作午餐")
         #expect(detail.canEdit)
         #expect(detail.accessibilityLabel.contains("餐饮"))
         #expect(detail.accessibilityLabel.contains("工作午餐"))
+    }
+
+    @Test("没写备注时详情主标题回退到分类名")
+    func detailTitleFallsBackToCategory() throws {
+        let accountID = UUID()
+        let transaction = try AccountTransaction.validatingDiningExpense(
+            id: UUID(),
+            accountID: accountID,
+            amount: 12,
+            transactionDay: 20260826
+        )
+
+        let detail = try #require(
+            BookkeepingSearchPresentation.detail(
+                transactionID: transaction.id,
+                transactions: [transaction],
+                accounts: [makeAccount(id: accountID, name: "日常现金")],
+                calendar: utcCalendar,
+                locale: chineseLocale
+            )
+        )
+
+        #expect(detail.title == "餐饮")
+        #expect(detail.note == nil)
     }
 
     @Test("停用和孤立账户详情都保持只读状态")

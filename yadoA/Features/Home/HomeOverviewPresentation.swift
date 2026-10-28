@@ -104,7 +104,7 @@ struct HomeOverviewRowPresentation: Identifiable, Equatable {
     /// 流水稳定标识。
     let id: UUID
 
-    /// 当前语言环境下的流水分类标题。
+    /// 主行文字：备注，没写备注时为分类名称。
     let title: String
 
     /// 流水分类使用的 SF Symbol 名称。
@@ -113,10 +113,10 @@ struct HomeOverviewRowPresentation: Identifiable, Equatable {
     /// 使用负向金额表示支出的本地化金额。
     let formattedAmount: String
 
-    /// 已清理的可选备注。
-    let note: String?
+    /// 副行文字：写了备注时为分类名称，否则为 `nil`。
+    let subtitle: String?
 
-    /// 包含分类、金额、日期和备注的完整播报文本。
+    /// 包含主行、金额、日期和副行的完整播报文本。
     let accessibilityLabel: String
 }
 
@@ -131,18 +131,18 @@ struct HomeOverviewRowRevision: Equatable {
     /// 分类图标是否变化。
     var isSymbolChanged: Bool { previous.symbolName != current.symbolName }
 
-    /// 标题（自定义标题或分类名）是否变化。
+    /// 主行（备注或分类名）是否变化。
     var isTitleChanged: Bool { previous.title != current.title }
 
-    /// 备注是否变化，包括新增或清空备注。
-    var isNoteChanged: Bool { previous.note != current.note }
+    /// 副行是否变化，包括因新增或清空备注而出现、消失。
+    var isSubtitleChanged: Bool { previous.subtitle != current.subtitle }
 
     /// 带收支方向的金额是否变化；收支类型切换时符号变化也算。
     var isAmountChanged: Bool { previous.formattedAmount != current.formattedAmount }
 
     /// 行上是否有任何可见变化；只改了账户或同月日期时为 `false`。
     var hasVisibleChanges: Bool {
-        isSymbolChanged || isTitleChanged || isNoteChanged || isAmountChanged
+        isSymbolChanged || isTitleChanged || isSubtitleChanged || isAmountChanged
     }
 }
 
@@ -512,7 +512,7 @@ struct HomeOverviewPresentation {
             title: historyRow.title,
             symbolName: symbolName,
             formattedAmount: historyRow.formattedAmount,
-            note: historyRow.note,
+            subtitle: historyRow.subtitle,
             accessibilityLabel: historyRow.accessibilityLabel
         )
     }

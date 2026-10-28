@@ -829,8 +829,8 @@ private struct AccountTransactionHistoryRow: View {
             }
 
             // 日期已写在所在日期组的标题里，行内不再重复。
-            if let note = presentation.note {
-                Text(note)
+            if let subtitle = presentation.subtitle {
+                Text(subtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

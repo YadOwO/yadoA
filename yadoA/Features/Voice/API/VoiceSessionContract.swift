@@ -98,7 +98,7 @@ nonisolated struct VoiceTransactionFilter: Codable, Equatable, Sendable {
     /// 金额上限（含），十进制字符串。
     var amountMax: String?
 
-    /// 标题或备注中包含的关键词。
+    /// 备注或分类名称中包含的关键词，与页面搜索的匹配范围一致。
     var keyword: String?
 
     /// 成员逐一初始化，全部默认不限制。

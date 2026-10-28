@@ -272,7 +272,7 @@ struct SyncEngineTests {
 
             let batch = try store.pendingBatch()
             try repository.update(
-                DiningExpenseEditDraft(id: draft.id, accountID: accountID, title: "午饭", amountText: "45", transactionDay: 20261020)
+                DiningExpenseEditDraft(id: draft.id, accountID: accountID, amountText: "45", transactionDay: 20261020, note: "午饭")
             )
             let results = batch.items.enumerated().map { index, item in
                 SyncPushResult(
@@ -309,11 +309,11 @@ struct SyncEngineTests {
 
             // A 先改并上传，B 后改但还没同步
             try LocalExpenseRepository(container: deviceA.container).update(
-                DiningExpenseEditDraft(id: draft.id, accountID: accountID, title: "A", amountText: "40", transactionDay: 20261020)
+                DiningExpenseEditDraft(id: draft.id, accountID: accountID, amountText: "40", transactionDay: 20261020, note: "A")
             )
             await deviceA.engine.synchronize()
             try LocalExpenseRepository(container: deviceB.container).update(
-                DiningExpenseEditDraft(id: draft.id, accountID: accountID, title: "B", amountText: "50", transactionDay: 20261020)
+                DiningExpenseEditDraft(id: draft.id, accountID: accountID, amountText: "50", transactionDay: 20261020, note: "B")
             )
             await deviceB.engine.synchronize()
 

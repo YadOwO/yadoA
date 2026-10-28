@@ -186,7 +186,8 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
         XCTAssertTrue(edit.waitForExistence(timeout: 2))
         edit.tap()
         XCTAssertTrue(app.navigationBars["Edit Transaction"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.textFields["expense-edit-title"].exists)
+        XCTAssertTrue(app.textViews["expense-edit-note"].exists || app.textFields["expense-edit-note"].exists)
+        XCTAssertFalse(app.textFields["expense-edit-title"].exists, "编辑页不再有标题输入框")
         app.buttons["expense-edit-cancel"].tap()
 
         // 详情返回搜索页，再返回记账页，Tab Bar 一直保留。

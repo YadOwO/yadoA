@@ -290,8 +290,7 @@ extension BackupImportService {
                     counterpartAccountID: transaction.counterpartAccountID,
                     transactionDay: transaction.transactionDay,
                     note: transaction.note ?? "",
-                    savedAt: transaction.savedAt,
-                    title: transaction.title
+                    savedAt: transaction.savedAt
                 )
             } catch {
                 throw BackupImportError.invalidContent
@@ -463,7 +462,6 @@ extension AccountTransaction {
         typeRawValue = other.typeRawValue
         categoryRawValue = other.categoryRawValue
         amount = other.amount
-        title = other.title
         balanceBefore = other.balanceBefore
         balanceAfter = other.balanceAfter
         balanceDelta = other.balanceDelta

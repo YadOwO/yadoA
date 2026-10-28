@@ -84,9 +84,8 @@ struct CustomCategoryPresentationTests {
         ))
         #expect(row.title == "咖啡")
 
-        let draft = try #require(DiningExpenseEditDraft(transaction: transaction, locale: chinese, catalog: catalog))
+        let draft = try #require(DiningExpenseEditDraft(transaction: transaction, catalog: catalog))
         #expect(draft.expenseCategoryKey == coffeeKey)
-        #expect(draft.title == "咖啡")
         #expect(draft.incomeCategoryKey == "salary")
     }
 

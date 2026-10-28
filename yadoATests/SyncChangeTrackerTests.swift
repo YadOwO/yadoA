@@ -55,7 +55,7 @@ struct SyncChangeTrackerTests {
             let draft = DiningExpenseDraft(accountID: accountID, amountText: "30", transactionDay: 20261020)
             try repository.save(draft)
             let edit = DiningExpenseEditDraft(
-                id: draft.id, accountID: accountID, title: "午饭", amountText: "45", transactionDay: 20261020
+                id: draft.id, accountID: accountID, amountText: "45", transactionDay: 20261020, note: "午饭"
             )
 
             try repository.update(edit)

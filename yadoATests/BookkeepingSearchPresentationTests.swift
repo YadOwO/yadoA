@@ -88,14 +88,13 @@ struct BookkeepingSearchPresentationTests {
         #expect(detail?.formattedAmount.contains("500") == true)
     }
 
-    @Test("备注支持包含匹配，且遗留标题不参与搜索")
-    func noteMatchesWithoutUsingTitle() throws {
+    @Test("备注支持包含匹配，结果行主行是备注、副行是分类")
+    func noteMatchesAndLeadsRow() throws {
         let transaction = try dining(
             id: uuid("00000000-0000-0000-0000-000000000001"),
             accountID: uuid("00000000-0000-0000-0000-000000000101"),
             amount: "30",
             transactionDay: 20260826,
-            title: "火锅标题",
             note: "和朋友吃火锅"
         )
         let account = account(
@@ -109,16 +108,13 @@ struct BookkeepingSearchPresentationTests {
             query: " 火锅 ",
             locale: chineseLocale
         )
-        let titleOnlyMatch = BookkeepingSearchPresentation(
-            transactions: [transaction],
-            accounts: [account],
-            query: "标题",
-            locale: chineseLocale
-        )
-
         #expect(noteMatch.dayGroups.flatMap(\.rows).map(\.id) == [transaction.id])
-        #expect(titleOnlyMatch.dayGroups.isEmpty)
-        #expect(noteMatch.dayGroups[0].rows[0].note == "和朋友吃火锅")
+        let row = noteMatch.dayGroups[0].rows[0]
+        #expect(row.note == "和朋友吃火锅")
+        #expect(row.lines == BookkeepingEntryLines(note: "和朋友吃火锅", categoryTitle: "餐饮"))
+        #expect(row.lines.title == "和朋友吃火锅")
+        #expect(row.lines.subtitle == "餐饮")
+        #expect(row.accessibilityLabel.hasPrefix("和朋友吃火锅, 餐饮, "))
     }
 
     @Test("类别按当前语言环境匹配")
@@ -568,7 +564,6 @@ struct BookkeepingSearchPresentationTests {
         accountID: UUID,
         amount: String,
         transactionDay: Int,
-        title: String? = nil,
         note: String = "",
         savedAt: Date = Date(timeIntervalSince1970: 1_786_608_000)
     ) throws -> AccountTransaction {
@@ -577,7 +572,6 @@ struct BookkeepingSearchPresentationTests {
             accountID: accountID,
             amount: try #require(Decimal(string: amount)),
             transactionDay: transactionDay,
-            title: title,
             note: note,
             savedAt: savedAt
         )

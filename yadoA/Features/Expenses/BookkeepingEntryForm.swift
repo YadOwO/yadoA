@@ -177,10 +177,6 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
             categoryAndAmount
                 .padding(.bottom, 14)
 
-            if flow.formTitle != nil {
-                titleRow
-                fieldRule(seed: 62)
-            }
             accountRow
             fieldRule(seed: 63)
             dateRow
@@ -258,23 +254,6 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
                 .stroke(Color.primary.opacity(0.6), style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
                 .frame(height: 3)
                 .accessibilityHidden(true)
-        }
-    }
-
-    /// 流水标题，仅编辑已有流水时出现。
-    private var titleRow: some View {
-        fieldRow("expense.edit.title.field") {
-            TextField(
-                text("expense.edit.title.field"),
-                text: Binding(
-                    get: { flow.formTitle ?? "" },
-                    set: flow.updateTitle
-                ),
-                prompt: Text(text("expense.edit.title.placeholder"))
-            )
-            .focused($focusedField, equals: .title)
-            .multilineTextAlignment(.trailing)
-            .accessibilityIdentifier("\(configuration.identifierPrefix)-title")
         }
     }
 
@@ -645,7 +624,6 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
     /// 页面内可唤起系统键盘的输入区域。
     private enum FocusedField: Hashable {
         case amount
-        case title
         case note
     }
 }
