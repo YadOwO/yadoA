@@ -1,6 +1,6 @@
 import Foundation
 
-// 与 yado_ai `GET /v1/billing/wallet`、`GET /v1/billing/entries`、`GET /v1/models` 对应的数据契约，结构以服务端 openapi.json 为准。
+// 与 yado_ai `GET /v1/billing/wallet`、`GET /v1/billing/entries`、`GET /v1/models`（模型档位）对应的数据契约，结构以服务端 openapi.json 为准。
 //
 // 点数跨芽豆系列 App 共用，同一账号只有一个余额；点数是整数，不是金额。这里只解码客户端用得到的字段。
 // 新用户赠送按产品各发一次：查询时带上本产品代号，服务端据此发放本产品的赠送，流水里记着赠送来自哪个产品。
@@ -190,34 +190,64 @@ nonisolated struct AICreditEntryPage: Decodable, Equatable, Sendable {
     let nextCursor: String?
 }
 
-// MARK: - 模型
+// MARK: - 模型档位
 
-/// 模型列表中客户端需要的部分：默认文本模型及各模型的每轮点数。
-nonisolated struct AIModelList: Decodable, Equatable, Sendable {
-    /// 不指定模型时使用的默认模型。
-    nonisolated struct Defaults: Decodable, Equatable, Sendable {
-        /// 纯文本请求的默认模型别名。
-        let text: String
+/// 客户端认识的模型档位，与 yado_ai `config/models.ts` 的 `MODEL_TIERS` 一致；服务端以后新增的档位客户端不展示。
+///
+/// 档位对应哪个具体模型由服务端决定，客户端只保存用户选的档位，随请求头 `X-AI-Tier` 发送。
+nonisolated enum AIModelTier: String, CaseIterable, Identifiable, Sendable {
+    /// 普通：速度快，每句扣的点数少。
+    case standard
+
+    /// 精准：用更强的模型，每句扣的点数多。
+    case precise
+
+    /// 在本机保存用户所选档位的偏好键。
+    static let storageKey = "ai.modelTier"
+
+    /// 选择项的稳定标识。
+    var id: String { rawValue }
+
+    /// 档位名称的本地化 key。
+    var titleKey: String {
+        switch self {
+        case .standard: "ai.tier.standard"
+        case .precise: "ai.tier.precise"
+        }
     }
+}
 
-    /// 模型池中的一个模型。
-    nonisolated struct Model: Decodable, Equatable, Sendable {
-        /// 模型别名。
+/// 模型档位列表：各档位每说一句扣的点数与服务端的默认档位。
+nonisolated struct AIModelTierList: Decodable, Equatable, Sendable {
+    /// 一个档位。
+    nonisolated struct Tier: Decodable, Equatable, Sendable {
+        /// 档位 id，例如 `standard`；客户端不认识的档位不展示。
         let id: String
 
-        /// 使用该模型每轮扣的点数。
+        /// 使用该档位每说一句扣的点数。
         let pointsPerTurn: Int
+
+        /// 服务端是否已配置好该档位的模型；为 false 时不让用户选。
+        let isAvailable: Bool
     }
 
-    /// 默认模型。
-    let defaults: Defaults
+    /// 不带档位请求头时服务端使用的档位 id。
+    let defaultTier: String
 
-    /// 模型池。
-    let models: [Model]
+    /// 全部档位，按从普通到精准的顺序。
+    let tiers: [Tier]
 
-    /// 不指定模型时每轮扣的点数；语音记账不指定模型，按这个扣。默认模型不在列表里时为 nil。
-    var defaultTextPointsPerTurn: Int? {
-        models.first { $0.id == defaults.text }?.pointsPerTurn
+    /// 客户端认识且可用的档位，按服务端顺序，供用户选择。
+    var selectableTiers: [AIModelTier] {
+        tiers.compactMap { $0.isAvailable ? AIModelTier(rawValue: $0.id) : nil }
+    }
+
+    /// 某个档位每说一句扣的点数。
+    ///
+    /// - Parameter tierID: 档位 id。
+    /// - Returns: 每轮点数；列表里没有这个档位时为 nil。
+    func pointsPerTurn(for tierID: String) -> Int? {
+        tiers.first { $0.id == tierID }?.pointsPerTurn
     }
 }
 

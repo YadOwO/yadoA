@@ -12838,6 +12838,23 @@
         }
       }
     },
+    "ai.points.switchTier" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough points for this model. Switch to one that uses fewer points to keep going."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "余额不够当前模型每句扣的点数，切换到扣点更少的模型可继续使用。"
+          }
+        }
+      }
+    },
     "ai.points.loadFailed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12885,6 +12902,96 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "语音记账会消耗 AI 点数，新账号赠送一批点数。"
+          }
+        }
+      }
+    },
+    "ai.tier.title" : {
+      "comment" : "AI 点数页中选择模型档位那一行的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI model"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 模型"
+          }
+        }
+      }
+    },
+    "ai.tier.standard" : {
+      "comment" : "模型档位：普通，速度快、每句扣点少",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "普通"
+          }
+        }
+      }
+    },
+    "ai.tier.precise" : {
+      "comment" : "模型档位：精准，用更强的模型、每句扣点多",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Precise"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "精准"
+          }
+        }
+      }
+    },
+    "ai.tier.option" : {
+      "comment" : "模型档位选项，第一个参数为档位名，第二个为每句扣的点数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@ pts per sentence"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · 每句 %2$@ 点"
+          }
+        }
+      }
+    },
+    "ai.tier.footnote" : {
+      "comment" : "模型档位选择下方的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Precise understands complex sentences better and uses more points per sentence. Changes apply from your next sentence."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "精准模型更擅长理解复杂的话，每句扣的点数更多。切换后从下一句开始生效。"
           }
         }
       }

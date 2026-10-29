@@ -8,7 +8,7 @@ import Testing
 struct AIPointsTests {
     // MARK: - 契约
 
-    @Test("余额、流水与模型列表解码：时间带毫秒，过期流水可识别，未知流水类型兜底，默认模型取每轮点数")
+    @Test("余额、流水与档位列表解码：时间带毫秒，过期流水可识别，未知流水类型兜底，不认识或不可用的档位不让选")
     func decodesBillingContract() throws {
         let walletJSON = """
         {"mode":"enforce","balance":98,"lots":[
@@ -55,19 +55,24 @@ struct AIPointsTests {
         #expect(lastPage.entries.isEmpty)
         #expect(lastPage.nextCursor == nil)
 
-        let modelsJSON = """
-        {"defaults":{"text":"qwen3.8-27b","vision":"qwen3.8-27b"},"models":[
-          {"id":"qwen3.8-27b","provider":"modelscope","modelId":"Qwen/Qwen3.8-27B","capabilities":["text","vision"],
-           "isAvailable":true,"pointsPerTurn":2},
-          {"id":"qwen3.8-flash-next","provider":"modelscope","modelId":"Qwen/Qwen3.8-Flash","capabilities":["text"],
-           "isAvailable":true,"pointsPerTurn":1}
+        let tiersJSON = """
+        {"defaultTier":"standard","tiers":[
+          {"id":"standard","isAvailable":true,"pointsPerTurn":1},
+          {"id":"precise","isAvailable":true,"pointsPerTurn":2},
+          {"id":"turbo","isAvailable":true,"pointsPerTurn":5}
         ]}
         """
-        let models = try JSONDecoder().decode(AIModelList.self, from: Data(modelsJSON.utf8))
-        #expect(models.defaultTextPointsPerTurn == 2)
+        let tierList = try JSONDecoder().decode(AIModelTierList.self, from: Data(tiersJSON.utf8))
+        #expect(tierList.defaultTier == "standard")
+        #expect(tierList.selectableTiers == [.standard, .precise])
+        #expect(tierList.pointsPerTurn(for: "precise") == 2)
+        #expect(tierList.pointsPerTurn(for: "gone") == nil)
 
-        let missingDefault = AIModelList(defaults: .init(text: "gone"), models: models.models)
-        #expect(missingDefault.defaultTextPointsPerTurn == nil)
+        let preciseUnavailable = AIModelTierList(defaultTier: "standard", tiers: [
+            .init(id: "standard", pointsPerTurn: 1, isAvailable: true),
+            .init(id: "precise", pointsPerTurn: 2, isAvailable: false),
+        ])
+        #expect(preciseUnavailable.selectableTiers == [.standard])
     }
 
     @Test("流水时间不是 ISO 8601 时整页解码失败")
@@ -126,6 +131,7 @@ struct AIPointsTests {
         #expect(AccountLocalization.string("ai.points.title", locale: simplifiedChinese) == "AI 点数")
         #expect(AccountLocalization.formatted("ai.rules.perTurn", value: "2", locale: simplifiedChinese) == "语音记账每说一句扣 2 点")
         #expect(AccountLocalization.string("ai.points.exhausted", locale: simplifiedChinese) == "点数已用完，暂时无法使用 AI 记账。")
+        #expect(AccountLocalization.string("ai.points.switchTier", locale: simplifiedChinese) == "余额不够当前模型每句扣的点数，切换到扣点更少的模型可继续使用。")
         let expiry = AccountLocalization.string("ai.points.expiry", locale: simplifiedChinese)
         #expect(String(format: expiry, locale: simplifiedChinese, "98", "2027年1月26日") == "98 点将于 2027年1月26日 过期")
         #expect(AccountLocalization.string("ai.entry.expire", locale: english) == "Expired")
@@ -185,20 +191,103 @@ struct AIPointsTests {
 
     // MARK: - 余额状态
 
-    @Test("刷新取到余额与每轮点数，每轮点数只查一次")
+    @Test("刷新取到余额与档位列表，没选过档位时按服务端默认档位算每轮点数，每次刷新都重新查档位列表")
     func refreshLoadsBalanceAndPointsPerTurn() async {
         let api = FakeAIBillingAPI()
         api.walletResults = [.success(AIWallet(balance: 100)), .success(AIWallet(balance: 98))]
-        let store = AIPointsStore(api: api) { "user-1" }
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
 
         await store.refresh()
         #expect(store.balance == 100)
-        #expect(store.pointsPerTurn == 2)
+        #expect(store.requestTier == nil)
+        #expect(store.displayTier == .standard)
+        #expect(store.pointsPerTurn == 1)
         #expect(!store.isExhausted)
 
         await store.refresh()
         #expect(store.balance == 98)
-        #expect(api.modelCalls == 1)
+        #expect(api.tierCalls == 2)
+    }
+
+    @Test("运行期间服务端停用所选档位：下次刷新后不再带档位；档位列表查询失败时沿用上次的")
+    func refreshPicksUpTierAvailabilityChanges() async {
+        let api = FakeAIBillingAPI()
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        store.selectTier(.precise)
+        await store.refresh()
+        #expect(store.requestTier == .precise)
+
+        let preciseDisabled = AIModelTierList(defaultTier: "standard", tiers: [
+            .init(id: "standard", pointsPerTurn: 1, isAvailable: true),
+            .init(id: "precise", pointsPerTurn: 2, isAvailable: false),
+        ])
+        api.tiersResult = .success(preciseDisabled)
+        await store.refresh()
+        #expect(store.requestTier == nil)
+        #expect(store.pointsPerTurn == 1)
+
+        api.tiersResult = .failure(.network)
+        await store.refresh()
+        #expect(store.tierList == preciseDisabled)
+        #expect(store.requestTier == nil)
+    }
+
+    @Test("余额不够所用档位但够更便宜的档位时提示切换，连最便宜的档位都不够才算真正用完")
+    func distinguishesSwitchTierFromExhausted() async {
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(AIWallet(balance: 1))]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        #expect(!store.isExhausted)
+        #expect(!store.canAffordCheaperTier)
+
+        store.selectTier(.precise)
+        #expect(store.isExhausted)
+        #expect(store.canAffordCheaperTier)
+
+        store.balanceReporter()(0)
+        #expect(store.isExhausted)
+        #expect(!store.canAffordCheaperTier)
+    }
+
+    @Test("选档位：保存在本机，每轮点数随之变化，重新创建后仍记得")
+    func selectsTierAndPersists() async {
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(AIWallet(balance: 2))]
+        let defaults = UserDefaults.isolated()
+        let store = AIPointsStore(api: api, defaults: defaults) { "user-1" }
+        await store.refresh()
+
+        store.selectTier(.precise)
+        #expect(store.requestTier == .precise)
+        #expect(store.displayTier == .precise)
+        #expect(store.pointsPerTurn == 2)
+
+        store.balanceReporter()(1)
+        #expect(store.isExhausted)
+
+        let reopened = AIPointsStore(api: api, defaults: defaults) { "user-1" }
+        #expect(reopened.selectedTier == .precise)
+        // 还没取到档位列表时先按所选档位发送
+        #expect(reopened.requestTier == .precise)
+        #expect(reopened.pointsPerTurn == nil)
+    }
+
+    @Test("所选档位服务端已不可用时不带档位，按服务端默认档位显示与计点")
+    func unavailableSelectedTierFallsBackToDefault() async {
+        let api = FakeAIBillingAPI()
+        api.tiersResult = .success(AIModelTierList(defaultTier: "standard", tiers: [
+            .init(id: "standard", pointsPerTurn: 1, isAvailable: true),
+            .init(id: "precise", pointsPerTurn: 2, isAvailable: false),
+        ]))
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        store.selectTier(.precise)
+
+        await store.refresh()
+        #expect(store.selectedTier == .precise)
+        #expect(store.requestTier == nil)
+        #expect(store.displayTier == .standard)
+        #expect(store.pointsPerTurn == 1)
     }
 
     @Test("刷新失败保留已有余额，未登录时清空余额")
@@ -206,7 +295,7 @@ struct AIPointsTests {
         let api = FakeAIBillingAPI()
         api.walletResults = [.success(AIWallet(balance: 50)), .failure(.timeout)]
         var userID: String? = "user-1"
-        let store = AIPointsStore(api: api) { userID }
+        let store = AIPointsStore(api: api, defaults: .isolated()) { userID }
 
         await store.refresh()
         await store.refresh()
@@ -217,7 +306,7 @@ struct AIPointsTests {
         await store.refresh()
         #expect(store.balance == nil)
         #expect(store.failure == nil)
-        #expect(store.pointsPerTurn == 2)
+        #expect(store.pointsPerTurn == 1)
     }
 
     @Test("语音记账带回的余额就地更新；换账号后不展示旧账号余额")
@@ -225,11 +314,11 @@ struct AIPointsTests {
         let api = FakeAIBillingAPI()
         api.walletResults = [.success(AIWallet(balance: 10))]
         var userID: String? = "user-1"
-        let store = AIPointsStore(api: api) { userID }
+        let store = AIPointsStore(api: api, defaults: .isolated()) { userID }
 
         await store.refresh()
-        store.balanceReporter()(1)
-        #expect(store.balance == 1)
+        store.balanceReporter()(0)
+        #expect(store.balance == 0)
         #expect(store.isExhausted)
 
         userID = "user-2"
@@ -248,7 +337,7 @@ struct AIPointsTests {
         let api = FakeAIBillingAPI()
         api.walletResults = [.success(AIWallet(balance: 80))]
         var userID: String? = "user-1"
-        let store = AIPointsStore(api: api) { userID }
+        let store = AIPointsStore(api: api, defaults: .isolated()) { userID }
 
         let reportForUser1 = store.balanceReporter()
         userID = "user-2"
@@ -270,7 +359,7 @@ struct AIPointsTests {
         api.walletGate = gate
         api.walletResults = [.success(AIWallet(balance: 100)), .success(AIWallet(balance: 7))]
         var userID: String? = "user-1"
-        let store = AIPointsStore(api: api) { userID }
+        let store = AIPointsStore(api: api, defaults: .isolated()) { userID }
 
         let user1Refresh = Task { await store.refresh() }
         while !gate.hasStarted {
@@ -300,7 +389,7 @@ struct AIPointsTests {
         let lots = [AICreditLot(points: 3, expiresAt: soon), AICreditLot(points: 10, expiresAt: later)]
         let api = FakeAIBillingAPI()
         api.walletResults = [.success(AIWallet(balance: 13, lots: lots))]
-        let store = AIPointsStore(api: api) { "user-1" }
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
         await store.refresh()
 
         let gate = AsyncSaveGate()
@@ -327,7 +416,7 @@ struct AIPointsTests {
     func reportAfterRefreshDuringRequestOverwritesRefresh() async {
         let api = FakeAIBillingAPI()
         api.walletResults = [.success(AIWallet(balance: 40))]
-        let store = AIPointsStore(api: api) { "user-1" }
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
 
         let report = store.balanceReporter()
         await store.refresh()
@@ -344,7 +433,7 @@ struct AIPointsTests {
     @Test("不知道每轮点数时按 1 点判断是否用完")
     func exhaustedFallsBackToOnePoint() {
         let api = FakeAIBillingAPI()
-        let store = AIPointsStore(api: api) { "user-1" }
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
 
         store.balanceReporter()(1)
         #expect(!store.isExhausted)
@@ -361,7 +450,7 @@ struct AIPointsTests {
             balance: 13,
             lots: [AICreditLot(points: 3, expiresAt: soon), AICreditLot(points: 10, expiresAt: later)]
         ))]
-        let store = AIPointsStore(api: api) { "user-1" }
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
         let now = soon.addingTimeInterval(-86_400)
 
         await store.refresh()
@@ -384,7 +473,7 @@ struct AIPointsTests {
         let gate = AsyncSaveGate()
         api.walletGate = gate
         api.walletResults = [.success(AIWallet(balance: 100))]
-        let store = AIPointsStore(api: api) { "user-1" }
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
 
         let first = Task { await store.refresh() }
         while !gate.hasStarted {
@@ -532,10 +621,11 @@ private final class FakeAIBillingAPI: AIBillingFetching {
     /// 按游标返回的流水结果；游标为 nil 表示第一页。
     var entryPages: [String?: Result<AICreditEntryPage, AIBillingAPIError>] = [:]
 
-    /// 模型列表结果；默认模型每轮 2 点。
-    var modelsResult: Result<AIModelList, AIBillingAPIError> = .success(
-        AIModelList(defaults: .init(text: "qwen3.8-27b"), models: [.init(id: "qwen3.8-27b", pointsPerTurn: 2)])
-    )
+    /// 档位列表结果；默认普通档每轮 1 点，精准档每轮 2 点。
+    var tiersResult: Result<AIModelTierList, AIBillingAPIError> = .success(AIModelTierList(defaultTier: "standard", tiers: [
+        .init(id: "standard", pointsPerTurn: 1, isAvailable: true),
+        .init(id: "precise", pointsPerTurn: 2, isAvailable: true),
+    ]))
 
     /// 设置后查询余额时先挂起，直到用例恢复。
     var walletGate: AsyncSaveGate?
@@ -543,8 +633,8 @@ private final class FakeAIBillingAPI: AIBillingFetching {
     /// 查询余额的次数。
     private(set) var walletCalls = 0
 
-    /// 查询模型列表的次数。
-    private(set) var modelCalls = 0
+    /// 查询档位列表的次数。
+    private(set) var tierCalls = 0
 
     /// 依次请求过的流水游标。
     private(set) var requestedCursors: [String?] = []
@@ -564,8 +654,22 @@ private final class FakeAIBillingAPI: AIBillingFetching {
         return try result.get()
     }
 
-    func fetchModels() async throws -> AIModelList {
-        modelCalls += 1
-        return try modelsResult.get()
+    func fetchModelTiers() async throws -> AIModelTierList {
+        tierCalls += 1
+        return try tiersResult.get()
+    }
+}
+
+private extension UserDefaults {
+    /// 每个用例独立的本机偏好，不读到模拟器里 App 保存的档位，用例之间也互不影响。
+    ///
+    /// - Returns: 空的偏好存储。
+    static func isolated() -> UserDefaults {
+        let suiteName = "AIPointsTests.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            preconditionFailure("无法创建测试用的偏好存储")
+        }
+        defaults.removePersistentDomain(forName: suiteName)
+        return defaults
     }
 }

@@ -296,7 +296,12 @@ private final class CardSessionAPI: VoiceSessionTurnSending {
     /// 是否已进入等待阶段。
     var hasPendingResponse: Bool { continuation != nil }
 
-    func send(_ request: VoiceSessionTurnRequest, turnID: UUID, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse {
+    func send(
+        _ request: VoiceSessionTurnRequest,
+        turnID: UUID,
+        tier: AIModelTier?,
+        trace: VoiceRequestTrace
+    ) async throws -> VoiceSessionTurnResponse {
         guard holdsResponse else { return try response.get() }
         return try await withCheckedThrowingContinuation { continuation = $0 }
     }

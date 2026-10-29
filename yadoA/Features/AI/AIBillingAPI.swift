@@ -24,7 +24,7 @@ enum AIBillingAPIError: Error, Equatable {
     case invalidContract
 }
 
-/// 查询点数余额、流水与每轮点数的能力；测试注入假实现。
+/// 查询点数余额、流水与模型档位的能力；测试注入假实现。
 protocol AIBillingFetching {
     /// 查询当前账号的余额；本产品首次查询时服务端发放本产品的新用户赠送。
     ///
@@ -39,14 +39,14 @@ protocol AIBillingFetching {
     /// - Throws: `AIBillingAPIError`。
     func fetchEntries(cursor: String?) async throws -> AICreditEntryPage
 
-    /// 查询模型列表，用于取得默认模型的每轮点数。
+    /// 查询模型档位列表，用于让用户选档位并展示每句扣的点数。
     ///
-    /// - Returns: 模型列表。
+    /// - Returns: 档位列表。
     /// - Throws: `AIBillingAPIError`。
-    func fetchModels() async throws -> AIModelList
+    func fetchModelTiers() async throws -> AIModelTierList
 }
 
-/// 调用 yado_ai 点数与模型查询接口的网络客户端；这些接口不调用模型、不扣点。
+/// 调用 yado_ai 点数与模型档位查询接口的网络客户端；这些接口不调用模型、不扣点。
 final class AIBillingAPI: AIBillingFetching {
     /// 客户端用到的接口。
     enum Route: Equatable {
@@ -56,7 +56,7 @@ final class AIBillingAPI: AIBillingFetching {
         /// `GET /v1/billing/entries`：流水分页。
         case entries(cursor: String?, limit: Int)
 
-        /// `GET /v1/models`：模型列表与每轮点数。
+        /// `GET /v1/models`：模型档位与每轮点数。
         case models
 
         /// 接口路径。
@@ -135,7 +135,7 @@ final class AIBillingAPI: AIBillingFetching {
         try await send(.entries(cursor: cursor, limit: Self.pageSize))
     }
 
-    func fetchModels() async throws -> AIModelList {
+    func fetchModelTiers() async throws -> AIModelTierList {
         try await send(.models)
     }
 

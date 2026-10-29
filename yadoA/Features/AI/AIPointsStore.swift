@@ -1,7 +1,9 @@
 import Foundation
 import Observation
 
-/// 当前登录账号的 AI 点数：余额、各批点数的过期时刻与每说一句扣的点数，供“我的”入口、AI 点数页和语音记账共用。
+/// 当前登录账号的 AI 点数：余额、各批点数的过期时刻、模型档位与每说一句扣的点数，供“我的”入口、AI 点数页和语音记账共用。
+///
+/// 模型档位（普通、精准）由用户在 AI 点数页选择并保存在本机，与账号无关；每说一句扣的点数取所用档位的点数。
 ///
 /// 余额以服务端为准，只保存在内存里：进入“我的”或 AI 点数页时刷新，语音记账得到响应后用服务端带回的余额就地更新。
 /// 余额记着所属账号；刷新和语音回报都核对账号，换账号或退出登录后不会把旧账号的余额记到当前账号上。
@@ -23,8 +25,11 @@ final class AIPointsStore {
     /// 各批未过期的点数，按过期时刻从早到晚；服务端没有返回时为空。
     private(set) var lots: [AICreditLot] = []
 
-    /// 语音记账每说一句扣的点数，即默认文本模型的每轮点数；还没取到时为 nil。与账号无关，换账号时保留。
-    private(set) var pointsPerTurn: Int?
+    /// 服务端的模型档位列表；还没取到时为 nil。与账号无关，换账号时保留。
+    private(set) var tierList: AIModelTierList?
+
+    /// 用户在本机选的模型档位；没选过时为 nil，跟随服务端的默认档位。与账号无关，换账号时保留。
+    private(set) var selectedTier: AIModelTier?
 
     /// 最近一次刷新余额失败的原因；刷新成功后清空。
     private(set) var failure: AIBillingAPIError?
@@ -47,14 +52,20 @@ final class AIPointsStore {
     /// 读取当前登录账号 ID 的动作；未登录时返回 nil。
     private let currentUserID: () -> String?
 
+    /// 保存所选模型档位的本机偏好。
+    private let defaults: UserDefaults
+
     /// 创建点数状态。
     ///
     /// - Parameters:
     ///   - api: 点数查询接口。
+    ///   - defaults: 保存所选模型档位的本机偏好；测试传入独立的存储。
     ///   - currentUserID: 读取当前登录账号 ID 的动作。
-    init(api: AIBillingFetching, currentUserID: @escaping () -> String?) {
+    init(api: AIBillingFetching, defaults: UserDefaults = .standard, currentUserID: @escaping () -> String?) {
         self.api = api
+        self.defaults = defaults
         self.currentUserID = currentUserID
+        selectedTier = defaults.string(forKey: AIModelTier.storageKey).flatMap(AIModelTier.init(rawValue:))
     }
 
     /// 用登录状态创建：凭证取自 AI 服务的 access token，账号取 Logto 用户 ID。
@@ -67,10 +78,45 @@ final class AIPointsStore {
         )
     }
 
+    /// 语音记账请求带的档位：用户选过且服务端仍可用时为所选档位；没选过、或所选档位服务端已不提供时为 nil，
+    /// 不带档位请求头，由服务端按默认档位处理。还没取到档位列表时先按所选档位发送。
+    var requestTier: AIModelTier? {
+        guard let selectedTier else { return nil }
+        guard let tierList else { return selectedTier }
+        return tierList.selectableTiers.contains(selectedTier) ? selectedTier : nil
+    }
+
+    /// 界面上勾选的档位：实际使用的档位；跟随服务端默认档位时为默认档位，客户端不认识默认档位时为 nil。
+    var displayTier: AIModelTier? {
+        requestTier ?? tierList.flatMap { AIModelTier(rawValue: $0.defaultTier) }
+    }
+
+    /// 语音记账每说一句扣的点数，即实际使用档位的每轮点数；还没取到档位列表时为 nil。
+    var pointsPerTurn: Int? {
+        guard let tierList else { return nil }
+        return tierList.pointsPerTurn(for: requestTier?.rawValue ?? tierList.defaultTier)
+    }
+
+    /// 选择模型档位并保存在本机；从下一句话开始生效，正在处理的一句沿用开始时的档位。
+    ///
+    /// - Parameter tier: 用户选的档位。
+    func selectTier(_ tier: AIModelTier) {
+        selectedTier = tier
+        defaults.set(tier.rawValue, forKey: AIModelTier.storageKey)
+    }
+
     /// 余额是否已经不够说一句；还不知道每轮点数时按 1 点判断，余额未知时不算用完。
     var isExhausted: Bool {
         guard let balance else { return false }
         return balance < (pointsPerTurn ?? 1)
+    }
+
+    /// 余额不够所用档位说一句，但够换用扣点更少的可选档位：此时点数并没有用完，界面提示切换档位。
+    var canAffordCheaperTier: Bool {
+        guard isExhausted, let balance, let tierList else { return false }
+        return tierList.selectableTiers.contains { tier in
+            tierList.pointsPerTurn(for: tier.rawValue).map { $0 <= balance } ?? false
+        }
     }
 
     /// 是否正在刷新余额。
@@ -87,7 +133,7 @@ final class AIPointsStore {
         return lots.first { $0.points > 0 && $0.expiresAt > now }
     }
 
-    /// 从服务端刷新余额；还不知道每轮点数时顺带查一次模型列表。
+    /// 从服务端刷新余额，同时重新查模型档位列表。
     ///
     /// 未登录时立即清空余额。同一账号正在刷新时等这一次结束，不重复请求：从“我的”快速点进 AI 点数页时，
     /// 明细要等钱包建好（含新用户赠送）再查。正在刷新的是别的账号时另起一次，旧账号的结果回来后丢弃。
@@ -140,22 +186,33 @@ final class AIPointsStore {
     ///   - userID: 发起刷新时的账号。
     ///   - writeToken: 这次刷新的写入序号。
     private func performRefresh(for userID: String, writeToken: Int) async {
+        // 档位列表不调用模型、不扣点，每次都重新查，服务端停用或恢复档位后跟着更新；与余额并行，不拖慢明细加载
+        async let latestTierList = fetchTierList()
         do {
             let wallet = try await api.fetchWallet()
-            guard isCurrentOwner(userID), canApplyWrite(writeToken) else { return }
-            noteAppliedWrite(writeToken)
-            balance = wallet.balance
-            lots = wallet.lots
-            failure = nil
+            if isCurrentOwner(userID), canApplyWrite(writeToken) {
+                noteAppliedWrite(writeToken)
+                balance = wallet.balance
+                lots = wallet.lots
+                failure = nil
+            }
         } catch {
-            guard isCurrentOwner(userID), canApplyWrite(writeToken) else { return }
-            failure = error as? AIBillingAPIError ?? .network
+            if isCurrentOwner(userID), canApplyWrite(writeToken) {
+                failure = error as? AIBillingAPIError ?? .network
+            }
         }
 
-        // 取不到每轮点数时说明文案改用不带数字的说法、是否用完按 1 点判断，不算刷新失败
-        if pointsPerTurn == nil, let models = try? await api.fetchModels() {
-            pointsPerTurn = models.defaultTextPointsPerTurn
+        // 这次没取到时沿用上次的档位列表；从没取到过时不显示档位选择，说明文案改用不带数字的说法、是否用完按 1 点判断，不算刷新失败
+        if let tiers = await latestTierList {
+            tierList = tiers
         }
+    }
+
+    /// 查询模型档位列表。
+    ///
+    /// - Returns: 档位列表；查询失败时为 nil。
+    private func fetchTierList() async -> AIModelTierList? {
+        try? await api.fetchModelTiers()
     }
 
     /// 用语音记账带回的余额更新；余额减少时按服务端“先用最早过期的”规则同步扣减各批点数，下次刷新再以服务端为准。
@@ -214,7 +271,7 @@ final class AIPointsStore {
         ownerUserID = userID
     }
 
-    /// 清空与账号相关的状态；每轮点数与账号无关，保留。
+    /// 清空与账号相关的状态；模型档位列表与所选档位与账号无关，保留。
     private func clearBalance() {
         balance = nil
         lots = []

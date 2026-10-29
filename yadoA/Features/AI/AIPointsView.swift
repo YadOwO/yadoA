@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// “我的 › AI 点数”：当前余额、扣点规则和点数明细。
+/// “我的 › AI 点数”：当前余额、模型档位选择、扣点规则和点数明细。
 ///
 /// 余额与每轮点数来自根部注入的 `AIPointsStore`，明细由本页的 `AICreditEntryFeed` 分页加载。
 /// 暂不提供充值；点数用完时只说明暂时无法使用 AI 记账。
@@ -18,6 +18,10 @@ struct AIPointsView: View {
         ScrollView {
             VStack(spacing: 28) {
                 balanceCard
+
+                if authStore.isAuthenticated {
+                    tierSection
+                }
 
                 rulesSection
 
@@ -126,11 +130,12 @@ struct AIPointsView: View {
         )
     }
 
-    /// 余额下方的提示：用完时说明暂时无法使用，没取到余额时提示下拉重试；正常时不显示。
+    /// 余额下方的提示：不够所用档位说一句但够更便宜的档位时提示切换，连最便宜的档位都不够时说明暂时无法使用，
+    /// 没取到余额时提示下拉重试；正常时不显示。
     private var balanceNoticeKey: String? {
         guard let points else { return nil }
         if points.isExhausted {
-            return "ai.points.exhausted"
+            return points.canAffordCheaperTier ? "ai.points.switchTier" : "ai.points.exhausted"
         }
         if points.balance == nil, points.failure != nil {
             return "ai.points.loadFailed"
@@ -154,6 +159,72 @@ struct AIPointsView: View {
         .accessibilityIdentifier("ai-points-sign-in")
     }
 
+    // MARK: - 模型档位
+
+    /// 模型档位选择：普通或精准，选项带每句扣的点数；档位列表还没取到、或可选的档位不到两个时不显示。
+    @ViewBuilder
+    private var tierSection: some View {
+        if let points, let tierList = points.tierList, tierList.selectableTiers.count > 1 {
+            VStack(alignment: .leading, spacing: 10) {
+                ProfileSettingsSection(nil, seed: "ai.tier") {
+                    Menu {
+                        Picker(text("ai.tier.title"), selection: tierSelection(points)) {
+                            ForEach(tierList.selectableTiers) { tier in
+                                Text(tierOptionTitle(tier, in: tierList)).tag(Optional(tier))
+                            }
+                        }
+                    } label: {
+                        ProfileSettingsRow(
+                            titleKey: "ai.tier.title",
+                            symbol: "cpu",
+                            value: points.displayTier.map { text($0.titleKey) } ?? ""
+                        )
+                    }
+                    .accessibilityIdentifier("ai-points-tier")
+                }
+
+                Text(text("ai.tier.footnote"))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 20)
+            }
+        }
+    }
+
+    /// 档位选择的绑定：与菜单行右侧的值同取 `displayTier`，选中后保存在本机。
+    ///
+    /// 客户端不认识服务端默认档位时 `displayTier` 为 nil，菜单里不勾任何一项，与菜单行留空一致，不冒充成别的档位。
+    ///
+    /// - Parameter points: 点数状态。
+    private func tierSelection(_ points: AIPointsStore) -> Binding<AIModelTier?> {
+        Binding(
+            get: { points.displayTier },
+            set: { tier in
+                if let tier {
+                    points.selectTier(tier)
+                }
+            }
+        )
+    }
+
+    /// 档位选项的标题，例如“精准 · 每句 2 点”；列表里查不到点数时只显示档位名。
+    ///
+    /// - Parameters:
+    ///   - tier: 档位。
+    ///   - tierList: 服务端的档位列表。
+    private func tierOptionTitle(_ tier: AIModelTier, in tierList: AIModelTierList) -> String {
+        guard let pointsPerTurn = tierList.pointsPerTurn(for: tier.rawValue) else {
+            return text(tier.titleKey)
+        }
+        return String(
+            format: text("ai.tier.option"),
+            locale: locale,
+            text(tier.titleKey),
+            pointsPerTurn.formatted(.number.locale(locale))
+        )
+    }
+
     // MARK: - 扣点规则
 
     /// 扣点规则：每说一句扣几点、追问也算一句、失败不扣、点数有有效期。
@@ -172,7 +243,7 @@ struct AIPointsView: View {
         .accessibilityIdentifier("ai-points-rules")
     }
 
-    /// 每说一句扣几点；还不知道每轮点数时用不带数字的说法。
+    /// 按所用档位每说一句扣几点；还不知道每轮点数时用不带数字的说法。
     private var perTurnRule: String {
         guard let pointsPerTurn = points?.pointsPerTurn else {
             return text("ai.rules.perTurn.unknown")

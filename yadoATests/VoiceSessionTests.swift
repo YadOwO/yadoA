@@ -154,6 +154,23 @@ struct VoiceSessionTests {
         #expect(turnIDs[2] != turnIDs[0])
     }
 
+    @Test("模型档位：每句开始时取一次，同一句的续步沿用，下一句才用新选的档位")
+    func capturesModelTierPerSentence() async throws {
+        let fixture = try Fixture()
+        fixture.tierChoice.tier = .precise
+        fixture.api.responses = [
+            .success(.toolCalls([fixture.createCall("c1", amount: "28")], canFinishLocally: false)),
+            .success(.ask(question: "打车花了多少钱？", options: [])),
+            .success(.toolCalls([fixture.createCall("c2", amount: "25")], canFinishLocally: true)),
+        ]
+
+        await fixture.session.send("午饭 28，还打了车")
+        fixture.tierChoice.tier = .standard
+        await fixture.session.send("25")
+
+        #expect(fixture.api.tiers == [.precise, .precise, .standard])
+    }
+
     @Test("点数不足时不改动数据，移出本轮事件，可以手动记账或重说")
     func insufficientPointsDropsTurn() async throws {
         let fixture = try Fixture()
@@ -301,7 +318,7 @@ struct VoiceSessionTests {
 
     // MARK: - 辅助
 
-    /// 一次测试使用的容器、账户、时钟与假接口。
+    /// 一次测试使用的容器、账户、时钟、模型档位与假接口。
     @MainActor
     private final class Fixture {
         let container: ModelContainer
@@ -309,6 +326,7 @@ struct VoiceSessionTests {
         let inactiveAccountID: UUID
         let api: FakeVoiceSessionAPI
         let clock: TestClock
+        let tierChoice: TestTierChoice
         let timingStore = VoiceTimingStore(fileURL: nil)
         let session: VoiceSession
 
@@ -335,11 +353,14 @@ struct VoiceSessionTests {
             calendar.timeZone = TimeZone(secondsFromGMT: 0)!
             let api = FakeVoiceSessionAPI()
             let clock = TestClock()
+            let tierChoice = TestTierChoice()
             self.api = api
             self.clock = clock
+            self.tierChoice = tierChoice
             session = VoiceSession(
                 container: container,
                 api: api,
+                modelTier: { tierChoice.tier },
                 locale: Locale(identifier: "zh-Hans"),
                 calendar: calendar,
                 timingStore: timingStore,
@@ -367,6 +388,13 @@ private final class TestClock {
     var date = Date(timeIntervalSince1970: 1_792_470_600)
 }
 
+/// 用户当前选的模型档位，用例中途可以改。
+@MainActor
+private final class TestTierChoice {
+    /// 当前档位；为 nil 时不带档位。
+    var tier: AIModelTier?
+}
+
 /// 按顺序返回预设响应、记录每次请求的假接口；预设用完后视为服务不可用。
 @MainActor
 private final class FakeVoiceSessionAPI: VoiceSessionTurnSending {
@@ -382,13 +410,22 @@ private final class FakeVoiceSessionAPI: VoiceSessionTurnSending {
     /// 每次请求带的计费轮次 ID。
     private(set) var turnIDs: [UUID] = []
 
+    /// 每次请求带的模型档位。
+    private(set) var tiers: [AIModelTier?] = []
+
     /// 每次请求填回的服务端耗时，模拟响应头中的 `Server-Timing`。
     var serverTiming = "pre;dur=1.2, prepare;dur=0.4, ttft-1;dur=900, gen-1;dur=1200;desc=\"in=3000 out=96\", check-1;dur=2, total;dur=2104"
 
-    func send(_ request: VoiceSessionTurnRequest, turnID: UUID, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse {
+    func send(
+        _ request: VoiceSessionTurnRequest,
+        turnID: UUID,
+        tier: AIModelTier?,
+        trace: VoiceRequestTrace
+    ) async throws -> VoiceSessionTurnResponse {
         requests.append(request)
         traces.append(trace)
         turnIDs.append(turnID)
+        tiers.append(tier)
         trace.server = VoiceServerTiming.parse(serverTiming)
         trace.requestID = "req-\(traces.count)"
         guard !responses.isEmpty else { throw VoiceSessionAPIError.serviceUnavailable }

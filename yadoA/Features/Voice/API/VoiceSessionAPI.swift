@@ -43,10 +43,17 @@ protocol VoiceSessionTurnSending {
     /// - Parameters:
     ///   - request: 会话上下文与全部事件。
     ///   - turnID: 计费轮次 ID：用户每说一句（包括回答追问）生成新的，同一句的续步沿用，服务端据此每句只扣一次点数。
+    ///   - tier: 模型档位：每句开始时取用户所选，同一句的续步沿用（中途换档位服务端会拒绝）；为 nil 时不带档位，
+    ///     服务端按默认档位处理。
     ///   - trace: 追踪信息：带上会话、句序号与请求序号，并填回各段耗时；失败时也填回已经测到的部分。
     /// - Returns: 工具调用、追问或回复。
     /// - Throws: `VoiceSessionAPIError`。
-    func send(_ request: VoiceSessionTurnRequest, turnID: UUID, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse
+    func send(
+        _ request: VoiceSessionTurnRequest,
+        turnID: UUID,
+        tier: AIModelTier?,
+        trace: VoiceRequestTrace
+    ) async throws -> VoiceSessionTurnResponse
 }
 
 /// 调用 yado_ai `POST /v1/yadoa/voice-session/turn` 的网络客户端。
@@ -70,6 +77,9 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
 
     /// 计费轮次 ID 的请求头，与 yado_ai `shared/billing/headers.ts` 一致。
     static let turnIDHeader = "X-AI-Turn-Id"
+
+    /// 模型档位的请求头，与 yado_ai `shared/ai/model-header.ts` 一致。
+    static let tierHeader = "X-AI-Tier"
 
     /// 结算后余额的响应头，与 yado_ai `shared/billing/headers.ts` 一致；只在实际扣点模式下返回。
     static let pointsBalanceHeader = "X-AI-Points-Balance"
@@ -98,7 +108,12 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
         endpointOverride ?? AIServiceEnvironment.currentEndpoint
     }
 
-    func send(_ request: VoiceSessionTurnRequest, turnID: UUID, trace: VoiceRequestTrace) async throws -> VoiceSessionTurnResponse {
+    func send(
+        _ request: VoiceSessionTurnRequest,
+        turnID: UUID,
+        tier: AIModelTier?,
+        trace: VoiceRequestTrace
+    ) async throws -> VoiceSessionTurnResponse {
         // 在取凭证前记下账号：请求期间换了账号，带回的余额不会记到新账号上
         let reportPointsBalance = pointsReporter()
         let tokenStartedAt = VoiceTimingClock.now
@@ -121,6 +136,9 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         urlRequest.setValue(turnID.uuidString, forHTTPHeaderField: Self.turnIDHeader)
+        if let tier {
+            urlRequest.setValue(tier.rawValue, forHTTPHeaderField: Self.tierHeader)
+        }
         // 服务端日志据此把同一句话的多次请求串起来
         urlRequest.setValue(trace.sessionID, forHTTPHeaderField: VoiceRequestTrace.Header.sessionID)
         urlRequest.setValue(String(trace.turn), forHTTPHeaderField: VoiceRequestTrace.Header.turn)

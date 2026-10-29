@@ -240,7 +240,7 @@ struct VoiceSessionContractTests {
             }
             let trace = VoiceRequestTrace(sessionID: "S", turn: 1, request: 1)
             await #expect(throws: expected) {
-                try await api.send(request, turnID: UUID(), trace: trace)
+                try await api.send(request, turnID: UUID(), tier: nil, trace: trace)
             }
             #expect((trace.tokenMs ?? 0) >= 20)
             #expect(trace.transportMs == nil)

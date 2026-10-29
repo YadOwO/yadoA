@@ -119,6 +119,8 @@ final class VoiceSession {
 
     private let container: ModelContainer
     private let api: VoiceSessionTurnSending
+    /// 读取语音记账要用的模型档位；每句开始时取一次，为 nil 时由服务端按默认档位处理。
+    private let modelTier: () -> AIModelTier?
     private let highlight: HomeRecentEntryHighlight
     private let now: () -> Date
     /// 写入「语音耗时」的记录；未启用语音耗时（`VoiceTimingFeature.isEnabled`）时为空，不保存耗时。
@@ -135,6 +137,7 @@ final class VoiceSession {
     /// - Parameters:
     ///   - container: 应用持有的本地财务容器。
     ///   - api: 会话接口。
+    ///   - modelTier: 读取模型档位的动作，通常是 `AIPointsStore.requestTier`；默认不带档位。
     ///   - locale: 界面语言。
     ///   - calendar: 记账日使用的日历。
     ///   - highlight: 首页变更提示通道。
@@ -143,6 +146,7 @@ final class VoiceSession {
     init(
         container: ModelContainer,
         api: VoiceSessionTurnSending,
+        modelTier: @escaping () -> AIModelTier? = { nil },
         locale: Locale = .current,
         calendar: Calendar = .current,
         highlight: HomeRecentEntryHighlight = .shared,
@@ -151,6 +155,7 @@ final class VoiceSession {
     ) {
         self.container = container
         self.api = api
+        self.modelTier = modelTier
         self.locale = locale
         self.calendar = calendar
         self.highlight = highlight
@@ -216,6 +221,8 @@ final class VoiceSession {
         let turnIndex = turnCount
         // 一句话一个计费轮次：这句的续步沿用，用户下一句（包括回答追问）重新生成
         let billingTurnID = UUID()
+        // 档位与计费轮次一起在这句开始时确定：处理期间用户换了档位，续步仍沿用，否则服务端会判为不一致
+        let tier = modelTier()
         let turnStartedAt = VoiceTimingClock.now
         let signposter = VoiceTimingLog.signposter
         let turnSignpost = signposter.beginInterval("VoiceTurn", id: signposter.makeSignpostID(), "turn \(turnIndex)")
@@ -247,7 +254,7 @@ final class VoiceSession {
                 )
                 let response: VoiceSessionTurnResponse
                 do {
-                    response = try await api.send(request, turnID: billingTurnID, trace: trace)
+                    response = try await api.send(request, turnID: billingTurnID, tier: tier, trace: trace)
                 } catch {
                     signposter.endInterval("VoiceRequest", requestSignpost)
                     requestTimings.append(Self.requestTiming(trace, outcome: .failed, buildMs: buildMs, startedAt: requestStartedAt))
