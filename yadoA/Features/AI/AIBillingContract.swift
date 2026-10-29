@@ -261,6 +261,7 @@ nonisolated struct AICreditEntryPage: Decodable, Equatable, Sendable {
 /// 客户端认识的模型档位，与 yado_ai `config/models.ts` 的 `MODEL_TIERS` 一致；服务端以后新增的档位客户端不展示。
 ///
 /// 档位对应哪个具体模型由服务端决定，客户端只保存用户选的档位，随请求头 `X-AI-Tier` 发送。
+/// 接入新档位时在这里加一个 case，并补齐名称、图标、一句话特点与特点说明的文案。
 nonisolated enum AIModelTier: String, CaseIterable, Identifiable, Sendable {
     /// 普通：速度快，每句扣的点数少。
     case standard
@@ -281,6 +282,49 @@ nonisolated enum AIModelTier: String, CaseIterable, Identifiable, Sendable {
         case .precise: "ai.tier.precise"
         }
     }
+
+    /// 模型选择页上档位名称前的图标。
+    var symbol: String {
+        switch self {
+        case .standard: "gauge.with.dots.needle.50percent"
+        case .precise: "scope"
+        }
+    }
+
+    /// 一句话特点的本地化 key，显示在模型选择页的档位名称下方，例如“均衡之选”。
+    var summaryKey: String {
+        switch self {
+        case .standard: "ai.tier.standard.summary"
+        case .precise: "ai.tier.precise.summary"
+        }
+    }
+
+    /// 模型选择页列出的具体特点，先说优势、再说代价，方便用户在档位之间比较。
+    var highlights: [AIModelTierHighlight] {
+        switch self {
+        case .standard:
+            [
+                AIModelTierHighlight(symbol: "bolt", textKey: "ai.tier.standard.speed"),
+                AIModelTierHighlight(symbol: "checkmark.circle", textKey: "ai.tier.standard.fit")
+            ]
+        case .precise:
+            [
+                AIModelTierHighlight(symbol: "text.magnifyingglass", textKey: "ai.tier.precise.understanding"),
+                AIModelTierHighlight(symbol: "clock", textKey: "ai.tier.precise.speed")
+            ]
+        }
+    }
+}
+
+/// 模型档位的一条特点：图标加一句说明，例如“响应快，说完很快就能记好”。
+nonisolated struct AIModelTierHighlight: Identifiable, Equatable, Sendable {
+    /// 特点前的图标。
+    let symbol: String
+
+    /// 特点说明的本地化 key；同一档位内不重复，兼作列表标识。
+    let textKey: String
+
+    var id: String { textKey }
 }
 
 /// 模型档位列表：各档位每说一句扣的点数与服务端的默认档位。

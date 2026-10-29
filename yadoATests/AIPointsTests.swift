@@ -195,6 +195,26 @@ struct AIPointsTests {
         #expect(AccountLocalization.formatted("ai.lots.expiresOn", value: "2027年1月26日", locale: simplifiedChinese) == "2027年1月26日 过期")
         #expect(AccountLocalization.formatted("ai.lots.receivedOn", value: "Oct 28, 2026", locale: english) == "Received Oct 28, 2026")
         #expect(AccountLocalization.formatted("ai.lots.original", value: "100", locale: simplifiedChinese) == "共 100 点")
+        #expect(AccountLocalization.formatted("ai.tier.perTurn", value: "2", locale: simplifiedChinese) == "每句 2 点")
+        #expect(AccountLocalization.formatted("ai.tier.perTurn", value: "2", locale: english) == "2 pts per sentence")
+    }
+
+    @Test("模型选择页：每个档位都有名称、一句话特点和不重复的具体特点，且有中英文")
+    func describesEveryModelTier() {
+        let locales = [Locale(identifier: "en"), Locale(identifier: "zh-Hans")]
+        for tier in AIModelTier.allCases {
+            #expect(!tier.highlights.isEmpty, "\(tier) 缺少特点")
+            #expect(Set(tier.highlights.map(\.id)).count == tier.highlights.count, "\(tier) 的特点重复")
+
+            let keys = [tier.titleKey, tier.summaryKey] + tier.highlights.map(\.textKey)
+            for key in keys {
+                for locale in locales {
+                    // 缺文案时返回 key 本身
+                    #expect(AccountLocalization.string(key, locale: locale) != key, "\(key) 缺少 \(locale.identifier) 文案")
+                }
+            }
+        }
+        #expect(AccountLocalization.string("ai.tier.standard.summary", locale: Locale(identifier: "zh-Hans")) == "均衡之选：速度快、扣点少，日常记账够用。")
     }
 
     // MARK: - 接口

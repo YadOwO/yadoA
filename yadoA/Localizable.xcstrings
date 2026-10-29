@@ -12960,38 +12960,182 @@
         }
       }
     },
-    "ai.tier.option" : {
-      "comment" : "模型档位选项，第一个参数为档位名，第二个为每句扣的点数",
+    "ai.tier.footnote" : {
+      "comment" : "模型选择页底部的说明",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · %2$@ pts per sentence"
+            "value" : "Changes apply from your next sentence. A sentence already being processed keeps the model it started with."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · 每句 %2$@ 点"
+            "value" : "切换后从下一句开始生效，正在处理的一句沿用原来的模型。"
           }
         }
       }
     },
-    "ai.tier.footnote" : {
-      "comment" : "模型档位选择下方的说明",
+    "ai.tier.default" : {
+      "comment" : "模型选择页上服务端默认档位名称后的标签",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Precise understands complex sentences better and uses more points per sentence. Changes apply from your next sentence."
+            "value" : "Default"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "精准模型更擅长理解复杂的话，每句扣的点数更多。切换后从下一句开始生效。"
+            "value" : "默认"
+          }
+        }
+      }
+    },
+    "ai.tier.perTurn" : {
+      "comment" : "模型选择页档位名称下的每句点数，参数为点数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ pts per sentence"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每句 %@ 点"
+          }
+        }
+      }
+    },
+    "ai.tier.empty" : {
+      "comment" : "模型选择页没有可选档位时的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No models are available right now."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时没有可选的模型"
+          }
+        }
+      }
+    },
+    "ai.tier.standard.summary" : {
+      "comment" : "普通档位的一句话特点",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balanced — quick, light on points, and good for everyday entries."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "均衡之选：速度快、扣点少，日常记账够用。"
+          }
+        }
+      }
+    },
+    "ai.tier.standard.speed" : {
+      "comment" : "普通档位的特点：速度",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fast replies — your entry is ready right after you speak"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "响应快，说完很快就能记好"
+          }
+        }
+      }
+    },
+    "ai.tier.standard.fit" : {
+      "comment" : "普通档位的特点：适用场景",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Works well for clear sentences with one or two entries"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "说得清楚、一句一两笔的日常记账都能记准"
+          }
+        }
+      }
+    },
+    "ai.tier.precise.summary" : {
+      "comment" : "精准档位的一句话特点",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More careful — understands longer, more casual sentences."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "理解更细：长句、口语化的说法也能听准。"
+          }
+        }
+      }
+    },
+    "ai.tier.precise.understanding" : {
+      "comment" : "精准档位的特点：理解能力",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Splits and categorizes more accurately when one sentence covers several entries"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一句话说好几笔时，拆分和分类更准确"
+          }
+        }
+      }
+    },
+    "ai.tier.precise.speed" : {
+      "comment" : "精准档位的特点：速度",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uses a larger model, so each sentence takes a little longer"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用更大的模型，每句的处理时间会稍长一点"
           }
         }
       }
