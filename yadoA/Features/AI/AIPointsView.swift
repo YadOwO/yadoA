@@ -66,14 +66,7 @@ struct AIPointsView: View {
                     expiryLine
                 }
 
-                if let noticeKey = balanceNoticeKey {
-                    Text(text(noticeKey))
-                        .font(.footnote)
-                        .foregroundStyle(points?.isExhausted == true ? Color(.ledgerRed) : Color.secondary)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("ai-points-notice")
-                }
+                balanceNotice
             } else {
                 Image(systemName: "sparkles")
                     .font(.system(size: 28))
@@ -158,7 +151,37 @@ struct AIPointsView: View {
         )
     }
 
-    /// 余额下方的提示：不够所用档位说一句但够更便宜的档位时提示切换，连最便宜的档位都不够时说明暂时无法使用，
+    /// 余额下方的提示；提示切换档位时可以点开模型选择页，末尾带箭头，其余提示是普通文字。
+    @ViewBuilder
+    private var balanceNotice: some View {
+        if let noticeKey = balanceNoticeKey {
+            let notice = Text(text(noticeKey))
+                .font(.footnote)
+                .foregroundStyle(points?.isExhausted == true ? Color(.ledgerRed) : Color.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if noticeKey == "ai.points.switchTier" {
+                NavigationLink(value: ProfileRoute.aiModelTier) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        notice
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Color(.ledgerRed))
+                            .accessibilityHidden(true)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .accessibilityHint(text("ai.points.switchTier.hint"))
+                .accessibilityIdentifier("ai-points-notice")
+            } else {
+                notice
+                    .accessibilityIdentifier("ai-points-notice")
+            }
+        }
+    }
+
+    /// 余额下方提示的文案 key：不够所用档位说一句但够更便宜的档位时提示切换，连最便宜的档位都不够时说明暂时无法使用，
     /// 没取到余额时提示下拉重试；正常时不显示。
     private var balanceNoticeKey: String? {
         guard let points else { return nil }

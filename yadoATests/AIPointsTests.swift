@@ -197,6 +197,8 @@ struct AIPointsTests {
         #expect(AccountLocalization.formatted("ai.lots.original", value: "100", locale: simplifiedChinese) == "共 100 点")
         #expect(AccountLocalization.formatted("ai.tier.perTurn", value: "2", locale: simplifiedChinese) == "每句 2 点")
         #expect(AccountLocalization.formatted("ai.tier.perTurn", value: "2", locale: english) == "2 pts per sentence")
+        #expect(AccountLocalization.formatted("ai.tier.turnsLeft", value: "49", locale: simplifiedChinese) == "余额可说 49 句")
+        #expect(AccountLocalization.string("voice.turn.switchModelTier", locale: simplifiedChinese) == "换个模型")
     }
 
     @Test("模型选择页：每个档位都有名称、一句话特点和不重复的具体特点，且有中英文")
@@ -328,6 +330,25 @@ struct AIPointsTests {
         store.balanceReporter()(0)
         #expect(store.isExhausted)
         #expect(!store.canAffordCheaperTier)
+    }
+
+    @Test("按余额各档位还能说几句：不够一句为 0，余额未知或档位不扣点时不显示")
+    func countsTurnsLeftPerTier() async {
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(AIWallet(balance: 5))]
+        api.tiersResult = .success(AIModelTierList(defaultTier: "standard", tiers: [
+            .init(id: "standard", pointsPerTurn: 0, isAvailable: true),
+            .init(id: "precise", pointsPerTurn: 2, isAvailable: true),
+        ]))
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        #expect(store.turnsLeft(for: .precise) == nil)
+
+        await store.refresh()
+        #expect(store.turnsLeft(for: .precise) == 2)
+        #expect(store.turnsLeft(for: .standard) == nil)
+
+        store.balanceReporter()(1)
+        #expect(store.turnsLeft(for: .precise) == 0)
     }
 
     @Test("选档位：保存在本机，每轮点数随之变化，重新创建后仍记得")

@@ -119,6 +119,17 @@ final class AIPointsStore {
         }
     }
 
+    /// 按当前余额用某个档位还能说几句，供模型选择页比较各档位；追问的回答也算一句。
+    ///
+    /// - Parameter tier: 档位。
+    /// - Returns: 余额能覆盖的句数，不够一句时为 0；余额或该档位点数未知、或该档位不扣点时为 nil。
+    func turnsLeft(for tier: AIModelTier) -> Int? {
+        guard let balance, let pointsPerTurn = tierList?.pointsPerTurn(for: tier.rawValue), pointsPerTurn > 0 else {
+            return nil
+        }
+        return max(balance, 0) / pointsPerTurn
+    }
+
     /// 是否正在刷新余额。
     var isRefreshing: Bool {
         refreshRequest != nil

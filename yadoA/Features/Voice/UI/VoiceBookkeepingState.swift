@@ -34,6 +34,9 @@ final class VoiceBookkeepingState {
     /// 带着这句话去手动记账时预填的备注；由根导航以弹层展示。
     var manualEntryNote: VoiceManualEntryNote?
 
+    /// 是否打开模型选择：点数不够所用档位但够更便宜的档位时，从卡片上打开；由根导航以弹层展示，切换后关掉可以接着说。
+    var isModelTierPresented = false
+
     /// 会话是否正在处理上一句。
     var isProcessing: Bool {
         session?.isProcessing == true

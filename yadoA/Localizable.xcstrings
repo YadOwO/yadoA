@@ -12978,6 +12978,78 @@
         }
       }
     },
+    "ai.tier.turnsLeft" : {
+      "comment" : "模型选择页每句点数后面按余额还能说几句，参数为句数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentences left: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "余额可说 %@ 句"
+          }
+        }
+      }
+    },
+    "ai.tier.turnsLeft.none" : {
+      "comment" : "模型选择页余额不够该档位说一句时的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough points for a sentence"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "余额不够说一句"
+          }
+        }
+      }
+    },
+    "ai.points.switchTier.hint" : {
+      "comment" : "AI 点数页切换模型提示的无障碍提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows the models you can switch to"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看可切换的模型"
+          }
+        }
+      }
+    },
+    "voice.turn.switchModelTier" : {
+      "comment" : "语音记账点数不够所用模型但够更便宜的模型时，卡片上打开模型选择的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch Model"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "换个模型"
+          }
+        }
+      }
+    },
     "ai.tier.default" : {
       "comment" : "模型选择页上服务端默认档位名称后的标签",
       "extractionState" : "manual",

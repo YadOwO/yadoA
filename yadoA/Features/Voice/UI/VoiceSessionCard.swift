@@ -27,6 +27,9 @@ struct VoiceSessionCard: View {
     /// 去登录。
     let onSignIn: () -> Void
 
+    /// 打开模型选择，换用扣点更少的档位。
+    let onSwitchModelTier: () -> Void
+
     /// 结束会话。
     let onEnd: () -> Void
 
@@ -185,7 +188,8 @@ struct VoiceSessionCard: View {
                         onOpenTransaction: onOpenTransaction,
                         onOpenAccount: onOpenAccount,
                         onManualEntry: onManualEntry,
-                        onSignIn: onSignIn
+                        onSignIn: onSignIn,
+                        onSwitchModelTier: onSwitchModelTier
                     )
                     .id(turn.id)
                 }
@@ -213,6 +217,8 @@ struct VoiceSessionCard: View {
 /// 卡片中的一轮：用户的话靠右，结果、写入的流水和操作靠左。
 private struct VoiceSessionTurnView: View {
     @Environment(\.locale) private var locale
+    /// 当前账号的 AI 点数，用来判断点数不足时能否换用扣点更少的档位；预览和测试中没有注入时为 nil。
+    @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
 
     /// 当前会话。
     let session: VoiceSession
@@ -234,6 +240,9 @@ private struct VoiceSessionTurnView: View {
 
     /// 去登录。
     let onSignIn: () -> Void
+
+    /// 打开模型选择，换用扣点更少的档位。
+    let onSwitchModelTier: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -346,6 +355,8 @@ private struct VoiceSessionTurnView: View {
         let isUndoable = session.undoableTurn?.id == turn.id
         let requiresSignIn = isLatest && turn.failure?.requiresSignIn == true
         let offersManualEntry = isLatest && turn.offersManualEntry
+        // 点数不够所用档位、但够更便宜的档位时，给出换模型的入口；换好后余额够说一句，入口随之消失
+        let offersTierSwitch = isLatest && turn.failure == .insufficientPoints && aiPoints?.canAffordCheaperTier == true
         if isUndoable || offersManualEntry || requiresSignIn || turn.isUndone {
             HStack(spacing: 12) {
                 if turn.isUndone {
@@ -359,6 +370,12 @@ private struct VoiceSessionTurnView: View {
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                 } else if offersManualEntry {
+                    if offersTierSwitch {
+                        Button(text("voice.turn.switchModelTier"), action: onSwitchModelTier)
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .accessibilityIdentifier("voice-switch-model-tier")
+                    }
                     Button(text("voice.turn.manualEntry")) { onManualEntry(turn.userText) }
                         .buttonStyle(.bordered)
                         .controlSize(.small)

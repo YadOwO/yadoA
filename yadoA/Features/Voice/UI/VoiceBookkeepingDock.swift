@@ -40,6 +40,7 @@ struct VoiceBookkeepingDock: View {
                     onOpenAccount: { voice.presentedAccount = VoicePresentedAccount(id: $0) },
                     onManualEntry: { voice.manualEntryNote = VoiceManualEntryNote(text: $0) },
                     onSignIn: { signInPresentation.present(reason: .voiceBookkeeping) },
+                    onSwitchModelTier: { voice.isModelTierPresented = true },
                     onEnd: { voice.endSession() }
                 )
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -200,7 +201,7 @@ extension View {
 /// 语音记账在根导航上只需要一份的部分：创建会话，闲置与提示计时、结果播报与触感，以及卡片打开的弹层和各类提示。
 ///
 /// 会话卡片在每个一级页面各挂一份，这些副作用若跟着卡片走，没显示的 Tab 里也会重复执行，因此统一挂在根导航上。
-/// 详情和手动记账以弹层盖在当前页面上，不离开一级页面，关掉后会话卡片还在，可以接着说。
+/// 详情、手动记账和模型选择以弹层盖在当前页面上，不离开一级页面，关掉后会话卡片还在，可以接着说。
 private struct VoiceBookkeepingHost: ViewModifier {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthStore.self) private var authStore
@@ -299,6 +300,16 @@ private struct VoiceBookkeepingHost: ViewModifier {
                             Button(text("common.cancel")) { voice.manualEntryNote = nil }
                         }
                     }
+                }
+            }
+            .sheet(isPresented: $voice.isModelTierPresented) {
+                NavigationStack {
+                    AIModelTierView()
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button(text("common.done")) { voice.isModelTierPresented = false }
+                            }
+                        }
                 }
             }
             .voiceInputAlerts(voice.input) {
