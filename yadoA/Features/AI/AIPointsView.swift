@@ -2,6 +2,8 @@ import SwiftUI
 
 /// “我的 › AI 点数”：当前余额、模型档位选择、扣点规则和点数明细。
 ///
+/// 点数分好几批、到期时间不同时，余额下的到期提示可以点开，进入到期明细（`AIPointLotsView`）。
+///
 /// 余额与每轮点数来自根部注入的 `AIPointsStore`，明细由本页的 `AICreditEntryFeed` 分页加载。
 /// 暂不提供充值；点数用完时只说明暂时无法使用 AI 记账。
 struct AIPointsView: View {
@@ -48,24 +50,20 @@ struct AIPointsView: View {
         VStack(spacing: 12) {
             if authStore.isAuthenticated {
                 VStack(spacing: 6) {
-                    balanceFigure
-                        .frame(minHeight: 64)
+                    VStack(spacing: 6) {
+                        balanceFigure
+                            .frame(minHeight: 64)
 
-                    Text(text("ai.points.balance.caption"))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-
-                    if let expiryText {
-                        Text(expiryText)
-                            .font(.footnote)
+                        Text(text("ai.points.balance.caption"))
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
-                            .accessibilityIdentifier("ai-points-expiry")
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("ai-points-balance")
+
+                    expiryLine
                 }
-                .accessibilityElement(children: .combine)
-                .accessibilityIdentifier("ai-points-balance")
 
                 if let noticeKey = balanceNoticeKey {
                     Text(text(noticeKey))
@@ -116,6 +114,35 @@ struct AIPointsView: View {
             Text(verbatim: "—")
                 .font(.system(size: 52, weight: .semibold, design: .serif))
                 .foregroundStyle(.tertiary)
+        }
+    }
+
+    /// 余额下的到期提示：只有一批时是普通文字；有好几批时可以点开到期明细，末尾带箭头。
+    @ViewBuilder
+    private var expiryLine: some View {
+        if let expiryText {
+            if let points, points.activeLots().count > 1 {
+                NavigationLink(value: ProfileRoute.aiPointLots) {
+                    HStack(spacing: 4) {
+                        Text(expiryText)
+                            .multilineTextAlignment(.center)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .accessibilityHidden(true)
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .contentShape(Rectangle())
+                }
+                .accessibilityHint(text("ai.points.expiry.hint"))
+                .accessibilityIdentifier("ai-points-expiry")
+            } else {
+                Text(expiryText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .accessibilityIdentifier("ai-points-expiry")
+            }
         }
     }
 

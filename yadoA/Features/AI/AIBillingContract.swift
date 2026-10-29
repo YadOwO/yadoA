@@ -56,28 +56,94 @@ nonisolated struct AICreditLot: Decodable, Equatable, Sendable {
     /// 过期时刻。
     let expiresAt: Date
 
+    /// 本批入账时的点数；服务端没有返回时为 nil。
+    let originalPoints: Int?
+
+    /// 本批的来源类型（赠送、退点或人工调整）；上线有效期之前的存量点数没有来源，与服务端没有返回时都为 nil。
+    let kind: AICreditEntryKind?
+
+    /// 来源的原因标签，与流水一致，例如 `initial_grant`；没有时为 nil。
+    let reason: String?
+
+    /// 新用户赠送来自哪个产品，例如 `yadoa`；其他来源为 nil。
+    let product: String?
+
+    /// 入账时间；服务端没有返回时为 nil。
+    let createdAt: Date?
+
     private enum CodingKeys: String, CodingKey {
-        case points, expiresAt
+        case points, expiresAt, originalPoints, kind, reason, product, createdAt
     }
 
     /// 逐字段创建。
-    init(points: Int, expiresAt: Date) {
+    init(
+        points: Int,
+        expiresAt: Date,
+        originalPoints: Int? = nil,
+        kind: AICreditEntryKind? = nil,
+        reason: String? = nil,
+        product: String? = nil,
+        createdAt: Date? = nil
+    ) {
         self.points = points
         self.expiresAt = expiresAt
+        self.originalPoints = originalPoints
+        self.kind = kind
+        self.reason = reason
+        self.product = product
+        self.createdAt = createdAt
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         points = try container.decode(Int.self, forKey: .points)
         let expiresAtText = try container.decode(String.self, forKey: .expiresAt)
-        guard let expiresAt = AIBillingTimestamp.parse(expiresAtText) else {
+        expiresAt = try Self.parseTime(expiresAtText, forKey: .expiresAt, in: container)
+        originalPoints = try container.decodeIfPresent(Int.self, forKey: .originalPoints)
+        kind = try container.decodeIfPresent(AICreditEntryKind.self, forKey: .kind)
+        reason = try container.decodeIfPresent(String.self, forKey: .reason)
+        product = try container.decodeIfPresent(String.self, forKey: .product)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt).map {
+            try Self.parseTime($0, forKey: .createdAt, in: container)
+        }
+    }
+
+    /// 扣掉一部分点数后的同一批：只改剩余点数，来源与时间不变。
+    ///
+    /// - Parameter points: 新的剩余点数。
+    /// - Returns: 剩余点数更新后的批次。
+    func withPoints(_ points: Int) -> AICreditLot {
+        AICreditLot(
+            points: points,
+            expiresAt: expiresAt,
+            originalPoints: originalPoints,
+            kind: kind,
+            reason: reason,
+            product: product,
+            createdAt: createdAt
+        )
+    }
+
+    /// 解析 ISO 8601 时间字段；格式不对时整个余额解码失败。
+    ///
+    /// - Parameters:
+    ///   - text: 字段里的时间文本。
+    ///   - key: 字段名，用于报错。
+    ///   - container: 解码容器，用于报错。
+    /// - Returns: 解析出的时间。
+    private static func parseTime(
+        _ text: String,
+        forKey key: CodingKeys,
+        in container: KeyedDecodingContainer<CodingKeys>
+    ) throws -> Date {
+        guard let date = AIBillingTimestamp.parse(text) else {
             throw DecodingError.dataCorruptedError(
-                forKey: .expiresAt,
+                forKey: key,
                 in: container,
-                debugDescription: "expiresAt 不是 ISO 8601 时间：\(expiresAtText)"
+                debugDescription: "\(key.stringValue) 不是 ISO 8601 时间：\(text)"
             )
         }
-        self.expiresAt = expiresAt
+        return date
     }
 }
 
@@ -267,20 +333,56 @@ extension AICreditEntry {
 
     /// 新用户赠送来源产品名称的本地化 key；不是新用户赠送、没有产品或不认识的产品为 nil。
     var grantProductNameKey: String? {
-        guard kind == .grant, reason == Self.initialGrantReason, let product else { return nil }
-        return Self.productNameKeys[product]
+        Self.grantProductNameKey(kind: kind, reason: reason, product: product)
     }
 
     /// 明细标题的本地化 key：扣点按能力区分，赠送按原因区分（新用户赠送认识来源产品时带产品名），其余按类型；
     /// 不认识的能力或原因用类型兜底。
     var titleKey: String {
+        Self.titleKey(kind: kind, feature: feature, reason: reason, product: product)
+    }
+
+    /// 明细行图标。
+    var symbol: String {
+        Self.symbol(kind: kind, feature: feature)
+    }
+
+    /// 明细标题，例如“语音记账”“芽豆资产新用户赠送”。
+    ///
+    /// - Parameter locale: 文案使用的语言环境。
+    /// - Returns: 本地化后的标题。
+    func title(locale: Locale) -> String {
+        Self.title(kind: kind, feature: feature, reason: reason, product: product, locale: locale)
+    }
+
+    // 下面几个按字段计算的版本供点数批次复用：批次的来源就是生成它的那条入账流水，标题与图标保持一致。
+
+    /// 新用户赠送来源产品名称的本地化 key；不是新用户赠送、没有产品或不认识的产品为 nil。
+    ///
+    /// - Parameters:
+    ///   - kind: 流水类型。
+    ///   - reason: 原因标签。
+    ///   - product: 新用户赠送来自的产品。
+    static func grantProductNameKey(kind: AICreditEntryKind, reason: String?, product: String?) -> String? {
+        guard kind == .grant, reason == initialGrantReason, let product else { return nil }
+        return productNameKeys[product]
+    }
+
+    /// 标题的本地化 key，规则见实例属性 `titleKey`。
+    ///
+    /// - Parameters:
+    ///   - kind: 流水类型。
+    ///   - feature: 扣点所属的能力。
+    ///   - reason: 原因标签。
+    ///   - product: 新用户赠送来自的产品。
+    static func titleKey(kind: AICreditEntryKind, feature: String?, reason: String?, product: String?) -> String {
         switch kind {
         case .charge:
-            feature == Self.voiceSessionFeature ? "ai.entry.voiceSession" : "ai.entry.charge"
+            feature == voiceSessionFeature ? "ai.entry.voiceSession" : "ai.entry.charge"
         case .grant:
-            if grantProductNameKey != nil {
+            if grantProductNameKey(kind: kind, reason: reason, product: product) != nil {
                 "ai.entry.grant.initial.product"
-            } else if reason == Self.initialGrantReason {
+            } else if reason == initialGrantReason {
                 "ai.entry.grant.initial"
             } else {
                 "ai.entry.grant"
@@ -296,11 +398,15 @@ extension AICreditEntry {
         }
     }
 
-    /// 明细行图标。
-    var symbol: String {
+    /// 图标。
+    ///
+    /// - Parameters:
+    ///   - kind: 流水类型。
+    ///   - feature: 扣点所属的能力。
+    static func symbol(kind: AICreditEntryKind, feature: String?) -> String {
         switch kind {
         case .charge:
-            feature == Self.voiceSessionFeature ? "mic" : "sparkles"
+            feature == voiceSessionFeature ? "mic" : "sparkles"
         case .grant:
             "gift"
         case .refund:
@@ -314,17 +420,28 @@ extension AICreditEntry {
         }
     }
 
-    /// 明细标题，例如“语音记账”“芽豆资产新用户赠送”。
+    /// 本地化后的标题，新用户赠送认识来源产品时带产品名。
     ///
-    /// - Parameter locale: 文案使用的语言环境。
-    /// - Returns: 本地化后的标题。
-    func title(locale: Locale) -> String {
-        guard let grantProductNameKey else {
-            return AccountLocalization.string(titleKey, locale: locale)
+    /// - Parameters:
+    ///   - kind: 流水类型。
+    ///   - feature: 扣点所属的能力。
+    ///   - reason: 原因标签。
+    ///   - product: 新用户赠送来自的产品。
+    ///   - locale: 文案使用的语言环境。
+    static func title(
+        kind: AICreditEntryKind,
+        feature: String?,
+        reason: String?,
+        product: String?,
+        locale: Locale
+    ) -> String {
+        let key = titleKey(kind: kind, feature: feature, reason: reason, product: product)
+        guard let productKey = grantProductNameKey(kind: kind, reason: reason, product: product) else {
+            return AccountLocalization.string(key, locale: locale)
         }
         return AccountLocalization.formatted(
-            titleKey,
-            value: AccountLocalization.string(grantProductNameKey, locale: locale),
+            key,
+            value: AccountLocalization.string(productKey, locale: locale),
             locale: locale
         )
     }
@@ -335,5 +452,31 @@ extension AICreditEntry {
     /// - Returns: 格式化后的点数。
     func signedPoints(locale: Locale) -> String {
         points.formatted(.number.sign(strategy: .always(includingZero: false)).locale(locale))
+    }
+}
+
+extension AICreditLot {
+    /// 没有来源的存量点数的标题 key：上线有效期之前的余额转成的批次。
+    static let legacyTitleKey = "ai.lot.legacy"
+
+    /// 标题的本地化 key，与生成本批的入账流水一致；没有来源时为“早期点数”。
+    var titleKey: String {
+        guard let kind else { return Self.legacyTitleKey }
+        return AICreditEntry.titleKey(kind: kind, feature: nil, reason: reason, product: product)
+    }
+
+    /// 图标，与生成本批的入账流水一致；没有来源时用托盘。
+    var symbol: String {
+        guard let kind else { return "tray" }
+        return AICreditEntry.symbol(kind: kind, feature: nil)
+    }
+
+    /// 本地化后的标题，例如“芽豆资产新用户赠送”“退点”。
+    ///
+    /// - Parameter locale: 文案使用的语言环境。
+    /// - Returns: 本地化后的标题。
+    func title(locale: Locale) -> String {
+        guard let kind else { return AccountLocalization.string(Self.legacyTitleKey, locale: locale) }
+        return AICreditEntry.title(kind: kind, feature: nil, reason: reason, product: product, locale: locale)
     }
 }

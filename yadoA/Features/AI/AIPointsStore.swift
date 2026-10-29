@@ -124,13 +124,21 @@ final class AIPointsStore {
         refreshRequest != nil
     }
 
+    /// 还有剩余、尚未到期的各批点数，按过期时间从早到晚；没有余额或服务端没有返回批次时为空。
+    ///
+    /// - Parameter now: 当前时间，测试可注入；已到期但还没刷新掉的批次不算。
+    /// - Returns: 未过期的批次。
+    func activeLots(now: Date = .now) -> [AICreditLot] {
+        guard let balance, balance > 0 else { return [] }
+        return lots.filter { $0.points > 0 && $0.expiresAt > now }
+    }
+
     /// 最早过期、还有剩余的一批点数；没有余额或服务端没有返回批次时为 nil。
     ///
     /// - Parameter now: 当前时间，测试可注入；已到期但还没刷新掉的批次不算。
     /// - Returns: 最近一批要过期的点数。
     func nextExpiringLot(now: Date = .now) -> AICreditLot? {
-        guard let balance, balance > 0 else { return nil }
-        return lots.first { $0.points > 0 && $0.expiresAt > now }
+        activeLots(now: now).first
     }
 
     /// 从服务端刷新余额，同时重新查模型档位列表。
@@ -225,7 +233,7 @@ final class AIPointsStore {
                 guard remaining > 0 else { return lot }
                 let used = min(lot.points, remaining)
                 remaining -= used
-                return lot.points > used ? AICreditLot(points: lot.points - used, expiresAt: lot.expiresAt) : nil
+                return lot.points > used ? lot.withPoints(lot.points - used) : nil
             }
         }
         balance = newBalance

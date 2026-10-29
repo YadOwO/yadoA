@@ -114,6 +114,9 @@ enum ProfileRoute: Hashable {
     /// AI 点数页面：余额、扣点规则与点数明细。
     case aiPoints
 
+    /// AI 点数的到期明细：从 AI 点数页的到期提示进入，列出每批点数的来源与到期时间。
+    case aiPointLots
+
     /// 设置页面。
     case settings
 
@@ -132,6 +135,8 @@ enum ProfileRoute: Hashable {
             SyncSettingsView()
         case .aiPoints:
             AIPointsView()
+        case .aiPointLots:
+            AIPointLotsView()
         case .settings:
             SettingsView()
         case .developer:

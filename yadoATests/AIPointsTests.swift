@@ -123,6 +123,61 @@ struct AIPointsTests {
         #expect(voice.signedPoints(locale: english) == "-2")
     }
 
+    @Test("批次解码：带来源、入账点数与获得时间；存量批次没有来源；服务端没返回这些字段时为空")
+    func decodesCreditLots() throws {
+        let walletJSON = """
+        {"mode":"enforce","balance":101,"lots":[
+          {"points":92,"originalPoints":100,"kind":"grant","reason":"initial_grant","product":"yadoa",
+           "createdAt":"2026-10-28T02:32:00.000Z","expiresAt":"2027-01-26T02:32:00.000Z"},
+          {"points":4,"originalPoints":4,"kind":null,"reason":null,"product":null,
+           "createdAt":"2026-10-27T09:10:00Z","expiresAt":"2027-01-27T00:00:00Z"},
+          {"points":5,"expiresAt":"2027-02-01T00:00:00Z"}
+        ],"ruleVersion":"2026-10-29.1"}
+        """
+        let lots = try JSONDecoder().decode(AIWallet.self, from: Data(walletJSON.utf8)).lots
+        #expect(lots.count == 3)
+        #expect(lots[0].originalPoints == 100)
+        #expect(lots[0].kind == .grant)
+        #expect(lots[0].reason == AICreditEntry.initialGrantReason)
+        #expect(lots[0].product == "yadoa")
+        #expect(lots[0].createdAt == Date(timeIntervalSince1970: 1_793_154_720))
+        #expect(lots[0].expiresAt == Date(timeIntervalSince1970: 1_800_930_720))
+        #expect(lots[1].kind == nil)
+        #expect(lots[1].createdAt == Date(timeIntervalSince1970: 1_793_092_200))
+        #expect(lots[2] == AICreditLot(points: 5, expiresAt: Date(timeIntervalSince1970: 1_801_440_000)))
+
+        let badTime = #"{"balance":1,"lots":[{"points":1,"createdAt":"昨天","expiresAt":"2027-02-01T00:00:00Z"}]}"#
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(AIWallet.self, from: Data(badTime.utf8))
+        }
+    }
+
+    @Test("批次标题与图标和生成它的入账流水一致，存量批次显示早期点数")
+    func mapsLotPresentation() {
+        let expiresAt = Date(timeIntervalSince1970: 1_800_930_720)
+        let welcome = AICreditLot(
+            points: 92,
+            expiresAt: expiresAt,
+            kind: .grant,
+            reason: AICreditEntry.initialGrantReason,
+            product: "yadoa"
+        )
+        let refund = AICreditLot(points: 2, expiresAt: expiresAt, kind: .refund, reason: "compensation")
+        let legacy = AICreditLot(points: 4, expiresAt: expiresAt)
+
+        #expect(welcome.titleKey == "ai.entry.grant.initial.product")
+        #expect(welcome.symbol == "gift")
+        #expect(refund.titleKey == "ai.entry.refund")
+        #expect(refund.symbol == "arrow.uturn.backward")
+        #expect(legacy.titleKey == AICreditLot.legacyTitleKey)
+        #expect(legacy.symbol == "tray")
+
+        let simplifiedChinese = Locale(identifier: "zh-Hans")
+        #expect(welcome.title(locale: simplifiedChinese) == "芽豆资产新用户赠送")
+        #expect(legacy.title(locale: simplifiedChinese) == "早期点数")
+        #expect(legacy.title(locale: Locale(identifier: "en")) == "Earlier points")
+    }
+
     @Test("点数文案有中英文")
     func localizesPointsCopy() {
         let english = Locale(identifier: "en")
@@ -135,6 +190,11 @@ struct AIPointsTests {
         let expiry = AccountLocalization.string("ai.points.expiry", locale: simplifiedChinese)
         #expect(String(format: expiry, locale: simplifiedChinese, "98", "2027年1月26日") == "98 点将于 2027年1月26日 过期")
         #expect(AccountLocalization.string("ai.entry.expire", locale: english) == "Expired")
+        #expect(AccountLocalization.string("ai.lots.title", locale: simplifiedChinese) == "到期明细")
+        #expect(AccountLocalization.string("ai.lots.title", locale: english) == "Expiry Details")
+        #expect(AccountLocalization.formatted("ai.lots.expiresOn", value: "2027年1月26日", locale: simplifiedChinese) == "2027年1月26日 过期")
+        #expect(AccountLocalization.formatted("ai.lots.receivedOn", value: "Oct 28, 2026", locale: english) == "Received Oct 28, 2026")
+        #expect(AccountLocalization.formatted("ai.lots.original", value: "100", locale: simplifiedChinese) == "共 100 点")
     }
 
     // MARK: - 接口
@@ -465,6 +525,43 @@ struct AIPointsTests {
 
         store.balanceReporter()(0)
         #expect(store.nextExpiringLot(now: now) == nil)
+    }
+
+    @Test("到期明细：只列有剩余且未到期的批次；语音扣点后批次保留来源与入账信息")
+    func listsActiveLotsKeepingSource() async {
+        let soon = Date(timeIntervalSince1970: 1_800_930_720)
+        let later = soon.addingTimeInterval(86_400 * 30)
+        let createdAt = soon.addingTimeInterval(-86_400 * 90)
+        let welcome = AICreditLot(
+            points: 3,
+            expiresAt: soon,
+            originalPoints: 100,
+            kind: .grant,
+            reason: AICreditEntry.initialGrantReason,
+            product: "yadoa",
+            createdAt: createdAt
+        )
+        let refund = AICreditLot(points: 10, expiresAt: later, originalPoints: 10, kind: .refund, createdAt: createdAt)
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(AIWallet(balance: 13, lots: [welcome, refund]))]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        let now = soon.addingTimeInterval(-86_400)
+
+        #expect(store.activeLots(now: now).isEmpty)
+        await store.refresh()
+        #expect(store.activeLots(now: now) == [welcome, refund])
+        #expect(store.activeLots(now: soon) == [refund])
+
+        store.balanceReporter()(11)
+        let deducted = store.activeLots(now: now)
+        #expect(deducted == [welcome.withPoints(1), refund])
+        #expect(deducted.first?.originalPoints == 100)
+        #expect(deducted.first?.kind == .grant)
+        #expect(deducted.first?.product == "yadoa")
+        #expect(deducted.first?.createdAt == createdAt)
+
+        store.balanceReporter()(0)
+        #expect(store.activeLots(now: now).isEmpty)
     }
 
     @Test("同时发起的刷新共用一次请求")
