@@ -56,7 +56,8 @@ final class HomeRecentEntryHighlight {
         visibleHomeCount > 0
     }
 
-    private init() {}
+    /// 创建独立的提示通道；应用内统一用 `shared`，测试用独立实例隔离宿主首页的可见计数。
+    init() {}
 
     /// 新增或修改保存成功后登记这笔流水；同一笔流水尚未展示的旧提示会被替换。
     ///

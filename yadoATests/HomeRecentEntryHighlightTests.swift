@@ -39,8 +39,8 @@ struct HomeRecentEntryHighlightTests {
 
     @Test("语音记账只在首页可见时登记提示，普通记账不受影响")
     func voiceMarksOnlyWhileHomeVisible() {
-        let highlight = HomeRecentEntryHighlight.shared
-        _ = highlight.consume()
+        // 宿主 App 的首页可能正显示着，共享实例的可见计数不为 0，这里用独立实例。
+        let highlight = HomeRecentEntryHighlight()
         let offscreen = UUID()
         let onscreen = UUID()
         let manual = UUID()

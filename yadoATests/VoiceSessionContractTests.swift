@@ -248,6 +248,31 @@ struct VoiceSessionContractTests {
         }
     }
 
+    @Test("“帮助改进 AI”的请求头：未授权不带，授权后带 1，开关变化从下一次请求生效")
+    func traceConsentHeaderFollowsCurrentConsent() throws {
+        let endpoint = try #require(URL(string: "https://example.invalid"))
+        let request = VoiceSessionTurnRequest(
+            locale: "zh-Hans", capabilities: [], now: "2026-10-20T12:30:00-07:00", defaultAccountId: nil,
+            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)]
+        )
+        let trace = VoiceRequestTrace(sessionID: "S", turn: 1, request: 1)
+        func consentHeader(of api: VoiceSessionAPI) throws -> String? {
+            try api.makeURLRequest(request, turnID: UUID(), tier: nil, trace: trace, token: "abc")
+                .value(forHTTPHeaderField: "X-AI-Trace-Consent")
+        }
+
+        // 没有接入授权来源时按未授权处理
+        #expect(try consentHeader(of: VoiceSessionAPI(endpoint: endpoint) { "token" }) == nil)
+
+        var isConsented = false
+        let api = VoiceSessionAPI(endpoint: endpoint, isTraceConsented: { isConsented }) { "token" }
+        #expect(try consentHeader(of: api) == nil)
+        isConsented = true
+        #expect(try consentHeader(of: api) == "1")
+        isConsented = false
+        #expect(try consentHeader(of: api) == nil)
+    }
+
     @Test("错误状态码映射：429 区分每分钟与每天，402 点数不足，409 轮次失效")
     func mapsErrorStatusCodes() {
         let daily = Data(#"{"code":"TOO_MANY_REQUESTS","message":"x","details":{"rule":"per_day"}}"#.utf8)

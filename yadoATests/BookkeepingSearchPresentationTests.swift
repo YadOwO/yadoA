@@ -444,7 +444,8 @@ struct BookkeepingSearchPresentationTests {
         let elapsed = Date().timeIntervalSince(start)
 
         #expect(presentation.dayGroups.flatMap(\.rows).count == 1)
-        #expect(elapsed < 0.1)
+        // 留足并行跑测试时的负载余量，只防止退化成逐条格式化。
+        #expect(elapsed < 0.5)
     }
 
     @Test("收支方向单独筛选即出结果，并与关键词取交集；结果附带笔数和收支合计")

@@ -139,24 +139,9 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
             throw VoiceSessionAPIError.network
         }
 
-        var urlRequest = URLRequest(url: endpoint.appending(path: "v1/yadoa/voice-session/turn"))
-        urlRequest.httpMethod = "POST"
-        urlRequest.timeoutInterval = Self.requestTimeout
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        urlRequest.setValue(turnID.uuidString, forHTTPHeaderField: Self.turnIDHeader)
-        if let tier {
-            urlRequest.setValue(tier.rawValue, forHTTPHeaderField: Self.tierHeader)
-        }
-        if isTraceConsented() {
-            urlRequest.setValue("1", forHTTPHeaderField: Self.traceConsentHeader)
-        }
-        // 服务端日志据此把同一句话的多次请求串起来
-        urlRequest.setValue(trace.sessionID, forHTTPHeaderField: VoiceRequestTrace.Header.sessionID)
-        urlRequest.setValue(String(trace.turn), forHTTPHeaderField: VoiceRequestTrace.Header.turn)
-        urlRequest.setValue(String(trace.request), forHTTPHeaderField: VoiceRequestTrace.Header.request)
+        let urlRequest: URLRequest
         do {
-            urlRequest.httpBody = try JSONEncoder().encode(request)
+            urlRequest = try makeURLRequest(request, turnID: turnID, tier: tier, trace: trace, token: token)
         } catch {
             throw VoiceSessionAPIError.invalidContract
         }
@@ -196,6 +181,43 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
         } catch {
             throw VoiceSessionAPIError.invalidContract
         }
+    }
+
+    /// 构造一次会话请求；“帮助改进 AI”的授权在此时读取，开关变化从下一次请求生效。
+    ///
+    /// - Parameters:
+    ///   - request: 会话请求内容。
+    ///   - turnID: 计费轮次 ID。
+    ///   - tier: 用户选择的模型档位；为空时不带请求头，由服务端决定。
+    ///   - trace: 本次请求的追踪信息。
+    ///   - token: access token。
+    /// - Returns: 带鉴权头和追踪头的 POST 请求。
+    /// - Throws: 请求内容编码失败时抛出编码错误。
+    func makeURLRequest(
+        _ request: VoiceSessionTurnRequest,
+        turnID: UUID,
+        tier: AIModelTier?,
+        trace: VoiceRequestTrace,
+        token: String
+    ) throws -> URLRequest {
+        var urlRequest = URLRequest(url: endpoint.appending(path: "v1/yadoa/voice-session/turn"))
+        urlRequest.httpMethod = "POST"
+        urlRequest.timeoutInterval = Self.requestTimeout
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        urlRequest.setValue(turnID.uuidString, forHTTPHeaderField: Self.turnIDHeader)
+        if let tier {
+            urlRequest.setValue(tier.rawValue, forHTTPHeaderField: Self.tierHeader)
+        }
+        if isTraceConsented() {
+            urlRequest.setValue("1", forHTTPHeaderField: Self.traceConsentHeader)
+        }
+        // 服务端日志据此把同一句话的多次请求串起来
+        urlRequest.setValue(trace.sessionID, forHTTPHeaderField: VoiceRequestTrace.Header.sessionID)
+        urlRequest.setValue(String(trace.turn), forHTTPHeaderField: VoiceRequestTrace.Header.turn)
+        urlRequest.setValue(String(trace.request), forHTTPHeaderField: VoiceRequestTrace.Header.request)
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+        return urlRequest
     }
 
     /// 从响应中读出服务端结算后的余额。
