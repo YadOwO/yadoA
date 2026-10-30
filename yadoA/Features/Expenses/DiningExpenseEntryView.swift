@@ -54,6 +54,8 @@ struct DiningExpenseEntryView: View {
             )
             finishEntry()
         } prepareInitialDraft: {
+            // 截图和最近记的账没有关系，预选了又不弹面板，容易存错分类。
+            guard screenshot == nil else { return }
             flow.applyRecentCategories(BookkeepingRecentCategories.resolve(in: modelContext))
         }
         .navigationTitle(AccountLocalization.string("bookkeeping.entry.title", locale: locale))

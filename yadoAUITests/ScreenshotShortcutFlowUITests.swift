@@ -39,7 +39,10 @@ final class ScreenshotShortcutFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["screenshot-entry-close"].waitForExistence(timeout: 5))
         let save = app.buttons["expense-entry-save"]
         XCTAssertFalse(save.isEnabled)
-        app.buttons["expense-entry-category"].tap()
+        // 夹具里已有支出，普通入口会预选最近分类；截图入口仍要用户自己选
+        let category = app.buttons["expense-entry-category"]
+        XCTAssertEqual(category.label, "Select Category")
+        category.tap()
         app.buttons["expense-category-dining"].tap()
         let amount = app.textFields["expense-entry-amount"]
         XCTAssertTrue(amount.waitForExistence(timeout: 3))
