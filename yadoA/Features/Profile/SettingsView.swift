@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
 /// “我的 › 设置”二级页面：集中放置设一次就很少再动的偏好、数据维护和退出登录。
 ///
@@ -24,6 +25,12 @@ struct SettingsView: View {
     @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
     /// 全局触感开关，所有 `appHaptic` 与 `AppHaptics.play` 都读同一个键，修改后立即生效。
     @AppStorage(AppHaptics.storageKey) private var isHapticsEnabled = true
+    /// 每日记账提醒开关；只有拿到通知权限才会打开。
+    @AppStorage(BookkeepingReminder.isEnabledKey) private var isReminderEnabled = false
+    /// 每日记账提醒的时间，从 0 点开始的分钟数。
+    @AppStorage(BookkeepingReminder.minutesKey) private var reminderMinutes = BookkeepingReminder.defaultMinutes
+    /// 打开提醒时发现通知权限被拒绝。
+    @State private var isReminderDeniedPresented = false
     /// 默认账户选择沿用现有独立弹层流程。
     @State private var isDefaultSelectionPresented = false
     /// 退出登录前的二次确认（本机数据没有同步到当前账号时）。
@@ -99,6 +106,10 @@ struct SettingsView: View {
                         ProfileSettingsRow(titleKey: "shortcut.screenshot.title", symbol: "viewfinder")
                     }
                     .accessibilityIdentifier("profile-screenshot-shortcut")
+
+                    ProfileSettingsRowDivider()
+
+                    reminderRows
                 }
 
                 ProfileSettingsSection("profile.section.data") {
@@ -199,6 +210,87 @@ struct SettingsView: View {
         .alert(text("auth.sign_out.failed"), isPresented: $isSignOutFailurePresented) {
             Button(text("common.close"), role: .cancel) {}
         }
+        .alert(text("reminder.denied.title"), isPresented: $isReminderDeniedPresented) {
+            Button(text("reminder.denied.settings")) {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button(text("common.cancel"), role: .cancel) {}
+        } message: {
+            Text(text("reminder.denied.message"))
+        }
+        .onChange(of: reminderMinutes) { _, _ in
+            Task { await rescheduleReminders() }
+        }
+    }
+
+    /// 每日记账提醒的开关，打开后多一行时间。
+    @ViewBuilder
+    private var reminderRows: some View {
+        Toggle(isOn: Binding(get: { isReminderEnabled }, set: { setReminderEnabled($0) })) {
+            Label(text("reminder.title"), systemImage: "bell")
+                .labelStyle(ProfileSettingsLabelStyle())
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .accessibilityIdentifier("settings-reminder")
+
+        if isReminderEnabled {
+            ProfileSettingsRowDivider()
+
+            DatePicker(
+                selection: reminderTime,
+                displayedComponents: .hourAndMinute
+            ) {
+                Label(text("reminder.time"), systemImage: "clock")
+                    .labelStyle(ProfileSettingsLabelStyle())
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .accessibilityIdentifier("settings-reminder-time")
+        }
+    }
+
+    /// 提醒时间与日期选择器之间的换算；只用到时和分。
+    private var reminderTime: Binding<Date> {
+        Binding(
+            get: {
+                Calendar.current.date(
+                    bySettingHour: reminderMinutes / 60,
+                    minute: reminderMinutes % 60,
+                    second: 0,
+                    of: .now
+                ) ?? .now
+            },
+            set: { date in
+                let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+                reminderMinutes = (components.hour ?? 0) * 60 + (components.minute ?? 0)
+            }
+        )
+    }
+
+    /// 打开或关闭每日提醒；打开时先要通知权限，被拒绝时开关保持关闭并说明怎么开启。
+    ///
+    /// - Parameter isEnabled: 用户想要的开关状态。
+    private func setReminderEnabled(_ isEnabled: Bool) {
+        Task {
+            if isEnabled, await !BookkeepingReminderScheduler.requestAuthorization() {
+                isReminderDeniedPresented = true
+                return
+            }
+            isReminderEnabled = isEnabled
+            await rescheduleReminders()
+        }
+    }
+
+    /// 按当前偏好重排每日提醒。
+    private func rescheduleReminders() async {
+        await BookkeepingReminderScheduler.reschedule(
+            container: modelContext.container,
+            locale: locale,
+            calendar: .current
+        )
     }
 
     /// 点击后弹出系统菜单的偏好行，行尾显示当前选项。

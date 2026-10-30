@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、分类）、AI 点数、云端同步、“设置”二级页和意见反馈。
+/// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、周期记账、分类）、AI 点数、云端同步、“设置”二级页和意见反馈。
 ///
 /// 语言、外观、默认账户、导入导出、退出登录等低频项统一收进 `SettingsView`，已停用账户由“账户”Tab 承载。
 /// 进入二级页面都走路径导航（见 `ProfileRoute`），根导航据此判断是否显示语音入口。
@@ -32,6 +32,13 @@ struct ProfileView: View {
                         ProfileSettingsRow(titleKey: "bill.title", symbol: "doc.text")
                     }
                     .accessibilityIdentifier("profile-bills")
+
+                    ProfileSettingsRowDivider()
+
+                    NavigationLink(value: ProfileRoute.recurringRules) {
+                        ProfileSettingsRow(titleKey: "recurring.title", symbol: "repeat")
+                    }
+                    .accessibilityIdentifier("profile-recurring")
 
                     ProfileSettingsRowDivider()
 

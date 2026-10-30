@@ -39,11 +39,13 @@ final class DiningExpenseEntryFlow: ObservableObject {
     ///
     /// - Parameters:
     ///   - draft: 需要恢复的既有草稿；为空时以今天创建新草稿。
+    ///   - requiresCategoryConfirmation: 传入的草稿是否仍要用户确认分类；周期记账新建时用它指定规则标识，但分类还没选。
     ///   - now: 新草稿的默认记账日期。
     ///   - calendar: 提供当前时区的日历，内部统一转换为公历。
     ///   - saveAction: 显式保存支出流水与账户金额的动作。
     init(
         draft: DiningExpenseDraft? = nil,
+        requiresCategoryConfirmation: Bool = false,
         initialAccountID: UUID? = nil,
         now: Date = .now,
         calendar: Calendar = .current,
@@ -54,7 +56,7 @@ final class DiningExpenseEntryFlow: ObservableObject {
         self.saveAction = saveAction
         if let draft {
             self.draft = draft
-            self.hasConfirmedCategory = true
+            self.hasConfirmedCategory = !requiresCategoryConfirmation
         } else {
             self.draft = DiningExpenseDraft(
                 accountID: initialAccountID,

@@ -22,6 +22,12 @@ struct BookkeepingEntryFormConfiguration {
     /// 是否按"当前余额减去金额"提示余额不足；编辑时原金额已经入账，这个算法不成立。
     let warnsInsufficientBalance: Bool
 
+    /// 日期一行的项目名文案键。
+    var dateLabelKey = "expense.entry.date"
+
+    /// 日期是否只能选今天及以后；周期记账的下一期不能选过去，否则一保存就补记好几笔。
+    var startsFromToday = false
+
     /// 新增一笔记账。
     static let entry = BookkeepingEntryFormConfiguration(
         typeIdentifier: "bookkeeping-entry-type",
@@ -41,13 +47,26 @@ struct BookkeepingEntryFormConfiguration {
         saveSucceededKey: "expense.edit.save_succeeded",
         warnsInsufficientBalance: false
     )
+
+    /// 新建或修改一条周期记账。
+    static let recurring = BookkeepingEntryFormConfiguration(
+        typeIdentifier: "recurring-edit-type",
+        identifierPrefix: "recurring-edit",
+        footnoteKey: "recurring.edit.footnote",
+        saveFailedKey: "recurring.edit.save_failed",
+        saveSucceededKey: "recurring.edit.save_succeeded",
+        warnsInsufficientBalance: false,
+        dateLabelKey: "recurring.edit.next_date",
+        startsFromToday: true
+    )
 }
 
 /// 新增记账与编辑记账共用的票据页面。
 ///
 /// 版式与记账详情的收据一致：上半是分类和金额，一条线之后逐行写备注、账户和日期，
 /// 区别只在于这里的每一项都可以填写。备注决定列表主行，所以紧跟金额，账户和日期多用默认值放在后面。导航标题、取消按钮等入口差异由外层页面负责。
-struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
+/// `Accessory` 是接在日期后面的额外几行，周期记账用它放重复频率和结束日期。
+struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow, Accessory: View>: View {
     @Environment(\.locale) private var locale
     @Query private var accounts: [Account]
     @Query private var categories: [BookkeepingCategory]
@@ -60,6 +79,8 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
     @State private var hasAccountCreationError = false
     /// 截图预览默认收起，优先为金额和分类保留可见空间。
     @State private var isScreenshotExpanded = false
+    /// 正在输入的算式，例如 `28+15`；普通金额时为空。算式的结果实时写入草稿，离开金额框后输入框换成结果。
+    @State private var amountExpression: String?
 
     /// 当前入口的标识与文案配置。
     private let configuration: BookkeepingEntryFormConfiguration
@@ -71,6 +92,8 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
     private let onSaved: @MainActor () -> Void
     /// 首次进入时、决定是否弹出分类面板之前调用，外层可在这里补全草稿。
     private let prepareInitialDraft: @MainActor () -> Void
+    /// 接在日期后面的额外几行。
+    private let accessory: Accessory
 
     /// 创建票据页面。
     ///
@@ -81,13 +104,15 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
     ///   - startsWithCategorySelection: 进入页面后是否先引导选择分类。
     ///   - onSaved: 保存成功后的收尾动作，通常是关闭页面。
     ///   - prepareInitialDraft: 首次进入时补全草稿的动作，例如预选最近分类。
+    ///   - accessory: 接在日期后面的额外几行。
     init(
         flow: Flow,
         configuration: BookkeepingEntryFormConfiguration,
         screenshot: UIImage? = nil,
         startsWithCategorySelection: Bool = false,
         onSaved: @escaping @MainActor () -> Void,
-        prepareInitialDraft: @escaping @MainActor () -> Void = {}
+        prepareInitialDraft: @escaping @MainActor () -> Void = {},
+        @ViewBuilder accessory: () -> Accessory
     ) {
         self.flow = flow
         self.configuration = configuration
@@ -95,6 +120,7 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
         self.startsWithCategorySelection = startsWithCategorySelection
         self.onSaved = onSaved
         self.prepareInitialDraft = prepareInitialDraft
+        self.accessory = accessory()
     }
 
     var body: some View {
@@ -149,6 +175,19 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
+                if focusedField == .amount {
+                    ForEach(AmountExpression.Operator.allCases) { operation in
+                        Button {
+                            appendOperator(operation)
+                        } label: {
+                            Text(verbatim: operation.rawValue)
+                                .font(.title3.weight(.medium))
+                                .frame(minWidth: 32)
+                        }
+                        .accessibilityLabel(text(operation.accessibilityKey))
+                        .accessibilityIdentifier("\(configuration.identifierPrefix)-operator-\(operation.id)")
+                    }
+                }
                 Spacer()
                 Button(text("common.done")) {
                     focusedField = nil
@@ -157,6 +196,12 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
         }
         .task {
             handleInitialPresentationIfNeeded()
+        }
+        // 离开金额框时算式已经算完，输入框换成结果
+        .onChange(of: focusedField) { oldField, newField in
+            if oldField == .amount, newField != .amount {
+                amountExpression = nil
+            }
         }
         .onChange(of: selectedCategoryItem?.isDeleted) { _, isDeleted in
             // 已选分类在分类管理里被删除时：流水迁走了就跟随迁移目标，流水一并删除了就撤销选择，
@@ -187,6 +232,7 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
             accountRow
             fieldRule(seed: 64)
             dateRow
+            accessory
         }
         .padding(.horizontal, 20)
         .padding(.top, 24)
@@ -231,13 +277,8 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
             TextField(
                 text("expense.entry.amount"),
                 text: Binding(
-                    get: { flow.formAmountText },
-                    set: {
-                        flow.updateAmountText(
-                            $0,
-                            decimalSeparator: locale.decimalSeparator ?? "."
-                        )
-                    }
+                    get: { amountExpression ?? flow.formAmountText },
+                    set: { updateAmountInput($0) }
                 ),
                 prompt: Text(verbatim: "0")
             )
@@ -259,7 +300,46 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
                 .stroke(Color.primary.opacity(0.6), style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
                 .frame(height: 3)
                 .accessibilityHidden(true)
+
+            if let amountExpression, let result = AmountExpression.result(of: amountExpression) {
+                Text(verbatim: "= \(result.formatted(.currency(code: "CNY").locale(locale)))")
+                    .font(.system(.callout, design: .serif).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("\(configuration.identifierPrefix)-amount-result")
+            }
         }
+    }
+
+    /// 接收金额框的输入：带运算符时按算式处理，把结果写入草稿；否则走原来的金额规则。
+    ///
+    /// - Parameter input: 输入框当前的文字。
+    private func updateAmountInput(_ input: String) {
+        let decimalSeparator = locale.decimalSeparator ?? "."
+        let canonical = AccountAmountParser.canonicalized(input, decimalSeparator: decimalSeparator)
+        guard AmountExpression.containsOperator(canonical) else {
+            amountExpression = nil
+            flow.updateAmountText(input, decimalSeparator: decimalSeparator)
+            return
+        }
+        guard AmountExpression.isValidInput(canonical) else { return }
+        amountExpression = canonical
+        // 算式还算不出结果（如结果不大于零）时清空金额，保存按钮随之不可用
+        flow.updateAmountText(
+            AmountExpression.result(of: canonical).map(AmountExpression.amountText) ?? "",
+            decimalSeparator: "."
+        )
+    }
+
+    /// 点键盘上方的运算符。
+    ///
+    /// - Parameter operation: 点选的运算符。
+    private func appendOperator(_ operation: AmountExpression.Operator) {
+        guard let appended = AmountExpression.appending(
+            operation,
+            to: amountExpression ?? flow.formAmountText
+        ) else { return }
+        AppHaptics.play(.selection)
+        updateAmountInput(appended)
     }
 
     /// 当前账户及其余额；点击后弹出账户选择框。
@@ -314,9 +394,10 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
                 get: { flow.formTransactionDate },
                 set: flow.updateTransactionDate
             ),
+            in: (configuration.startsFromToday ? Calendar.current.startOfDay(for: .now) : .distantPast)...,
             displayedComponents: .date
         ) {
-            Text(text("expense.entry.date"))
+            Text(text(configuration.dateLabelKey))
                 .foregroundStyle(.secondary)
         }
         .frame(minHeight: 50)
@@ -632,6 +713,36 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
     private enum FocusedField: Hashable {
         case amount
         case note
+    }
+}
+
+extension BookkeepingEntryForm where Accessory == EmptyView {
+    /// 创建没有额外几行的票据页面。
+    ///
+    /// - Parameters:
+    ///   - flow: 外层持有的草稿流程。
+    ///   - configuration: 当前入口的标识与文案配置。
+    ///   - screenshot: 截图入口的参考图片，为空时不展示预览。
+    ///   - startsWithCategorySelection: 进入页面后是否先引导选择分类。
+    ///   - onSaved: 保存成功后的收尾动作，通常是关闭页面。
+    ///   - prepareInitialDraft: 首次进入时补全草稿的动作，例如预选最近分类。
+    init(
+        flow: Flow,
+        configuration: BookkeepingEntryFormConfiguration,
+        screenshot: UIImage? = nil,
+        startsWithCategorySelection: Bool = false,
+        onSaved: @escaping @MainActor () -> Void,
+        prepareInitialDraft: @escaping @MainActor () -> Void = {}
+    ) {
+        self.init(
+            flow: flow,
+            configuration: configuration,
+            screenshot: screenshot,
+            startsWithCategorySelection: startsWithCategorySelection,
+            onSaved: onSaved,
+            prepareInitialDraft: prepareInitialDraft,
+            accessory: { EmptyView() }
+        )
     }
 }
 

@@ -185,6 +185,10 @@ enum SyncRecordApplier {
             if let row = try preference(id: recordID, in: context) {
                 context.delete(row)
             }
+        case .recurringRule:
+            if let rule = try context.recurringRule(id: recordID) {
+                context.delete(rule)
+            }
         }
         if let entry = ledger.removeValue(forKey: key) {
             context.delete(entry)
@@ -224,7 +228,30 @@ enum SyncRecordApplier {
                 recordID: recordID,
                 in: context
             )
+        case .recurringRule:
+            return try upsertRecurringRule(decoder.decode(BackupRecurringRule.self, from: payload), recordID: recordID, in: context)
         }
+    }
+
+    /// 写入周期记账规则；字段按与备份导入相同的规则校验，不要求账户已在本地（可能在同批稍后写入）。
+    private static func upsertRecurringRule(
+        _ dto: BackupRecurringRule,
+        recordID: UUID,
+        in context: ModelContext
+    ) throws -> RecurringRule {
+        guard dto.id == recordID else { throw InvalidRecord() }
+        let validated: RecurringRule
+        do {
+            validated = try dto.validatedRule()
+        } catch is BackupImportError {
+            throw InvalidRecord()
+        }
+        if let rule = try context.recurringRule(id: recordID) {
+            rule.overwrite(with: validated)
+            return rule
+        }
+        context.insert(validated)
+        return validated
     }
 
     /// 写入账户；余额不在同步内容里，新账户先取期初余额，之后由调用方统一重算。
@@ -294,6 +321,7 @@ enum SyncRecordApplier {
         } catch is BackupImportError {
             throw InvalidRecord()
         }
+        validated.recurringRuleID = dto.recurringRuleID
         if let transaction = try context.transaction(id: recordID) {
             transaction.overwrite(with: validated)
             return transaction

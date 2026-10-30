@@ -40,7 +40,7 @@ final class SyncEngine {
     }
 
     /// 当前的同步格式版本；以后新增同步类型时加 1，旧版本客户端升级后会重新全量同步，补回之前忽略的类型。
-    static let currentSchemaVersion = 1
+    static let currentSchemaVersion = 2
 
     /// 本地修改后等待多久再同步，合并连续的保存。
     static let localChangeDebounce: Duration = .seconds(2)
@@ -156,6 +156,11 @@ final class SyncEngine {
     /// 立即同步并等待完成；测试和「立即同步」按钮使用。
     func synchronize() async {
         syncNow()
+        await runTask?.value
+    }
+
+    /// 等待正在进行的一轮同步结束，不发起新的同步；周期记账在生成前用它先拿到其他设备的进度。
+    func waitUntilIdle() async {
         await runTask?.value
     }
 

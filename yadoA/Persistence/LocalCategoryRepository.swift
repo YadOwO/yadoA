@@ -289,12 +289,15 @@ final class LocalCategoryRepository {
             for transaction in transactions {
                 transaction.categoryRawValue = targetKey
             }
+            try context.migrateRecurringRules(categoryKey: key, direction: direction, to: targetKey)
             row.replacementKey = targetKey
         case .delete:
             guard try Self.inactiveAccountTransactions(in: transactions, context: context).isEmpty else {
                 throw CategoryRepositoryError.transactionsInInactiveAccounts
             }
             try LocalExpenseRepository.deleteTransactionsReversingBalances(transactions, in: context)
+            // 流水可以随分类删除，但周期记账规则还要继续记账，迁到「其他」
+            try context.migrateRecurringRules(categoryKey: key, direction: direction, to: BookkeepingCategoryKey.other)
             row.replacementKey = nil
         }
         row.deletedAt = now

@@ -608,6 +608,7 @@ struct BookkeepingSearchPresentation {
             accountState: accountState,
             note: note,
             accessibilityLabel: spokenParts.joined(separator: ", "),
+            isRecurring: transaction.recurringRuleID != nil,
             canEdit: accountState == .active
                 && account?.supportsBookkeeping == true
                 && account?.currencyCode == "CNY"
@@ -824,6 +825,9 @@ struct BookkeepingTransactionDetailPresentation: Equatable {
 
     /// 包含详情字段和账户状态的播报文本。
     let accessibilityLabel: String
+
+    /// 是否由周期记账自动记入。
+    let isRecurring: Bool
 
     /// 当前账户是否允许编辑与删除流水。
     let canEdit: Bool

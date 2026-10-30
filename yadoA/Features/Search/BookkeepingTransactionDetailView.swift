@@ -266,6 +266,14 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                     )
                     .accessibilityIdentifier("bookkeeping-detail-account-status")
                 }
+
+                if presentation.isRecurring {
+                    LedgerField(
+                        title: AccountLocalization.string("bookkeeping.search.detail.source", locale: locale),
+                        value: AccountLocalization.string("bookkeeping.search.detail.source.recurring", locale: locale)
+                    )
+                    .accessibilityIdentifier("bookkeeping-detail-recurring")
+                }
             }
         }
         .padding(.horizontal, 20)

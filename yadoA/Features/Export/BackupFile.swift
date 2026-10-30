@@ -46,6 +46,9 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
     /// 全部分类设置，包含预置分类的排序、自定义分类以及删除墓碑。
     let categories: [BackupCategory]
 
+    /// 全部周期记账规则，包含已暂停和已结束的。
+    let recurringRules: [BackupRecurringRule]
+
     /// 从完整业务快照构造备份信封。
     init(
         formatVersion: Int = BackupFormatVersion.current,
@@ -55,7 +58,8 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
         accounts: [BackupAccount],
         transactions: [BackupTransaction],
         bookkeepingPreference: BackupBookkeepingPreference?,
-        categories: [BackupCategory] = []
+        categories: [BackupCategory] = [],
+        recurringRules: [BackupRecurringRule] = []
     ) {
         self.formatVersion = formatVersion
         self.exportedAt = exportedAt
@@ -65,6 +69,7 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
         self.transactions = transactions
         self.bookkeepingPreference = bookkeepingPreference
         self.categories = categories
+        self.recurringRules = recurringRules
     }
 
     /// 从备份 JSON 解码信封。
@@ -84,6 +89,7 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
             forKey: .bookkeepingPreference
         )
         categories = try container.decodeIfPresent([BackupCategory].self, forKey: .categories) ?? []
+        recurringRules = try container.decodeIfPresent([BackupRecurringRule].self, forKey: .recurringRules) ?? []
     }
 }
 
@@ -259,6 +265,9 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
     /// 流水首次保存时间，用于同业务日内排序。
     let savedAt: Date
 
+    /// 生成这笔流水的周期记账规则；手动记的流水为 `nil`。
+    let recurringRuleID: UUID?
+
     /// 从持久化流水生成值快照。
     init(_ transaction: AccountTransaction) {
         id = transaction.id
@@ -274,10 +283,12 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         transactionDay = transaction.transactionDay
         note = transaction.note
         savedAt = transaction.savedAt
+        recurringRuleID = transaction.recurringRuleID
     }
 
     /// 编码流水快照；所有字段都写入，`nil` 可选值以 JSON `null` 保留。
     ///
+    /// 只有后来新增的 `recurringRuleID` 在为空时省略：手动记的流水内容哈希不变，升级后不会被当成修改重新上传。
     /// UUID 显式使用小写连字符字符串，避免依赖 Foundation 默认编码的大小写。
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
@@ -294,6 +305,7 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         try container.encode(transactionDay, forKey: .transactionDay)
         try container.encode(note, forKey: .note)
         try container.encode(savedAt, forKey: .savedAt)
+        try container.encodeIfPresent(recurringRuleID?.backupJSONString, forKey: .recurringRuleID)
     }
 
     /// 成员逐一初始化，供测试构造精确夹具。
@@ -310,7 +322,8 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         currencyCode: String,
         transactionDay: Int,
         note: String?,
-        savedAt: Date
+        savedAt: Date,
+        recurringRuleID: UUID? = nil
     ) {
         self.id = id
         self.accountID = accountID
@@ -325,6 +338,7 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         self.transactionDay = transactionDay
         self.note = note
         self.savedAt = savedAt
+        self.recurringRuleID = recurringRuleID
     }
 
     /// 从备份 JSON 解码流水快照。
@@ -345,6 +359,119 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         transactionDay = try container.decodeIfPresent(Int.self, forKey: .transactionDay) ?? 0
         note = try container.decodeIfPresent(String.self, forKey: .note)
         savedAt = try container.decodeIfPresent(Date.self, forKey: .savedAt) ?? .distantPast
+        recurringRuleID = try container.decodeIfPresent(UUID.self, forKey: .recurringRuleID)
+    }
+}
+
+/// 备份中的周期记账规则快照；字段与 `RecurringRule` 的持久化列一一镜像。云端同步也用它作为内容格式。
+nonisolated struct BackupRecurringRule: Codable, Equatable, Sendable {
+    /// 规则的稳定标识；不得重新生成，每期流水的标识由它计算。
+    let id: UUID
+
+    /// `BookkeepingEntryType.rawValue`。
+    let entryType: String
+
+    /// 记入账户的 UUID；账户可能已被删除，由展示层提示。
+    let accountID: UUID
+
+    /// 收支分类 key。
+    let categoryKey: String
+
+    /// 每期金额的字符串表达（`Decimal.description`）。
+    let amount: String
+
+    /// 可选备注。
+    let note: String?
+
+    /// `RecurringFrequency.rawValue`；未来新增的频率原样保留，不认识的规则不生成。
+    let frequency: String
+
+    /// 排期起始日的 `YYYYMMDD`。
+    let anchorDay: Int
+
+    /// 下一期的 `YYYYMMDD`。
+    let nextDueDay: Int
+
+    /// 结束日期的 `YYYYMMDD`；为 `nil` 表示一直重复。
+    let endDay: Int?
+
+    /// 暂停时间；为 `nil` 表示正常生成。
+    let pausedAt: Date?
+
+    /// 规则创建时间。
+    let createdAt: Date
+
+    /// 最近一次修改时间。
+    let updatedAt: Date
+
+    /// 从持久化规则生成值快照。
+    init(_ rule: RecurringRule) {
+        id = rule.id
+        entryType = rule.entryTypeRawValue
+        accountID = rule.accountID
+        categoryKey = rule.categoryKey
+        amount = rule.amount.description
+        note = rule.note
+        frequency = rule.frequencyRawValue
+        anchorDay = rule.anchorDay
+        nextDueDay = rule.nextDueDay
+        endDay = rule.endDay
+        pausedAt = rule.pausedAt
+        createdAt = rule.createdAt
+        updatedAt = rule.updatedAt
+    }
+
+    /// 编码规则快照；所有字段都写入，`nil` 可选值以 JSON `null` 保留。
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id.backupJSONString, forKey: .id)
+        try container.encode(entryType, forKey: .entryType)
+        try container.encode(accountID.backupJSONString, forKey: .accountID)
+        try container.encode(categoryKey, forKey: .categoryKey)
+        try container.encode(amount, forKey: .amount)
+        try container.encode(note, forKey: .note)
+        try container.encode(frequency, forKey: .frequency)
+        try container.encode(anchorDay, forKey: .anchorDay)
+        try container.encode(nextDueDay, forKey: .nextDueDay)
+        try container.encode(endDay, forKey: .endDay)
+        try container.encode(pausedAt, forKey: .pausedAt)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(updatedAt, forKey: .updatedAt)
+    }
+
+    /// 从备份 JSON 解码规则快照；身份字段严格解码，其余字段缺省时使用安全默认值，由校验拦下。
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        entryType = try container.decodeIfPresent(String.self, forKey: .entryType) ?? ""
+        accountID = try container.decode(UUID.self, forKey: .accountID)
+        categoryKey = try container.decodeIfPresent(String.self, forKey: .categoryKey) ?? ""
+        amount = try container.decodeIfPresent(String.self, forKey: .amount) ?? ""
+        note = try container.decodeIfPresent(String.self, forKey: .note)
+        frequency = try container.decodeIfPresent(String.self, forKey: .frequency) ?? ""
+        anchorDay = try container.decodeIfPresent(Int.self, forKey: .anchorDay) ?? 0
+        nextDueDay = try container.decodeIfPresent(Int.self, forKey: .nextDueDay) ?? 0
+        endDay = try container.decodeIfPresent(Int.self, forKey: .endDay)
+        pausedAt = try container.decodeIfPresent(Date.self, forKey: .pausedAt)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? .distantPast
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
+    }
+
+    /// 稳定 JSON 键名。
+    enum CodingKeys: String, CodingKey {
+        case id
+        case entryType
+        case accountID
+        case categoryKey
+        case amount
+        case note
+        case frequency
+        case anchorDay
+        case nextDueDay
+        case endDay
+        case pausedAt
+        case createdAt
+        case updatedAt
     }
 }
 
@@ -486,6 +613,7 @@ extension BackupFile {
         case transactions
         case bookkeepingPreference
         case categories
+        case recurringRules
     }
 }
 
@@ -523,6 +651,7 @@ extension BackupTransaction {
         case transactionDay
         case note
         case savedAt
+        case recurringRuleID
     }
 }
 

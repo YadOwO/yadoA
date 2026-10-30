@@ -193,6 +193,9 @@ final class AccountTransaction {
     /// 流水首次成功保存的时间，用于同一业务日内排序。
     var savedAt: Date
 
+    /// 生成这笔流水的周期记账规则；手动记的流水为 `nil`。规则删除后仍保留原值，只作来源标记。
+    var recurringRuleID: UUID?
+
     /// 已知持久化值对应的账户流水类型；未知或损坏值返回 `nil`。
     var transactionType: AccountTransactionType? {
         AccountTransactionType(rawValue: typeRawValue)

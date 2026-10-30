@@ -165,6 +165,19 @@ final class BackupImportService {
             }
             staleCategories.values.forEach(context.delete)
 
+            var staleRules = Dictionary(
+                try context.fetch(FetchDescriptor<RecurringRule>()).map { ($0.id, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            for rule in records.recurringRules {
+                if let existing = staleRules.removeValue(forKey: rule.id) {
+                    existing.overwrite(with: rule)
+                } else {
+                    context.insert(rule)
+                }
+            }
+            staleRules.values.forEach(context.delete)
+
             try restorePreference(plan.backup.bookkeepingPreference, in: context)
             try context.saveOrRollback(beforeSave: beforeSave)
         } catch {
@@ -220,6 +233,9 @@ extension BackupImportService {
 
         /// 备份中的分类设置，备份缺少的预置分类以默认值补齐。
         let categories: [BookkeepingCategory]
+
+        /// 备份中的周期记账规则。
+        let recurringRules: [RecurringRule]
     }
 
     /// 校验整份备份并转换为持久化模型；任何一条记录不合法都整体失败。
@@ -299,14 +315,25 @@ extension BackupImportService {
                !availableKeys.contains("\(reference.direction.rawValue).\(reference.key)") {
                 throw BackupImportError.invalidContent
             }
+            record.recurringRuleID = transaction.recurringRuleID
             return record
+        }
+        var recurringRuleIDs = Set<UUID>()
+        let recurringRules = try backup.recurringRules.map { rule in
+            guard recurringRuleIDs.insert(rule.id).inserted else { throw BackupImportError.invalidContent }
+            return try rule.validatedRule()
         }
         try reconcileBalances(
             of: accounts,
             withOpeningBalanceFrom: backup.accounts,
             transactions: transactions
         )
-        return ValidatedRecords(accounts: accounts, transactions: transactions, categories: categories)
+        return ValidatedRecords(
+            accounts: accounts,
+            transactions: transactions,
+            categories: categories,
+            recurringRules: recurringRules
+        )
     }
 
     /// 让账户余额与「期初余额 + 流水」一致，不采用文件里的余额缓存。
@@ -470,5 +497,43 @@ extension AccountTransaction {
         transactionDay = other.transactionDay
         note = other.note
         savedAt = other.savedAt
+        recurringRuleID = other.recurringRuleID
+    }
+}
+
+extension BackupRecurringRule {
+    /// 校验并转换为尚未插入 context 的规则；恢复备份和应用同步记录共用。
+    ///
+    /// 不要求账户或分类当前可用：账户删除、分类迁移后规则仍可能短暂引用它们，展示层会提示，生成时会跳过。
+    ///
+    /// - Returns: 已校验的规则。
+    /// - Throws: 方向、分类格式、金额或日期不合法时抛出 `BackupImportError.invalidContent`。
+    @MainActor
+    func validatedRule() throws -> RecurringRule {
+        guard let direction = BookkeepingEntryType(rawValue: entryType),
+              BookkeepingCategoryKey.isValid(categoryKey, direction: direction),
+              let amount = BackupImportService.decimal(from: amount),
+              amount > 0,
+              AccountAmountParser.hasCNYPrecision(amount),
+              !frequency.isEmpty,
+              TransactionDay.isValid(anchorDay),
+              TransactionDay.isValid(nextDueDay),
+              endDay.map(TransactionDay.isValid) ?? true
+        else { throw BackupImportError.invalidContent }
+        return RecurringRule(
+            id: id,
+            entryTypeRawValue: entryType,
+            accountID: accountID,
+            categoryKey: categoryKey,
+            amount: amount,
+            note: note,
+            frequencyRawValue: frequency,
+            anchorDay: anchorDay,
+            nextDueDay: nextDueDay,
+            endDay: endDay,
+            pausedAt: pausedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
     }
 }

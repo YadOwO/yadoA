@@ -266,7 +266,7 @@ final class LocalExpenseRepository {
     }
 
     /// 最终写入前重新校验账户，避免编辑期间停用、删除或类型变化绕过限制。
-    private static func bookkeepingAccount(id: UUID, in context: ModelContext) throws -> (Account, AccountType) {
+    static func bookkeepingAccount(id: UUID, in context: ModelContext) throws -> (Account, AccountType) {
         guard let account = try context.account(id: id) else {
             throw ExpenseRepositoryError.accountNotFound(id)
         }

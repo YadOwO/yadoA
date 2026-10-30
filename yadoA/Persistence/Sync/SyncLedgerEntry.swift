@@ -14,6 +14,9 @@ nonisolated enum SyncEntityType: String, CaseIterable, Sendable {
 
     /// 默认记账账户偏好（`BookkeepingPreference` 单例）。
     case preference
+
+    /// 周期记账规则（`RecurringRule`）。
+    case recurringRule = "recurring_rule"
 }
 
 /// 本地同步台账：每条参与同步的业务记录对应一行，记录冲突裁决和上传所需的元数据。

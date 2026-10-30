@@ -111,6 +111,9 @@ enum ProfileRoute: Hashable {
     /// 分类管理页面。
     case categories
 
+    /// 周期记账页面。
+    case recurringRules
+
     /// 云端同步页面。
     case sync
 
@@ -140,6 +143,8 @@ enum ProfileRoute: Hashable {
             BillView()
         case .categories:
             CategoryManagementView()
+        case .recurringRules:
+            RecurringRuleListView()
         case .sync:
             SyncSettingsView()
         case .aiPoints:

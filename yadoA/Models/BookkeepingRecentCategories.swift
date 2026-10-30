@@ -3,7 +3,8 @@ import SwiftData
 
 /// 两个收支方向最近一笔流水用的分类，新建记账时据此预选，不用每次都从分类面板选。
 ///
-/// 直接从流水推导、不单独存储：语音记的账、同步下来的账和恢复的备份都算数，换设备也不会丢。
+/// 直接从流水推导、不单独存储：语音记的账、同步下来的账和恢复的备份都算数，换设备也不会丢；
+/// 周期记账自动记入的不算，否则每次自动记完房租，下一笔手动记账都会预选房租。
 struct BookkeepingRecentCategories: Equatable, Sendable {
     /// 最近一笔支出的分类 key；没有支出或该分类已不可用时为 `nil`。
     let expenseKey: String?
@@ -43,7 +44,7 @@ struct BookkeepingRecentCategories: Equatable, Sendable {
         let typeRawValue = type.rawValue
         var descriptor = FetchDescriptor<AccountTransaction>(
             predicate: #Predicate<AccountTransaction> { transaction in
-                transaction.typeRawValue == typeRawValue
+                transaction.typeRawValue == typeRawValue && transaction.recurringRuleID == nil
             },
             sortBy: [SortDescriptor(\.savedAt, order: .reverse)]
         )

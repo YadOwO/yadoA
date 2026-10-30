@@ -238,6 +238,7 @@ final class SyncStore {
         models += try context.fetch(FetchDescriptor<AccountTransaction>()) as [any PersistentModel]
         models += try context.fetch(FetchDescriptor<BookkeepingCategory>()) as [any PersistentModel]
         models += try context.fetch(FetchDescriptor<BookkeepingPreference>()) as [any PersistentModel]
+        models += try context.fetch(FetchDescriptor<RecurringRule>()) as [any PersistentModel]
         var registeredCount = 0
         for model in models {
             guard let record = try SyncPayloadCoder.record(for: model) else { continue }
@@ -293,6 +294,7 @@ final class SyncStore {
             where transaction.typeRawValue == typeRawValue && transaction.categoryRawValue == migration.key {
                 transaction.categoryRawValue = target
             }
+            try context.migrateRecurringRules(categoryKey: migration.key, direction: migration.direction, to: target)
         }
         if context.hasChanges {
             try context.saveOrRollback()
@@ -326,6 +328,8 @@ final class SyncStore {
             )
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first
+        case .recurringRule:
+            return try context.recurringRule(id: id)
         }
     }
 }

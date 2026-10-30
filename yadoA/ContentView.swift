@@ -42,6 +42,8 @@ struct ContentView: View {
                 )
                 .frame(width: 0, height: 0)
             }
+            // 放在 syncEngineHost 里面，才能读到它注入的同步引擎
+            .bookkeepingLifecycleHost()
             .signInPageHost()
             .syncEngineHost()
             .environment(signInPresentation)

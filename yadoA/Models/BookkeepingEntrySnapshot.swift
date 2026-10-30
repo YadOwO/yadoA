@@ -29,6 +29,9 @@ struct BookkeepingEntrySnapshot: Equatable, Sendable {
     /// 首次保存时间，用于同日排序；还原时保持不变，流水回到原来的位置。
     var savedAt: Date
 
+    /// 生成这笔流水的周期记账规则；手动记的流水为 `nil`。撤销语音删除时要原样还原来源。
+    var recurringRuleID: UUID?
+
     /// 成员逐一初始化。
     init(
         id: UUID,
@@ -38,7 +41,8 @@ struct BookkeepingEntrySnapshot: Equatable, Sendable {
         amount: Decimal,
         transactionDay: Int,
         note: String? = nil,
-        savedAt: Date
+        savedAt: Date,
+        recurringRuleID: UUID? = nil
     ) {
         self.id = id
         self.accountID = accountID
@@ -48,6 +52,7 @@ struct BookkeepingEntrySnapshot: Equatable, Sendable {
         self.transactionDay = transactionDay
         self.note = note
         self.savedAt = savedAt
+        self.recurringRuleID = recurringRuleID
     }
 
     /// 从合法的收入或支出流水生成快照；余额调整、非 CNY 或损坏数据返回 `nil`。
@@ -67,7 +72,8 @@ struct BookkeepingEntrySnapshot: Equatable, Sendable {
             amount: entry.amount,
             transactionDay: transaction.transactionDay,
             note: transaction.note,
-            savedAt: transaction.savedAt
+            savedAt: transaction.savedAt,
+            recurringRuleID: transaction.recurringRuleID
         )
     }
 
@@ -76,7 +82,7 @@ struct BookkeepingEntrySnapshot: Equatable, Sendable {
     /// - Returns: 已校验金额、日期、分类 key 格式并清理备注的流水。
     /// - Throws: 字段不符合持久化约束时抛出 `AccountTransactionValidationError`。
     func validatedTransaction() throws -> AccountTransaction {
-        switch entryType {
+        let transaction = switch entryType {
         case .expense:
             try AccountTransaction.validatingExpense(
                 id: id, accountID: accountID, categoryKey: categoryKey, amount: amount,
@@ -88,6 +94,8 @@ struct BookkeepingEntrySnapshot: Equatable, Sendable {
                 transactionDay: transactionDay, note: note ?? "", savedAt: savedAt
             )
         }
+        transaction.recurringRuleID = recurringRuleID
+        return transaction
     }
 }
 

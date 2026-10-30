@@ -46,6 +46,8 @@ enum SyncPayloadCoder {
             (.category, category.id)
         case let preference as BookkeepingPreference:
             (.preference, preference.id)
+        case let rule as RecurringRule:
+            (.recurringRule, rule.id)
         default:
             nil
         }
@@ -70,6 +72,8 @@ enum SyncPayloadCoder {
                 id: preference.id,
                 dto: BackupBookkeepingPreference(defaultAccountID: preference.defaultAccountID)
             )
+        case let rule as RecurringRule:
+            return try makeRecord(.recurringRule, id: rule.id, dto: BackupRecurringRule(rule))
         default:
             return nil
         }
