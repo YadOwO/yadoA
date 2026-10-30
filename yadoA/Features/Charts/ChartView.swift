@@ -190,6 +190,8 @@ private struct ChartEmptyState: View {
             }
             .accessibilityIdentifier("chart-empty-add")
         }
+        // 先声明为容器，空状态的标识才不会覆盖内部「记一笔」按钮的标识。
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chart-empty")
     }
 }

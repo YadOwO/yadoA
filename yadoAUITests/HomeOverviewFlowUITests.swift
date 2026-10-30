@@ -48,11 +48,13 @@ final class HomeOverviewFlowUITests: XCTestCase {
         wait(for: [changed], timeout: 2)
     }
 
-    /// List 的辅助功能边框包含底部安全区，手势只能从麦克风按钮上方的可见明细区域开始。
+    /// List 的辅助功能边框延伸到顶部汇总栏下面，也包含底部安全区；
+    /// 手势只能从汇总栏下方、麦克风按钮上方的可见明细区域开始，按在汇总栏上拖不动列表。
     @MainActor
     private func listCoordinate(in app: XCUIApplication, list: XCUIElement, fraction: CGFloat) -> XCUICoordinate {
         let frame = list.frame
-        let top = frame.minY + 12
+        let header = app.otherElements["home-fixed-header"].firstMatch
+        let top = max(frame.minY, header.exists ? header.frame.maxY : frame.minY) + 12
         let bottom = min(frame.maxY, app.buttons["voice-mic"].frame.minY - 20)
         return list.coordinate(withNormalizedOffset: .zero).withOffset(
             CGVector(dx: frame.width * 0.5, dy: top - frame.minY + (bottom - top) * fraction)

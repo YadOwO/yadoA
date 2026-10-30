@@ -1210,6 +1210,8 @@ private struct HomeEmptyState: View {
                 locale: locale
             ))
         }
+        // 先声明为容器，标识才落在整个空状态上，而不是被下发给内部文字。
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("home-details-empty")
     }
 }

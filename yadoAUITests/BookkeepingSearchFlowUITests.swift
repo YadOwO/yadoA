@@ -41,7 +41,7 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
     func testNoResultsCanClearDateFilterWithoutClearingQuery() throws {
         let app = launchBookkeepingSearchFixtureInEnglish()
         openSearch(in: app)
-        app.buttons["bookkeeping-search-filter"].tap()
+        dateFilterButton(in: app).tap()
         app.buttons["bookkeeping-search-filter-confirm"].tap()
         let searchField = app.searchFields.firstMatch
         searchField.tap()
@@ -84,23 +84,22 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
     func testTimeFilterCanCancelAndApplyClosedRange() throws {
         let app = launchBookkeepingSearchFixtureInEnglish()
         openSearch(in: app)
-        app.buttons["bookkeeping-search-filter"].tap()
+        dateFilterButton(in: app).tap()
 
         XCTAssertTrue(app.navigationBars["Date Filter"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["bookkeeping-search-filter-confirm"].exists)
         XCTAssertTrue(app.buttons["bookkeeping-search-filter-cancel"].exists)
         app.buttons["bookkeeping-search-filter-cancel"].tap()
 
-        let filterButton = app.buttons["bookkeeping-search-filter"]
-        XCTAssertTrue(filterButton.waitForExistence(timeout: 2))
+        let filterButton = dateFilterButton(in: app)
         XCTAssertEqual(filterButton.value as? String, "Any time")
-        app.buttons["bookkeeping-search-filter"].tap()
+        filterButton.tap()
         XCTAssertTrue(app.datePickers["bookkeeping-search-filter-start"].exists)
         XCTAssertTrue(app.datePickers["bookkeeping-search-filter-end"].exists)
         app.buttons["bookkeeping-search-filter-confirm"].tap()
 
         XCTAssertNotEqual(app.buttons["bookkeeping-search-filter"].value as? String, "Any time")
-        app.buttons["bookkeeping-search-filter"].tap()
+        dateFilterButton(in: app).tap()
         app.buttons["bookkeeping-search-filter-clear"].tap()
         XCTAssertTrue(app.staticTexts["Recent categories"].waitForExistence(timeout: 3))
         XCTAssertEqual(app.buttons["bookkeeping-search-filter"].value as? String, "Any time")
@@ -224,6 +223,16 @@ final class BookkeepingSearchFlowUITests: XCTestCase {
                 NSPredicate(format: "identifier BEGINSWITH 'bookkeeping-search-result-'")
             ).firstMatch.waitForExistence(timeout: 3)
         )
+    }
+
+    /// 「按日期筛选」排在横向筛选条末尾，窄屏上要先把筛选条左滑到它可点击。
+    @MainActor
+    private func dateFilterButton(in app: XCUIApplication) -> XCUIElement {
+        let button = app.buttons["bookkeeping-search-filter"]
+        XCTAssertTrue(button.waitForExistence(timeout: 3))
+        let bar = app.descendants(matching: .any).matching(identifier: "bookkeeping-search-filter-bar").firstMatch
+        XCTAssertTrue(scroll(to: button, in: bar, by: { $0.swipeLeft() }, maxSwipes: 3))
+        return button
     }
 
     @MainActor

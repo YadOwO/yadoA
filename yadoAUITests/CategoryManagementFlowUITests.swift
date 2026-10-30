@@ -32,7 +32,12 @@ final class CategoryManagementFlowUITests: XCTestCase {
         XCTAssertTrue(save.waitForExistence(timeout: 3))
         XCTAssertTrue(save.isEnabled)
         save.tap()
-        XCTAssertTrue(app.staticTexts["Coffee"].waitForExistence(timeout: 3))
+        XCTAssertTrue(name.waitForNonExistence(timeout: 3))
+        // 新分类追加在列表末尾，预置分类较多时在首屏之外，需要先滚下去。
+        let createdRow = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'category-row-custom.' AND label CONTAINS 'Coffee'")
+        ).firstMatch
+        XCTAssertTrue(scroll(to: createdRow, in: app.collectionViews.firstMatch, by: { $0.swipeUp() }))
 
         app.navigationBars.buttons.element(boundBy: 0).tap()
         app.tabBars.buttons.element(boundBy: 0).tap()
@@ -67,18 +72,18 @@ final class CategoryManagementFlowUITests: XCTestCase {
         let app = launchHomeFixtureInEnglish()
         openCategoryManagement(in: app)
 
-        // 预置分类不可编辑，行不是按钮。
-        let pets = app.descendants(matching: .any)["category-row-pets"]
-        XCTAssertTrue(pets.waitForExistence(timeout: 3))
-        XCTAssertFalse(app.buttons["category-row-pets"].exists, "预置分类不应进入编辑页")
-        pets.swipeLeft()
+        // 预置分类不可编辑，行不是按钮；「购物」排在第二位且夹具里没有流水，始终在首屏内。
+        let shopping = app.descendants(matching: .any)["category-row-shopping"]
+        XCTAssertTrue(shopping.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["category-row-shopping"].exists, "预置分类不应进入编辑页")
+        shopping.swipeLeft()
         XCTAssertFalse(app.buttons["Hide"].exists, "不再提供隐藏")
         app.buttons["Delete"].tap()
 
         let confirm = app.buttons["Delete"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
         confirm.tap()
-        XCTAssertTrue(pets.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(shopping.waitForNonExistence(timeout: 3))
     }
 
     /// 左滑点「删除」后在确认框取消，分类仍留在列表里。
@@ -87,16 +92,16 @@ final class CategoryManagementFlowUITests: XCTestCase {
         let app = launchHomeFixtureInEnglish()
         openCategoryManagement(in: app)
 
-        let pets = app.descendants(matching: .any)["category-row-pets"]
-        XCTAssertTrue(pets.waitForExistence(timeout: 3))
-        pets.swipeLeft()
+        let shopping = app.descendants(matching: .any)["category-row-shopping"]
+        XCTAssertTrue(shopping.waitForExistence(timeout: 3))
+        shopping.swipeLeft()
         app.buttons["Delete"].tap()
 
         let cancel = app.buttons["Cancel"]
         XCTAssertTrue(cancel.waitForExistence(timeout: 3))
         cancel.tap()
         XCTAssertTrue(cancel.waitForNonExistence(timeout: 3))
-        XCTAssertTrue(pets.exists, "取消确认后分类不应从列表消失")
+        XCTAssertTrue(shopping.exists, "取消确认后分类不应从列表消失")
     }
 
     /// 有流水的分类：删除页默认迁移，可改为一并删除流水，再确认一次后删除。
@@ -113,10 +118,14 @@ final class CategoryManagementFlowUITests: XCTestCase {
         let migrate = app.buttons["category-delete-option-migrate"]
         XCTAssertTrue(migrate.waitForExistence(timeout: 3))
         XCTAssertTrue(migrate.isSelected, "默认迁移流水")
-        XCTAssertTrue(app.buttons["category-migration-target-other"].exists)
+        // 删除页是半屏弹层，「其他」排在目标列表末尾不在可视区，只确认迁移目标分组出现即可。
+        let migrationTarget = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'category-migration-target-'")
+        ).firstMatch
+        XCTAssertTrue(migrationTarget.exists)
 
         app.buttons["category-delete-option-delete"].tap()
-        XCTAssertTrue(app.buttons["category-migration-target-other"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(migrationTarget.waitForNonExistence(timeout: 3))
         app.buttons["category-delete-confirm"].tap()
 
         let confirm = app.buttons["Delete"]

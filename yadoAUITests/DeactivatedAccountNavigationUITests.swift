@@ -61,7 +61,8 @@ final class DeactivatedAccountNavigationUITests: XCTestCase {
         account.tap()
 
         XCTAssertTrue(app.navigationBars["Account Details"].waitForExistence(timeout: 3))
-        XCTAssertEqual(app.staticTexts["account-detail-name"].label, "Export archived account")
+        // 信用卡名称不可编辑，界面显示机构模板名（夹具用的是花呗），不显示存储里的自定义名。
+        XCTAssertEqual(app.staticTexts["account-detail-name"].label, "Huabei")
         XCTAssertTrue(app.buttons["account-detail-restore"].exists)
 
         app.navigationBars["Account Details"].buttons.element(boundBy: 0).tap()

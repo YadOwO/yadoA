@@ -105,6 +105,8 @@ struct DefaultAccountSelectionView: View {
             }
             .accessibilityIdentifier("default-account-empty-add")
         }
+        // 先声明为容器，空状态的标识才不会覆盖内部添加按钮的标识。
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("default-account-empty")
     }
 

@@ -75,6 +75,30 @@ extension XCTestCase {
         return app
     }
 
+    /// 在可滚动区域上反复轻扫，直到目标元素进入屏幕、可以点击。
+    ///
+    /// 列表是懒加载的，屏幕外的行可能还不在无障碍树里，所以每次轻扫后都重新判断。
+    /// - Parameters:
+    ///   - element: 要滚进可视区的元素。
+    ///   - container: 承接轻扫手势的滚动区域。
+    ///   - swipe: 每次执行的轻扫，例如 `{ $0.swipeUp() }`。
+    ///   - maxSwipes: 最多轻扫次数，避免目标不存在时无限滚动。
+    /// - Returns: 目标元素最终是否可点击。
+    @MainActor
+    @discardableResult
+    func scroll(
+        to element: XCUIElement,
+        in container: XCUIElement,
+        by swipe: (XCUIElement) -> Void,
+        maxSwipes: Int = 6
+    ) -> Bool {
+        for _ in 0..<maxSwipes {
+            if element.exists && element.isHittable { return true }
+            swipe(container)
+        }
+        return element.exists && element.isHittable
+    }
+
     /// 从默认首页切换到账户 Tab，并等待账户页完成展示。
     @MainActor
     func openAccountsTab(in app: XCUIApplication) {
