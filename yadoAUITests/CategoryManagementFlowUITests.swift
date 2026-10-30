@@ -37,10 +37,17 @@ final class CategoryManagementFlowUITests: XCTestCase {
         let createdRow = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH 'category-row-custom.' AND label CONTAINS 'Coffee'")
         ).firstMatch
-        XCTAssertTrue(scroll(to: createdRow, in: app.collectionViews.firstMatch, by: { $0.swipeUp() }))
+        let list = app.collectionViews.firstMatch
+        XCTAssertTrue(scroll(to: createdRow, in: list, by: { $0.swipeUp() }))
+        // 向下滚动会把 Tab Bar 收起成只剩当前 Tab，滚回顶部让它展开，再按名称切到记账页。
+        list.swipeDown()
+        list.swipeDown()
 
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        app.tabBars.buttons.element(boundBy: 0).tap()
+        let ledgerTab = app.tabBars.buttons["Ledger"]
+        XCTAssertTrue(ledgerTab.waitForExistence(timeout: 3))
+        ledgerTab.tap()
+        XCTAssertTrue(app.navigationBars["Ledger"].waitForExistence(timeout: 3))
         app.buttons["home-add-expense"].tap()
         XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 3))
         let created = app.buttons.matching(
@@ -76,9 +83,9 @@ final class CategoryManagementFlowUITests: XCTestCase {
         let shopping = app.descendants(matching: .any)["category-row-shopping"]
         XCTAssertTrue(shopping.waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["category-row-shopping"].exists, "预置分类不应进入编辑页")
-        shopping.swipeLeft()
+        let deleteAction = revealDeleteAction(on: shopping, in: app)
         XCTAssertFalse(app.buttons["Hide"].exists, "不再提供隐藏")
-        app.buttons["Delete"].tap()
+        deleteAction.tap()
 
         let confirm = app.buttons["Delete"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
@@ -94,8 +101,7 @@ final class CategoryManagementFlowUITests: XCTestCase {
 
         let shopping = app.descendants(matching: .any)["category-row-shopping"]
         XCTAssertTrue(shopping.waitForExistence(timeout: 3))
-        shopping.swipeLeft()
-        app.buttons["Delete"].tap()
+        revealDeleteAction(on: shopping, in: app).tap()
 
         let cancel = app.buttons["Cancel"]
         XCTAssertTrue(cancel.waitForExistence(timeout: 3))
@@ -112,8 +118,7 @@ final class CategoryManagementFlowUITests: XCTestCase {
 
         let dining = app.descendants(matching: .any)["category-row-dining"]
         XCTAssertTrue(dining.waitForExistence(timeout: 3))
-        dining.swipeLeft()
-        app.buttons["Delete"].tap()
+        revealDeleteAction(on: dining, in: app).tap()
 
         let migrate = app.buttons["category-delete-option-migrate"]
         XCTAssertTrue(migrate.waitForExistence(timeout: 3))
@@ -132,6 +137,24 @@ final class CategoryManagementFlowUITests: XCTestCase {
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
         confirm.tap()
         XCTAssertTrue(dining.waitForNonExistence(timeout: 3))
+    }
+
+    /// 左滑分类行，等滑出的「删除」按钮停稳后返回它。
+    ///
+    /// 滑出动画还没结束就点击，点击会被列表吞掉，确认框不会弹出；位置连续两次读取一致才算停稳。
+    @MainActor
+    private func revealDeleteAction(on row: XCUIElement, in app: XCUIApplication) -> XCUIElement {
+        row.swipeLeft()
+        let action = app.buttons["Delete"]
+        XCTAssertTrue(action.waitForExistence(timeout: 3))
+        var frame = action.frame
+        for _ in 0..<10 {
+            Thread.sleep(forTimeInterval: 0.15)
+            let current = action.frame
+            if current == frame { break }
+            frame = current
+        }
+        return action
     }
 
     /// 打开「我的 › 分类管理」。

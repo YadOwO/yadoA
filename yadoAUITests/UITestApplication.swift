@@ -92,11 +92,14 @@ extension XCTestCase {
         by swipe: (XCUIElement) -> Void,
         maxSwipes: Int = 6
     ) -> Bool {
+        let window = XCUIApplication().windows.firstMatch.frame
+        // 完全在屏幕外的元素没有可用的点击点，直接读 isHittable 会报错，先用位置排除。
+        let isVisible = { element.exists && window.contains(element.frame) && element.isHittable }
         for _ in 0..<maxSwipes {
-            if element.exists && element.isHittable { return true }
+            if isVisible() { return true }
             swipe(container)
         }
-        return element.exists && element.isHittable
+        return isVisible()
     }
 
     /// 从默认首页切换到账户 Tab，并等待账户页完成展示。
