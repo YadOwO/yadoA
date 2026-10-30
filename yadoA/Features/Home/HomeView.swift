@@ -11,14 +11,21 @@ struct HomeView: View {
     /// 最多取一条收支，仅用于判断账本是否为空；搜索只覆盖收支，空账本时隐藏搜索入口。
     @Query private var anyBookkeepingEntry: [AccountTransaction]
 
-    init() {
+    /// 长按流水选择“再记一笔”后，带着预填好的草稿进入新增页面。
+    private let onRepeatEntry: (DiningExpenseDraft) -> Void
+
+    /// 创建首页。
+    ///
+    /// - Parameter onRepeatEntry: 选择“再记一笔”后的导航动作。
+    init(onRepeatEntry: @escaping (DiningExpenseDraft) -> Void = { _ in }) {
+        self.onRepeatEntry = onRepeatEntry
         var descriptor = ChartOverviewPresentation.descriptor()
         descriptor.fetchLimit = 1
         _anyBookkeepingEntry = Query(descriptor)
     }
 
     var body: some View {
-        HomeQueryContent(areAmountsVisible: $areAmountsVisible)
+        HomeQueryContent(areAmountsVisible: $areAmountsVisible, onRepeatEntry: onRepeatEntry)
             .navigationTitle(AppTab.home.title(locale: locale))
             // 标题仅供返回按钮和辅助功能使用，导航栏中部由月份入口占据。
             .navigationBarTitleDisplayMode(.inline)
@@ -52,11 +59,14 @@ private struct HomeQueryContent: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.modelContext) private var modelContext
     /// 语音记账共享状态；卡片上点选的流水通过它交给首页定位。
     @Environment(VoiceBookkeepingState.self) private var voice
     @Binding private var areAmountsVisible: Bool
     @Query private var transactions: [AccountTransaction]
     @Query private var categories: [BookkeepingCategory]
+    /// 判断流水所在账户是否还能修改，以及删除确认里显示账户名称。
+    @Query private var accounts: [Account]
 
     /// 当前已提交的月份；首次出现时由投影根据数据初始化。
     @State private var selectedMonth: HomeMonth?
@@ -79,13 +89,31 @@ private struct HomeQueryContent: View {
     /// 最近一批变更要定位到的流水；每批新建一次，同一笔流水再次变更也会重新定位，到期后清除。
     @State private var scrollRequest: HomeScrollRequest?
 
+    /// 等待确认删除的流水行。
+    @State private var deletionCandidate: HomeOverviewRowPresentation?
+
+    /// 是否显示删除确认。
+    @State private var isDeleteConfirmationPresented = false
+
+    /// 最近一次删除是否失败。
+    @State private var isDeleteFailed = false
+
     /// 刚新增、修改或删除成功的流水提示通道。
     private let recentEntryHighlight = HomeRecentEntryHighlight.shared
 
-    init(areAmountsVisible: Binding<Bool>) {
+    /// 选择“再记一笔”后的导航动作。
+    private let onRepeatEntry: (DiningExpenseDraft) -> Void
+
+    init(areAmountsVisible: Binding<Bool>, onRepeatEntry: @escaping (DiningExpenseDraft) -> Void) {
         _areAmountsVisible = areAmountsVisible
+        self.onRepeatEntry = onRepeatEntry
         _transactions = Query(HomeOverviewPresentation.descriptor())
         _categories = Query()
+    }
+
+    /// 存储中的分类设置与预置默认值合并后的目录。
+    private var catalog: BookkeepingCategoryCatalog {
+        BookkeepingCategoryCatalog(categories: categories)
     }
 
     var body: some View {
@@ -93,7 +121,7 @@ private struct HomeQueryContent: View {
             transactions: transactions,
             calendar: environmentCalendar,
             locale: locale,
-            catalog: BookkeepingCategoryCatalog(categories: categories)
+            catalog: catalog
         )
         let activeMonth = selectedMonth ?? presentation.initialMonth
         let monthPresentation = presentation.presentation(for: activeMonth, retaining: deletedRows)
@@ -121,6 +149,19 @@ private struct HomeQueryContent: View {
                     rowMarks: rowMarks,
                     scrollRequest: scrollRequest,
                     bottomClearance: addButtonClearance,
+                    rowActions: HomeRowActions(
+                        editableTransactionIDs: HomeOverviewPresentation.editableTransactionIDs(
+                            transactions: transactions,
+                            accounts: accounts
+                        ),
+                        onRepeat: { transactionID in
+                            repeatEntry(transactionID: transactionID)
+                        },
+                        onDelete: { row in
+                            deletionCandidate = row
+                            isDeleteConfirmationPresented = true
+                        }
+                    ),
                     onSelectMonth: { month in
                         selectedMonth = month
                     }
@@ -183,6 +224,87 @@ private struct HomeQueryContent: View {
                 )
             }
         }
+        .alert(
+            text("bookkeeping.delete.title"),
+            isPresented: $isDeleteConfirmationPresented,
+            presenting: deletionCandidate
+        ) { row in
+            Button(text("bookkeeping.delete.action"), role: .destructive) {
+                delete(row)
+            }
+            Button(text("common.cancel"), role: .cancel) {}
+        } message: { row in
+            Text(String(
+                format: text("bookkeeping.delete.message"),
+                locale: locale,
+                row.title,
+                row.formattedAmount,
+                accountName(forTransaction: row.id)
+            ))
+        }
+        .alert(text("bookkeeping.delete.failed"), isPresented: $isDeleteFailed) {
+            Button(text("common.close"), role: .cancel) {}
+        }
+    }
+}
+
+// MARK: - 流水快捷操作
+
+extension HomeQueryContent {
+    /// 以这笔流水为模板再记一笔：沿用分类、金额、账户和备注，日期改为今天。
+    ///
+    /// - Parameter transactionID: 作为模板的流水 UUID。
+    private func repeatEntry(transactionID: UUID) {
+        guard let transaction = transactions.first(where: { $0.id == transactionID }),
+              let draft = DiningExpenseDraft(
+                  repeating: transaction,
+                  accounts: accounts,
+                  transactionDay: TransactionDay.encode(.now, calendar: environmentCalendar),
+                  catalog: catalog
+              )
+        else { return }
+        onRepeatEntry(draft)
+    }
+
+    /// 确认后删除一笔流水并回滚余额；成功时在原位置划掉，失败时提示。
+    ///
+    /// - Parameter row: 要删除的流水行。
+    private func delete(_ row: HomeOverviewRowPresentation) {
+        // 删除后流水对象即失效，先拷贝首页行快照，供首页在原位置画出被划掉的残影。
+        let deletedRow = transactions.first { $0.id == row.id }.flatMap {
+            HomeOverviewPresentation.deletedRow(
+                for: $0, locale: locale, calendar: environmentCalendar, catalog: catalog
+            )
+        }
+        do {
+            try LocalExpenseRepository(container: modelContext.container).delete(id: row.id)
+            AppHaptics.play(.destructive)
+            if let deletedRow {
+                // 用户正看着这一行，直接就地划掉；不走 `present`，避免列表滚动到这一行
+                show(HomeRecentEntryHighlight.Entry(
+                    id: row.id,
+                    transactionDay: deletedRow.transactionDay,
+                    change: .deleted(deletedRow),
+                    savedAt: .now
+                ))
+            }
+        } catch {
+            AppHaptics.play(.error)
+            isDeleteFailed = true
+        }
+    }
+
+    /// 流水所在账户的名称，用于删除确认；账户不存在时为空。
+    ///
+    /// - Parameter transactionID: 流水 UUID。
+    private func accountName(forTransaction transactionID: UUID) -> String {
+        guard let accountID = transactions.first(where: { $0.id == transactionID })?.accountID else { return "" }
+        return accounts.first { $0.id == accountID }?.name ?? ""
+    }
+
+    /// 按应用当前语言解析 String Catalog 文案。
+    private func text(_ key: String) -> String {
+        AccountLocalization.string(key, locale: locale)
     }
 }
 
@@ -515,6 +637,9 @@ private struct HomeOverviewList: View {
     /// 悬浮记账按钮占用的底部高度，用于列表末尾留白和上拉提示避让。
     let bottomClearance: CGFloat
 
+    /// 流水行的左滑和长按操作。
+    let rowActions: HomeRowActions
+
     /// 月份切换回调。
     let onSelectMonth: (HomeMonth) -> Void
 
@@ -538,7 +663,12 @@ private struct HomeOverviewList: View {
                                 Section {
                                     ForEach(day.rows) { row in
                                         let rowMark = rowMarks.last { $0.transactionID == row.id }
-                                        HomeOverviewRow(row: row, mark: rowMark?.kind, markToken: rowMark?.token)
+                                        HomeOverviewRow(
+                                            row: row,
+                                            mark: rowMark?.kind,
+                                            markToken: rowMark?.token,
+                                            actions: rowActions
+                                        )
                                             .listRowInsets(EdgeInsets(top: 9, leading: 2, bottom: 9, trailing: 2))
                                             // 流水直接写在纸上：不垫卡片，行与行之间是一条手画的账本横线。
                                             .listRowBackground(
@@ -877,7 +1007,19 @@ private enum HomeRowRevisionStep {
     case settled
 }
 
-/// 首页单条只读流水行：整行点开进入详情；纸面样式与变更提示由 `HomeOverviewRowContent` 负责。
+/// 首页流水行的快捷操作。
+private struct HomeRowActions {
+    /// 可以删除的流水；已停用账户下的流水只能查看，但仍可以作为模板再记一笔。
+    let editableTransactionIDs: Set<UUID>
+
+    /// 以这笔流水为模板再记一笔。
+    let onRepeat: (UUID) -> Void
+
+    /// 请求删除这笔流水，确认由首页负责。
+    let onDelete: (HomeOverviewRowPresentation) -> Void
+}
+
+/// 首页单条流水行：整行点开进入详情，左滑删除，长按可再记一笔；纸面样式与变更提示由 `HomeOverviewRowContent` 负责。
 private struct HomeOverviewRow: View {
     @Environment(\.locale) private var locale
 
@@ -890,6 +1032,24 @@ private struct HomeOverviewRow: View {
     /// 当前提示的唯一标识，交给纸面内容从头重播提示。
     let markToken: UUID?
 
+    /// 左滑和长按操作。
+    let actions: HomeRowActions
+
+    /// 这一行是否还对应真实流水；删除残影不再提供任何操作。
+    private var isExisting: Bool {
+        mark != .deleted
+    }
+
+    /// 这一行是否可以删除。
+    private var isDeletable: Bool {
+        isExisting && actions.editableTransactionIDs.contains(row.id)
+    }
+
+    /// 删除操作的标题。
+    private var deleteTitle: String {
+        AccountLocalization.string("bookkeeping.delete.action", locale: locale)
+    }
+
     var body: some View {
         NavigationLink(value: HomeRoute.transactionDetail(row.id)) {
             HomeOverviewRowContent(row: row, mark: mark, markToken: markToken)
@@ -899,6 +1059,37 @@ private struct HomeOverviewRow: View {
         .navigationLinkIndicatorVisibility(.hidden)
         // 残影对应的流水已不存在，不能再进入详情。
         .disabled(mark == .deleted)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if isDeletable {
+                // 不用 destructive 角色：它会让行先消失，而这里还要等确认，取消后行又会闪回来
+                Button {
+                    actions.onDelete(row)
+                } label: {
+                    Label(deleteTitle, systemImage: "trash")
+                }
+                .tint(Color(.ledgerRed))
+            }
+        }
+        .contextMenu {
+            if isExisting {
+                Button {
+                    actions.onRepeat(row.id)
+                } label: {
+                    Label(
+                        AccountLocalization.string("home.transaction.repeat", locale: locale),
+                        systemImage: "plus.square.on.square"
+                    )
+                }
+                .accessibilityIdentifier("home-transaction-repeat")
+            }
+            if isDeletable {
+                Button(role: .destructive) {
+                    actions.onDelete(row)
+                } label: {
+                    Label(deleteTitle, systemImage: "trash")
+                }
+            }
+        }
         .accessibilityLabel(
             mark == .deleted
                 ? AccountLocalization.formatted("home.transaction.deleted", value: row.accessibilityLabel, locale: locale)

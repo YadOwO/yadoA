@@ -6305,6 +6305,24 @@
         }
       }
     },
+    "home.transaction.repeat" : {
+      "comment" : "Long-press menu action that opens a new entry prefilled from this transaction.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record Again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再记一笔"
+          }
+        }
+      }
+    },
     "home.transaction.deleted" : {
       "extractionState" : "manual",
       "localizations" : {

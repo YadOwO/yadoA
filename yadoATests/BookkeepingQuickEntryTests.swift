@@ -130,6 +130,92 @@ struct BookkeepingQuickEntryTests {
         #expect(flow.selectedCategoryKey == "shopping")
     }
 
+    // MARK: - 再记一笔
+
+    @Test("再记一笔沿用分类、金额、账户和备注，换新标识和日期")
+    func repeatDraftCopiesEntry() throws {
+        let account = makeAccount()
+        let source = try AccountTransaction.validatingExpense(
+            id: UUID(), accountID: account.id, category: .travel, amount: Decimal(string: "35.5")!,
+            transactionDay: 20260101, note: "打车"
+        )
+
+        let draft = try #require(DiningExpenseDraft(
+            repeating: source, accounts: [account], transactionDay: 20260930
+        ))
+
+        #expect(draft.id != source.id)
+        #expect(draft.accountID == account.id)
+        #expect(draft.entryType == .expense)
+        #expect(draft.expenseCategoryKey == ExpenseCategory.travel.rawValue)
+        #expect(draft.amount == Decimal(string: "35.5"))
+        #expect(draft.transactionDay == 20260930)
+        #expect(draft.note == "打车")
+    }
+
+    @Test("收入也能再记一笔")
+    func repeatDraftSupportsIncome() throws {
+        let account = makeAccount()
+        let source = try AccountTransaction.validatingIncome(
+            id: UUID(), accountID: account.id, category: .bonus, amount: 100, transactionDay: 20260101
+        )
+
+        let draft = try #require(DiningExpenseDraft(
+            repeating: source, accounts: [account], transactionDay: 20260930
+        ))
+
+        #expect(draft.entryType == .income)
+        #expect(draft.incomeCategoryKey == IncomeCategory.bonus.rawValue)
+    }
+
+    @Test("原账户已停用时不带账户，由记账页面填入默认账户")
+    func repeatDraftDropsUnavailableAccount() throws {
+        let account = makeAccount(deactivatedAt: .now)
+        let source = try AccountTransaction.validatingExpense(
+            id: UUID(), accountID: account.id, category: .dining, amount: 10, transactionDay: 20260101
+        )
+
+        let draft = try #require(DiningExpenseDraft(
+            repeating: source, accounts: [account], transactionDay: 20260930
+        ))
+
+        #expect(draft.accountID == nil)
+    }
+
+    @Test("余额调整不能再记一笔")
+    func repeatDraftRejectsBalanceAdjustment() throws {
+        let account = makeAccount()
+        let source = try AccountTransaction.validatingBalanceAdjustment(
+            id: UUID(), accountID: account.id, balanceBefore: 0, balanceAfter: 5, transactionDay: 20260101
+        )
+
+        #expect(DiningExpenseDraft(repeating: source, accounts: [account], transactionDay: 20260930) == nil)
+    }
+
+    // MARK: - 首页可否删除
+
+    @Test("已停用或已不存在账户下的流水不能从首页删除")
+    func onlyActiveAccountTransactionsAreEditable() throws {
+        let active = makeAccount()
+        let deactivated = makeAccount(deactivatedAt: .now)
+        let editable = try AccountTransaction.validatingExpense(
+            id: UUID(), accountID: active.id, category: .dining, amount: 1, transactionDay: 20260930
+        )
+        let archived = try AccountTransaction.validatingExpense(
+            id: UUID(), accountID: deactivated.id, category: .dining, amount: 1, transactionDay: 20260930
+        )
+        let orphaned = try AccountTransaction.validatingExpense(
+            id: UUID(), accountID: UUID(), category: .dining, amount: 1, transactionDay: 20260930
+        )
+
+        let ids = HomeOverviewPresentation.editableTransactionIDs(
+            transactions: [editable, archived, orphaned],
+            accounts: [active, deactivated]
+        )
+
+        #expect(ids == [editable.id])
+    }
+
     // MARK: - 打字入口
 
     @Test("未登录点打字入口询问是否去登录，不打开输入框")
@@ -159,6 +245,22 @@ struct BookkeepingQuickEntryTests {
             initialAccountID: UUID(),
             now: Date(timeIntervalSince1970: 0),
             saveAction: { _ in }
+        )
+    }
+
+    private func makeAccount(deactivatedAt: Date? = nil) -> Account {
+        Account(
+            id: UUID(),
+            typeRawValue: AccountType.cash.rawValue,
+            templateID: nil,
+            name: "现金",
+            note: nil,
+            lastFourDigits: nil,
+            balance: 0,
+            currencyCode: "CNY",
+            createdAt: .now,
+            updatedAt: .now,
+            deactivatedAt: deactivatedAt
         )
     }
 }

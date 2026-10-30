@@ -18,8 +18,8 @@ enum BookkeepingEntryType: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 }
 
-/// 记账页面生命周期内持有的单份收支草稿。
-struct DiningExpenseDraft: Equatable, Sendable {
+/// 记账页面生命周期内持有的单份收支草稿；可哈希是为了放进导航路由。
+struct DiningExpenseDraft: Hashable, Sendable {
     /// 页面打开时生成且在失败重试期间保持不变的流水 UUID。
     let id: UUID
 
@@ -73,6 +73,34 @@ struct DiningExpenseDraft: Equatable, Sendable {
         self.amountText = amountText
         self.transactionDay = transactionDay
         self.note = note
+    }
+
+    /// 以一笔已有收支为模板创建“再记一笔”的新草稿：沿用方向、分类、金额、账户和备注，日期改为指定日期。
+    ///
+    /// - Parameters:
+    ///   - transaction: 作为模板的流水；不是合法收支时返回 `nil`。
+    ///   - accounts: 当前账户快照；原账户已不能记账时不带账户，由记账页面填入默认账户。
+    ///   - transactionDay: 新草稿的 `YYYYMMDD` 记账日。
+    ///   - catalog: 解析另一方向默认分类使用的分类目录。
+    init?(
+        repeating transaction: AccountTransaction,
+        accounts: [Account],
+        transactionDay: Int,
+        catalog: BookkeepingCategoryCatalog = .presets
+    ) {
+        guard let source = DiningExpenseEditDraft(transaction: transaction, catalog: catalog) else { return nil }
+        let isAccountAvailable = accounts.contains {
+            $0.id == source.accountID && $0.supportsBookkeeping && $0.currencyCode == "CNY"
+        }
+        self.init(
+            accountID: isAccountAvailable ? source.accountID : nil,
+            entryType: source.entryType,
+            expenseCategoryKey: source.expenseCategoryKey,
+            incomeCategoryKey: source.incomeCategoryKey,
+            amountText: source.amountText,
+            transactionDay: transactionDay,
+            note: source.note
+        )
     }
 
     /// 当前收支方向下选择的分类 key。

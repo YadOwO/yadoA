@@ -255,6 +255,26 @@ struct HomeOverviewPresentation {
         FetchDescriptor(sortBy: AccountTransactionOrdering.sortDescriptors)
     }
 
+    /// 当前可以修改或删除的流水，规则与流水详情的 `canEdit` 一致：已停用或已不存在的账户下只能查看。
+    ///
+    /// - Parameters:
+    ///   - transactions: 跨账户查询得到的原始流水。
+    ///   - accounts: 当前账户快照。
+    /// - Returns: 可以修改或删除的流水 UUID。
+    static func editableTransactionIDs(
+        transactions: [AccountTransaction],
+        accounts: [Account]
+    ) -> Set<UUID> {
+        let editableAccountIDs = Set(
+            accounts.filter { $0.supportsBookkeeping && $0.currencyCode == "CNY" }.map(\.id)
+        )
+        return Set(
+            transactions
+                .filter { $0.currencyCode == "CNY" && editableAccountIDs.contains($0.accountID) }
+                .map(\.id)
+        )
+    }
+
     /// 经过校验并按展示顺序保存的首页真实流水。
     private let validTransactions: [ValidatedTransaction]
 

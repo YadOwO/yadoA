@@ -224,4 +224,54 @@ final class HomeOverviewFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["expense-entry-category"].waitForExistence(timeout: 2))
         XCTAssertFalse(app.buttons["expense-entry-save"].isEnabled)
     }
+
+    /// 左滑删除要先确认，取消后流水还在，确认后从列表消失。
+    @MainActor
+    func testSwipeToDeleteAsksForConfirmation() throws {
+        let app = launchHomeFixtureInEnglish()
+        let row = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'home-transaction-'")
+        ).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 3))
+        let identifier = row.identifier
+
+        row.swipeLeft()
+        let delete = app.buttons["Delete Transaction"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 2))
+        delete.tap()
+
+        let alert = app.alerts.firstMatch
+        XCTAssertTrue(alert.waitForExistence(timeout: 2))
+        alert.buttons["Cancel"].tap()
+        XCTAssertTrue(app.buttons[identifier].waitForExistence(timeout: 2))
+
+        app.buttons[identifier].swipeLeft()
+        XCTAssertTrue(delete.waitForExistence(timeout: 2))
+        delete.tap()
+        XCTAssertTrue(alert.waitForExistence(timeout: 2))
+        alert.buttons["Delete Transaction"].tap()
+
+        XCTAssertTrue(app.buttons[identifier].waitForNonExistence(timeout: 4))
+    }
+
+    /// 长按“再记一笔”进入新增页面，金额已预填，不再弹分类面板。
+    @MainActor
+    func testLongPressRepeatsEntryWithPrefilledAmount() throws {
+        let app = launchHomeFixtureInEnglish()
+        let row = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'home-transaction-'")
+        ).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 3))
+
+        row.press(forDuration: 1)
+        let repeatAction = app.buttons["Record Again"]
+        XCTAssertTrue(repeatAction.waitForExistence(timeout: 3))
+        repeatAction.tap()
+
+        let amount = app.textFields["expense-entry-amount"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.navigationBars["Select Category"].exists)
+        XCTAssertEqual(amount.value as? String, "48.71")
+        XCTAssertTrue(app.buttons["expense-entry-save"].isEnabled)
+    }
 }

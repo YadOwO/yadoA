@@ -66,6 +66,9 @@ enum HomeRoute: Hashable {
     /// 新增支出页面。
     case expenseEntry
 
+    /// 从一笔已有流水“再记一笔”：带着预填好的草稿进入新增页面。
+    case repeatEntry(DiningExpenseDraft)
+
     /// 跨账户记账搜索页面；搜索只针对记账流水，因此归在记账页下。
     case search
 
@@ -257,30 +260,41 @@ struct AppTabView: View {
         voice.endSession()
     }
 
+    /// 记账页导航栈里的新增页面，保存到本地账本。
+    ///
+    /// - Parameter draft: 预填好的草稿；为空时新建一笔。
+    private func expenseEntry(draft: DiningExpenseDraft? = nil) -> some View {
+        DiningExpenseEntryView(draft: draft) { draft in
+            let repository = LocalExpenseRepository(
+                container: modelContext.container
+            )
+            try repository.save(draft)
+        }
+    }
+
     /// 各一级 Tab 的根页面及其导航栈。
     @ViewBuilder
     private func content(for tab: AppTab) -> some View {
         switch tab {
         case .home:
             NavigationStack(path: $homePath) {
-                HomeView()
-                    .navigationDestination(for: HomeRoute.self) { route in
-                        switch route {
-                        case .expenseEntry:
-                            DiningExpenseEntryView { draft in
-                                let repository = LocalExpenseRepository(
-                                    container: modelContext.container
-                                )
-                                try repository.save(draft)
-                            }
-                        case .search:
-                            BookkeepingSearchView { transactionID in
-                                homePath.append(.transactionDetail(transactionID))
-                            }
-                        case let .transactionDetail(transactionID):
-                            BookkeepingTransactionDetailView(transactionID: transactionID)
+                HomeView { draft in
+                    homePath.append(.repeatEntry(draft))
+                }
+                .navigationDestination(for: HomeRoute.self) { route in
+                    switch route {
+                    case .expenseEntry:
+                        expenseEntry()
+                    case let .repeatEntry(draft):
+                        expenseEntry(draft: draft)
+                    case .search:
+                        BookkeepingSearchView { transactionID in
+                            homePath.append(.transactionDetail(transactionID))
                         }
+                    case let .transactionDetail(transactionID):
+                        BookkeepingTransactionDetailView(transactionID: transactionID)
                     }
+                }
             }
         case .charts:
             NavigationStack(path: $chartsPath) {
