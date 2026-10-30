@@ -49,6 +49,10 @@ final class CategoryManagementFlowUITests: XCTestCase {
         ledgerTab.tap()
         XCTAssertTrue(app.navigationBars["Ledger"].waitForExistence(timeout: 3))
         app.buttons["home-add-expense"].tap()
+        // 夹具里已有支出，预选了最近分类，不再自动弹面板
+        let entryCategory = app.buttons["expense-entry-category"]
+        XCTAssertTrue(entryCategory.waitForExistence(timeout: 3))
+        entryCategory.tap()
         XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 3))
         let created = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH 'expense-category-custom.'")

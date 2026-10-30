@@ -69,6 +69,8 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
     private let startsWithCategorySelection: Bool
     /// 保存成功并完成反馈后的收尾动作。
     private let onSaved: @MainActor () -> Void
+    /// 首次进入时、决定是否弹出分类面板之前调用，外层可在这里补全草稿。
+    private let prepareInitialDraft: @MainActor () -> Void
 
     /// 创建票据页面。
     ///
@@ -78,18 +80,21 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
     ///   - screenshot: 截图入口的参考图片，为空时不展示预览。
     ///   - startsWithCategorySelection: 进入页面后是否先引导选择分类。
     ///   - onSaved: 保存成功后的收尾动作，通常是关闭页面。
+    ///   - prepareInitialDraft: 首次进入时补全草稿的动作，例如预选最近分类。
     init(
         flow: Flow,
         configuration: BookkeepingEntryFormConfiguration,
         screenshot: UIImage? = nil,
         startsWithCategorySelection: Bool = false,
-        onSaved: @escaping @MainActor () -> Void
+        onSaved: @escaping @MainActor () -> Void,
+        prepareInitialDraft: @escaping @MainActor () -> Void = {}
     ) {
         self.flow = flow
         self.configuration = configuration
         self.screenshot = screenshot
         self.startsWithCategorySelection = startsWithCategorySelection
         self.onSaved = onSaved
+        self.prepareInitialDraft = prepareInitialDraft
     }
 
     var body: some View {
@@ -557,10 +562,12 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow>: View {
         focusedField = .amount
     }
 
-    /// 新增记账首次进入时先要求选择分类；恢复出的草稿已有分类，直接聚焦金额。
+    /// 新增记账首次进入时，没有可用分类就先要求选择；预选了最近分类或恢复出的草稿已有分类时，直接聚焦金额。
     private func handleInitialPresentationIfNeeded() {
         guard !hasHandledInitialPresentation else { return }
         hasHandledInitialPresentation = true
+        // 放在这里而不是外层的 task：父子视图 task 的先后没有保证，必须先补全草稿再判断是否弹出面板
+        prepareInitialDraft()
         guard startsWithCategorySelection else { return }
 
         if hasSelectedCategory {

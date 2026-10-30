@@ -133,22 +133,25 @@ final class HomeOverviewFlowUITests: XCTestCase {
         XCTAssertTrue(app.textViews["expense-edit-note"].exists || app.textFields["expense-edit-note"].exists)
     }
 
+    /// 夹具里已有支出：预选最近分类，不再弹分类面板，点分类区域仍可以换。
     @MainActor
-    func testAddExpenseSelectsCategoryAndShowsItOnHome() throws {
+    func testAddExpensePreselectsRecentCategoryAndCanChangeIt() throws {
         let app = launchHomeFixtureInEnglish()
         XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
         XCTAssertTrue(app.tabBars.firstMatch.isHittable)
         app.buttons["home-add-expense"].tap()
 
-        XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 3))
+        let category = app.buttons["expense-entry-category"]
+        XCTAssertTrue(category.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.navigationBars["Select Category"].exists)
         XCTAssertTrue(app.tabBars.firstMatch.exists, "记账流程是二级页面，保留 Tab Bar")
 
+        category.tap()
+        XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 3))
         let travel = app.buttons["expense-category-travel"]
         XCTAssertTrue(travel.waitForExistence(timeout: 2))
         travel.tap()
-
-        let category = app.buttons["expense-entry-category"]
         XCTAssertTrue(category.waitForExistence(timeout: 2))
 
         app.buttons["expense-entry-account"].tap()
@@ -172,15 +175,15 @@ final class HomeOverviewFlowUITests: XCTestCase {
         XCTAssertEqual(app.tabBars.buttons.count, 4)
     }
 
+    /// 夹具里没有收入：切到收入时还没有最近分类，要先选一个。
     @MainActor
     func testAddIncomeSelectsCategoryAndShowsItOnHome() throws {
         let app = launchHomeFixtureInEnglish()
         XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 3))
         app.buttons["home-add-expense"].tap()
 
-        XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 3))
-        let income = app.buttons["bookkeeping-category-entry-type-income"]
-        XCTAssertTrue(income.waitForExistence(timeout: 2))
+        let income = app.buttons["bookkeeping-entry-type-income"]
+        XCTAssertTrue(income.waitForExistence(timeout: 3))
         income.tap()
 
         XCTAssertTrue(app.navigationBars["Select Income Category"].waitForExistence(timeout: 2))
@@ -208,9 +211,10 @@ final class HomeOverviewFlowUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
     }
 
+    /// 空账本没有最近分类，第一笔仍要先选分类。
     @MainActor
     func testAddExpenseCannotSaveAfterCancellingInitialCategorySelection() throws {
-        let app = launchHomeFixtureInEnglish()
+        let app = launchIsolatedAppInEnglish()
         XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 3))
         app.buttons["home-add-expense"].tap()
 

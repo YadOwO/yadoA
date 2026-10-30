@@ -32,6 +32,9 @@ final class DiningExpenseEntryFlow: ObservableObject {
     /// 区分新草稿的占位分类与用户已经明确确认的分类。
     private var hasConfirmedCategory: Bool
 
+    /// 预选了最近分类的方向；切到这些方向时不用再确认一次分类。
+    private var directionsWithRecentCategory: Set<BookkeepingEntryType> = []
+
     /// 创建一条带稳定 UUID 的支出流程。
     ///
     /// - Parameters:
@@ -143,13 +146,30 @@ final class DiningExpenseEntryFlow: ObservableObject {
         // 确认标记不是 @Published，手动通知页面刷新分类区域与提交按钮。
         objectWillChange.send()
         hasConfirmedCategory = false
+        directionsWithRecentCategory.remove(draft.entryType)
     }
 
-    /// 切换收支方向；新方向必须重新确认分类，避免把占位值当成用户选择。
+    /// 为还没确认过分类的新草稿预选最近用过的分类；恢复的草稿和已经选过分类的草稿不受影响。
+    ///
+    /// - Parameter recent: 两个方向各自最近使用的分类。
+    func applyRecentCategories(_ recent: BookkeepingRecentCategories) {
+        guard !hasConfirmedCategory, directionsWithRecentCategory.isEmpty else { return }
+        if let key = recent.expenseKey {
+            draft.expenseCategoryKey = key
+            directionsWithRecentCategory.insert(.expense)
+        }
+        if let key = recent.incomeKey {
+            draft.incomeCategoryKey = key
+            directionsWithRecentCategory.insert(.income)
+        }
+        hasConfirmedCategory = directionsWithRecentCategory.contains(draft.entryType)
+    }
+
+    /// 切换收支方向；新方向有最近分类时直接沿用，否则必须重新确认，避免把占位值当成用户选择。
     func selectEntryType(_ entryType: BookkeepingEntryType) {
         guard !isSaving, draft.entryType != entryType else { return }
         draft.entryType = entryType
-        hasConfirmedCategory = false
+        hasConfirmedCategory = directionsWithRecentCategory.contains(entryType)
         markAsEditing()
     }
 

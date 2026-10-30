@@ -6,6 +6,7 @@ import UIKit
 struct DiningExpenseEntryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
+    @Environment(\.modelContext) private var modelContext
     @Query private var accounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
     @StateObject private var flow: DiningExpenseEntryFlow
@@ -52,6 +53,8 @@ struct DiningExpenseEntryView: View {
                 transactionDay: flow.draft.transactionDay
             )
             finishEntry()
+        } prepareInitialDraft: {
+            flow.applyRecentCategories(BookkeepingRecentCategories.resolve(in: modelContext))
         }
         .navigationTitle(AccountLocalization.string("bookkeeping.entry.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
