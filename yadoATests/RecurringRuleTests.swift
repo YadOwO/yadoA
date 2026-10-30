@@ -363,6 +363,7 @@ struct RecurringRuleTests {
     // MARK: - 夹具
 
     /// 隔离的内存容器，带一个余额 1000 的现金账户。
+    @MainActor
     private struct Fixture {
         let container: ModelContainer
         let repository: LocalRecurringRuleRepository
