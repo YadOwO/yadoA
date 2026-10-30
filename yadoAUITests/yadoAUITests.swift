@@ -105,7 +105,7 @@ final class yadoAUITests: XCTestCase {
         let startPage = app.buttons["profile-start-page"]
         XCTAssertTrue(startPage.waitForExistence(timeout: 3))
         startPage.tap()
-        app.buttons["Accounts"].firstMatch.tap()
+        tapMenuOption("Accounts", in: app)
 
         // 重排 Tab 会重建 TabView，“我的”导航路径保留，仍停留在设置页。
         XCTAssertTrue(startPage.waitForExistence(timeout: 3))
@@ -120,5 +120,29 @@ final class yadoAUITests: XCTestCase {
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             _ = launchIsolatedAppInEnglish()
         }
+    }
+
+    /// 在已弹出的系统菜单里点选指定选项。
+    ///
+    /// 起始页选项与 Tab 同名，按名称查询会同时命中 Tab 按钮，且各系统版本的元素顺序不同：
+    /// iOS 18 上 `firstMatch` 是被菜单遮住、无法点击的 Tab 按钮。这里排除 Tab Bar 范围内的元素，
+    /// 只点菜单里的那一项；菜单弹出前只有 Tab 按钮能匹配，所以会一直等到菜单项出现。
+    /// - Parameters:
+    ///   - label: 菜单选项的显示文字。
+    ///   - app: 被测应用。
+    ///   - timeout: 等待菜单项出现的最长时间。
+    @MainActor
+    private func tapMenuOption(_ label: String, in app: XCUIApplication, timeout: TimeInterval = 3) {
+        let tabBarFrame = app.tabBars.firstMatch.frame
+        let matches = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label))
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if let option = matches.allElementsBoundByIndex.first(where: { !$0.frame.intersects(tabBarFrame) }) {
+                option.tap()
+                return
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        } while Date() < deadline
+        XCTFail("菜单中没有出现「\(label)」选项")
     }
 }
