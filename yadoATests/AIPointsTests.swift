@@ -332,6 +332,34 @@ struct AIPointsTests {
         #expect(!store.canAffordCheaperTier)
     }
 
+    @Test("帮助改进 AI：默认关闭，按账号保存，换账号不继承，未登录时不生效")
+    func keepsTraceConsentPerAccount() {
+        let defaults = UserDefaults.isolated()
+        var userID: String? = "user-1"
+        let store = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults) { userID }
+        #expect(!store.isTraceConsented)
+
+        store.setTraceConsented(true)
+        #expect(store.isTraceConsented)
+
+        userID = "user-2"
+        #expect(!store.isTraceConsented)
+
+        userID = nil
+        #expect(!store.isTraceConsented)
+        store.setTraceConsented(true)
+
+        userID = "user-1"
+        let reloaded = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults) { userID }
+        #expect(reloaded.isTraceConsented)
+        userID = "user-2"
+        #expect(!reloaded.isTraceConsented)
+
+        userID = "user-1"
+        reloaded.setTraceConsented(false)
+        #expect(!reloaded.isTraceConsented)
+    }
+
     @Test("按余额各档位还能说几句：不够一句为 0，余额未知或档位不扣点时不显示")
     func countsTurnsLeftPerTier() async {
         let api = FakeAIBillingAPI()

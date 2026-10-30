@@ -231,7 +231,10 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 guard voice.session == nil else { return }
                 voice.session = VoiceSession(
                     container: modelContext.container,
-                    api: VoiceSessionAPI(pointsReporter: { [aiPoints] in aiPoints?.balanceReporter() ?? { _ in } }) { [authStore] in
+                    api: VoiceSessionAPI(
+                        pointsReporter: { [aiPoints] in aiPoints?.balanceReporter() ?? { _ in } },
+                        isTraceConsented: { [aiPoints] in aiPoints?.isTraceConsented ?? false }
+                    ) { [authStore] in
                         try await authStore.accessTokenForAIService()
                     },
                     modelTier: { [aiPoints] in aiPoints?.requestTier },

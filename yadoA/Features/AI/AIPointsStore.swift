@@ -31,6 +31,9 @@ final class AIPointsStore {
     /// 用户在本机选的模型档位；没选过时为 nil，跟随服务端的默认档位。与账号无关，换账号时保留。
     private(set) var selectedTier: AIModelTier?
 
+    /// 在本机授权过“帮助改进 AI”的账号。按账号保存：同一台设备换账号时，新账号不能继承别人的授权。
+    private var traceConsentedUserIDs: Set<String>
+
     /// 最近一次刷新余额失败的原因；刷新成功后清空。
     private(set) var failure: AIBillingAPIError?
 
@@ -66,6 +69,7 @@ final class AIPointsStore {
         self.defaults = defaults
         self.currentUserID = currentUserID
         selectedTier = defaults.string(forKey: AIModelTier.storageKey).flatMap(AIModelTier.init(rawValue:))
+        traceConsentedUserIDs = Set(defaults.stringArray(forKey: Self.traceConsentStorageKey) ?? [])
     }
 
     /// 用登录状态创建：凭证取自 AI 服务的 access token，账号取 Logto 用户 ID。
@@ -103,6 +107,28 @@ final class AIPointsStore {
     func selectTier(_ tier: AIModelTier) {
         selectedTier = tier
         defaults.set(tier.rawValue, forKey: AIModelTier.storageKey)
+    }
+
+    /// 保存已授权账号的本机偏好键。
+    private static let traceConsentStorageKey = "ai.traceConsentUserIDs"
+
+    /// 当前账号是否打开了“帮助改进 AI”；未登录时为 false。
+    var isTraceConsented: Bool {
+        guard let userID = currentUserID() else { return false }
+        return traceConsentedUserIDs.contains(userID)
+    }
+
+    /// 打开或关闭当前账号的“帮助改进 AI”，从下一次请求开始生效；未登录时不做任何事。
+    ///
+    /// - Parameter isConsented: 用户是否授权。
+    func setTraceConsented(_ isConsented: Bool) {
+        guard let userID = currentUserID() else { return }
+        if isConsented {
+            traceConsentedUserIDs.insert(userID)
+        } else {
+            traceConsentedUserIDs.remove(userID)
+        }
+        defaults.set(traceConsentedUserIDs.sorted(), forKey: Self.traceConsentStorageKey)
     }
 
     /// 余额是否已经不够说一句；还不知道每轮点数时按 1 点判断，余额未知时不算用完。

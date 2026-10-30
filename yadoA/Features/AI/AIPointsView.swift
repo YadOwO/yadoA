@@ -24,6 +24,7 @@ struct AIPointsView: View {
 
                 if authStore.isAuthenticated {
                     tierSection
+                    traceConsentSection
                 }
 
                 rulesSection
@@ -228,6 +229,35 @@ struct AIPointsView: View {
                     )
                 }
                 .accessibilityIdentifier("ai-points-tier")
+            }
+        }
+    }
+
+    // MARK: - 帮助改进 AI
+
+    /// “帮助改进 AI”开关与说明；默认关闭，只有用户主动打开才上报，所以说明要写清上报什么、存多久。
+    @ViewBuilder
+    private var traceConsentSection: some View {
+        if let points {
+            VStack(alignment: .leading, spacing: 8) {
+                ProfileSettingsSection(nil, seed: "ai.traceConsent") {
+                    Toggle(isOn: Binding(
+                        get: { points.isTraceConsented },
+                        set: { points.setTraceConsented($0) }
+                    )) {
+                        Label(text("ai.traceConsent.title"), systemImage: "hand.raised")
+                            .labelStyle(ProfileSettingsLabelStyle())
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
+                    .accessibilityIdentifier("ai-points-trace-consent")
+                }
+
+                Text(text("ai.traceConsent.footnote"))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 20)
             }
         }
     }

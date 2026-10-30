@@ -13356,6 +13356,42 @@
         }
       }
     },
+    "ai.traceConsent.footnote" : {
+      "comment" : "AI 点数页“帮助改进 AI”开关下方的授权说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When on, your voice bookkeeping content (transcribed text, the account, category and transaction details sent to the AI, and its replies) is stored with your account ID on a server managed by the developer, used only to fix problems and improve recognition, and deleted after 30 days. Off by default. You can turn it off anytime: nothing more is uploaded, and content already uploaded is deleted when it expires."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开启后，你的语音记账内容（转写文字、发给 AI 的账户、分类和记账信息，以及 AI 的回复）会连同账号标识保存在开发者自行管理的服务器上，只用于排查问题和改进识别效果，30 天后删除。默认关闭，可随时关闭：关闭后不再上传，已上传的内容到期删除。"
+          }
+        }
+      }
+    },
+    "ai.traceConsent.title" : {
+      "comment" : "AI 点数页“帮助改进 AI”开关的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Help Improve AI"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "帮助改进 AI"
+          }
+        }
+      }
+    },
     "ai.tier.footnote" : {
       "comment" : "模型选择页底部的说明",
       "extractionState" : "manual",

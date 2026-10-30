@@ -72,6 +72,9 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
     /// 服务端带回的余额来自扣点成功的响应头，或点数不足时错误详情里的余额。
     private let pointsReporter: () -> (Int) -> Void
 
+    /// 读取当前账号是否授权上报本次内容；默认未授权。
+    private let isTraceConsented: () -> Bool
+
     /// 单次请求的超时时长；服务端一步最多调用模型两次，每次超时 20 秒。
     static let requestTimeout: TimeInterval = 45
 
@@ -80,6 +83,9 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
 
     /// 模型档位的请求头，与 yado_ai `shared/ai/model-header.ts` 一致。
     static let tierHeader = "X-AI-Tier"
+
+    /// “帮助改进 AI”授权的请求头，与 yado_ai `shared/ai/trace-consent.ts` 一致；未授权时不带。
+    static let traceConsentHeader = "X-AI-Trace-Consent"
 
     /// 结算后余额的响应头，与 yado_ai `shared/billing/headers.ts` 一致；只在实际扣点模式下返回。
     static let pointsBalanceHeader = "X-AI-Points-Balance"
@@ -90,16 +96,19 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
     ///   - endpoint: AI 服务地址；为空时每次请求取 `AIServiceEnvironment.currentEndpoint`，开发者设置里切换后立即生效。
     ///   - session: 网络会话。
     ///   - pointsReporter: 每次请求开始时取余额回报动作，用于就地刷新点数显示；通常是 `AIPointsStore.balanceReporter()`。
+    ///   - isTraceConsented: 读取当前账号是否打开了“帮助改进 AI”；通常是 `AIPointsStore.isTraceConsented`。
     ///   - accessToken: 获取 access token 的动作，抛出 `ServiceAuthError`。
     init(
         endpoint: URL? = nil,
         session: URLSession = .shared,
         pointsReporter: @escaping () -> (Int) -> Void = { { _ in } },
+        isTraceConsented: @escaping () -> Bool = { false },
         accessToken: @escaping () async throws -> String
     ) {
         self.endpointOverride = endpoint
         self.session = session
         self.pointsReporter = pointsReporter
+        self.isTraceConsented = isTraceConsented
         self.accessToken = accessToken
     }
 
@@ -138,6 +147,9 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
         urlRequest.setValue(turnID.uuidString, forHTTPHeaderField: Self.turnIDHeader)
         if let tier {
             urlRequest.setValue(tier.rawValue, forHTTPHeaderField: Self.tierHeader)
+        }
+        if isTraceConsented() {
+            urlRequest.setValue("1", forHTTPHeaderField: Self.traceConsentHeader)
         }
         // 服务端日志据此把同一句话的多次请求串起来
         urlRequest.setValue(trace.sessionID, forHTTPHeaderField: VoiceRequestTrace.Header.sessionID)
