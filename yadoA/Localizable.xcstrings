@@ -1,6 +1,330 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "feedback.title" : {
+      "comment" : "「我的」页意见反馈入口与反馈页标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feedback"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "意见反馈"
+          }
+        }
+      }
+    },
+    "feedback.row.unread" : {
+      "comment" : "「我的」页意见反馈行尾的未读回复数，%@ 为条数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ new"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 条新回复"
+          }
+        }
+      }
+    },
+    "feedback.signIn.message" : {
+      "comment" : "未登录点意见反馈时登录页与反馈页上的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to send us feedback. Your conversation stays with your account, so you can see our replies on any device."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录后就能给我们发反馈。对话跟着账号走，换了手机也能看到回复。"
+          }
+        }
+      }
+    },
+    "feedback.welcome" : {
+      "comment" : "反馈对话开头的欢迎语，只在本机显示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hi! Found a problem or have an idea? Tell us here. We read every message and will reply as soon as we can."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你好！遇到问题或有什么建议，直接发在这里。每一条我们都会看，并尽快回复你。"
+          }
+        }
+      }
+    },
+    "feedback.input.placeholder" : {
+      "comment" : "反馈页输入框占位文字",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Describe the problem or idea"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "说说遇到的问题或建议"
+          }
+        }
+      }
+    },
+    "feedback.input.overflow" : {
+      "comment" : "反馈正文超出字数上限时的提示，%@ 为超出的字数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ characters over the limit"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "超出 %@ 字"
+          }
+        }
+      }
+    },
+    "feedback.send" : {
+      "comment" : "反馈页发送按钮的读屏名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送"
+          }
+        }
+      }
+    },
+    "feedback.loadOlder" : {
+      "comment" : "反馈对话顶部加载更早消息的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Earlier Messages"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看更早的消息"
+          }
+        }
+      }
+    },
+    "feedback.load.failed" : {
+      "comment" : "反馈对话首次加载失败的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't Load Messages"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "消息加载失败"
+          }
+        }
+      }
+    },
+    "feedback.retry" : {
+      "comment" : "反馈对话加载失败后的重试按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
+          }
+        }
+      }
+    },
+    "feedback.message.failed" : {
+      "comment" : "发送失败的反馈消息：感叹号的读屏名称与操作菜单标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message Not Sent"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "消息未发送"
+          }
+        }
+      }
+    },
+    "feedback.message.resend" : {
+      "comment" : "发送失败的反馈消息菜单：重新发送",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resend"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新发送"
+          }
+        }
+      }
+    },
+    "feedback.message.delete" : {
+      "comment" : "发送失败的反馈消息菜单：删除",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除"
+          }
+        }
+      }
+    },
+    "feedback.sender.me" : {
+      "comment" : "读屏时自己发的反馈消息的发送方",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Me"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我"
+          }
+        }
+      }
+    },
+    "feedback.error.rateLimited" : {
+      "comment" : "反馈发送过于频繁被限流时的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You're sending messages too quickly. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送太频繁了，请稍后再试"
+          }
+        }
+      }
+    },
+    "feedback.error.network" : {
+      "comment" : "反馈页网络不可用或超时的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No network connection. Check your network and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网络不可用，请检查网络后重试"
+          }
+        }
+      }
+    },
+    "feedback.error.unavailable" : {
+      "comment" : "反馈服务暂时不可用的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The service is temporarily unavailable. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务暂时不可用，请稍后再试"
+          }
+        }
+      }
+    },
+    "feedback.error.sessionExpired" : {
+      "comment" : "反馈页登录失效的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your sign-in has expired. Please sign in again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录已失效，请重新登录"
+          }
+        }
+      }
+    },
     "settings.title" : {
       "comment" : "「我的」页进入设置二级页的入口及该页标题",
       "extractionState" : "manual",

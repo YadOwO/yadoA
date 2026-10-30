@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、分类）、AI 点数、云端同步和“设置”二级页。
+/// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、分类）、AI 点数、云端同步、“设置”二级页和意见反馈。
 ///
 /// 语言、外观、默认账户、导入导出、退出登录等低频项统一收进 `SettingsView`，已停用账户由“账户”Tab 承载。
 /// 进入二级页面都走路径导航（见 `ProfileRoute`），根导航据此判断是否显示语音入口。
@@ -15,6 +15,8 @@ struct ProfileView: View {
     @Environment(SyncLifecycle.self) private var syncLifecycle: SyncLifecycle?
     /// 当前账号的 AI 点数；预览中没有注入时为 nil。
     @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
+    /// 意见反馈的未读回复数；预览中没有注入时为 nil。
+    @Environment(FeedbackStore.self) private var feedback: FeedbackStore?
 
     /// 修改个人资料弹层，打开时携带当时的资料快照。
     @State private var editingProfile: AccountProfile?
@@ -72,6 +74,10 @@ struct ProfileView: View {
                     .accessibilityIdentifier("profile-settings")
                 }
 
+                ProfileSettingsSection(nil, seed: "profile.section.feedback") {
+                    feedbackEntry
+                }
+
                 brandFooter
             }
             .buttonStyle(.plain)
@@ -92,6 +98,45 @@ struct ProfileView: View {
             // 每次回到“我的”都刷新一次余额，其他芽豆 App 用掉的点数也能及时反映
             await aiPoints?.refresh()
         }
+        .task(id: authStore.isAuthenticated) {
+            // 每次回到“我的”都刷新一次反馈未读数；从反馈页返回时已在标记已读后更新过，这里再对一次
+            await feedback?.refreshUnread()
+        }
+    }
+
+    /// 意见反馈入口：已登录时进入对话页；未登录时直接打开登录页，说明反馈需要登录。
+    @ViewBuilder
+    private var feedbackEntry: some View {
+        if authStore.isAuthenticated {
+            NavigationLink(value: ProfileRoute.feedback) {
+                feedbackRow
+            }
+            .accessibilityIdentifier("profile-feedback")
+        } else {
+            Button {
+                signInPresentation.present(reason: .feedback)
+            } label: {
+                feedbackRow
+            }
+            .accessibilityIdentifier("profile-feedback")
+        }
+    }
+
+    /// 意见反馈行：有未读回复时行尾用账本红显示条数。
+    private var feedbackRow: some View {
+        let unreadCount = authStore.isAuthenticated ? feedback?.unreadCount ?? 0 : 0
+        return ProfileSettingsRow(
+            titleKey: "feedback.title",
+            symbol: "bubble.left.and.text.bubble.right",
+            value: unreadCount > 0
+                ? AccountLocalization.formatted(
+                    "feedback.row.unread",
+                    value: unreadCount.formatted(.number.locale(locale)),
+                    locale: locale
+                )
+                : "",
+            valueTint: unreadCount > 0 ? Color(.ledgerRed) : nil
+        )
     }
 
     /// AI 点数行尾的值：未登录时提示登录后可用，已登录时显示余额，还没取到时留空。

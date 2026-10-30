@@ -95,6 +95,11 @@
             value = "http://yujunjie-201577.local:7789"
             isEnabled = "YES">
          </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "YADO_HUB_LOCAL_ENDPOINT"
+            value = "http://yujunjie-201577.local:7791"
+            isEnabled = "YES">
+         </EnvironmentVariable>
       </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction

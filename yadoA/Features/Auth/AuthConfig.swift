@@ -33,4 +33,13 @@ nonisolated enum AuthConfig {
 
     /// yadoA 后端的线上地址（不含路径）；本地开发包可改连本地服务，见 `SyncServiceEnvironment`。
     static let syncServiceEndpoint = "https://yadoa-api.yado1225.top"
+
+    /// 芽豆公共服务（yado_hub：意见反馈等各产品共用的功能）在 Logto 中注册的 API resource 标识；调用公共服务接口时请求它的 access token。
+    ///
+    /// 与后端的 `LOGTO_AUDIENCE` 逐字一致；登录时同样必须一并申请，新增前已登录的设备需要重新登录一次。
+    /// Logto 后台必须先建好这个 resource：登录时申请了不存在的 resource，整个登录都会失败。
+    static let hubServiceResource = "https://api.yado1225.top/hub"
+
+    /// 芽豆公共服务的线上地址（不含路径）；本地开发包可改连本地服务，见 `HubServiceEnvironment`。
+    static let hubServiceEndpoint = "https://hub-api.yado1225.top"
 }

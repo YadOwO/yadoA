@@ -120,6 +120,14 @@ final class AuthStore {
         try await accessToken(forResource: AuthConfig.syncServiceResource)
     }
 
+    /// 获取调用芽豆公共服务（意见反馈等）的 access token；SDK 会缓存并在过期时用 refresh token 续期。
+    ///
+    /// - Returns: 面向 `AuthConfig.hubServiceResource` 的 access token。
+    /// - Throws: `ServiceAuthError`，见 `accessToken(forResource:)`。
+    func accessTokenForHubService() async throws -> String {
+        try await accessToken(forResource: AuthConfig.hubServiceResource)
+    }
+
     /// 当前登录用户的稳定 ID（Logto 的 `sub`），同步据此确认本机数据归属于当前账号。
     ///
     /// 未登录或 ID token 解析失败时为 nil。
@@ -262,7 +270,7 @@ final class AuthStore {
         guard let config = try? LogtoConfig(
             endpoint: AuthConfig.endpoint,
             appId: AuthConfig.appId,
-            resources: [AuthConfig.aiServiceResource, AuthConfig.syncServiceResource]
+            resources: [AuthConfig.aiServiceResource, AuthConfig.syncServiceResource, AuthConfig.hubServiceResource]
         ) else {
             preconditionFailure("AuthConfig.endpoint 不是合法 URL：\(AuthConfig.endpoint)")
         }

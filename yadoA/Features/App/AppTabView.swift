@@ -123,6 +123,9 @@ enum ProfileRoute: Hashable {
     /// 设置页面。
     case settings
 
+    /// 意见反馈：与芽豆团队的对话，登录后才有入口。
+    case feedback
+
     /// 开发调试页面；只在 DEBUG 包有入口和页面。
     case developer
 
@@ -144,6 +147,8 @@ enum ProfileRoute: Hashable {
             AIModelTierView()
         case .settings:
             SettingsView()
+        case .feedback:
+            FeedbackView()
         case .developer:
             #if DEBUG
             DeveloperView()
@@ -158,6 +163,11 @@ enum ProfileRoute: Hashable {
 struct AppTabView: View {
     @Environment(\.locale) private var locale
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
+    /// 全局登录状态；换账号或退出登录时重新查询意见反馈的未读数。
+    @Environment(AuthStore.self) private var authStore
+    /// 意见反馈的未读回复数，显示在「我的」Tab 的角标上；预览中没有注入时为 nil。
+    @Environment(FeedbackStore.self) private var feedback: FeedbackStore?
     /// 用户选择的启动页面；对应 Tab 排在底部导航第一位，修改后立即重建并重排。
     @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
     /// 冷启动时落在用户选择的启动页面；之后在设置里修改不会打断当前所在 Tab。
@@ -191,6 +201,8 @@ struct AppTabView: View {
                 } label: {
                     Label(tab.title(locale: locale), systemImage: tab.symbolName)
                 }
+                // 意见反馈有未读回复时在「我的」上显示条数，为 0 时不显示角标
+                .badge(tab == .profile ? feedback?.unreadCount ?? 0 : 0)
             }
         }
         .tabBarMinimizeOnScrollDownIfAvailable()
@@ -201,6 +213,11 @@ struct AppTabView: View {
         .id(startPage)
         // 会话、计时与弹层挂在 .id 外面，重排 Tab 时不会重建
         .voiceBookkeepingHost(voice)
+        // App 启动、回到前台、换账号或退出登录时刷新意见反馈的未读数；退出登录时清零
+        .task(id: FeedbackUnreadTrigger(userID: authStore.userID, isActive: scenePhase == .active)) {
+            guard scenePhase == .active else { return }
+            await feedback?.refreshUnread()
+        }
         // 当前 Tab 往下进页面时结束会话；只按导航路径变深判断，切到停在二级页面的 Tab 不算
         .onChange(of: homePath.count) { oldDepth, newDepth in
             endVoiceSessionIfPushed(on: .home, from: oldDepth, to: newDepth)
@@ -300,6 +317,15 @@ struct AppTabView: View {
             }
         }
     }
+}
+
+/// 触发刷新意见反馈未读数的条件：账号变化，或 App 回到前台。
+private struct FeedbackUnreadTrigger: Equatable {
+    /// 当前登录账号；退出登录时为 nil。
+    let userID: String?
+
+    /// App 是否在前台。
+    let isActive: Bool
 }
 
 #Preview {

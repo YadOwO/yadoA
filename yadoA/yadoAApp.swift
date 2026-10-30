@@ -16,16 +16,20 @@ struct yadoAApp: App {
     @State private var authStore: AuthStore
     /// 当前账号的 AI 点数，“我的”入口、AI 点数页和语音记账共用；凭证与账号取自 `authStore`。
     @State private var aiPoints: AIPointsStore
+    /// 意见反馈的未读回复数，“我的”入口和 Tab 角标共用；凭证与账号取自 `authStore`。
+    @State private var feedback: FeedbackStore
 
     init() {
         let authStore = AuthStore()
         _authStore = State(initialValue: authStore)
         _aiPoints = State(initialValue: AIPointsStore(authStore: authStore))
+        _feedback = State(initialValue: FeedbackStore(authStore: authStore))
         #if DEBUG
-        // yadoA-local / yadoA Scheme 通过启动环境变量指定是否为本地开发包，以及 AI 服务和同步服务的本地地址
+        // yadoA-local / yadoA Scheme 通过启动环境变量指定是否为本地开发包，以及 AI 服务、同步服务和公共服务的本地地址
         AIServiceEnvironment.applyLaunchEnvironment(ProcessInfo.processInfo.environment)
         DeveloperTools.applyLaunchEnvironment(ProcessInfo.processInfo.environment)
         SyncServiceEnvironment.applyLaunchEnvironment(ProcessInfo.processInfo.environment)
+        HubServiceEnvironment.applyLaunchEnvironment(ProcessInfo.processInfo.environment)
         if ProcessInfo.processInfo.arguments.contains("--ui-testing-in-memory") {
             do {
                 // 设计预览沿用隔离启动路径，示例收支不会写入真实账本。
@@ -89,6 +93,7 @@ struct yadoAApp: App {
             }
             .environment(authStore)
             .environment(aiPoints)
+            .environment(feedback)
             .modifier(AppDisplayPreferencesModifier())
         }
     }
