@@ -37,6 +37,9 @@ final class VoiceBookkeepingState {
     /// 是否打开模型选择：点数不够所用档位但够更便宜的档位时，从卡片上打开；由根导航以弹层展示，切换后关掉可以接着说。
     var isModelTierPresented = false
 
+    /// 是否打开打字输入；由根导航以弹层展示，发送后关闭，结果出现在会话卡片里。
+    var isTextInputPresented = false
+
     /// 会话是否正在处理上一句。
     var isProcessing: Bool {
         session?.isProcessing == true
@@ -69,11 +72,24 @@ final class VoiceBookkeepingState {
         )
     }
 
+    /// 打开打字输入：未登录时和按住说话一样询问是否去登录；正在说话或处理上一句时不响应。
+    ///
+    /// - Parameter isSignedIn: 当前是否已登录。
+    func beginTextInput(isSignedIn: Bool) {
+        guard !isProcessing, !input.isPressing, !input.isFinishing else { return }
+        guard isSignedIn else {
+            input.alert = .signInRequired
+            return
+        }
+        input.transientHint = nil
+        isTextInputPresented = true
+    }
+
     /// 发送一句话或点选的候选项。
     ///
     /// - Parameters:
-    ///   - text: 识别出的文字或候选项文案。
-    ///   - option: 点选的候选项；直接说话时为空。
+    ///   - text: 识别出或打出来的文字，或候选项文案。
+    ///   - option: 点选的候选项；直接说话或打字时为空。
     func send(_ text: String, option: VoiceAskOption? = nil) {
         guard let session else { return }
         // 说话发出的一句带上识别收尾耗时；点选候选项没有识别

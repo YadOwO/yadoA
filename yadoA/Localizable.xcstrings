@@ -8230,6 +8230,60 @@
         }
       }
     },
+    "voice.text.entry" : {
+      "comment" : "Button next to the mic that opens text input for voice bookkeeping.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type instead"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打字记账"
+          }
+        }
+      }
+    },
+    "voice.text.placeholder" : {
+      "comment" : "Placeholder of the text input used instead of speaking.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "e.g. Lunch 28, taxi 35"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比如：午饭 28，打车 35"
+          }
+        }
+      }
+    },
+    "voice.text.send" : {
+      "comment" : "Accessibility label of the send button in the voice text input.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送"
+          }
+        }
+      }
+    },
     "voice.mic.releaseToSend" : {
       "comment" : "Shown on the tab bar mic while the user is holding it and speaking.",
       "extractionState" : "manual",

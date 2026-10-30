@@ -34,7 +34,7 @@ extension View {
 
 // MARK: - 麦克风按钮
 
-/// 语音记账的麦克风按钮：按住说话、松手发送、上滑取消；没有轻点操作。
+/// 语音记账的麦克风按钮：按住说话、松手发送、上滑取消；没有轻点操作，打字走旁边的 `VoiceTextInputButton`。
 struct VoiceMicButton: View {
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -110,9 +110,10 @@ struct VoiceMicButton: View {
     }
 }
 
-/// Tab Bar 附属栏里的麦克风：整条按住说话，跟随 Tab Bar 滚动收起；按下、上滑取消、松手发送与 `VoiceMicButton` 相同。
+/// Tab Bar 附属栏里的麦克风：按住说话，跟随 Tab Bar 滚动收起；按下、上滑取消、松手发送与 `VoiceMicButton` 相同。
 ///
 /// 附属栏的玻璃底和形状由系统绘制，这里只画图标和文字；Tab Bar 收起后附属栏与它并排，文字随之变小。
+/// 右端是打字入口，其余部分都可以按住。
 @available(iOS 26.1, *)
 struct VoiceMicAccessory: View {
     @Environment(\.locale) private var locale
@@ -133,6 +134,14 @@ struct VoiceMicAccessory: View {
     }
 
     var body: some View {
+        HStack(spacing: 0) {
+            holdArea
+            VoiceTextInputButton(voice: voice, isFloating: false)
+        }
+    }
+
+    /// 按住说话的区域：图标与文字加上透明触摸层。
+    private var holdArea: some View {
         HStack(spacing: 8) {
             if isBusy {
                 ProgressView()
@@ -154,6 +163,8 @@ struct VoiceMicAccessory: View {
         }
         .font(font)
         .foregroundStyle(tint)
+        // 展开时左边留出打字按钮的宽度，文字仍在整条中间；与 Tab Bar 并排时空间太窄，不留
+        .padding(.leading, placement == .inline ? 0 : VoiceTextInputButton.size)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // 告诉一级页面附属栏顶边在哪，会话卡片和提示据此避开附属栏
         .onGeometryChange(for: CGFloat.self) { proxy in

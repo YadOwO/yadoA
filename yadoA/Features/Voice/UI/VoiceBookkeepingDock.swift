@@ -4,7 +4,7 @@ import UIKit
 
 /// 一级页面底部的语音记账区域：唯一的会话卡片、悬浮麦克风和一次性提示。
 ///
-/// 只有按住说话一种输入方式，没有轻点和打字。四个一级页面各挂一份，共用根导航持有的同一个会话，切换 Tab 时卡片跟过去；
+/// 主要靠按住说话，不方便出声时可以点旁边的键盘改为打字（见 `VoiceTextInputSheet`）。四个一级页面各挂一份，共用根导航持有的同一个会话，切换 Tab 时卡片跟过去；
 /// 会话在当前页面往下进入二级页面、关闭卡片或闲置约 2 分钟后结束；切到停在二级页面的 Tab 时会话保留，卡片随页面收起。创建会话、计时、播报和弹层只需要一份，由 `voiceBookkeepingHost(_:)` 挂在根导航上。
 /// 麦克风放进 Tab Bar 附属栏时（见 `VoiceMicPlacement`），这里只显示卡片和提示，麦克风由 `VoiceMicAccessory` 显示。
 struct VoiceBookkeepingDock: View {
@@ -50,15 +50,23 @@ struct VoiceBookkeepingDock: View {
                 VStack(spacing: 8) {
                     // 麦克风上方轮换示例说法；卡片或一次性提示出现时只隐藏不移除，列表底部留白不跟着跳
                     floatingSpeakingPrompt
-                    VoiceMicButton(
-                        controller: input,
-                        isProcessing: voice.isProcessing,
-                        onPressBegan: { voice.beginPress(isSignedIn: authStore.isAuthenticated, locale: locale) },
-                        onText: { voice.send($0) },
-                        onAccessibilityToggle: {
-                            voice.toggleRecording(isSignedIn: authStore.isAuthenticated, locale: locale)
-                        }
-                    )
+                    HStack(spacing: 12) {
+                        // 与右侧打字按钮等宽的占位，让麦克风保持居中；不接收触摸，点到这里仍是下面的列表
+                        Color.clear
+                            .frame(width: VoiceTextInputButton.size, height: VoiceTextInputButton.size)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                        VoiceMicButton(
+                            controller: input,
+                            isProcessing: voice.isProcessing,
+                            onPressBegan: { voice.beginPress(isSignedIn: authStore.isAuthenticated, locale: locale) },
+                            onText: { voice.send($0) },
+                            onAccessibilityToggle: {
+                                voice.toggleRecording(isSignedIn: authStore.isAuthenticated, locale: locale)
+                            }
+                        )
+                        VoiceTextInputButton(voice: voice)
+                    }
                 }
                 .padding(.vertical, 12)
                 .onGeometryChange(for: CGFloat.self) { proxy in
@@ -301,6 +309,9 @@ private struct VoiceBookkeepingHost: ViewModifier {
                         }
                     }
                 }
+            }
+            .sheet(isPresented: $voice.isTextInputPresented) {
+                VoiceTextInputSheet { voice.send($0) }
             }
             .sheet(isPresented: $voice.isModelTierPresented) {
                 NavigationStack {
