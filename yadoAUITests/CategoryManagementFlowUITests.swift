@@ -93,7 +93,7 @@ final class CategoryManagementFlowUITests: XCTestCase {
         XCTAssertTrue(shopping.waitForNonExistence(timeout: 3))
     }
 
-    /// 左滑点「删除」后在确认框取消，分类仍留在列表里。
+    /// 左滑点「删除」后关闭确认框不删除，分类仍留在列表里。
     @MainActor
     func testCancellingDeletionKeepsCategory() throws {
         let app = launchHomeFixtureInEnglish()
@@ -103,10 +103,10 @@ final class CategoryManagementFlowUITests: XCTestCase {
         XCTAssertTrue(shopping.waitForExistence(timeout: 3))
         revealDeleteAction(on: shopping, in: app).tap()
 
-        let cancel = app.buttons["Cancel"]
-        XCTAssertTrue(cancel.waitForExistence(timeout: 3))
-        cancel.tap()
-        XCTAssertTrue(cancel.waitForNonExistence(timeout: 3))
+        let dialog = app.sheets.firstMatch
+        XCTAssertTrue(dialog.waitForExistence(timeout: 3))
+        dismissConfirmationDialog(dialog, in: app)
+        XCTAssertTrue(dialog.waitForNonExistence(timeout: 3))
         XCTAssertTrue(shopping.exists, "取消确认后分类不应从列表消失")
     }
 
@@ -155,6 +155,27 @@ final class CategoryManagementFlowUITests: XCTestCase {
             frame = current
         }
         return action
+    }
+
+    /// 不执行任何操作，关闭确认框。
+    ///
+    /// iOS 18 的确认框是底部操作表，带「取消」按钮；iOS 26 起 iPhone 上改为锚定来源的弹出框，
+    /// 系统不再显示 `.cancel` 角色的按钮，只能点框外关闭。此时点在框上下两侧较大空白区的中间，避开框本身。
+    @MainActor
+    private func dismissConfirmationDialog(_ dialog: XCUIElement, in app: XCUIApplication) {
+        let cancel = app.buttons["Cancel"]
+        if cancel.exists {
+            cancel.tap()
+            return
+        }
+        let screen = app.frame
+        let box = dialog.frame
+        let y = box.minY - screen.minY > screen.maxY - box.maxY
+            ? (screen.minY + box.minY) / 2
+            : (box.maxY + screen.maxY) / 2
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: screen.midX, dy: y))
+            .tap()
     }
 
     /// 打开「我的 › 分类管理」。
