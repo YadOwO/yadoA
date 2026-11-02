@@ -53,6 +53,27 @@ struct AIChatHistoryStoreTests {
         #expect(fixture.store.turns.first?.isUndone == true)
     }
 
+    @Test("查账结果随记录保存，重新读取后还在；再次写入同一轮时跟着更新")
+    func persistsInsight() throws {
+        let fixture = try Fixture()
+        let insight = AIChatInsight(
+            title: "10月 · 2 笔",
+            formattedTotal: "¥63.00",
+            formattedIncome: nil,
+            comparison: .init(isLess: true, formattedDelta: "¥10.00"),
+            buckets: [.init(id: 20261001, label: "10/1", value: 28, formattedValue: "¥28.00")]
+        )
+        var turn = VoiceSession.Turn(userText: "这个月花了多少", eventStartIndex: 0)
+        turn.outcome = .reply("花了 ¥63")
+        fixture.store.save(turn, locale: Locale(identifier: "zh-Hans"))
+
+        turn.insights = [insight]
+        fixture.store.save(turn, locale: Locale(identifier: "zh-Hans"))
+        fixture.store.loadLatest()
+
+        #expect(fixture.store.turns.first?.insight == insight)
+    }
+
     @Test("分页读取：先读最近一页，再往前读，始终按时间正序")
     func loadsPages() throws {
         let fixture = try Fixture()

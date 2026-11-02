@@ -514,6 +514,126 @@ struct VoiceSessionTests {
         #expect(failed.requests.map(\.outcome) == [.failed])
     }
 
+    // MARK: - 聊天页
+
+    @Test("查账：只请求模型要求的次数，本机算出合计、分布和与上一期的差额")
+    func buildsQueryInsightLocally() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.toolCalls(
+                [fixture.createCall("c1", amount: "28"), fixture.createCall("c2", amount: "50", date: "2026-09-05")],
+                canFinishLocally: true
+            )),
+            .success(.toolCalls([fixture.summarizeCall("s1")], canFinishLocally: false)),
+            .success(.reply(text: "这个月花了 ¥28")),
+        ]
+        await fixture.session.send("午饭 28，上个月 50")
+        await fixture.session.send("这个月花了多少")
+
+        #expect(fixture.api.requests.count == 3)
+        let turn = try #require(fixture.session.latestTurn)
+        #expect(turn.phase == .searching)
+        let insight = try #require(turn.insights.first)
+        #expect(insight.comparison?.isLess == true)
+        // 范围只算到今天（10 月 20 日），分成 3 段，分布的合计与汇总一致
+        #expect(insight.buckets.count == 3)
+        #expect(insight.buckets.map(\.value).reduce(0, +) == 28)
+        #expect(AIChatTurnSnapshot(turn: turn, locale: fixture.session.locale).insight == insight)
+    }
+
+    @Test("一轮查了多次时不展示查账结果，避免只画其中一次让人误读")
+    func hidesInsightWhenQueriedTwice() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.toolCalls([fixture.summarizeCall("s1"), fixture.summarizeCall("s2")], canFinishLocally: false)),
+            .success(.reply(text: "比较结果")),
+        ]
+        await fixture.session.send("这个月和上个月比")
+
+        let turn = try #require(fixture.session.latestTurn)
+        #expect(turn.insights.count == 2)
+        #expect(AIChatTurnSnapshot(turn: turn, locale: fixture.session.locale).insight == nil)
+    }
+
+    @Test("今天的概况只算今天的支出")
+    func summarizesToday() async throws {
+        let fixture = try Fixture()
+        #expect(fixture.session.todaySummary().entryCount == 0)
+        fixture.api.responses = [.success(.toolCalls(
+            [fixture.createCall("c1", amount: "28"), fixture.createCall("c2", amount: "50", date: "2026-09-05")],
+            canFinishLocally: true
+        ))]
+        await fixture.session.send("午饭 28，上个月 50")
+
+        let summary = fixture.session.todaySummary()
+        #expect(summary.entryCount == 1)
+        #expect(summary.formattedExpense.contains("28"))
+    }
+
+    @Test("处理中的阶段从等模型开始")
+    func startsThinking() {
+        #expect(VoiceSession.Turn(userText: "午饭", eventStartIndex: 0).phase == .thinking)
+    }
+
+    @Test("就地确认账户：不请求模型，余额移到新账户，上下文改写，撤销仍然有效")
+    func confirmsInferredAccountLocally() async throws {
+        let fixture = try Fixture()
+        let walletID = try fixture.insertAccount(name: "微信", balance: 50)
+        fixture.api.responses = [.success(.toolCalls(
+            [fixture.createCall("c1", amount: "28", inferredFields: [.account])], canFinishLocally: true
+        ))]
+        await fixture.session.send("午饭 28")
+        let turn = try #require(fixture.session.latestTurn)
+        let changeID = try #require(turn.changes.first?.id)
+        let eventCount = fixture.session.events.count
+
+        let isConfirmed = fixture.session.confirmInferredAccount(turnID: turn.id, changeID: changeID, accountID: walletID)
+
+        #expect(isConfirmed)
+        #expect(fixture.api.requests.count == 1)
+        #expect(try fixture.balance() == 100)
+        #expect(try fixture.balance(of: walletID) == 22)
+        let entry = try #require(fixture.session.latestTurn?.changes.first?.entryChange)
+        #expect(entry.id == changeID)
+        #expect(entry.accountName == "微信")
+        #expect(entry.inferredFields.isEmpty)
+        #expect(fixture.session.events.count == eventCount)
+        guard case let .toolCall(.createTransaction(_, input)) = fixture.session.events[1] else {
+            Issue.record("第二条事件应是那次新增")
+            return
+        }
+        #expect(input.accountId == walletID.uuidString)
+        #expect(input.inferredFields.isEmpty)
+
+        fixture.session.undoLatestTurn()
+        #expect(fixture.session.latestTurn?.isUndone == true)
+        #expect(try fixture.balance(of: walletID) == 50)
+        #expect(try fixture.balance() == 100)
+    }
+
+    @Test("账户不是待确认、或这一轮已撤销时，不能就地确认")
+    func rejectsConfirmationWithoutInferredAccount() async throws {
+        let fixture = try Fixture()
+        let walletID = try fixture.insertAccount(name: "微信", balance: 50)
+        fixture.api.responses = [
+            .success(.toolCalls([fixture.createCall("c1", amount: "28")], canFinishLocally: true)),
+            .success(.toolCalls(
+                [fixture.createCall("c2", amount: "35", inferredFields: [.account])], canFinishLocally: true
+            )),
+        ]
+        await fixture.session.send("午饭 28")
+        let settled = try #require(fixture.session.latestTurn)
+        let settledChangeID = try #require(settled.changes.first?.id)
+        #expect(!fixture.session.confirmInferredAccount(turnID: settled.id, changeID: settledChangeID, accountID: walletID))
+
+        await fixture.session.send("打车 35")
+        let inferred = try #require(fixture.session.latestTurn)
+        let inferredChangeID = try #require(inferred.changes.first?.id)
+        fixture.session.undoLatestTurn()
+        #expect(!fixture.session.confirmInferredAccount(turnID: inferred.id, changeID: inferredChangeID, accountID: walletID))
+        #expect(try fixture.balance(of: walletID) == 50)
+    }
+
     // MARK: - 辅助
 
     /// 一次测试使用的容器、账户、时钟、模型档位与假接口。
@@ -566,15 +686,45 @@ struct VoiceSessionTests {
             )
         }
 
-        func createCall(_ id: String, amount: String, note: String? = nil) -> VoiceToolCall {
+        func createCall(
+            _ id: String,
+            amount: String,
+            note: String? = nil,
+            date: String = "2026-10-20",
+            inferredFields: [VoiceInferredField] = []
+        ) -> VoiceToolCall {
             .createTransaction(id: id, input: VoiceCreateTransactionInput(
                 type: .expense, amount: amount, accountId: accountID.uuidString, categoryId: "dining",
-                date: "2026-10-20", note: note, inferredFields: []
+                date: date, note: note, inferredFields: inferredFields
             ))
         }
 
+        /// 汇总这个月的调用。
+        func summarizeCall(_ id: String) -> VoiceToolCall {
+            .summarizeTransactions(id: id, input: VoiceSummarizeTransactionsInput(
+                filter: VoiceTransactionFilter(dateFrom: "2026-10-01", dateTo: "2026-10-31")
+            ))
+        }
+
+        /// 再加一个启用的账户。
+        func insertAccount(name: String, balance: Decimal) throws -> UUID {
+            let context = ModelContext(container)
+            let account = Account(
+                id: UUID(), typeRawValue: AccountType.cash.rawValue, templateID: nil, name: name,
+                note: nil, lastFourDigits: nil, balance: balance, currencyCode: "CNY",
+                createdAt: Date(timeIntervalSince1970: 2), updatedAt: .now
+            )
+            context.insert(account)
+            try context.save()
+            return account.id
+        }
+
         func balance() throws -> Decimal {
-            try #require(ModelContext(container).fetch(FetchDescriptor<Account>()).first { $0.id == accountID }).balance
+            try balance(of: accountID)
+        }
+
+        func balance(of id: UUID) throws -> Decimal {
+            try #require(ModelContext(container).fetch(FetchDescriptor<Account>()).first { $0.id == id }).balance
         }
     }
 }

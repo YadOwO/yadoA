@@ -56,6 +56,18 @@ final class VoiceSession {
             case failed(VoiceSessionFailure)
         }
 
+        /// 处理中进行到哪一步；只显示客户端确实知道的阶段，聊天页据此显示状态。
+        enum Phase: Equatable {
+            /// 已发出，等模型回复。
+            case thinking
+
+            /// 模型要查账，本机查完后等它看结果。
+            case searching
+
+            /// 已写入一部分，等模型决定后续。
+            case writing
+        }
+
         /// 稳定标识。
         let id = UUID()
 
@@ -70,6 +82,12 @@ final class VoiceSession {
 
         /// 处理结果。
         var outcome: Outcome = .processing
+
+        /// 处理中进行到哪一步。
+        var phase: Phase = .thinking
+
+        /// 本轮查询汇总的结果；不改动数据，只用于展示。
+        var insights: [AIChatInsight] = []
 
         /// 本轮成功写入的改动（收支流水与账户相关），按执行顺序排列。
         var changes: [VoiceChange] = []
@@ -321,6 +339,9 @@ final class VoiceSession {
                         events.append(.toolCall(call))
                         events.append(.toolResult(execution.result))
                         isAllSucceeded = isAllSucceeded && execution.result.output.isSuccess
+                        if let insight = execution.insight {
+                            updateTurn(turnID) { $0.insights.append(insight) }
+                        }
                         if let change = execution.change {
                             updateTurn(turnID) { $0.changes.append(change) }
                             // 余额调整、转账与账户改动不在首页明细中展示，只有收支流水需要提示
@@ -332,6 +353,8 @@ final class VoiceSession {
                     signposter.endInterval("VoiceExecute", executionSignpost)
                     requestTimings[requestTimings.count - 1].toolCallCount = calls.count
                     requestTimings[requestTimings.count - 1].executionMs = VoiceTimingClock.milliseconds(since: executionStartedAt)
+                    let nextPhase: Turn.Phase = calls.contains(where: \.isQuery) ? .searching : .writing
+                    updateTurn(turnID) { $0.phase = nextPhase }
                     // 随调用下发的追问：全部成功时直接显示，不必为同一个问题再请求一次
                     if let followUpAsk, isAllSucceeded {
                         askUser(turnID, question: followUpAsk.question, options: followUpAsk.options)
@@ -384,6 +407,56 @@ final class VoiceSession {
         saveToHistory(turn.id)
     }
 
+    /// 确认一笔新记流水的账户：在本机直接改，不请求模型、不扣点，也不新增一轮。
+    ///
+    /// 同时改写会话记录里当初的那次新增，下一轮模型看到的就是确认后的账户；事件条数不变，撤销仍按原位置截断。
+    ///
+    /// - Parameters:
+    ///   - turnID: 这笔流水所在的一轮。
+    ///   - changeID: 这笔流水的改动标识。
+    ///   - accountID: 用户选的账户。
+    /// - Returns: 是否改成功；处理中、这一轮已撤销、流水或账户不可用时为 false，数据不变。
+    func confirmInferredAccount(turnID: UUID, changeID: UUID, accountID: UUID) -> Bool {
+        guard !isProcessing,
+              let turn = turns.first(where: { $0.id == turnID }),
+              !turn.isUndone,
+              let changeIndex = turn.changes.firstIndex(where: { $0.id == changeID }),
+              let entry = turn.changes[changeIndex].entryChange,
+              entry.kind == .created,
+              entry.inferredFields.contains(.account)
+        else { return false }
+        let executor = VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: now)
+        let execution = executor.execute(.updateTransaction(id: UUID().uuidString, input: VoiceUpdateTransactionInput(
+            id: entry.transactionID.uuidString,
+            patch: VoiceTransactionPatch(accountId: accountID.uuidString)
+        )))
+        guard execution.result.output.isSuccess, let updated = execution.change?.entryChange else { return false }
+        rewriteCreateEvent(transactionID: entry.transactionID, accountID: accountID)
+        // 仍是原来那次新增：撤销照旧删除这笔，只有展示内容跟着变
+        let confirmed = VoiceEntryChange(
+            id: entry.id,
+            kind: entry.kind,
+            transactionID: entry.transactionID,
+            transactionDay: entry.transactionDay,
+            row: updated.row,
+            accountName: updated.accountName,
+            label: entry.label,
+            formattedAmount: entry.formattedAmount,
+            inferredFields: entry.inferredFields.filter { $0 != .account },
+            inverse: entry.inverse,
+            highlight: entry.highlight
+        )
+        updateTurn(turnID) { $0.changes[changeIndex] = .entry(confirmed) }
+        lastActivityAt = now()
+        saveToHistory(turnID)
+        return true
+    }
+
+    /// 读取今天的收支概况，聊天页顶部显示。
+    func todaySummary() -> VoiceTodaySummary {
+        VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: now).todaySummary()
+    }
+
     /// 用户关闭卡片（点关闭、点卡片外或进入二级页面）：只收起卡片，对话段不结束；
     /// 这一轮还在处理时才结束对话段，放弃这一轮的结果。
     func closeCard() {
@@ -434,6 +507,28 @@ final class VoiceSession {
     private var isAwaitingAnswer: Bool {
         if case .ask = latestTurn?.outcome { return true }
         return false
+    }
+
+    /// 把会话记录里新增这笔流水的那次调用改成用户确认的账户，并去掉账户的待确认标记。
+    ///
+    /// - Parameters:
+    ///   - transactionID: 新记的流水。
+    ///   - accountID: 用户确认的账户。
+    private func rewriteCreateEvent(transactionID: UUID, accountID: UUID) {
+        let createdOutput = VoiceToolOutput.created(id: transactionID.uuidString)
+        // 每个工具调用后面紧跟它的执行结果
+        for index in events.indices.dropLast() {
+            guard case let .toolCall(.createTransaction(id, input)) = events[index],
+                  case let .toolResult(result) = events[index + 1],
+                  result.toolCallId == id,
+                  result.output == createdOutput
+            else { continue }
+            var confirmed = input
+            confirmed.accountId = accountID.uuidString
+            confirmed.inferredFields.removeAll { $0 == .account }
+            events[index] = .toolCall(.createTransaction(id: id, input: confirmed))
+            return
+        }
     }
 
     /// 生成用户这句话的事件；只发图片时用一句默认说明，服务端要求文字不能为空。
@@ -709,6 +804,16 @@ extension VoiceSessionSummary.Item {
     /// 由一笔收支流水的改动生成摘要。
     fileprivate init(_ change: VoiceEntryChange) {
         self.init(kind: change.kind, label: change.label, formattedAmount: change.formattedAmount)
+    }
+}
+
+extension VoiceToolCall {
+    /// 是否只读账本：查询或汇总。
+    fileprivate var isQuery: Bool {
+        switch self {
+        case .searchTransactions, .summarizeTransactions: true
+        default: false
+        }
     }
 }
 

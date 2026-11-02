@@ -407,22 +407,26 @@ struct VoiceTurnActions: View {
     /// 重新发送没能完成的这一轮；只有聊天页提供，打字和图片不重发就没了。
     var onRetry: (() -> Void)?
 
+    /// 是否在这里放撤销和“已撤销”；聊天页的撤销在结果纸条上，这里不再重复。
+    var showsUndo = true
+
     /// 是否为最近一轮；登录和手动记账只对最近一轮有意义。
     private var isLatest: Bool {
         session.latestTurn?.id == turn.id
     }
 
     var body: some View {
-        let isUndoable = session.undoableTurn?.id == turn.id
+        let isUndoable = showsUndo && session.undoableTurn?.id == turn.id
+        let showsUndone = showsUndo && turn.isUndone
         let requiresSignIn = isLatest && turn.failure?.requiresSignIn == true
         let offersManualEntry = isLatest && turn.offersManualEntry
         // 点数不够所用档位、但够更便宜的档位时，给出换模型的入口；换好后余额够说一句，入口随之消失
         let offersTierSwitch = isLatest && turn.failure == .insufficientPoints && aiPoints?.canAffordCheaperTier == true
         let offersRetry = isLatest && !session.isProcessing && turn.failure != nil && !requiresSignIn && onRetry != nil
         let offersAccountCreation = isLatest && turn.requiresAccount
-        if isUndoable || offersManualEntry || requiresSignIn || offersAccountCreation || turn.isUndone {
+        if isUndoable || offersManualEntry || requiresSignIn || offersAccountCreation || showsUndone {
             HStack(spacing: 12) {
-                if turn.isUndone {
+                if showsUndone {
                     Label(text("voice.turn.undone"), systemImage: "arrow.uturn.backward")
                         .font(.footnote)
                         .foregroundStyle(.secondary)

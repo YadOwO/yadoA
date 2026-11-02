@@ -14947,24 +14947,6 @@
         }
       }
     },
-    "voice.chat.empty.title" : {
-      "comment" : "Empty state title of the AI chat.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Type, speak, or send a photo"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打一句、说一句，或发张图"
-          }
-        }
-      }
-    },
     "voice.chat.empty.detail" : {
       "comment" : "Empty state detail of the AI chat; states what it can do.",
       "extractionState" : "manual",
@@ -14972,13 +14954,589 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "I can record, change, and look up entries, and manage your accounts."
+            "value" : "Record, change, and look up entries. Say it, type it, or send a receipt."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "我可以帮你记账、改账、查账和管理账户。"
+            "value" : "记账、改账、查账都可以。说一句、打一句，或者发张小票。"
+          }
+        }
+      }
+    },
+    "voice.chat.status.noEntries" : {
+      "comment" : "AI chat status pill when nothing was recorded today.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing recorded today"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天还没记账"
+          }
+        }
+      }
+    },
+    "voice.chat.status.todayExpense" : {
+      "comment" : "AI chat status pill: today's total spending. %@ is the amount.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today's spending %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日支出 %@"
+          }
+        }
+      }
+    },
+    "voice.chat.status.listening" : {
+      "comment" : "AI chat status while the user is speaking.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listening…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在听…"
+          }
+        }
+      }
+    },
+    "voice.chat.status.thinking" : {
+      "comment" : "AI chat status while waiting for the model.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thinking…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "想一下…"
+          }
+        }
+      }
+    },
+    "voice.chat.status.image" : {
+      "comment" : "AI chat status while the model reads an attached image.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading the image…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在看图…"
+          }
+        }
+      }
+    },
+    "voice.chat.status.searching" : {
+      "comment" : "AI chat status after the model asked to query the ledger.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking your books…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻账本…"
+          }
+        }
+      }
+    },
+    "voice.chat.status.writing" : {
+      "comment" : "AI chat status after part of a turn was written and the model is deciding what is next.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Writing it down…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记下来…"
+          }
+        }
+      }
+    },
+    "voice.chat.greeting.morning" : {
+      "comment" : "AI chat empty state greeting, 5:00 to 11:00.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good morning. What should we record?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "早上好，今天记点什么？"
+          }
+        }
+      }
+    },
+    "voice.chat.greeting.noon" : {
+      "comment" : "AI chat empty state greeting, 11:00 to 14:00.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good afternoon. What should we record?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中午好，今天记点什么？"
+          }
+        }
+      }
+    },
+    "voice.chat.greeting.afternoon" : {
+      "comment" : "AI chat empty state greeting, 14:00 to 18:00.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good afternoon. What should we record?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下午好，今天记点什么？"
+          }
+        }
+      }
+    },
+    "voice.chat.greeting.evening" : {
+      "comment" : "AI chat empty state greeting, 18:00 to 23:00.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good evening. What should we record?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "晚上好，今天记点什么？"
+          }
+        }
+      }
+    },
+    "voice.chat.greeting.night" : {
+      "comment" : "AI chat empty state greeting, late night.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Still up? What should we record?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这么晚了，记点什么？"
+          }
+        }
+      }
+    },
+    "voice.chat.placeholder.answer" : {
+      "comment" : "Placeholder of the AI chat text field while the assistant waits for an answer.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Just type your answer…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直接回答就行…"
+          }
+        }
+      }
+    },
+    "voice.chat.slip.created" : {
+      "comment" : "Headline of a result slip after new entries were recorded. %d is the count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded %d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已记 %d 笔"
+          }
+        }
+      }
+    },
+    "voice.chat.slip.updated" : {
+      "comment" : "Headline of a result slip after entries were changed. %d is the count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changed %d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已修改 %d 笔"
+          }
+        }
+      }
+    },
+    "voice.chat.slip.deleted" : {
+      "comment" : "Headline of a result slip after entries were deleted. %d is the count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted %d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已删除 %d 笔"
+          }
+        }
+      }
+    },
+    "voice.chat.slip.changed" : {
+      "comment" : "Headline of a result slip with mixed changes. %d is the count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated %d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已处理 %d 笔"
+          }
+        }
+      }
+    },
+    "voice.chat.pick.failed" : {
+      "comment" : "Shown when confirming an account inline failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't change the account. Open the entry to edit it."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没能改成这个账户，可以点开这一笔修改。"
+          }
+        }
+      }
+    },
+    "voice.chat.insight.count" : {
+      "comment" : "Count of entries in an AI chat query result. %d is the count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d entries"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d 笔"
+          }
+        }
+      }
+    },
+    "voice.chat.insight.less" : {
+      "comment" : "AI chat query result comparison. %@ is the amount.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ less than the previous period"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比上一期少 %@"
+          }
+        }
+      }
+    },
+    "voice.chat.insight.more" : {
+      "comment" : "AI chat query result comparison. %@ is the amount.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ more than the previous period"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比上一期多 %@"
+          }
+        }
+      }
+    },
+    "voice.chat.insight.income" : {
+      "comment" : "AI chat query result: income total shown next to spending. %@ is the amount.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Income %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收入 %@"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.monthSpend" : {
+      "comment" : "AI chat suggestion; sent as a message when tapped.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How much did I spend this month?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个月花了多少"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.attachReceipt" : {
+      "comment" : "AI chat suggestion that opens the image options.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send a receipt"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发张小票"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.record" : {
+      "comment" : "AI chat suggestion that focuses the text field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record an entry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记一笔"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.recordAnother" : {
+      "comment" : "AI chat suggestion that focuses the text field after recording.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record another"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再记一笔"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.netWorth" : {
+      "comment" : "AI chat suggestion; sent as a message when tapped.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What's my net worth?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我净资产多少"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.editAmount" : {
+      "comment" : "AI chat suggestion that fills the text field to change the amount of the entry just recorded.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change amount"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "改金额"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.editAmount.fill" : {
+      "comment" : "Text placed in the AI chat field; the user types the amount next. %@ is the entry name. Keep the trailing space.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change %@ to "
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@改成 "
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.labelMonth" : {
+      "comment" : "AI chat suggestion; sent as a message when tapped. %@ is the entry name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How much on %@ this month?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个月%@花了多少"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.compare" : {
+      "comment" : "AI chat suggestion after a query result; sent as a message when tapped.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare with the previous period"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "和上一期比"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.largest" : {
+      "comment" : "AI chat suggestion after a query result; sent as a message when tapped.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What was the largest entry?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最大的一笔是哪笔"
           }
         }
       }

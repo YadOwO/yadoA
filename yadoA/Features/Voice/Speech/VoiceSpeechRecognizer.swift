@@ -25,6 +25,9 @@ protocol VoiceSpeechRecognizing: AnyObject {
     /// 截至目前的转写文字。
     var transcript: String { get }
 
+    /// 当前音量，0～1；没有收音时为 0。
+    var audioLevel: Float { get }
+
     /// 提前准备下一次识别要用的模型，按下后不用再等加载；不会打开麦克风。
     func prepare(locale: Locale, contextualStrings: [String])
 
@@ -39,6 +42,11 @@ protocol VoiceSpeechRecognizing: AnyObject {
 
     /// 丢弃本次识别。
     func cancel()
+}
+
+extension VoiceSpeechRecognizing {
+    /// 默认没有音量；只有真实收音的实现才提供。
+    var audioLevel: Float { 0 }
 }
 
 /// 按住说话期间的端上语音识别：管理权限、音频采集与识别实现，向界面提供实时转写文字。
@@ -68,6 +76,9 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
 
     /// 截至目前的转写文字。
     private(set) var transcript = ""
+
+    /// 当前音量，0～1；上升跟手，下降放缓，声波不会一跳一跳。
+    private(set) var audioLevel: Float = 0
 
     private var backend: VoiceSpeechBackend?
     private var capture: VoiceAudioCapture?
@@ -162,7 +173,12 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
         generation += 1
         let startGeneration = generation
         let capture = VoiceAudioCapture()
-        let relay = VoiceAudioRelay()
+        let relay = VoiceAudioRelay { [weak self] level in
+            Task { @MainActor [weak self] in
+                guard let self, self.generation == startGeneration, self.state != .idle else { return }
+                self.audioLevel = max(level, self.audioLevel * 0.7)
+            }
+        }
         var startedBackend: VoiceSpeechBackend?
         let timing = VoiceSpeechTiming()
         self.timing = timing
@@ -254,6 +270,7 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
         timing = nil
         state = .idle
         transcript = ""
+        audioLevel = 0
         VoiceAudioCapture.deactivateSession()
         // 每个识别实现只能用一次，说完一句就为下一句预热
         if let lastPreparationKey {

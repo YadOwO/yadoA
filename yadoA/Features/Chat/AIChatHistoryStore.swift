@@ -34,6 +34,9 @@ final class AIChatTurnRecord {
     /// 这一轮的改动快照，内容是 `[AIChatChangeSnapshot]` 的 JSON。
     var changesData: Data
 
+    /// 这一轮查询结果的快照，内容是 `AIChatInsight` 的 JSON；没有查询结果时为空。
+    var insightData: Data?
+
     /// 创建一条记录。
     ///
     /// - Parameters:
@@ -48,6 +51,7 @@ final class AIChatTurnRecord {
         isFailed = snapshot.isFailed
         isUndone = snapshot.isUndone
         self.changesData = changesData
+        insightData = snapshot.insight.flatMap { try? JSONEncoder().encode($0) }
     }
 }
 
@@ -173,6 +177,9 @@ struct AIChatTurnSnapshot: Equatable, Identifiable {
 
     /// 这一轮的改动。
     let changes: [AIChatChangeSnapshot]
+
+    /// 这一轮的查询结果；一轮查了多次时不展示，避免只画其中一次让人误读。
+    var insight: AIChatInsight?
 }
 
 extension AIChatTurnSnapshot {
@@ -190,7 +197,8 @@ extension AIChatTurnSnapshot {
             resultText: turn.resultText(locale: locale),
             isFailed: turn.failure != nil,
             isUndone: turn.isUndone,
-            changes: turn.changes.map(AIChatChangeSnapshot.init(change:))
+            changes: turn.changes.map(AIChatChangeSnapshot.init(change:)),
+            insight: turn.insights.count == 1 ? turn.insights.first : nil
         )
     }
 
@@ -204,7 +212,8 @@ extension AIChatTurnSnapshot {
             resultText: record.resultText,
             isFailed: record.isFailed,
             isUndone: record.isUndone,
-            changes: (try? JSONDecoder().decode([AIChatChangeSnapshot].self, from: record.changesData)) ?? []
+            changes: (try? JSONDecoder().decode([AIChatChangeSnapshot].self, from: record.changesData)) ?? [],
+            insight: record.insightData.flatMap { try? JSONDecoder().decode(AIChatInsight.self, from: $0) }
         )
     }
 }
@@ -279,6 +288,7 @@ final class AIChatHistoryStore {
                 record.isFailed = snapshot.isFailed
                 record.isUndone = snapshot.isUndone
                 record.changesData = changesData
+                record.insightData = snapshot.insight.flatMap { try? JSONEncoder().encode($0) }
             } else {
                 context.insert(AIChatTurnRecord(snapshot: snapshot, changesData: changesData))
             }

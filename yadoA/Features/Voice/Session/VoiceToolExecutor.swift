@@ -46,8 +46,8 @@ struct VoiceEntryChange: Equatable, Identifiable {
         case deleted
     }
 
-    /// 本次变更的唯一标识；同一笔流水在一轮里可能先后被改多次。
-    let id = UUID()
+    /// 本次变更的唯一标识；同一笔流水在一轮里可能先后被改多次。确认账户后沿用原来的标识，界面上还是同一行。
+    var id = UUID()
 
     /// 变更类型。
     let kind: Kind
@@ -157,6 +157,9 @@ struct VoiceToolExecution: Equatable {
 
     /// 成功写入时的改动；查询、汇总和失败时为 `nil`。
     let change: VoiceChange?
+
+    /// 汇总成功时展示用的结果；其他工具为 `nil`，不回传给服务端。
+    var insight: AIChatInsight?
 }
 
 /// 在本机执行语音记账会话的工具调用。
@@ -197,9 +200,14 @@ struct VoiceToolExecutor {
         case let .updateAccount(_, input): Self.account(updateAccount(input))
         case let .deleteAccount(_, input): Self.account(deleteAccount(input))
         }
+        var insight: AIChatInsight?
+        if case let .summarizeTransactions(_, input) = call, output.isSuccess {
+            insight = queryInsight(for: input.filter)
+        }
         return VoiceToolExecution(
             result: VoiceToolResult(toolCallId: call.id, name: call.name, output: output),
-            change: change
+            change: change,
+            insight: insight
         )
     }
 
@@ -902,6 +910,93 @@ struct VoiceToolExecutor {
             expenseTotal: Self.amountString(expenseTotal),
             incomeTotal: Self.amountString(incomeTotal)
         )
+    }
+
+    /// 今天的收支概况。
+    ///
+    /// - Returns: 今天的笔数和支出合计；读取失败时按没有记账处理。
+    func todaySummary() -> VoiceTodaySummary {
+        let today = Self.dateString(from: TransactionDay.encode(now(), calendar: calendar))
+        let context = container.makeManualSaveContext()
+        let entries = matchingEntries(VoiceTransactionFilter(dateFrom: today, dateTo: today), in: context) ?? []
+        return VoiceTodaySummary(
+            entryCount: entries.count,
+            formattedExpense: formattedAmount(Self.total(of: entries, type: .expense))
+        )
+    }
+
+    /// 按汇总条件在本机算出展示用的结果：合计、分布和与上一期的差额；不请求模型。
+    ///
+    /// - Parameter filter: 模型给出的汇总条件。
+    /// - Returns: 展示内容；条件格式不合法时为 `nil`。
+    func queryInsight(for filter: VoiceTransactionFilter) -> AIChatInsight? {
+        let context = container.makeManualSaveContext()
+        guard let entries = matchingEntries(filter, in: context) else { return nil }
+        // 没指定收支时优先看支出，只有收入时才看收入
+        let direction: BookkeepingEntryType = filter.type.map { BookkeepingEntryType($0) }
+            ?? (entries.isEmpty || entries.contains { $0.entryType == .expense } ? .expense : .income)
+        let total = Self.total(of: entries, type: direction)
+        let income = filter.type == nil && direction == .expense ? Self.total(of: entries, type: .income) : 0
+        let matched = entries.filter { $0.entryType == direction }
+        let requestedFrom = filter.dateFrom.flatMap(Self.transactionDay(from:))
+        let requestedTo = filter.dateTo.flatMap(Self.transactionDay(from:))
+        let range = AIChatInsightBuilder.clampedRange(
+            from: requestedFrom,
+            to: requestedTo,
+            entryDays: matched.map(\.transactionDay),
+            today: TransactionDay.encode(now(), calendar: calendar)
+        )
+
+        var comparison: AIChatInsight.Comparison?
+        // 只有明确给了时间范围才有“上一期”，否则全部流水都在这个范围里
+        if let requestedFrom, let requestedTo, requestedFrom <= requestedTo, let range,
+           let previous = AIChatInsightBuilder.previousRange(
+               of: range, requested: requestedFrom...requestedTo, calendar: calendar, locale: locale
+           ) {
+            var previousFilter = filter
+            previousFilter.dateFrom = Self.dateString(from: previous.lowerBound)
+            previousFilter.dateTo = Self.dateString(from: previous.upperBound)
+            let previousTotal = Self.total(of: matchingEntries(previousFilter, in: context) ?? [], type: direction)
+            if previousTotal > 0, previousTotal != total {
+                comparison = AIChatInsight.Comparison(
+                    isLess: total < previousTotal,
+                    formattedDelta: formattedAmount(abs(total - previousTotal))
+                )
+            }
+        }
+
+        var titleParts: [String] = []
+        if let range, let rangeText = AIChatInsightBuilder.rangeText(range, calendar: calendar, locale: locale) {
+            titleParts.append(rangeText)
+        }
+        if let categoryKeys = filter.categoryIds, categoryKeys.count == 1 {
+            titleParts.append(
+                Self.catalog(in: context).resolvedItem(direction: direction, key: categoryKeys[0]).title(locale: locale)
+            )
+        }
+        titleParts.append(String(
+            format: text("voice.chat.insight.count"), locale: locale, matched.count
+        ))
+        return AIChatInsight(
+            title: titleParts.joined(separator: " · "),
+            formattedTotal: formattedAmount(total),
+            formattedIncome: income > 0 ? formattedAmount(income) : nil,
+            comparison: comparison,
+            buckets: range.map {
+                AIChatInsightBuilder.buckets(
+                    entries: matched.map { (day: $0.transactionDay, amount: $0.amount) },
+                    range: $0,
+                    calendar: calendar,
+                    locale: locale,
+                    format: formattedAmount
+                )
+            } ?? []
+        )
+    }
+
+    /// 某个收支方向的合计。
+    private static func total(of entries: [BookkeepingEntrySnapshot], type: BookkeepingEntryType) -> Decimal {
+        entries.filter { $0.entryType == type }.reduce(Decimal.zero) { $0 + $1.amount }
     }
 
     /// 按条件筛选收支流水，按记账日倒序；条件格式不合法时返回 `nil`。

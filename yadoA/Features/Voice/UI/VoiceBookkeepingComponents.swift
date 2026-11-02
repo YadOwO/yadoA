@@ -288,6 +288,24 @@ enum VoiceEntryChangeText {
         }
     }
 
+    /// 待确认字段的说明，例如「待确认：账户、分类」。
+    ///
+    /// - Parameters:
+    ///   - inferredFields: 待确认字段的原始值。
+    ///   - locale: 文案使用的语言环境。
+    /// - Returns: 说明文字；没有待确认字段时为 `nil`。
+    static func inferredText(_ inferredFields: [String], locale: Locale) -> String? {
+        guard !inferredFields.isEmpty else { return nil }
+        let fields = inferredFields.map { AccountLocalization.string("voice.inferred.\($0)", locale: locale) }
+        let listFormatter = ListFormatter()
+        listFormatter.locale = locale
+        return AccountLocalization.formatted(
+            "voice.change.inferred",
+            value: listFormatter.string(from: fields) ?? fields.joined(separator: ", "),
+            locale: locale
+        )
+    }
+
     /// 日期、账户与待确认字段，例如「9月28日 · 微信钱包 · 待确认：账户」；日期只在不是今天时显示。
     ///
     /// - Parameters:
@@ -318,15 +336,8 @@ enum VoiceEntryChangeText {
         if let accountName {
             parts.append(accountName)
         }
-        if !inferredFields.isEmpty {
-            let fields = inferredFields.map { AccountLocalization.string("voice.inferred.\($0)", locale: locale) }
-            let listFormatter = ListFormatter()
-            listFormatter.locale = locale
-            parts.append(AccountLocalization.formatted(
-                "voice.change.inferred",
-                value: listFormatter.string(from: fields) ?? fields.joined(separator: ", "),
-                locale: locale
-            ))
+        if let inferred = inferredText(inferredFields, locale: locale) {
+            parts.append(inferred)
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
