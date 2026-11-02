@@ -1,10 +1,11 @@
 import SwiftData
 import SwiftUI
 
-/// “我的 › AI 点数”：当前余额、模型档位入口、扣点规则和点数明细。
+/// “我的 › AI 点数”：当前余额、快捷语音的模型档位入口、扣点规则和点数明细。
 ///
 /// 点数分好几批、到期时间不同时，余额下的到期提示可以点开，进入到期明细（`AIPointLotsView`）；
-/// 模型档位行点开进入模型选择页（`AIModelTierView`）。
+/// 模型档位行点开进入快捷语音的模型选择页（`AIModelTierView`）。AI 对话的模型在聊天页单独选，本页不显示。
+/// 余额是否够用、切换档位的提示都按快捷语音所用的档位算。
 ///
 /// 余额与每轮点数来自根部注入的 `AIPointsStore`，明细由本页的 `AICreditEntryFeed` 分页加载。
 /// 暂不提供充值；点数用完时只说明暂时无法使用 AI 记账。
@@ -110,7 +111,7 @@ struct AIPointsView: View {
                 .font(.system(size: 52, weight: .semibold, design: .serif))
                 .monospacedDigit()
                 .contentTransition(.numericText(value: Double(balance)))
-                .foregroundStyle(points?.isExhausted == true ? Color(.ledgerRed) : Color.primary)
+                .foregroundStyle(points?.isExhausted(for: .quickVoice) == true ? Color(.ledgerRed) : Color.primary)
                 .animation(.default, value: balance)
         } else if points?.isRefreshing == true {
             ProgressView()
@@ -167,7 +168,7 @@ struct AIPointsView: View {
         if let noticeKey = balanceNoticeKey {
             let notice = Text(text(noticeKey))
                 .font(.footnote)
-                .foregroundStyle(points?.isExhausted == true ? Color(.ledgerRed) : Color.secondary)
+                .foregroundStyle(points?.isExhausted(for: .quickVoice) == true ? Color(.ledgerRed) : Color.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -191,12 +192,12 @@ struct AIPointsView: View {
         }
     }
 
-    /// 余额下方提示的文案 key：不够所用档位说一句但够更便宜的档位时提示切换，连最便宜的档位都不够时说明暂时无法使用，
+    /// 余额下方提示的文案 key：不够快捷语音所用档位说一句但够更便宜的档位时提示切换，连最便宜的档位都不够时说明暂时无法使用，
     /// 没取到余额时提示下拉重试；正常时不显示。
     private var balanceNoticeKey: String? {
         guard let points else { return nil }
-        if points.isExhausted {
-            return points.canAffordCheaperTier ? "ai.points.switchTier" : "ai.points.exhausted"
+        if points.isExhausted(for: .quickVoice) {
+            return points.canAffordCheaperTier(for: .quickVoice) ? "ai.points.switchTier" : "ai.points.exhausted"
         }
         if points.balance == nil, points.failure != nil {
             return "ai.points.loadFailed"
@@ -222,22 +223,30 @@ struct AIPointsView: View {
 
     // MARK: - 模型档位
 
-    /// 模型档位入口：行尾显示当前使用的档位，点开进入模型选择页（`AIModelTierView`）查看各档位特点并切换；
-    /// 档位列表还没取到、或可选的档位不到两个时不显示。
+    /// 快捷语音的模型档位入口：行尾显示当前使用的档位，点开进入模型选择页（`AIModelTierView`）查看各档位特点并切换；
+    /// 档位列表还没取到、或可选的档位不到两个时不显示。下方说明这只管快捷语音，AI 对话的模型在聊天页单独选。
     ///
-    /// 客户端不认识服务端默认档位时 `displayTier` 为 nil，行尾留空，不冒充成别的档位。
+    /// 客户端不认识服务端默认档位时 `displayTier(for:)` 为 nil，行尾留空，不冒充成别的档位。
     @ViewBuilder
     private var tierSection: some View {
         if let points, let tierList = points.tierList, tierList.selectableTiers.count > 1 {
-            ProfileSettingsSection(nil, seed: "ai.tier") {
-                NavigationLink(value: ProfileRoute.aiModelTier) {
-                    ProfileSettingsRow(
-                        titleKey: "ai.tier.title",
-                        symbol: "cpu",
-                        value: points.displayTier.map { text($0.titleKey) } ?? ""
-                    )
+            VStack(alignment: .leading, spacing: 8) {
+                ProfileSettingsSection(nil, seed: "ai.tier") {
+                    NavigationLink(value: ProfileRoute.aiModelTier) {
+                        ProfileSettingsRow(
+                            titleKey: AIModelScope.quickVoice.titleKey,
+                            symbol: "cpu",
+                            value: points.displayTier(for: .quickVoice).map { text($0.titleKey) } ?? ""
+                        )
+                    }
+                    .accessibilityIdentifier("ai-points-tier")
                 }
-                .accessibilityIdentifier("ai-points-tier")
+
+                Text(text(AIModelScope.quickVoice.scopeNoteKey))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 20)
             }
         }
     }
@@ -317,11 +326,13 @@ struct AIPointsView: View {
 
     // MARK: - 扣点规则
 
-    /// 扣点规则：每说一句扣几点、追问也算一句、失败不扣、点数有有效期。
+    /// 扣点规则：每说一句扣一次点、追问也算一句、失败不扣、点数有有效期。
+    ///
+    /// 快捷语音和 AI 对话可以选不同的档位，每句扣几点因档位而异，这里不写数字，各档位的点数在模型选择页看。
     private var rulesSection: some View {
         ProfileSettingsSection("ai.rules.title") {
             VStack(alignment: .leading, spacing: 14) {
-                ruleRow(perTurnRule, symbol: "mic")
+                ruleRow(text("ai.rules.perTurn"), symbol: "mic")
                 ruleRow(text("ai.rules.followUp"), symbol: "bubble.left.and.bubble.right")
                 ruleRow(text("ai.rules.free"), symbol: "checkmark.seal")
                 ruleRow(text("ai.rules.expiry"), symbol: "hourglass")
@@ -331,18 +342,6 @@ struct AIPointsView: View {
             .padding(.vertical, 18)
         }
         .accessibilityIdentifier("ai-points-rules")
-    }
-
-    /// 按所用档位每说一句扣几点；还不知道每轮点数时用不带数字的说法。
-    private var perTurnRule: String {
-        guard let pointsPerTurn = points?.pointsPerTurn else {
-            return text("ai.rules.perTurn.unknown")
-        }
-        return AccountLocalization.formatted(
-            "ai.rules.perTurn",
-            value: pointsPerTurn.formatted(.number.locale(locale)),
-            locale: locale
-        )
     }
 
     /// 一条规则：图标列与设置行对齐，文字可换行。

@@ -54,8 +54,9 @@ struct ProfileView: View {
                             titleKey: "ai.points.title",
                             symbol: "sparkles",
                             value: aiPointsValue,
-                            // 余额不够说一句时用账本红提醒，其余保持灰色
-                            valueTint: authStore.isAuthenticated && aiPoints?.isExhausted == true ? Color(.ledgerRed) : nil
+                            // 余额不够快捷语音说一句时用账本红提醒，其余保持灰色；与 AI 点数页的余额颜色一致
+                            valueTint: authStore.isAuthenticated && aiPoints?.isExhausted(for: .quickVoice) == true
+                                ? Color(.ledgerRed) : nil
                         )
                     }
                     .accessibilityIdentifier("profile-ai-points")

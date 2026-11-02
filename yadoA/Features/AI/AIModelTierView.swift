@@ -1,20 +1,32 @@
 import SwiftUI
 
-/// “我的 › AI 点数 › AI 模型”：每个可选的模型档位一张卡片，介绍特点、每句点数和按余额还能说几句，点选后保存在本机。
+/// 某个入口的模型选择页：每个可选的模型档位一张卡片，介绍特点、每句点数和按余额还能说几句，点选后保存在本机。
 ///
+/// 快捷语音和 AI 对话各选各的（`AIModelScope`）：“我的 › AI 点数 › 快捷语音模型”打开快捷语音的，聊天页打开 AI 对话的；
+/// 页顶说明这个模型用在哪里、另一边在哪里选。
 /// 卡片显示名称、每句扣的点数、按当前余额还能说几句、一句话特点和几条具体说明，服务端的默认档位带“默认”标记；
 /// 选中的卡片用浅底色和加粗边框标出。客户端不认识或服务端未配置好的档位不显示。
 /// 以后接入新档位时只需在 `AIModelTier` 补上文案，本页自动列出。
 /// 档位列表、余额与所选档位来自根部注入的 `AIPointsStore`，下拉刷新时重新查询。
-/// 除了 AI 点数页，语音记账因点数不够所用档位而失败时也会以弹层打开本页。
+/// 语音记账因点数不够所用档位而失败时，会话卡片和聊天页也会以弹层打开各自入口的这一页。
 struct AIModelTierView: View {
     @Environment(\.locale) private var locale
     /// 当前账号的 AI 点数；预览中没有注入时为 nil。
     @Environment(AIPointsStore.self) private var points: AIPointsStore?
 
+    /// 为哪个入口选模型。
+    let scope: AIModelScope
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                Text(text(scope.scopeNoteKey))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 20)
+                    .accessibilityIdentifier("ai-tier-scope-note")
+
                 if let points, let tierList = points.tierList {
                     if tierList.selectableTiers.isEmpty {
                         ProfileSettingsSection(nil, seed: "ai.tier.empty") {
@@ -31,7 +43,7 @@ struct AIModelTierView: View {
                                 tier,
                                 in: tierList,
                                 turnsLeft: points.turnsLeft(for: tier),
-                                isSelected: tier == points.displayTier
+                                isSelected: tier == points.displayTier(for: scope)
                             )
                         }
                     }
@@ -52,11 +64,11 @@ struct AIModelTierView: View {
             .padding(.bottom, 32)
         }
         .paperPage()
-        .navigationTitle(text("ai.tier.title"))
+        .navigationTitle(text(scope.titleKey))
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await points?.refresh() }
         // 只跟用户的选择震动；刷新后默认档位变化引起的勾选变化不震
-        .appHaptic(.selection, trigger: points?.selectedTier)
+        .appHaptic(.selection, trigger: points?.selectedTier(for: scope))
     }
 
     // MARK: - 卡片
@@ -76,7 +88,7 @@ struct AIModelTierView: View {
     ) -> some View {
         let pointsPerTurn = tierList.pointsPerTurn(for: tier.rawValue)
         return Button {
-            points?.selectTier(tier)
+            points?.selectTier(tier, for: scope)
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 14) {
                 Image(systemName: tier.symbol)
@@ -217,5 +229,5 @@ struct AIModelTierView: View {
 }
 
 #Preview {
-    NavigationStack { AIModelTierView() }
+    NavigationStack { AIModelTierView(scope: .quickVoice) }
 }

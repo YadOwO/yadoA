@@ -66,7 +66,8 @@ private enum AIChatRoute: Hashable {
 /// 和 AI 的对话页：只有一条连续的记录，上下文按时间自动分段。
 ///
 /// 顶部胶囊显示当前状态和今日支出，结果写成纸条，下一步建议放在输入栏上方。动效只给刚发生的一轮，翻历史时全部静止。
-/// 结果卡片点开后在本页内看详情，不跳走；手动记账、换模型以弹层盖在本页上。
+/// 右上角选 AI 对话的模型，和一级页面快捷语音的模型分开；本页发出的每一句都用这里选的档位。
+/// 结果卡片点开后在本页内看详情，不跳走；手动记账、模型说明以弹层盖在本页上。
 /// 规则见 `docs/rules/voice-bookkeeping-session-rules.md`。
 struct AIChatView: View {
     @Environment(\.locale) private var locale
@@ -76,6 +77,8 @@ struct AIChatView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(VoiceBookkeepingState.self) private var voice
     @Environment(SignInPresentation.self) private var signInPresentation
+    /// 当前账号的 AI 点数，提供档位列表和 AI 对话所选的档位；预览中没有注入时为 nil。
+    @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
 
     /// 本页的导航路径。
     @State private var path: [AIChatRoute] = []
@@ -83,7 +86,7 @@ struct AIChatView: View {
     /// 带着这句话去手动记账时预填的备注。
     @State private var manualEntryNote: VoiceManualEntryNote?
 
-    /// 是否打开模型选择。
+    /// 是否打开 AI 对话的模型选择页。
     @State private var isModelTierPresented = false
 
     /// 因为没有账户没能记上、正在为它新建账户的一轮；建好后接着处理这句话。
@@ -135,6 +138,10 @@ struct AIChatView: View {
             if session?.isProcessing == true, let turnID = session?.latestTurn?.id {
                 entranceTurnIDs.insert(turnID)
             }
+            // 没进过“我的”时还没有档位列表，取一次才能显示模型菜单；查档位不调用模型、不扣点
+            if let aiPoints, aiPoints.tierList == nil {
+                await aiPoints.refresh()
+            }
         }
         .onChange(of: session?.latestTurn?.id) { _, turnID in
             if let turnID, session?.isProcessing == true {
@@ -167,7 +174,7 @@ struct AIChatView: View {
         }
         .sheet(isPresented: $isModelTierPresented) {
             NavigationStack {
-                AIModelTierView()
+                AIModelTierView(scope: .chat)
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
                             Button(text("common.done")) { isModelTierPresented = false }
@@ -183,7 +190,7 @@ struct AIChatView: View {
 
     // MARK: - 顶部
 
-    /// 顶部：左边关闭，中间状态胶囊；内容滚动时从下面淡出。
+    /// 顶部：左边关闭，中间状态胶囊，右边 AI 对话的模型；内容滚动时从下面淡出。
     private var topBar: some View {
         ZStack {
             AIChatStatusPill(
@@ -207,6 +214,7 @@ struct AIChatView: View {
                 .accessibilityLabel(text("common.close"))
                 .accessibilityIdentifier("voice-chat-close")
                 Spacer(minLength: 0)
+                modelMenu
             }
         }
         .padding(.horizontal, 12)
@@ -220,6 +228,65 @@ struct AIChatView: View {
             .ignoresSafeArea(edges: .top)
             .allowsHitTesting(false)
         }
+    }
+
+    /// 右上角的 AI 对话模型菜单：按钮是当前档位的图标，点开列出各档位和每句扣几点，勾选的就是本页在用的；
+    /// 只改本页发出的话，快捷语音的模型不受影响。档位列表还没取到、或可选的档位不到两个时不显示。
+    @ViewBuilder
+    private var modelMenu: some View {
+        if let aiPoints, let tierList = aiPoints.tierList, tierList.selectableTiers.count > 1 {
+            let current = aiPoints.displayTier(for: .chat)
+            Menu {
+                Picker(
+                    text(AIModelScope.chat.titleKey),
+                    selection: Binding(
+                        get: { current },
+                        set: { tier in
+                            if let tier { aiPoints.selectTier(tier, for: .chat) }
+                        }
+                    )
+                ) {
+                    ForEach(tierList.selectableTiers) { tier in
+                        Label(modelMenuTitle(tier, in: tierList), systemImage: tier.symbol)
+                            .tag(Optional(tier))
+                    }
+                }
+                .pickerStyle(.inline)
+
+                Button {
+                    isModelTierPresented = true
+                } label: {
+                    Label(text("ai.tier.chat.compare"), systemImage: "info.circle")
+                }
+            } label: {
+                Image(systemName: current?.symbol ?? "cpu")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+                    .voiceFloatingSurface(in: Circle(), isInteractive: true)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(text(AIModelScope.chat.titleKey))
+            .accessibilityValue(current.map { text($0.titleKey) } ?? "")
+            .accessibilityIdentifier("voice-chat-model")
+            // 只跟用户的选择震动；刷新后默认档位变化不震
+            .appHaptic(.selection, trigger: aiPoints.selectedTier(for: .chat))
+        }
+    }
+
+    /// 模型菜单里一个档位的文字，例如“精准 · 每句 2 点”；服务端没给点数时只有名称。
+    ///
+    /// - Parameters:
+    ///   - tier: 档位。
+    ///   - tierList: 服务端的档位列表，用来取每句点数。
+    private func modelMenuTitle(_ tier: AIModelTier, in tierList: AIModelTierList) -> String {
+        let name = text(tier.titleKey)
+        guard let points = tierList.pointsPerTurn(for: tier.rawValue) else { return name }
+        let perTurn = AccountLocalization.formatted(
+            "ai.tier.perTurn", value: points.formatted(.number.locale(locale)), locale: locale
+        )
+        return "\(name) · \(perTurn)"
     }
 
     /// 当前状态。
@@ -443,7 +510,8 @@ struct AIChatView: View {
             onSwitchModelTier: { isModelTierPresented = true },
             onCreateAccount: { accountCreationTurn = turn },
             onRetry: { voice.resend(turn) },
-            showsUndo: false
+            showsUndo: false,
+            modelScope: .chat
         )
     }
 

@@ -123,7 +123,7 @@ enum ProfileRoute: Hashable {
     /// AI 点数的到期明细：从 AI 点数页的到期提示进入，列出每批点数的来源与到期时间。
     case aiPointLots
 
-    /// AI 模型选择：从 AI 点数页进入，介绍各模型档位的特点与每句扣的点数，点选后保存在本机。
+    /// 快捷语音的模型选择：从 AI 点数页进入，介绍各模型档位的特点与每句扣的点数，点选后保存在本机；AI 对话的模型在聊天页选。
     case aiModelTier
 
     /// 设置页面。
@@ -152,7 +152,7 @@ enum ProfileRoute: Hashable {
         case .aiPointLots:
             AIPointLotsView()
         case .aiModelTier:
-            AIModelTierView()
+            AIModelTierView(scope: .quickVoice)
         case .settings:
             SettingsView()
         case .feedback:

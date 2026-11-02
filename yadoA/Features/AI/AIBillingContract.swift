@@ -269,9 +269,6 @@ nonisolated enum AIModelTier: String, CaseIterable, Identifiable, Sendable {
     /// 精准：用更强的模型，每句扣的点数多。
     case precise
 
-    /// 在本机保存用户所选档位的偏好键。
-    static let storageKey = "ai.modelTier"
-
     /// 选择项的稳定标识。
     var id: String { rawValue }
 
@@ -312,6 +309,40 @@ nonisolated enum AIModelTier: String, CaseIterable, Identifiable, Sendable {
                 AIModelTierHighlight(symbol: "text.magnifyingglass", textKey: "ai.tier.precise.understanding"),
                 AIModelTierHighlight(symbol: "clock", textKey: "ai.tier.precise.speed")
             ]
+        }
+    }
+}
+
+/// 模型档位用在哪里：快捷语音和 AI 对话各选各的，互不影响。
+///
+/// 快捷语音是一级页面上按住麦克风说的话，在 AI 点数页选模型；AI 对话是聊天页里说的、打的话和发的图片，在聊天页右上角选。
+/// 两边共用同一个对话段，每句话按发出时所在的入口取档位。
+nonisolated enum AIModelScope: String, CaseIterable, Identifiable, Sendable {
+    /// 快捷语音：一级页面上按住麦克风说话，结果出现在会话卡片里。
+    case quickVoice
+
+    /// AI 对话：在聊天页里说、打字或发图片。
+    case chat
+
+    /// 选择项的稳定标识。
+    var id: String { rawValue }
+
+    /// 在本机保存这个入口所选档位的偏好键。
+    var storageKey: String { "ai.modelTier.\(rawValue)" }
+
+    /// 模型选择页标题与入口行名称的本地化 key。
+    var titleKey: String {
+        switch self {
+        case .quickVoice: "ai.tier.quickVoice.title"
+        case .chat: "ai.tier.chat.title"
+        }
+    }
+
+    /// 说明这个模型用在哪里、另一边在哪里选的本地化 key，显示在模型选择页顶部。
+    var scopeNoteKey: String {
+        switch self {
+        case .quickVoice: "ai.tier.quickVoice.note"
+        case .chat: "ai.tier.chat.note"
         }
     }
 }

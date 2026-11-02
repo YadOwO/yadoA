@@ -43,6 +43,12 @@ final class VoiceBookkeepingState {
     /// 是否打开聊天页；由根导航全屏展示，关闭后回到原来的一级页面。
     var isChatPresented = false
 
+    /// 现在发出的话算哪个入口：聊天页全屏盖住了一级页面，打开时发出的每一句（说话、打字、点选、重发、
+    /// 建好账户后接着处理）都用 AI 对话的模型，否则用快捷语音的模型。
+    var modelScope: AIModelScope {
+        isChatPresented ? .chat : .quickVoice
+    }
+
     /// 会话是否正在处理上一句。
     var isProcessing: Bool {
         session?.isProcessing == true
@@ -88,7 +94,7 @@ final class VoiceBookkeepingState {
         isChatPresented = true
     }
 
-    /// 发送一句话或点选的候选项。
+    /// 发送一句话或点选的候选项；入口在调用时就定下，之后关掉聊天页也不变。
     ///
     /// - Parameters:
     ///   - text: 识别出或打出来的文字，或候选项文案。
@@ -98,9 +104,14 @@ final class VoiceBookkeepingState {
         guard let session else { return }
         // 说话发出的一句带上识别收尾耗时；点选候选项没有识别
         let speechFinalizeDuration = option == nil ? input.takeSpeechFinalizeDuration() : nil
+        let scope = modelScope
         Task {
             await session.send(
-                text, selectedOption: option, speechFinalizeDuration: speechFinalizeDuration, images: images
+                text,
+                selectedOption: option,
+                speechFinalizeDuration: speechFinalizeDuration,
+                images: images,
+                scope: scope
             )
         }
     }

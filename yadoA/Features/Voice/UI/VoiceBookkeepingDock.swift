@@ -242,7 +242,7 @@ private struct VoiceBookkeepingHost: ViewModifier {
                     ) { [authStore] in
                         try await authStore.accessTokenForAIService()
                     },
-                    modelTier: { [aiPoints] in aiPoints?.requestTier },
+                    modelTier: { [aiPoints] scope in aiPoints?.requestTier(for: scope) },
                     locale: locale,
                     calendar: calendar,
                     history: history
@@ -346,7 +346,7 @@ private struct VoiceBookkeepingHost: ViewModifier {
             }
             .sheet(isPresented: $voice.isModelTierPresented) {
                 NavigationStack {
-                    AIModelTierView()
+                    AIModelTierView(scope: .quickVoice)
                         .toolbar {
                             ToolbarItem(placement: .confirmationAction) {
                                 Button(text("common.done")) { voice.isModelTierPresented = false }

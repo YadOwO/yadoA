@@ -157,7 +157,7 @@ struct VoiceSessionTests {
     @Test("模型档位：每句开始时取一次，同一句的续步沿用，下一句才用新选的档位")
     func capturesModelTierPerSentence() async throws {
         let fixture = try Fixture()
-        fixture.tierChoice.tier = .precise
+        fixture.tierChoice.tiers[.quickVoice] = .precise
         fixture.api.responses = [
             .success(.toolCalls([fixture.createCall("c1", amount: "28")], canFinishLocally: false)),
             .success(.ask(question: "打车花了多少钱？", options: [])),
@@ -165,10 +165,25 @@ struct VoiceSessionTests {
         ]
 
         await fixture.session.send("午饭 28，还打了车")
-        fixture.tierChoice.tier = .standard
+        fixture.tierChoice.tiers[.quickVoice] = .standard
         await fixture.session.send("25")
 
         #expect(fixture.api.tiers == [.precise, .precise, .standard])
+    }
+
+    @Test("模型档位按这句话的入口取：聊天页发出的用 AI 对话的档位，同一个对话段里前后两句可以不同")
+    func picksModelTierByScope() async throws {
+        let fixture = try Fixture()
+        fixture.tierChoice.tiers = [.quickVoice: .standard, .chat: .precise]
+        fixture.api.responses = [
+            .success(.reply(text: "这个月花了 128 元")),
+            .success(.reply(text: "上个月花了 96 元")),
+        ]
+
+        await fixture.session.send("这个月花了多少", scope: .chat)
+        await fixture.session.send("上个月呢", scope: .quickVoice)
+
+        #expect(fixture.api.tiers == [.precise, .standard])
     }
 
     @Test("点数不足时不改动数据，移出本轮事件，可以手动记账或重说")
@@ -678,7 +693,7 @@ struct VoiceSessionTests {
             session = VoiceSession(
                 container: container,
                 api: api,
-                modelTier: { tierChoice.tier },
+                modelTier: { scope in tierChoice.tiers[scope] },
                 locale: Locale(identifier: "zh-Hans"),
                 calendar: calendar,
                 timingStore: timingStore,
@@ -736,11 +751,11 @@ private final class TestClock {
     var date = Date(timeIntervalSince1970: 1_792_470_600)
 }
 
-/// 用户当前选的模型档位，用例中途可以改。
+/// 用户为各入口选的模型档位，用例中途可以改。
 @MainActor
 private final class TestTierChoice {
-    /// 当前档位；为 nil 时不带档位。
-    var tier: AIModelTier?
+    /// 各入口当前的档位；没有的入口不带档位。
+    var tiers: [AIModelScope: AIModelTier] = [:]
 }
 
 /// 按顺序返回预设响应、记录每次请求的假接口；预设用完后视为服务不可用。

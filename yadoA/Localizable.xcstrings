@@ -14039,20 +14039,92 @@
         }
       }
     },
-    "ai.tier.title" : {
-      "comment" : "AI 点数页中选择模型档位那一行的标题",
+    "ai.tier.chat.compare" : {
+      "comment" : "聊天页模型菜单里打开模型选择页的一项",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI model"
+            "value" : "Compare models"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI 模型"
+            "value" : "比较模型"
+          }
+        }
+      }
+    },
+    "ai.tier.chat.note" : {
+      "comment" : "AI 对话模型选择页顶部的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used for everything you send in Yado Assistant: speech, text, and images. Holding the mic at the bottom of the screen uses its own model, set in Profile › AI Points. Changing one doesn’t affect the other."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在芽豆助手里说话、打字、发图片都用这个模型。按住底部麦克风说话的模型在“我的 › AI 点数”里单独设置，两边互不影响。"
+          }
+        }
+      }
+    },
+    "ai.tier.chat.title" : {
+      "comment" : "聊天页右上角模型菜单与 AI 对话模型选择页的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat model"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对话模型"
+          }
+        }
+      }
+    },
+    "ai.tier.quickVoice.note" : {
+      "comment" : "AI 点数页快捷语音模型行下方与快捷语音模型选择页顶部的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used when you hold the mic at the bottom of the screen to speak. Yado Assistant has its own model, chosen in the top-right corner of the chat. Changing one doesn’t affect the other."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按住底部麦克风说话时用这个模型。芽豆助手的模型在对话页右上角单独选，两边互不影响。"
+          }
+        }
+      }
+    },
+    "ai.tier.quickVoice.title" : {
+      "comment" : "AI 点数页中快捷语音模型那一行与其选择页的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick voice model"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快捷语音模型"
           }
         }
       }
@@ -14404,30 +14476,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voice bookkeeping uses %@ pts per sentence"
+            "value" : "Each sentence uses points once; how many depends on the model it uses"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "语音记账每说一句扣 %@ 点"
-          }
-        }
-      }
-    },
-    "ai.rules.perTurn.unknown" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Voice bookkeeping uses points once per sentence"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "语音记账每说一句扣一次点"
+            "value" : "每说一句扣一次点，扣几点看这句用的模型"
           }
         }
       }

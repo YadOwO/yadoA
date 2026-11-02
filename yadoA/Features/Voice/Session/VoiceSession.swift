@@ -152,8 +152,8 @@ final class VoiceSession {
 
     private let container: ModelContainer
     private let api: VoiceSessionTurnSending
-    /// 读取语音记账要用的模型档位；每句开始时取一次，为 nil 时由服务端按默认档位处理。
-    private let modelTier: () -> AIModelTier?
+    /// 按这句话的入口读取要用的模型档位；每句开始时取一次，为 nil 时由服务端按默认档位处理。
+    private let modelTier: (AIModelScope) -> AIModelTier?
     private let highlight: HomeRecentEntryHighlight
     private let now: () -> Date
     /// 写入「语音耗时」的记录；未启用语音耗时（`VoiceTimingFeature.isEnabled`）时为空，不保存耗时。
@@ -173,7 +173,7 @@ final class VoiceSession {
     /// - Parameters:
     ///   - container: 应用持有的本地财务容器。
     ///   - api: 会话接口。
-    ///   - modelTier: 读取模型档位的动作，通常是 `AIPointsStore.requestTier`；默认不带档位。
+    ///   - modelTier: 按入口读取模型档位的动作，通常是 `AIPointsStore.requestTier(for:)`；默认不带档位。
     ///   - locale: 界面语言。
     ///   - calendar: 记账日使用的日历。
     ///   - highlight: 首页变更提示通道。
@@ -183,7 +183,7 @@ final class VoiceSession {
     init(
         container: ModelContainer,
         api: VoiceSessionTurnSending,
-        modelTier: @escaping () -> AIModelTier? = { nil },
+        modelTier: @escaping (AIModelScope) -> AIModelTier? = { _ in nil },
         locale: Locale = .current,
         calendar: Calendar = .current,
         highlight: HomeRecentEntryHighlight = .shared,
@@ -235,11 +235,13 @@ final class VoiceSession {
     ///   - selectedOption: 回答追问时点选的候选项。
     ///   - speechFinalizeDuration: 松手到拿到最终识别文字的耗时，计入本轮耗时；点选候选项时为空。
     ///   - images: 随这句话发送的图片；有图片时文字可以为空。
+    ///   - scope: 这句话从哪个入口发出，决定用哪边选的模型档位；同一个对话段里两边的句子可以用不同档位。
     func send(
         _ rawText: String,
         selectedOption: VoiceAskOption? = nil,
         speechFinalizeDuration: Duration? = nil,
-        images: [VoiceImageUpload] = []
+        images: [VoiceImageUpload] = [],
+        scope: AIModelScope = .quickVoice
     ) async {
         let text = String(
             rawText.trimmingCharacters(in: .whitespacesAndNewlines).prefix(VoiceSessionLimits.maxUserTextLength)
@@ -285,7 +287,7 @@ final class VoiceSession {
         // 一句话一个计费轮次：这句的续步沿用，用户下一句（包括回答追问）重新生成
         let billingTurnID = UUID()
         // 档位与计费轮次一起在这句开始时确定：处理期间用户换了档位，续步仍沿用，否则服务端会判为不一致
-        let tier = modelTier()
+        let tier = modelTier(scope)
         let turnStartedAt = VoiceTimingClock.now
         let signposter = VoiceTimingLog.signposter
         let turnSignpost = signposter.beginInterval("VoiceTurn", id: signposter.makeSignpostID(), "turn \(turnIndex)")

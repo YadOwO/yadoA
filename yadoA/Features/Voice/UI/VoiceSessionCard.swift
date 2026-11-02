@@ -293,7 +293,8 @@ private struct VoiceSessionTurnView: View {
             }
             if isLatest, case let .ask(_, options) = turn.outcome, !options.isEmpty {
                 VoiceAskOptionsView(options: options, isEnabled: !session.isProcessing) { option in
-                    Task { await session.send(option.label, selectedOption: option) }
+                    // 会话卡片只在一级页面上，点选的回答按快捷语音的模型处理
+                    Task { await session.send(option.label, selectedOption: option, scope: .quickVoice) }
                 }
             }
             VoiceTurnActions(
@@ -410,6 +411,9 @@ struct VoiceTurnActions: View {
     /// 是否在这里放撤销和“已撤销”；聊天页的撤销在结果纸条上，这里不再重复。
     var showsUndo = true
 
+    /// 这里发出的话用哪边的模型：判断点数不够时能否换用更便宜的档位，换模型也打开这一边的选择页。
+    var modelScope: AIModelScope = .quickVoice
+
     /// 是否为最近一轮；登录和手动记账只对最近一轮有意义。
     private var isLatest: Bool {
         session.latestTurn?.id == turn.id
@@ -421,7 +425,8 @@ struct VoiceTurnActions: View {
         let requiresSignIn = isLatest && turn.failure?.requiresSignIn == true
         let offersManualEntry = isLatest && turn.offersManualEntry
         // 点数不够所用档位、但够更便宜的档位时，给出换模型的入口；换好后余额够说一句，入口随之消失
-        let offersTierSwitch = isLatest && turn.failure == .insufficientPoints && aiPoints?.canAffordCheaperTier == true
+        let offersTierSwitch = isLatest && turn.failure == .insufficientPoints
+            && aiPoints?.canAffordCheaperTier(for: modelScope) == true
         let offersRetry = isLatest && !session.isProcessing && turn.failure != nil && !requiresSignIn && onRetry != nil
         let offersAccountCreation = isLatest && turn.requiresAccount
         if isUndoable || offersManualEntry || requiresSignIn || offersAccountCreation || showsUndone {

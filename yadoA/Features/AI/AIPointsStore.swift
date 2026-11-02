@@ -3,7 +3,8 @@ import Observation
 
 /// 当前登录账号的 AI 点数：余额、各批点数的过期时刻、模型档位与每说一句扣的点数，供“我的”入口、AI 点数页和语音记账共用。
 ///
-/// 模型档位（普通、精准）由用户在 AI 点数页选择并保存在本机，与账号无关；每说一句扣的点数取所用档位的点数。
+/// 模型档位（普通、精准）快捷语音和 AI 对话各选各的（见 `AIModelScope`），保存在本机，与账号无关；
+/// 每说一句扣的点数取这句所用档位的点数。
 ///
 /// 余额以服务端为准，只保存在内存里：进入“我的”或 AI 点数页时刷新，语音记账得到响应后用服务端带回的余额就地更新。
 /// 余额记着所属账号；刷新和语音回报都核对账号，换账号或退出登录后不会把旧账号的余额记到当前账号上。
@@ -28,8 +29,8 @@ final class AIPointsStore {
     /// 服务端的模型档位列表；还没取到时为 nil。与账号无关，换账号时保留。
     private(set) var tierList: AIModelTierList?
 
-    /// 用户在本机选的模型档位；没选过时为 nil，跟随服务端的默认档位。与账号无关，换账号时保留。
-    private(set) var selectedTier: AIModelTier?
+    /// 用户在本机为各入口选的模型档位；没选过的入口不在其中，跟随服务端的默认档位。与账号无关，换账号时保留。
+    private(set) var selectedTiers: [AIModelScope: AIModelTier]
 
     /// 在本机授权过“帮助改进 AI”的账号。按账号保存：同一台设备换账号时，新账号不能继承别人的授权。
     private var traceConsentedUserIDs: Set<String>
@@ -68,7 +69,9 @@ final class AIPointsStore {
         self.api = api
         self.defaults = defaults
         self.currentUserID = currentUserID
-        selectedTier = defaults.string(forKey: AIModelTier.storageKey).flatMap(AIModelTier.init(rawValue:))
+        selectedTiers = AIModelScope.allCases.reduce(into: [:]) { result, scope in
+            result[scope] = defaults.string(forKey: scope.storageKey).flatMap(AIModelTier.init(rawValue:))
+        }
         traceConsentedUserIDs = Set(defaults.stringArray(forKey: Self.traceConsentStorageKey) ?? [])
     }
 
@@ -82,31 +85,47 @@ final class AIPointsStore {
         )
     }
 
-    /// 语音记账请求带的档位：用户选过且服务端仍可用时为所选档位；没选过、或所选档位服务端已不提供时为 nil，
+    /// 用户为某个入口选的档位，不管服务端是否还提供。
+    ///
+    /// - Parameter scope: 入口。
+    /// - Returns: 所选档位；没选过时为 nil。
+    func selectedTier(for scope: AIModelScope) -> AIModelTier? {
+        selectedTiers[scope]
+    }
+
+    /// 某个入口的请求带的档位：用户选过且服务端仍可用时为所选档位；没选过、或所选档位服务端已不提供时为 nil，
     /// 不带档位请求头，由服务端按默认档位处理。还没取到档位列表时先按所选档位发送。
-    var requestTier: AIModelTier? {
-        guard let selectedTier else { return nil }
+    ///
+    /// - Parameter scope: 这句话从哪个入口发出。
+    func requestTier(for scope: AIModelScope) -> AIModelTier? {
+        guard let selectedTier = selectedTiers[scope] else { return nil }
         guard let tierList else { return selectedTier }
         return tierList.selectableTiers.contains(selectedTier) ? selectedTier : nil
     }
 
-    /// 界面上勾选的档位：实际使用的档位；跟随服务端默认档位时为默认档位，客户端不认识默认档位时为 nil。
-    var displayTier: AIModelTier? {
-        requestTier ?? tierList.flatMap { AIModelTier(rawValue: $0.defaultTier) }
-    }
-
-    /// 语音记账每说一句扣的点数，即实际使用档位的每轮点数；还没取到档位列表时为 nil。
-    var pointsPerTurn: Int? {
-        guard let tierList else { return nil }
-        return tierList.pointsPerTurn(for: requestTier?.rawValue ?? tierList.defaultTier)
-    }
-
-    /// 选择模型档位并保存在本机；从下一句话开始生效，正在处理的一句沿用开始时的档位。
+    /// 界面上勾选的档位：这个入口实际使用的档位；跟随服务端默认档位时为默认档位，客户端不认识默认档位时为 nil。
     ///
-    /// - Parameter tier: 用户选的档位。
-    func selectTier(_ tier: AIModelTier) {
-        selectedTier = tier
-        defaults.set(tier.rawValue, forKey: AIModelTier.storageKey)
+    /// - Parameter scope: 入口。
+    func displayTier(for scope: AIModelScope) -> AIModelTier? {
+        requestTier(for: scope) ?? tierList.flatMap { AIModelTier(rawValue: $0.defaultTier) }
+    }
+
+    /// 这个入口每说一句扣的点数，即实际使用档位的每轮点数；还没取到档位列表时为 nil。
+    ///
+    /// - Parameter scope: 入口。
+    func pointsPerTurn(for scope: AIModelScope) -> Int? {
+        guard let tierList else { return nil }
+        return tierList.pointsPerTurn(for: requestTier(for: scope)?.rawValue ?? tierList.defaultTier)
+    }
+
+    /// 为某个入口选择模型档位并保存在本机，不影响另一个入口；从下一句话开始生效，正在处理的一句沿用开始时的档位。
+    ///
+    /// - Parameters:
+    ///   - tier: 用户选的档位。
+    ///   - scope: 入口。
+    func selectTier(_ tier: AIModelTier, for scope: AIModelScope) {
+        selectedTiers[scope] = tier
+        defaults.set(tier.rawValue, forKey: scope.storageKey)
     }
 
     /// 保存已授权账号的本机偏好键。
@@ -131,15 +150,19 @@ final class AIPointsStore {
         defaults.set(traceConsentedUserIDs.sorted(), forKey: Self.traceConsentStorageKey)
     }
 
-    /// 余额是否已经不够说一句；还不知道每轮点数时按 1 点判断，余额未知时不算用完。
-    var isExhausted: Bool {
+    /// 余额是否已经不够这个入口说一句；还不知道每轮点数时按 1 点判断，余额未知时不算用完。
+    ///
+    /// - Parameter scope: 入口。
+    func isExhausted(for scope: AIModelScope) -> Bool {
         guard let balance else { return false }
-        return balance < (pointsPerTurn ?? 1)
+        return balance < (pointsPerTurn(for: scope) ?? 1)
     }
 
-    /// 余额不够所用档位说一句，但够换用扣点更少的可选档位：此时点数并没有用完，界面提示切换档位。
-    var canAffordCheaperTier: Bool {
-        guard isExhausted, let balance, let tierList else { return false }
+    /// 余额不够这个入口所用档位说一句，但够换用扣点更少的可选档位：此时点数并没有用完，界面提示切换档位。
+    ///
+    /// - Parameter scope: 入口。
+    func canAffordCheaperTier(for scope: AIModelScope) -> Bool {
+        guard isExhausted(for: scope), let balance, let tierList else { return false }
         return tierList.selectableTiers.contains { tier in
             tierList.pointsPerTurn(for: tier.rawValue).map { $0 <= balance } ?? false
         }
