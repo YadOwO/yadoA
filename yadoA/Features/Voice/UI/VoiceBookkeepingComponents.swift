@@ -468,7 +468,33 @@ extension VoiceSession.Turn {
     var offersManualEntry: Bool {
         switch outcome {
         case .ask, .failed: true
-        case .processing, .reply: false
+        case .processing, .reply, .accountRequired: false
+        }
+    }
+
+    /// 是否要引导用户新建账户：这句话因为没有账户没能记上。
+    var requiresAccount: Bool {
+        if case .accountRequired = outcome { return true }
+        return false
+    }
+}
+
+/// 从语音记账打开的新建账户：保存成功后接着处理卡在这里的那句话。
+struct VoiceAccountCreationSheet: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.locale) private var locale
+
+    /// 因为没有账户没能记上的一轮。
+    let turn: VoiceSession.Turn
+
+    /// 与麦克风、会话卡片共享的语音状态。
+    let voice: VoiceBookkeepingState
+
+    var body: some View {
+        AccountCreationView { draft in
+            let repository = LocalAccountRepository(container: modelContext.container)
+            try repository.save(draft, locale: locale)
+            voice.resend(turn)
         }
     }
 }

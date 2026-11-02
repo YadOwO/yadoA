@@ -84,6 +84,9 @@ struct AIChatView: View {
     /// 是否打开模型选择。
     @State private var isModelTierPresented = false
 
+    /// 因为没有账户没能记上、正在为它新建账户的一轮；建好后接着处理这句话。
+    @State private var accountCreationTurn: VoiceSession.Turn?
+
     /// 当前仍然存在的流水和账户；找不到的卡片置灰，不能点开。
     @State private var existingTargetIDs: Set<UUID> = []
 
@@ -143,6 +146,9 @@ struct AIChatView: View {
                     }
                 }
             }
+        }
+        .sheet(item: $accountCreationTurn) { turn in
+            VoiceAccountCreationSheet(turn: turn, voice: voice)
         }
         .sheet(isPresented: $isModelTierPresented) {
             NavigationStack {
@@ -319,6 +325,7 @@ struct AIChatView: View {
             onManualEntry: { manualEntryNote = VoiceManualEntryNote(text: $0) },
             onSignIn: { signIn() },
             onSwitchModelTier: { isModelTierPresented = true },
+            onCreateAccount: { accountCreationTurn = turn },
             onRetry: { voice.resend(turn) }
         )
     }

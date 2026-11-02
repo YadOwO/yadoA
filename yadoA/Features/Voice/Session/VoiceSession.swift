@@ -49,6 +49,9 @@ final class VoiceSession {
             /// 追问，等待用户回答；可能带候选项。
             case ask(question: String, options: [VoiceAskOption])
 
+            /// 没有启用的账户，这一轮没有写入；界面提供新建账户，建好后重新发送这句话。
+            case accountRequired(String)
+
             /// 本轮没有完成。
             case failed(VoiceSessionFailure)
         }
@@ -77,8 +80,8 @@ final class VoiceSession {
         /// 本轮的事件是否仍在会话记录中；失败且没有写入的轮次、已撤销的轮次会被移出。
         var isInContext = true
 
-        /// 本轮第一条事件在会话记录中的位置。
-        let eventStartIndex: Int
+        /// 本轮第一条事件在会话记录中的位置；前面的轮次被移出时跟着前移。
+        var eventStartIndex: Int
 
         /// 本轮的耗时；处理结束后才有。
         var timing: VoiceTurnTiming?
@@ -86,7 +89,7 @@ final class VoiceSession {
         /// 本轮最终展示给用户的文字：回复、追问或空。
         var displayText: String? {
             switch outcome {
-            case let .reply(text): text
+            case let .reply(text), let .accountRequired(text): text
             case let .ask(question, _): question
             case .processing, .failed: nil
             }
@@ -233,6 +236,7 @@ final class VoiceSession {
         if !images.isEmpty {
             removeImagesFromEvents()
         }
+        removeOutdatedAccountRequiredTurns()
 
         let turnGeneration = generation
         let turnID = appendTurn(Turn(
@@ -345,6 +349,10 @@ final class VoiceSession {
                     events.append(.assistant(text: String(text.prefix(VoiceSessionLimits.maxAssistantTextLength))))
                     updateTurn(turnID) { $0.outcome = .reply(text) }
                     return
+                case let .accountRequired(text):
+                    events.append(.assistant(text: String(text.prefix(VoiceSessionLimits.maxAssistantTextLength))))
+                    updateTurn(turnID) { $0.outcome = .accountRequired(text) }
+                    return
                 }
             }
             finishTurn(turnID, failure: .serviceUnavailable)
@@ -451,6 +459,24 @@ final class VoiceSession {
         }
     }
 
+    /// 账户建好后，把引导新建账户的轮次移出会话记录：模型看到「还没有账户」会照着再说一遍，这句话就记不上了。
+    ///
+    /// 还没有账户时保留：用户接着说「加个微信账户」，模型还能把刚才那笔一起记上。
+    private func removeOutdatedAccountRequiredTurns() {
+        let outdated = turns.indices.filter { turns[$0].isInContext && turns[$0].requiresAccount }
+        guard !outdated.isEmpty, currentContext().accounts.contains(where: \.isActive) else { return }
+        // 从后往前移，前面轮次的位置不受影响
+        for index in outdated.reversed() {
+            let start = turns[index].eventStartIndex
+            let end = turns[(index + 1)...].first(where: \.isInContext)?.eventStartIndex ?? events.count
+            events.removeSubrange(start..<end)
+            turns[index].isInContext = false
+            for later in (index + 1)..<turns.count {
+                turns[later].eventStartIndex -= end - start
+            }
+        }
+    }
+
     /// 把一轮写入对话记录。
     private func saveToHistory(_ id: UUID) {
         guard let turn = turns.first(where: { $0.id == id }) else { return }
@@ -518,7 +544,7 @@ final class VoiceSession {
         let outcome: VoiceTurnTiming.Outcome = switch turn.outcome {
         case .ask: .ask
         case .failed: .failed
-        case .reply, .processing: .reply
+        case .reply, .accountRequired, .processing: .reply
         }
         let timing = VoiceTurnTiming(
             id: id,
@@ -692,7 +718,7 @@ extension VoiceSessionTurnResponse {
         switch self {
         case .toolCalls: .toolCalls
         case .ask: .ask
-        case .reply: .reply
+        case .reply, .accountRequired: .reply
         }
     }
 }

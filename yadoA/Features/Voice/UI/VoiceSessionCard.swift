@@ -36,6 +36,9 @@ struct VoiceSessionCard: View {
     /// 打开聊天页，查看完整的对话记录。
     var onOpenChat: () -> Void = {}
 
+    /// 这句话因为没有账户没能记上，去新建账户。
+    var onCreateAccount: (VoiceSession.Turn) -> Void = { _ in }
+
     /// 滚动区域的最大高度，超出部分在卡片里滚动查看；一般一句话就能记完，不会用满。
     private static let maxScrollHeight: CGFloat = 300
 
@@ -202,7 +205,8 @@ struct VoiceSessionCard: View {
                         onOpenAccount: onOpenAccount,
                         onManualEntry: onManualEntry,
                         onSignIn: onSignIn,
-                        onSwitchModelTier: onSwitchModelTier
+                        onSwitchModelTier: onSwitchModelTier,
+                        onCreateAccount: onCreateAccount
                     )
                     .id(turn.id)
                 }
@@ -255,6 +259,9 @@ private struct VoiceSessionTurnView: View {
     /// 打开模型选择，换用扣点更少的档位。
     let onSwitchModelTier: () -> Void
 
+    /// 这句话因为没有账户没能记上，去新建账户。
+    let onCreateAccount: (VoiceSession.Turn) -> Void
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // 只发图片的一轮没有文字；卡片上不放图片，图片在聊天页看
@@ -294,7 +301,8 @@ private struct VoiceSessionTurnView: View {
                 turn: turn,
                 onManualEntry: onManualEntry,
                 onSignIn: onSignIn,
-                onSwitchModelTier: onSwitchModelTier
+                onSwitchModelTier: onSwitchModelTier,
+                onCreateAccount: { onCreateAccount(turn) }
             )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -372,7 +380,7 @@ private struct VoiceSessionTurnView: View {
     }
 }
 
-/// 一轮可用的操作：撤销、手动记账、登录、换模型和重新发送；卡片和聊天页共用。
+/// 一轮可用的操作：撤销、手动记账、登录、换模型、新建账户和重新发送；卡片和聊天页共用。
 struct VoiceTurnActions: View {
     @Environment(\.locale) private var locale
     /// 当前账号的 AI 点数，用来判断点数不足时能否换用扣点更少的档位；预览和测试中没有注入时为 nil。
@@ -393,6 +401,9 @@ struct VoiceTurnActions: View {
     /// 打开模型选择，换用扣点更少的档位。
     let onSwitchModelTier: () -> Void
 
+    /// 这句话因为没有账户没能记上，去新建账户。
+    let onCreateAccount: () -> Void
+
     /// 重新发送没能完成的这一轮；只有聊天页提供，打字和图片不重发就没了。
     var onRetry: (() -> Void)?
 
@@ -408,7 +419,8 @@ struct VoiceTurnActions: View {
         // 点数不够所用档位、但够更便宜的档位时，给出换模型的入口；换好后余额够说一句，入口随之消失
         let offersTierSwitch = isLatest && turn.failure == .insufficientPoints && aiPoints?.canAffordCheaperTier == true
         let offersRetry = isLatest && !session.isProcessing && turn.failure != nil && !requiresSignIn && onRetry != nil
-        if isUndoable || offersManualEntry || requiresSignIn || turn.isUndone {
+        let offersAccountCreation = isLatest && turn.requiresAccount
+        if isUndoable || offersManualEntry || requiresSignIn || offersAccountCreation || turn.isUndone {
             HStack(spacing: 12) {
                 if turn.isUndone {
                     Label(text("voice.turn.undone"), systemImage: "arrow.uturn.backward")
@@ -416,7 +428,14 @@ struct VoiceTurnActions: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
-                if requiresSignIn {
+                if offersAccountCreation {
+                    Button(text("voice.turn.createAccount"), action: onCreateAccount)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .onAccentForeground()
+                        .disabled(session.isProcessing)
+                        .accessibilityIdentifier("voice-create-account")
+                } else if requiresSignIn {
                     Button(text("voice.signIn.action"), action: onSignIn)
                         .buttonStyle(.bordered)
                         .controlSize(.small)

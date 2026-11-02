@@ -64,6 +64,9 @@ struct VoiceSessionContractTests {
             == .ask(question: "打车花了多少钱？", options: [VoiceAskOption(id: "T1", label: "10-19 打车 ¥35")]))
         let reply = #"{"status":"reply","text":"已记 1 笔"}"#
         #expect(try JSONDecoder().decode(VoiceSessionTurnResponse.self, from: Data(reply.utf8)) == .reply(text: "已记 1 笔"))
+        let accountRequired = #"{"status":"account_required","text":"还没有可用的账户"}"#
+        #expect(try JSONDecoder().decode(VoiceSessionTurnResponse.self, from: Data(accountRequired.utf8))
+            == .accountRequired(text: "还没有可用的账户"))
     }
 
     @Test("工具调用原样回传：必填的空备注编码为 null，修改备注区分不改与清空")

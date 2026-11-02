@@ -228,6 +228,64 @@ struct VoiceSessionTests {
         #expect(!fixture.session.hasUndoFailure)
     }
 
+    @Test("引导新建账户的一轮：要新建账户、不提供手动记账；有启用账户后不再进入请求")
+    func dropsAccountRequiredTurnOnceAccountExists() async throws {
+        // 固定数据里已有启用账户，模拟账户建好后的状态；服务端判断没有账户的情况不在这里测
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.accountRequired(text: "还没有可用的账户")),
+            .success(.reply(text: "好")),
+        ]
+
+        await fixture.session.send("打车 30")
+        let turn = try #require(fixture.session.latestTurn)
+        #expect(turn.requiresAccount)
+        #expect(!turn.offersManualEntry)
+        #expect(turn.resultText(locale: fixture.session.locale) == "还没有可用的账户")
+        #expect(fixture.session.events.count == 2)
+
+        await fixture.session.send("打车 30")
+
+        #expect(fixture.api.requests.last?.events == [.user(text: "打车 30", selectedOptionId: nil)])
+        #expect(fixture.session.turns.first?.isInContext == false)
+        #expect(fixture.session.turns.first?.requiresAccount == true)
+    }
+
+    @Test("没有启用账户时保留引导的一轮；建好账户后移出，后面的轮次位置同步前移，撤销不受影响")
+    func removesAccountRequiredTurnFromMiddleOfContext() async throws {
+        let fixture = try Fixture()
+        try fixture.setAccountActive(false)
+        fixture.api.responses = [
+            .success(.accountRequired(text: "还没有可用的账户")),
+            .success(.reply(text: "我只能帮你记账")),
+            .success(.toolCalls([fixture.createCall("c1", amount: "30", note: "打车")], canFinishLocally: true)),
+        ]
+
+        await fixture.session.send("打车 30")
+        await fixture.session.send("你好")
+        // 还没有账户：引导留在上下文里，用户接着说新建账户时模型还知道刚才那笔
+        #expect(fixture.session.events.count == 4)
+
+        try fixture.setAccountActive(true)
+        await fixture.session.send("打车 30")
+
+        let lastEvents = try #require(fixture.api.requests.last?.events)
+        #expect(Array(lastEvents.prefix(3)) == [
+            .user(text: "你好", selectedOptionId: nil),
+            .assistant(text: "我只能帮你记账"),
+            .user(text: "打车 30", selectedOptionId: nil),
+        ])
+        #expect(fixture.session.turns.map(\.isInContext) == [false, true, true])
+
+        fixture.session.undoLatestTurn()
+
+        #expect(!fixture.session.hasUndoFailure)
+        #expect(fixture.session.events == [
+            .user(text: "你好", selectedOptionId: nil),
+            .assistant(text: "我只能帮你记账"),
+        ])
+    }
+
     @Test("闲置 2 分钟只收起卡片，上下文保留；闲置 30 分钟才结束对话段")
     func hidesCardThenEndsWhenIdle() async throws {
         let fixture = try Fixture()
@@ -485,6 +543,19 @@ struct VoiceSessionTests {
         let tierChoice: TestTierChoice
         let timingStore = VoiceTimingStore(fileURL: nil)
         let session: VoiceSession
+
+        /// 启用或停用固定数据里的账户，模拟账户被新建或用户一个启用账户都没有。
+        ///
+        /// - Parameter isActive: 是否启用。
+        func setAccountActive(_ isActive: Bool) throws {
+            let context = ModelContext(container)
+            let id = accountID
+            let account = try #require(try context.fetch(FetchDescriptor<Account>(
+                predicate: #Predicate { $0.id == id }
+            )).first)
+            account.deactivatedAt = isActive ? nil : .now
+            try context.save()
+        }
 
         init() throws {
             container = try AccountDataContainer.inMemory().modelContainer

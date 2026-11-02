@@ -935,6 +935,9 @@ nonisolated enum VoiceSessionTurnResponse: Decodable, Equatable, Sendable {
     /// 本轮回复。
     case reply(text: String)
 
+    /// 没有启用的账户，这一轮什么都没写入：显示这段话并引导用户新建账户。
+    case accountRequired(text: String)
+
     private enum CodingKeys: String, CodingKey {
         case status, toolCalls, canFinishLocally, ask, question, options, text
     }
@@ -957,6 +960,8 @@ nonisolated enum VoiceSessionTurnResponse: Decodable, Equatable, Sendable {
             )
         case "reply":
             self = try .reply(text: container.decode(String.self, forKey: .text))
+        case "account_required":
+            self = try .accountRequired(text: container.decode(String.self, forKey: .text))
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .status, in: container, debugDescription: "未知的响应状态：\(status)"

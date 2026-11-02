@@ -43,7 +43,8 @@ struct VoiceBookkeepingDock: View {
                     onSignIn: { signInPresentation.present(reason: .voiceBookkeeping) },
                     onSwitchModelTier: { voice.isModelTierPresented = true },
                     onEnd: { voice.closeCard() },
-                    onOpenChat: { voice.openChat(isSignedIn: authStore.isAuthenticated) }
+                    onOpenChat: { voice.openChat(isSignedIn: authStore.isAuthenticated) },
+                    onCreateAccount: { voice.accountCreationTurn = $0 }
                 )
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
@@ -291,6 +292,7 @@ private struct VoiceBookkeepingHost: ViewModifier {
             .appHaptic(trigger: session?.latestTurn?.outcome) { _, outcome -> AppHaptic? in
                 switch outcome {
                 case .reply?, .ask?: .success
+                case .accountRequired?: .warning
                 case .failed?: .error
                 case .processing?, nil: nil
                 }
@@ -332,6 +334,9 @@ private struct VoiceBookkeepingHost: ViewModifier {
                         }
                     }
                 }
+            }
+            .sheet(item: $voice.accountCreationTurn) { turn in
+                VoiceAccountCreationSheet(turn: turn, voice: voice)
             }
             .fullScreenCover(isPresented: $voice.isChatPresented, onDismiss: {
                 // 这些轮次已经在聊天页看过了，回到一级页面不再弹出卡片

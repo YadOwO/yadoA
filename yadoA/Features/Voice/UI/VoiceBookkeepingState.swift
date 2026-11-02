@@ -34,6 +34,9 @@ final class VoiceBookkeepingState {
     /// 带着这句话去手动记账时预填的备注；由根导航以弹层展示。
     var manualEntryNote: VoiceManualEntryNote?
 
+    /// 因为没有账户没能记上、正在为它新建账户的一轮；由根导航以弹层展示，建好后接着处理这句话。
+    var accountCreationTurn: VoiceSession.Turn?
+
     /// 是否打开模型选择：点数不够所用档位但够更便宜的档位时，从卡片上打开；由根导航以弹层展示，切换后关掉可以接着说。
     var isModelTierPresented = false
 

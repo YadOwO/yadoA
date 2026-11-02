@@ -9142,6 +9142,23 @@
         }
       }
     },
+    "voice.turn.createAccount" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新建账户"
+          }
+        }
+      }
+    },
     "voice.turn.manualEntry" : {
       "extractionState" : "manual",
       "localizations" : {
