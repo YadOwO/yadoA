@@ -121,13 +121,16 @@ struct AIChatHistoryStoreTests {
     @Test("清空后记录和图片都没有了")
     func clearsEverything() throws {
         let fixture = try Fixture()
+        #expect(!fixture.store.hasRecords())
         let file = try fixture.images.save(Data([1]))
         fixture.save("午饭", at: .now, imageFileNames: [file])
+        #expect(fixture.store.hasRecords())
 
         try fixture.store.clearAll()
         fixture.store.loadLatest()
 
         #expect(fixture.store.turns.isEmpty)
+        #expect(!fixture.store.hasRecords())
         #expect(fixture.images.data(for: file) == nil)
     }
 

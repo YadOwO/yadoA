@@ -14076,7 +14076,7 @@
       }
     },
     "ai.tier.chat.title" : {
-      "comment" : "聊天页右上角模型菜单与 AI 对话模型选择页的标题",
+      "comment" : "聊天页输入栏里模型按钮的读屏名称与 AI 对话模型选择页的标题",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14100,13 +14100,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Used when you hold the mic at the bottom of the screen to speak. Yado Assistant has its own model, chosen in the top-right corner of the chat. Changing one doesn’t affect the other."
+            "value" : "Used when you hold the mic at the bottom of the screen to speak. Yado Assistant has its own model, chosen in the chat’s message box. Changing one doesn’t affect the other."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "按住底部麦克风说话时用这个模型。芽豆助手的模型在对话页右上角单独选，两边互不影响。"
+            "value" : "按住底部麦克风说话时用这个模型。芽豆助手的模型在对话页的输入框里单独选，两边互不影响。"
           }
         }
       }
@@ -14522,18 +14522,19 @@
       }
     },
     "ai.entries.title" : {
+      "comment" : "AI 点数页进入点数明细的那一行与点数明细页的标题",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "History"
+            "value" : "Points History"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "明细"
+            "value" : "点数明细"
           }
         }
       }
@@ -15862,6 +15863,96 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "（这句附了图片，已处理）"
+          }
+        }
+      }
+    },
+    "ai.chatHistory.cleared" : {
+      "comment" : "清空对话记录成功后，原来的清空入口改成这句",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat history cleared"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对话记录已清空"
+          }
+        }
+      }
+    },
+    "ai.points.section.model" : {
+      "comment" : "AI 点数页模型分组的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Model"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模型"
+          }
+        }
+      }
+    },
+    "ai.points.section.privacy" : {
+      "comment" : "AI 点数页隐私与数据分组的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy & Data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私与数据"
+          }
+        }
+      }
+    },
+    "ai.traceConsent.off" : {
+      "comment" : "AI 点数页“帮助改进 AI”那一行：未开启",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未开启"
+          }
+        }
+      }
+    },
+    "ai.traceConsent.on" : {
+      "comment" : "AI 点数页“帮助改进 AI”那一行：已开启",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已开启"
           }
         }
       }

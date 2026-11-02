@@ -117,14 +117,20 @@ enum ProfileRoute: Hashable {
     /// 云端同步页面。
     case sync
 
-    /// AI 点数页面：余额、扣点规则与点数明细。
+    /// AI 点数页面：余额、明细与设置入口、扣点规则。
     case aiPoints
 
     /// AI 点数的到期明细：从 AI 点数页的到期提示进入，列出每批点数的来源与到期时间。
     case aiPointLots
 
+    /// AI 点数的明细：从 AI 点数页进入，分页列出每一笔点数的增减。
+    case aiCreditEntries
+
     /// 快捷语音的模型选择：从 AI 点数页进入，介绍各模型档位的特点与每句扣的点数，点选后保存在本机；AI 对话的模型在聊天页选。
     case aiModelTier
+
+    /// “帮助改进 AI”：从 AI 点数页进入，开关和上报说明在同一页。
+    case aiTraceConsent
 
     /// 设置页面。
     case settings
@@ -151,8 +157,12 @@ enum ProfileRoute: Hashable {
             AIPointsView()
         case .aiPointLots:
             AIPointLotsView()
+        case .aiCreditEntries:
+            AICreditEntriesView()
         case .aiModelTier:
             AIModelTierView(scope: .quickVoice)
+        case .aiTraceConsent:
+            AITraceConsentView()
         case .settings:
             SettingsView()
         case .feedback:

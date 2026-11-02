@@ -4,7 +4,7 @@ import Observation
 /// 当前登录账号的 AI 点数：余额、各批点数的过期时刻、模型档位与每说一句扣的点数，供“我的”入口、AI 点数页和语音记账共用。
 ///
 /// 模型档位（普通、精准）快捷语音和 AI 对话各选各的（见 `AIModelScope`），保存在本机，与账号无关；
-/// 每说一句扣的点数取这句所用档位的点数。
+/// 没选过时默认用精准（`AIModelTier.appDefault`）。每说一句扣的点数取这句所用档位的点数。
 ///
 /// 余额以服务端为准，只保存在内存里：进入“我的”或 AI 点数页时刷新，语音记账得到响应后用服务端带回的余额就地更新。
 /// 余额记着所属账号；刷新和语音回报都核对账号，换账号或退出登录后不会把旧账号的余额记到当前账号上。
@@ -29,7 +29,7 @@ final class AIPointsStore {
     /// 服务端的模型档位列表；还没取到时为 nil。与账号无关，换账号时保留。
     private(set) var tierList: AIModelTierList?
 
-    /// 用户在本机为各入口选的模型档位；没选过的入口不在其中，跟随服务端的默认档位。与账号无关，换账号时保留。
+    /// 用户在本机为各入口选的模型档位；没选过的入口不在其中，用本 App 的默认档位（精准）。与账号无关，换账号时保留。
     private(set) var selectedTiers: [AIModelScope: AIModelTier]
 
     /// 在本机授权过“帮助改进 AI”的账号。按账号保存：同一台设备换账号时，新账号不能继承别人的授权。
@@ -93,17 +93,20 @@ final class AIPointsStore {
         selectedTiers[scope]
     }
 
-    /// 某个入口的请求带的档位：用户选过且服务端仍可用时为所选档位；没选过、或所选档位服务端已不提供时为 nil，
-    /// 不带档位请求头，由服务端按默认档位处理。还没取到档位列表时先按所选档位发送。
+    /// 某个入口的请求带的档位：用户选过的档位，没选过时为本 App 的默认档位（精准）。
+    ///
+    /// 这个档位服务端已停用时退回精准；精准也停用时为 nil，不带档位请求头，由服务端按它的默认档位处理。
+    /// 还没取到档位列表时先按选的或默认的档位发送。
     ///
     /// - Parameter scope: 这句话从哪个入口发出。
     func requestTier(for scope: AIModelScope) -> AIModelTier? {
-        guard let selectedTier = selectedTiers[scope] else { return nil }
-        guard let tierList else { return selectedTier }
-        return tierList.selectableTiers.contains(selectedTier) ? selectedTier : nil
+        let preferredTier = selectedTiers[scope] ?? .appDefault
+        guard let tierList else { return preferredTier }
+        if tierList.selectableTiers.contains(preferredTier) { return preferredTier }
+        return tierList.selectableTiers.contains(.appDefault) ? .appDefault : nil
     }
 
-    /// 界面上勾选的档位：这个入口实际使用的档位；跟随服务端默认档位时为默认档位，客户端不认识默认档位时为 nil。
+    /// 界面上勾选的档位：这个入口实际使用的档位；不带档位请求头时为服务端的默认档位，客户端不认识它时为 nil。
     ///
     /// - Parameter scope: 入口。
     func displayTier(for scope: AIModelScope) -> AIModelTier? {
@@ -241,7 +244,7 @@ final class AIPointsStore {
         }
     }
 
-    /// 创建与本状态共用接口的流水分页，供 AI 点数页使用。
+    /// 创建与本状态共用接口的流水分页，供点数明细页使用。
     ///
     /// - Returns: 新的流水分页，尚未加载。
     func makeEntryFeed() -> AICreditEntryFeed {

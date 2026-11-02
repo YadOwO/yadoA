@@ -1,24 +1,22 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
-/// “我的 › AI 点数”：当前余额、快捷语音的模型档位入口、扣点规则和点数明细。
+/// “我的 › AI 点数”：当前余额，点数明细、模型和隐私设置的入口，以及扣点规则。
 ///
-/// 点数分好几批、到期时间不同时，余额下的到期提示可以点开，进入到期明细（`AIPointLotsView`）；
-/// 模型档位行点开进入快捷语音的模型选择页（`AIModelTierView`）。AI 对话的模型在聊天页单独选，本页不显示。
-/// 余额是否够用、切换档位的提示都按快捷语音所用的档位算。
+/// 内容按用途分组：余额卡片下先是点数明细（`AICreditEntriesView`），再是快捷语音的模型（`AIModelTierView`），
+/// 然后是隐私与数据（“帮助改进 AI”的说明较长，单独一页 `AITraceConsentView`；清空本机对话记录就地完成），最后是扣点规则。
+/// 点数分好几批、到期时间不同时，余额下的到期提示可以点开，进入到期明细（`AIPointLotsView`）。
+/// AI 对话的模型在聊天页的输入栏里单独选，本页不显示；余额是否够用、切换档位的提示都按快捷语音所用的档位算。
 ///
-/// 余额与每轮点数来自根部注入的 `AIPointsStore`，明细由本页的 `AICreditEntryFeed` 分页加载。
-/// 暂不提供充值；点数用完时只说明暂时无法使用 AI 记账。
+/// 余额与每轮点数来自根部注入的 `AIPointsStore`。暂不提供充值；点数用完时只说明暂时无法使用 AI 记账。
 struct AIPointsView: View {
     @Environment(\.locale) private var locale
+    @Environment(\.modelContext) private var modelContext
     @Environment(AuthStore.self) private var authStore
     @Environment(SignInPresentation.self) private var signInPresentation
     /// 当前账号的 AI 点数；预览中没有注入时为 nil。
-    @Environment(\.modelContext) private var modelContext
     @Environment(AIPointsStore.self) private var points: AIPointsStore?
-
-    /// 本页的流水分页；已登录时在页面出现后创建，退出登录时丢弃。
-    @State private var feed: AICreditEntryFeed?
 
     /// 是否在确认清空对话记录。
     @State private var isClearChatHistoryConfirming = false
@@ -26,22 +24,24 @@ struct AIPointsView: View {
     /// 清空对话记录是否失败。
     @State private var isClearChatHistoryFailed = false
 
+    /// 本机是否还有对话记录；没有时清空入口置灰。页面出现时重新读取。
+    @State private var hasChatHistory = true
+
+    /// 本次进入页面后是否刚清空过对话记录；清空成功后入口改成“已清空”，作为成功反馈。
+    @State private var didClearChatHistory = false
+
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
                 balanceCard
 
                 if authStore.isAuthenticated {
+                    entriesSection
                     tierSection
-                    traceConsentSection
-                    chatHistorySection
+                    privacySection
                 }
 
                 rulesSection
-
-                if authStore.isAuthenticated {
-                    entriesSection
-                }
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
@@ -51,8 +51,11 @@ struct AIPointsView: View {
         .paperPage()
         .navigationTitle(text("ai.points.title"))
         .navigationBarTitleDisplayMode(.inline)
-        .refreshable { await refresh() }
-        .task(id: authStore.isAuthenticated) { await refresh() }
+        .refreshable { await points?.refresh() }
+        .task(id: authStore.isAuthenticated) { await points?.refresh() }
+        .onAppear {
+            hasChatHistory = AIChatHistoryStore(container: modelContext.container).hasRecords()
+        }
     }
 
     // MARK: - 余额
@@ -221,6 +224,18 @@ struct AIPointsView: View {
         .accessibilityIdentifier("ai-points-sign-in")
     }
 
+    // MARK: - 点数明细
+
+    /// 点数明细入口：每一笔点数的增减放在单独一页（`AICreditEntriesView`），本页只留余额和设置。
+    private var entriesSection: some View {
+        ProfileSettingsSection(nil, seed: "ai.entries") {
+            NavigationLink(value: ProfileRoute.aiCreditEntries) {
+                ProfileSettingsRow(titleKey: "ai.entries.title", symbol: "list.bullet.rectangle")
+            }
+            .accessibilityIdentifier("ai-points-entries")
+        }
+    }
+
     // MARK: - 模型档位
 
     /// 快捷语音的模型档位入口：行尾显示当前使用的档位，点开进入模型选择页（`AIModelTierView`）查看各档位特点并切换；
@@ -231,7 +246,7 @@ struct AIPointsView: View {
     private var tierSection: some View {
         if let points, let tierList = points.tierList, tierList.selectableTiers.count > 1 {
             VStack(alignment: .leading, spacing: 8) {
-                ProfileSettingsSection(nil, seed: "ai.tier") {
+                ProfileSettingsSection("ai.points.section.model") {
                     NavigationLink(value: ProfileRoute.aiModelTier) {
                         ProfileSettingsRow(
                             titleKey: AIModelScope.quickVoice.titleKey,
@@ -242,68 +257,38 @@ struct AIPointsView: View {
                     .accessibilityIdentifier("ai-points-tier")
                 }
 
-                Text(text(AIModelScope.quickVoice.scopeNoteKey))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 20)
+                footnote(text(AIModelScope.quickVoice.scopeNoteKey))
             }
         }
     }
 
-    // MARK: - 帮助改进 AI
+    // MARK: - 隐私与数据
 
-    /// “帮助改进 AI”开关与说明；默认关闭，只有用户主动打开才上报，所以说明要写清上报什么、存多久。
-    @ViewBuilder
-    private var traceConsentSection: some View {
-        if let points {
-            VStack(alignment: .leading, spacing: 8) {
-                ProfileSettingsSection(nil, seed: "ai.traceConsent") {
-                    Toggle(isOn: Binding(
-                        get: { points.isTraceConsented },
-                        set: { points.setTraceConsented($0) }
-                    )) {
-                        Label(text("ai.traceConsent.title"), systemImage: "hand.raised")
-                            .labelStyle(ProfileSettingsLabelStyle())
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 14)
-                    .accessibilityIdentifier("ai-points-trace-consent")
-                }
-
-                Text(text("ai.traceConsent.footnote"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 20)
-            }
-        }
-    }
-
-    // MARK: - 对话记录
-
-    /// 对话记录的说明与清空入口；记录只在本机，说明要写清不进云同步和备份。
-    private var chatHistorySection: some View {
+    /// 隐私与数据：“帮助改进 AI”的入口和清空本机对话记录。
+    ///
+    /// “帮助改进 AI”默认关闭，开关和上报说明在单独一页（`AITraceConsentView`），这里行尾显示是否开启。
+    /// 对话记录只在本机，下方说明不进云同步和备份。
+    private var privacySection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ProfileSettingsSection(nil, seed: "ai.chatHistory") {
-                Button(role: .destructive) {
-                    isClearChatHistoryConfirming = true
-                } label: {
-                    Label(text("ai.chatHistory.clear"), systemImage: "trash")
-                        .labelStyle(ProfileSettingsLabelStyle())
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 14)
-                        .contentShape(Rectangle())
+            ProfileSettingsSection("ai.points.section.privacy") {
+                if let points {
+                    NavigationLink(value: ProfileRoute.aiTraceConsent) {
+                        ProfileSettingsRow(
+                            titleKey: "ai.traceConsent.title",
+                            symbol: "hand.raised",
+                            value: text(points.isTraceConsented ? "ai.traceConsent.on" : "ai.traceConsent.off"),
+                            valueTint: points.isTraceConsented ? Color(.ledgerGreen) : nil
+                        )
+                    }
+                    .accessibilityIdentifier("ai-points-trace-consent")
+
+                    ProfileSettingsRowDivider()
                 }
-                .accessibilityIdentifier("ai-points-clear-chat-history")
+
+                clearChatHistoryRow
             }
 
-            Text(text("ai.chatHistory.footnote"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 20)
+            footnote(text("ai.chatHistory.footnote"))
         }
         .confirmationDialog(
             text("ai.chatHistory.clear.confirm"),
@@ -311,16 +296,50 @@ struct AIPointsView: View {
             titleVisibility: .visible
         ) {
             Button(text("ai.chatHistory.clear"), role: .destructive) {
-                do {
-                    try AIChatHistoryStore(container: modelContext.container).clearAll()
-                } catch {
-                    isClearChatHistoryFailed = true
-                }
+                clearChatHistory()
             }
             Button(text("common.cancel"), role: .cancel) {}
         }
         .alert(text("ai.chatHistory.clear.failed"), isPresented: $isClearChatHistoryFailed) {
             Button(text("common.close"), role: .cancel) {}
+        }
+    }
+
+    /// 清空对话记录的一行：有记录时是红色的清空入口，没有记录时置灰；刚清空成功时换成绿色对勾和“对话记录已清空”，不能再点。
+    @ViewBuilder
+    private var clearChatHistoryRow: some View {
+        if didClearChatHistory {
+            Label(text("ai.chatHistory.cleared"), systemImage: "checkmark.circle")
+                .labelStyle(ProfileExportLabelStyle(color: Color(.ledgerGreen)))
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                .accessibilityIdentifier("ai-points-chat-history-cleared")
+        } else {
+            Button(role: .destructive) {
+                isClearChatHistoryConfirming = true
+            } label: {
+                Label(text("ai.chatHistory.clear"), systemImage: "trash")
+                    .labelStyle(ProfileExportLabelStyle(color: hasChatHistory ? .red : .secondary))
+            }
+            .disabled(!hasChatHistory)
+            .transition(.opacity)
+            .accessibilityIdentifier("ai-points-clear-chat-history")
+        }
+    }
+
+    /// 清空本机对话记录；成功时震一下、读屏播报，并把入口换成“已清空”。
+    private func clearChatHistory() {
+        do {
+            try AIChatHistoryStore(container: modelContext.container).clearAll()
+        } catch {
+            AppHaptics.play(.error)
+            isClearChatHistoryFailed = true
+            return
+        }
+        AppHaptics.play(.destructive)
+        UIAccessibility.post(notification: .announcement, argument: text("ai.chatHistory.cleared"))
+        hasChatHistory = false
+        withAnimation(.snappy(duration: 0.3)) {
+            didClearChatHistory = true
         }
     }
 
@@ -362,174 +381,20 @@ struct AIPointsView: View {
         }
     }
 
-    // MARK: - 明细
-
-    /// 点数明细：首页加载中、失败、为空和列表四种状态；有更早的记录时由用户点按钮加载下一页。
+    /// 分组卡片下方的说明文字，与卡片内的标题对齐。
     ///
-    /// 不在滚到底部时自动加载：卡片里是普通 VStack，页脚一渲染就会出现，自动加载会把所有页一次拉完。
-    private var entriesSection: some View {
-        ProfileSettingsSection("ai.entries.title") {
-            if let feed, !feed.entries.isEmpty {
-                ForEach(Array(feed.entries.enumerated()), id: \.element.id) { index, entry in
-                    if index > 0 {
-                        ProfileSettingsRowDivider()
-                    }
-                    AICreditEntryRow(entry: entry)
-                }
-
-                if feed.failure != nil {
-                    ProfileSettingsRowDivider()
-                    failureRow(feed)
-                } else if feed.hasMore {
-                    ProfileSettingsRowDivider()
-                    loadMoreRow(feed)
-                }
-            } else if let feed, feed.failure != nil {
-                failureRow(feed)
-            } else if let feed, feed.hasLoaded {
-                Text(text("ai.entries.empty"))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-                    .accessibilityIdentifier("ai-points-entries-empty")
-            } else {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-            }
-        }
-        .accessibilityIdentifier("ai-points-entries")
-    }
-
-    /// 加载下一页的按钮行；加载中显示转圈。
-    ///
-    /// - Parameter feed: 流水分页。
-    private func loadMoreRow(_ feed: AICreditEntryFeed) -> some View {
-        Button {
-            Task { await feed.loadMore() }
-        } label: {
-            Group {
-                if feed.isLoading {
-                    ProgressView()
-                } else {
-                    Text(text("ai.entries.loadMore"))
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(Color.accentColor)
-                }
-            }
-            .frame(maxWidth: .infinity, minHeight: 22)
-            .padding(.vertical, 16)
-            .contentShape(Rectangle())
-        }
-        .disabled(feed.isLoading)
-        .accessibilityIdentifier("ai-points-entries-load-more")
-    }
-
-    /// 明细加载失败的一行，带重试按钮。
-    ///
-    /// - Parameter feed: 出错的流水分页。
-    private func failureRow(_ feed: AICreditEntryFeed) -> some View {
-        HStack(spacing: 12) {
-            Text(text("ai.entries.failed"))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 8)
-            Button(text("common.retry")) {
-                Task { await feed.retry() }
-            }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.capsule)
-            .disabled(feed.isLoading)
-            .accessibilityIdentifier("ai-points-entries-retry")
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-    }
-
-    // MARK: - 刷新
-
-    /// 刷新余额和明细：先刷新余额（首次查询时服务端才建钱包、发新用户赠送），再从第一页重新加载明细。
-    private func refresh() async {
-        guard authStore.isAuthenticated else {
-            feed = nil
-            await points?.refresh()
-            return
-        }
-        if feed == nil {
-            feed = points?.makeEntryFeed()
-        }
-        await points?.refresh()
-        await feed?.reload()
+    /// - Parameter content: 说明文案。
+    private func footnote(_ content: String) -> some View {
+        Text(content)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 20)
     }
 
     /// 按应用当前语言解析 String Catalog 文案。
     private func text(_ key: String) -> String {
         AccountLocalization.string(key, locale: locale)
-    }
-}
-
-/// 明细中的一条流水：图标、标题、时间，右侧为带正负号的变动点数和变动后余额。
-private struct AICreditEntryRow: View {
-    @Environment(\.locale) private var locale
-
-    /// 展示的流水。
-    let entry: AICreditEntry
-
-    var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: entry.symbol)
-                .font(.system(size: 21, weight: .regular))
-                .frame(width: 28)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(entry.title(locale: locale))
-                    .font(.body)
-                Text(Self.formattedTime(entry.createdAt, locale: locale))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 8)
-
-            VStack(alignment: .trailing, spacing: 3) {
-                Text(entry.signedPoints(locale: locale))
-                    .font(.body.weight(.medium))
-                    .monospacedDigit()
-                    // 增加用账本绿；扣点是正常消耗，不用红色
-                    .foregroundStyle(entry.points > 0 ? Color(.ledgerGreen) : Color.primary)
-                Text(
-                    AccountLocalization.formatted(
-                        "ai.entry.balanceAfter",
-                        value: entry.balanceAfter.formatted(.number.locale(locale)),
-                        locale: locale
-                    )
-                )
-                .font(.footnote)
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .accessibilityElement(children: .combine)
-    }
-
-    /// 流水时间：今年的省略年份。
-    ///
-    /// - Parameters:
-    ///   - date: 入账时间。
-    ///   - locale: 格式使用的语言环境。
-    ///   - now: 当前时间，测试可注入。
-    /// - Returns: 例如“10月28日 14:32”。
-    static func formattedTime(_ date: Date, locale: Locale, now: Date = .now) -> String {
-        let calendar = Calendar.current
-        let isThisYear = calendar.component(.year, from: date) == calendar.component(.year, from: now)
-        let style = isThisYear
-            ? Date.FormatStyle.dateTime.month().day().hour().minute()
-            : Date.FormatStyle.dateTime.year().month().day().hour().minute()
-        return date.formatted(style.locale(locale))
     }
 }
 

@@ -201,6 +201,19 @@ struct AIPointsTests {
         #expect(AccountLocalization.string("voice.turn.switchModelTier", locale: simplifiedChinese) == "换个模型")
         #expect(AccountLocalization.string("ai.tier.quickVoice.title", locale: simplifiedChinese) == "快捷语音模型")
         #expect(AccountLocalization.string("ai.tier.chat.title", locale: simplifiedChinese) == "对话模型")
+        #expect(AccountLocalization.string("ai.entries.title", locale: simplifiedChinese) == "点数明细")
+        #expect(AccountLocalization.string("ai.chatHistory.cleared", locale: simplifiedChinese) == "对话记录已清空")
+        // AI 点数页的分组标题和行尾状态
+        let pageKeys = [
+            "ai.points.section.model", "ai.points.section.privacy",
+            "ai.traceConsent.on", "ai.traceConsent.off", "ai.chatHistory.cleared",
+        ]
+        for key in pageKeys {
+            for locale in [english, simplifiedChinese] {
+                // 缺文案时返回 key 本身
+                #expect(AccountLocalization.string(key, locale: locale) != key, "\(key) 缺少 \(locale.identifier) 文案")
+            }
+        }
     }
 
     @Test("快捷语音和 AI 对话的模型：每边都有标题和说明，且有中英文")
@@ -289,18 +302,22 @@ struct AIPointsTests {
 
     // MARK: - 余额状态
 
-    @Test("刷新取到余额与档位列表，没选过档位时按服务端默认档位算每轮点数，每次刷新都重新查档位列表")
+    @Test("刷新取到余额与档位列表，没选过档位时两边都默认用精准算每轮点数，每次刷新都重新查档位列表")
     func refreshLoadsBalanceAndPointsPerTurn() async {
         let api = FakeAIBillingAPI()
         api.walletResults = [.success(AIWallet(balance: 100)), .success(AIWallet(balance: 98))]
         let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        // 还没取到档位列表时也先按精准发送
+        #expect(store.requestTier(for: .quickVoice) == .precise)
 
         await store.refresh()
         #expect(store.balance == 100)
+        #expect(store.tierList?.appDefaultTier == .precise)
         for scope in AIModelScope.allCases {
-            #expect(store.requestTier(for: scope) == nil)
-            #expect(store.displayTier(for: scope) == .standard)
-            #expect(store.pointsPerTurn(for: scope) == 1)
+            #expect(store.selectedTier(for: scope) == nil)
+            #expect(store.requestTier(for: scope) == .precise)
+            #expect(store.displayTier(for: scope) == .precise)
+            #expect(store.pointsPerTurn(for: scope) == 2)
             #expect(!store.isExhausted(for: scope))
         }
 
@@ -338,14 +355,15 @@ struct AIPointsTests {
         api.walletResults = [.success(AIWallet(balance: 1))]
         let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
         await store.refresh()
-        #expect(!store.isExhausted(for: .chat))
-        #expect(!store.canAffordCheaperTier(for: .chat))
-
-        store.selectTier(.precise, for: .chat)
+        // 默认的精准每句 2 点，余额只够普通档
         #expect(store.isExhausted(for: .chat))
         #expect(store.canAffordCheaperTier(for: .chat))
-        // 快捷语音仍用默认档位，余额够说一句
-        #expect(!store.isExhausted(for: .quickVoice))
+
+        store.selectTier(.standard, for: .chat)
+        #expect(!store.isExhausted(for: .chat))
+        #expect(!store.canAffordCheaperTier(for: .chat))
+        // 快捷语音仍用默认的精准，余额不够说一句
+        #expect(store.isExhausted(for: .quickVoice))
 
         store.balanceReporter()(0)
         #expect(store.isExhausted(for: .chat))
@@ -407,47 +425,60 @@ struct AIPointsTests {
         let store = AIPointsStore(api: api, defaults: defaults) { "user-1" }
         await store.refresh()
 
-        store.selectTier(.precise, for: .chat)
-        #expect(store.requestTier(for: .chat) == .precise)
-        #expect(store.displayTier(for: .chat) == .precise)
-        #expect(store.pointsPerTurn(for: .chat) == 2)
-        // 另一边不受影响，仍跟随服务端默认档位
+        store.selectTier(.standard, for: .chat)
+        #expect(store.requestTier(for: .chat) == .standard)
+        #expect(store.displayTier(for: .chat) == .standard)
+        #expect(store.pointsPerTurn(for: .chat) == 1)
+        // 另一边不受影响，仍用默认的精准
         #expect(store.selectedTier(for: .quickVoice) == nil)
-        #expect(store.requestTier(for: .quickVoice) == nil)
-        #expect(store.displayTier(for: .quickVoice) == .standard)
-        #expect(store.pointsPerTurn(for: .quickVoice) == 1)
+        #expect(store.requestTier(for: .quickVoice) == .precise)
+        #expect(store.pointsPerTurn(for: .quickVoice) == 2)
 
-        store.selectTier(.standard, for: .quickVoice)
-        #expect(store.requestTier(for: .quickVoice) == .standard)
-        #expect(store.requestTier(for: .chat) == .precise)
+        store.selectTier(.precise, for: .quickVoice)
+        #expect(store.requestTier(for: .quickVoice) == .precise)
+        #expect(store.requestTier(for: .chat) == .standard)
 
         store.balanceReporter()(1)
-        #expect(store.isExhausted(for: .chat))
-        #expect(!store.isExhausted(for: .quickVoice))
+        #expect(!store.isExhausted(for: .chat))
+        #expect(store.isExhausted(for: .quickVoice))
 
         let reopened = AIPointsStore(api: api, defaults: defaults) { "user-1" }
-        #expect(reopened.selectedTier(for: .chat) == .precise)
-        #expect(reopened.selectedTier(for: .quickVoice) == .standard)
+        #expect(reopened.selectedTier(for: .chat) == .standard)
+        #expect(reopened.selectedTier(for: .quickVoice) == .precise)
         // 还没取到档位列表时先按所选档位发送
-        #expect(reopened.requestTier(for: .chat) == .precise)
+        #expect(reopened.requestTier(for: .chat) == .standard)
         #expect(reopened.pointsPerTurn(for: .chat) == nil)
     }
 
-    @Test("所选档位服务端已不可用时不带档位，按服务端默认档位显示与计点")
+    @Test("所选档位服务端已停用时退回精准；精准也停用时不带档位，按服务端默认档位显示与计点")
     func unavailableSelectedTierFallsBackToDefault() async {
         let api = FakeAIBillingAPI()
         api.tiersResult = .success(AIModelTierList(defaultTier: "standard", tiers: [
-            .init(id: "standard", pointsPerTurn: 1, isAvailable: true),
-            .init(id: "precise", pointsPerTurn: 2, isAvailable: false),
+            .init(id: "standard", pointsPerTurn: 1, isAvailable: false),
+            .init(id: "precise", pointsPerTurn: 2, isAvailable: true),
         ]))
         let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
-        store.selectTier(.precise, for: .quickVoice)
+        store.selectTier(.standard, for: .quickVoice)
 
+        await store.refresh()
+        #expect(store.requestTier(for: .quickVoice) == .precise)
+        #expect(store.pointsPerTurn(for: .quickVoice) == 2)
+
+        let preciseDisabled = AIModelTierList(defaultTier: "standard", tiers: [
+            .init(id: "standard", pointsPerTurn: 1, isAvailable: true),
+            .init(id: "precise", pointsPerTurn: 2, isAvailable: false),
+        ])
+        api.tiersResult = .success(preciseDisabled)
+        store.selectTier(.precise, for: .quickVoice)
         await store.refresh()
         #expect(store.selectedTier(for: .quickVoice) == .precise)
         #expect(store.requestTier(for: .quickVoice) == nil)
         #expect(store.displayTier(for: .quickVoice) == .standard)
         #expect(store.pointsPerTurn(for: .quickVoice) == 1)
+        // 没选过的一边也一样，“默认”标记落到服务端的默认档位上
+        #expect(store.requestTier(for: .chat) == nil)
+        #expect(store.displayTier(for: .chat) == .standard)
+        #expect(preciseDisabled.appDefaultTier == .standard)
     }
 
     @Test("刷新失败保留已有余额，未登录时清空余额")
@@ -466,7 +497,8 @@ struct AIPointsTests {
         await store.refresh()
         #expect(store.balance == nil)
         #expect(store.failure == nil)
-        #expect(store.pointsPerTurn(for: .quickVoice) == 1)
+        // 档位列表与账号无关，退出登录后保留
+        #expect(store.pointsPerTurn(for: .quickVoice) == 2)
     }
 
     @Test("语音记账带回的余额就地更新；换账号后不展示旧账号余额")

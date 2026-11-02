@@ -304,6 +304,13 @@ final class AIChatHistoryStore {
         }
     }
 
+    /// 本机是否还有对话记录；AI 点数页据此决定清空入口能不能点。读不出来时当作有，不挡住清空。
+    func hasRecords() -> Bool {
+        var descriptor = FetchDescriptor<AIChatTurnRecord>()
+        descriptor.fetchLimit = 1
+        return ((try? container.makeManualSaveContext().fetchCount(descriptor)) ?? 1) > 0
+    }
+
     /// 清空全部记录和图片。
     ///
     /// - Throws: 保存失败时抛出，此时记录保持原样。

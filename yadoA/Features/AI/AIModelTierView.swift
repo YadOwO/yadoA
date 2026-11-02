@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// 快捷语音和 AI 对话各选各的（`AIModelScope`）：“我的 › AI 点数 › 快捷语音模型”打开快捷语音的，聊天页打开 AI 对话的；
 /// 页顶说明这个模型用在哪里、另一边在哪里选。
-/// 卡片显示名称、每句扣的点数、按当前余额还能说几句、一句话特点和几条具体说明，服务端的默认档位带“默认”标记；
+/// 卡片显示名称、每句扣的点数、按当前余额还能说几句、一句话特点和几条具体说明，没选过时用的档位（精准）带“默认”标记；
 /// 选中的卡片用浅底色和加粗边框标出。客户端不认识或服务端未配置好的档位不显示。
 /// 以后接入新档位时只需在 `AIModelTier` 补上文案，本页自动列出。
 /// 档位列表、余额与所选档位来自根部注入的 `AIPointsStore`，下拉刷新时重新查询。
@@ -102,7 +102,7 @@ struct AIModelTierView: View {
                         HStack(spacing: 8) {
                             Text(text(tier.titleKey))
                                 .font(.system(.title3, design: .serif, weight: .semibold))
-                            if tier.rawValue == tierList.defaultTier {
+                            if tier == tierList.appDefaultTier {
                                 defaultBadge
                             }
                         }
@@ -197,7 +197,7 @@ struct AIModelTierView: View {
         return line
     }
 
-    /// 服务端默认档位名称后的小标签：用户没选过档位时用的就是它。
+    /// 默认档位名称后的小标签：用户没选过档位时用的就是它。
     private var defaultBadge: some View {
         Text(text("ai.tier.default"))
             .font(.caption2.weight(.medium))

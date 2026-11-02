@@ -269,6 +269,9 @@ nonisolated enum AIModelTier: String, CaseIterable, Identifiable, Sendable {
     /// 精准：用更强的模型，每句扣的点数多。
     case precise
 
+    /// 用户没选过档位时本 App 用的档位：默认用精准，记账更准；服务端停用精准时才交给服务端的默认档位。
+    static let appDefault: AIModelTier = .precise
+
     /// 选择项的稳定标识。
     var id: String { rawValue }
 
@@ -315,7 +318,8 @@ nonisolated enum AIModelTier: String, CaseIterable, Identifiable, Sendable {
 
 /// 模型档位用在哪里：快捷语音和 AI 对话各选各的，互不影响。
 ///
-/// 快捷语音是一级页面上按住麦克风说的话，在 AI 点数页选模型；AI 对话是聊天页里说的、打的话和发的图片，在聊天页右上角选。
+/// 快捷语音是一级页面上按住麦克风说的话，在 AI 点数页选模型；AI 对话是聊天页里说的、打的话和发的图片，在聊天页的输入栏里选。
+/// 两边没选过时都用 `AIModelTier.appDefault`（精准）。
 /// 两边共用同一个对话段，每句话按发出时所在的入口取档位。
 nonisolated enum AIModelScope: String, CaseIterable, Identifiable, Sendable {
     /// 快捷语音：一级页面上按住麦克风说话，结果出现在会话卡片里。
@@ -381,6 +385,12 @@ nonisolated struct AIModelTierList: Decodable, Equatable, Sendable {
     /// 客户端认识且可用的档位，按服务端顺序，供用户选择。
     var selectableTiers: [AIModelTier] {
         tiers.compactMap { $0.isAvailable ? AIModelTier(rawValue: $0.id) : nil }
+    }
+
+    /// 用户没选过档位时实际用的档位，模型选择页给它标“默认”：本 App 的默认档位可选时用它，
+    /// 否则是服务端的默认档位；客户端不认识服务端默认档位时为 nil。
+    var appDefaultTier: AIModelTier? {
+        selectableTiers.contains(.appDefault) ? .appDefault : AIModelTier(rawValue: defaultTier)
     }
 
     /// 某个档位每说一句扣的点数。
