@@ -25,7 +25,7 @@ struct AccountTransactionModelTests {
             Issue.record("收入流水未解码为收入载荷")
             return
         }
-        #expect(actualCategory == category)
+        #expect(actualCategory == category.rawValue)
         #expect(actualAmount == 88)
     }
 
@@ -49,7 +49,7 @@ struct AccountTransactionModelTests {
             Issue.record("支出流水未解码为支出载荷")
             return
         }
-        #expect(actualCategory == category)
+        #expect(actualCategory == category.rawValue)
         #expect(actualAmount == amount)
     }
 
@@ -65,7 +65,6 @@ struct AccountTransactionModelTests {
             accountID: accountID,
             amount: amount,
             transactionDay: 20260813,
-            title: "  午餐  ",
             note: "  午餐\n",
             savedAt: savedAt
         )
@@ -77,7 +76,6 @@ struct AccountTransactionModelTests {
         #expect(transaction.categoryRawValue == ExpenseCategory.dining.rawValue)
         #expect(transaction.category == .dining)
         #expect(transaction.amount == amount)
-        #expect(transaction.title == "午餐")
         #expect(transaction.balanceBefore == nil)
         #expect(transaction.balanceAfter == nil)
         #expect(transaction.balanceDelta == nil)
@@ -85,19 +83,6 @@ struct AccountTransactionModelTests {
         #expect(transaction.transactionDay == 20260813)
         #expect(transaction.note == "午餐")
         #expect(transaction.savedAt == savedAt)
-    }
-
-    @Test("空白标题保存为 nil")
-    func blankTitleBecomesNil() throws {
-        let transaction = try AccountTransaction.validatingDiningExpense(
-            id: UUID(),
-            accountID: UUID(),
-            amount: 1,
-            transactionDay: 20260813,
-            title: " \n\t"
-        )
-
-        #expect(transaction.title == nil)
     }
 
     @Test(
@@ -265,6 +250,97 @@ struct AccountTransactionModelTests {
         }
     }
 
+    @Test("转账挂在转出账户上并记录转入账户，不计入收支")
+    func transferKeepsCounterpartAndIsNotBookkeeping() throws {
+        let fromAccountID = UUID()
+        let toAccountID = UUID()
+        let transaction = try AccountTransaction.validatingTransfer(
+            id: UUID(),
+            fromAccountID: fromAccountID,
+            toAccountID: toAccountID,
+            amount: Decimal(string: "88.5")!,
+            transactionDay: 20261022,
+            note: "  还信用卡  "
+        )
+
+        #expect(transaction.transactionType == .transfer)
+        #expect(transaction.accountID == fromAccountID)
+        #expect(transaction.counterpartAccountID == toAccountID)
+        #expect(transaction.categoryRawValue == nil)
+        #expect(transaction.note == "还信用卡")
+        let payload = try transaction.validatedPayload()
+        #expect(payload == .transfer(toAccountID: toAccountID, amount: Decimal(string: "88.5")!))
+        #expect(payload.bookkeepingAmount == nil)
+        #expect(payload.categoryReference == nil)
+    }
+
+    @Test("转账的账户与金额约束")
+    func transferRejectsInvalidAccountsAndAmounts() {
+        let accountID = UUID()
+        #expect(throws: AccountTransactionValidationError.invalidTransferAccounts) {
+            try AccountTransaction.validatingTransfer(
+                id: UUID(),
+                fromAccountID: accountID,
+                toAccountID: accountID,
+                amount: 10,
+                transactionDay: 20261022
+            )
+        }
+        #expect(throws: AccountTransactionValidationError.invalidAmount) {
+            try AccountTransaction.validatingTransfer(
+                id: UUID(),
+                fromAccountID: UUID(),
+                toAccountID: UUID(),
+                amount: 0,
+                transactionDay: 20261022
+            )
+        }
+        // 转账缺少转入账户。
+        #expect(throws: AccountTransactionValidationError.invalidTransferAccounts) {
+            try AccountTransaction.validatingPersistedFields(
+                id: UUID(),
+                accountID: UUID(),
+                typeRawValue: AccountTransactionType.transfer.rawValue,
+                categoryRawValue: nil,
+                amount: 10,
+                balanceBefore: nil,
+                balanceAfter: nil,
+                balanceDelta: nil,
+                transactionDay: 20261022
+            )
+        }
+        // 支出带了转入账户。
+        #expect(throws: AccountTransactionValidationError.invalidTransferAccounts) {
+            try AccountTransaction.validatingPersistedFields(
+                id: UUID(),
+                accountID: UUID(),
+                typeRawValue: AccountTransactionType.expense.rawValue,
+                categoryRawValue: ExpenseCategory.dining.rawValue,
+                amount: 10,
+                balanceBefore: nil,
+                balanceAfter: nil,
+                balanceDelta: nil,
+                counterpartAccountID: UUID(),
+                transactionDay: 20261022
+            )
+        }
+        // 转账带了分类。
+        #expect(throws: AccountTransactionValidationError.invalidPayload) {
+            try AccountTransaction.validatingPersistedFields(
+                id: UUID(),
+                accountID: UUID(),
+                typeRawValue: AccountTransactionType.transfer.rawValue,
+                categoryRawValue: ExpenseCategory.dining.rawValue,
+                amount: 10,
+                balanceBefore: nil,
+                balanceAfter: nil,
+                balanceDelta: nil,
+                counterpartAccountID: UUID(),
+                transactionDay: 20261022
+            )
+        }
+    }
+
     @Test(
         "无效公历记账日不会生成流水",
         arguments: [20260229, 20261301, 20260800, 2026081]
@@ -329,6 +405,5 @@ struct AccountTransactionModelTests {
 
         let savedTransactions = try context.fetch(FetchDescriptor<AccountTransaction>())
         #expect(Set(savedTransactions.map(\.id)) == Set([dining.id, adjustment.id]))
-        #expect(dataContainer.modelContainer.schema.version == .init(5, 0, 0))
     }
 }

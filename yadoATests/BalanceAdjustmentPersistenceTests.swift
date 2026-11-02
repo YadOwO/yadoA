@@ -26,9 +26,13 @@ struct BalanceAdjustmentPersistenceTests {
             container: dataContainer.modelContainer
         )
 
+        // 这个时刻是北京时间 8 月 14 日凌晨、洛杉矶 8 月 13 日下午；固定日历时区，结果不随运行设备的时区变化
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Asia/Shanghai"))
         let result = try repository.save(
             draft,
-            now: Date(timeIntervalSince1970: 1_786_651_200)
+            now: Date(timeIntervalSince1970: 1_786_651_200),
+            calendar: calendar
         )
         let account = try #require(try fetchAccount(id: accountID, in: dataContainer.modelContainer))
         let transaction = try #require(

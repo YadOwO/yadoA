@@ -7,6 +7,7 @@ struct ChartView: View {
     @Environment(\.calendar) private var environmentCalendar
     @Environment(\.locale) private var locale
     @Query private var transactions: [AccountTransaction]
+    @Query private var categories: [BookkeepingCategory]
 
     /// 当前展示的收支类型，默认支出。
     @State private var selectedEntryType: BookkeepingEntryType = .expense
@@ -20,8 +21,14 @@ struct ChartView: View {
     /// 月视图下是否展示月份滚轮选择器。
     @State private var isMonthPickerPresented = false
 
-    init() {
+    /// 账本完全没有收支时空状态里的"记一笔"操作，由根导航切到首页的记账页。
+    private let onAddEntry: () -> Void
+
+    /// - Parameter onAddEntry: 用户在空状态点击"记一笔"时的回调。
+    init(onAddEntry: @escaping () -> Void = {}) {
+        self.onAddEntry = onAddEntry
         _transactions = Query(ChartOverviewPresentation.descriptor())
+        _categories = Query()
     }
 
     var body: some View {
@@ -38,80 +45,93 @@ struct ChartView: View {
             anchorDate: selectedAnchorDate,
             transactions: transactions,
             calendar: environmentCalendar,
-            locale: locale
+            locale: locale,
+            catalog: BookkeepingCategoryCatalog(categories: categories)
         )
 
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                ChartEntryTypePicker(selection: Binding(
-                    get: { selectedEntryType },
-                    set: { entryType in
-                        // 切换收支时保留当前显示日期，便于比较同一周期。
-                        selectAnchorDate(chart.anchorDate)
-                        selectedEntryType = entryType
+        Group {
+            if transactions.isEmpty {
+                // 账本里一笔收支都没有：筛选和空坐标轴没有意义，整页换成引导。
+                ChartEmptyState(onAddEntry: onAddEntry)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        ChartFilterSwitches(
+                            entryType: Binding(
+                                get: { selectedEntryType },
+                                set: { entryType in
+                                    // 切换收支时保留当前显示日期，便于比较同一周期。
+                                    selectAnchorDate(chart.anchorDate)
+                                    selectedEntryType = entryType
+                                }
+                            ),
+                            period: $selectedPeriod
+                        )
+
+                        ChartTimeSelector(
+                            chart: chart,
+                            onSelectPrevious: {
+                                selectAnchorDate(ChartOverviewPresentation.shiftedAnchorDate(
+                                    chart.anchorDate,
+                                    period: selectedPeriod,
+                                    by: -1,
+                                    calendar: environmentCalendar
+                                ))
+                            },
+                            onSelectNext: {
+                                selectAnchorDate(ChartOverviewPresentation.shiftedAnchorDate(
+                                    chart.anchorDate,
+                                    period: selectedPeriod,
+                                    by: 1,
+                                    calendar: environmentCalendar
+                                ))
+                            },
+                            onSelectMonth: {
+                                isMonthPickerPresented = true
+                            }
+                        )
+
+                        ChartTrendCard(chart: chart)
+
+                        // 当前周期没有记录时趋势卡已经给出提示，不再重复一段空的分类排行。
+                        if chart.transactionCount > 0 {
+                            CategoryRankingView(
+                                title: AccountLocalization.string(
+                                    selectedEntryType == .expense
+                                        ? "category.ranking.expense.title"
+                                        : "category.ranking.income.title",
+                                    locale: locale
+                                ),
+                                items: chart.categoryRanking
+                            )
+                        }
                     }
-                ))
-
-                ChartPeriodPicker(selection: $selectedPeriod)
-
-                ChartTimeSelector(
-                    chart: chart,
-                    onSelectPrevious: {
-                        selectAnchorDate(ChartOverviewPresentation.shiftedAnchorDate(
-                            chart.anchorDate,
-                            period: selectedPeriod,
-                            by: -1,
-                            calendar: environmentCalendar
-                        ))
-                    },
-                    onSelectNext: {
-                        selectAnchorDate(ChartOverviewPresentation.shiftedAnchorDate(
-                            chart.anchorDate,
-                            period: selectedPeriod,
-                            by: 1,
-                            calendar: environmentCalendar
-                        ))
-                    },
-                    onSelectMonth: {
-                        isMonthPickerPresented = true
-                    }
-                )
-
-                ChartSummaryCard(chart: chart)
-
-                ChartTrendCard(chart: chart)
-
-                CategoryRankingView(
-                    title: AccountLocalization.string(
-                        selectedEntryType == .expense
-                            ? "category.ranking.expense.title"
-                            : "category.ranking.income.title",
-                        locale: locale
-                    ),
-                    items: chart.categoryRanking
-                )
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .paperPage()
         .navigationTitle(AppTab.charts.title(locale: locale))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    CategoryBreakdownView(
-                        entryType: selectedEntryType,
-                        period: selectedPeriod,
-                        anchorDay: TransactionDay.encode(chart.anchorDate, calendar: environmentCalendar)
-                    )
-                } label: {
-                    Label(
-                        AccountLocalization.string("chart.category.title", locale: locale),
-                        systemImage: "chart.pie"
-                    )
+            // 空账本没有可统计的分类，分类统计入口随空状态一起隐藏。
+            if !transactions.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(
+                        value: ChartsRoute.categoryBreakdown(
+                            entryType: selectedEntryType,
+                            period: selectedPeriod,
+                            anchorDay: TransactionDay.encode(chart.anchorDate, calendar: environmentCalendar)
+                        )
+                    ) {
+                        Label(
+                            AccountLocalization.string("chart.category.title", locale: locale),
+                            systemImage: "chart.pie"
+                        )
+                    }
+                    .accessibilityIdentifier("chart-category-breakdown-entry")
                 }
-                .accessibilityIdentifier("chart-category-breakdown-entry")
             }
         }
         .sheet(isPresented: $isMonthPickerPresented) {
@@ -147,7 +167,62 @@ struct ChartView: View {
     }
 }
 
-/// 图表页顶部的支出、收入分段选择器。
+/// 账本里还没有任何收支时的图表空状态，引导用户去记第一笔。
+private struct ChartEmptyState: View {
+    @Environment(\.locale) private var locale
+
+    /// 点击"记一笔"的回调。
+    let onAddEntry: () -> Void
+
+    var body: some View {
+        ContentUnavailableView {
+            // 与首页、账单空状态一致的排版，图标换成手绘趋势图。
+            Label {
+                Text(AccountLocalization.string("chart.empty.title", locale: locale))
+            } icon: {
+                HandDrawnTrendIllustration()
+            }
+        } description: {
+            Text(AccountLocalization.string("chart.empty.message", locale: locale))
+        } actions: {
+            Button(action: onAddEntry) {
+                Label(AccountLocalization.string("expense.entry.action", locale: locale), systemImage: "plus")
+            }
+            .accessibilityIdentifier("chart-empty-add")
+        }
+        // 先声明为容器，空状态的标识才不会覆盖内部「记一笔」按钮的标识。
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chart-empty")
+    }
+}
+
+/// 图表页顶部的两组切换：左边是较大的"支出 / 收入"，右边是较小的"周 / 月 / 年"。
+///
+/// 两组用字号区分主次并排成一行；辅助功能字号等放不下的情况改为上下两行。
+struct ChartFilterSwitches: View {
+    /// 当前选中的收支类型。
+    @Binding var entryType: BookkeepingEntryType
+
+    /// 当前选中的图表周期。
+    @Binding var period: ChartPeriod
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                ChartEntryTypePicker(selection: $entryType)
+                Spacer(minLength: 12)
+                ChartPeriodPicker(selection: $period)
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                ChartEntryTypePicker(selection: $entryType)
+                ChartPeriodPicker(selection: $period)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// 图表页顶部的支出、收入切换。
 struct ChartEntryTypePicker: View {
     @Environment(\.locale) private var locale
 
@@ -155,21 +230,18 @@ struct ChartEntryTypePicker: View {
     @Binding var selection: BookkeepingEntryType
 
     var body: some View {
-        Picker(
-            AccountLocalization.string("bookkeeping.entry.type", locale: locale),
-            selection: $selection
-        ) {
-            ForEach(BookkeepingEntryType.allCases) { entryType in
-                Text(entryType.localizedTitle(locale: locale))
-                    .tag(entryType)
-            }
-        }
-        .pickerStyle(.segmented)
-        .accessibilityIdentifier("chart-entry-type-picker")
+        LedgerSwitch(
+            label: AccountLocalization.string("bookkeeping.entry.type", locale: locale),
+            selection: $selection,
+            options: BookkeepingEntryType.ledgerSwitchOptions(
+                identifier: "chart-entry-type-picker",
+                locale: locale
+            )
+        )
     }
 }
 
-/// 图表页顶部的周、月、年分段选择器。
+/// 图表页顶部的周、月、年切换。
 struct ChartPeriodPicker: View {
     @Environment(\.locale) private var locale
 
@@ -177,17 +249,18 @@ struct ChartPeriodPicker: View {
     @Binding var selection: ChartPeriod
 
     var body: some View {
-        Picker(
-            AccountLocalization.string("chart.period.accessibility", locale: locale),
-            selection: $selection
-        ) {
-            ForEach(ChartPeriod.allCases) { period in
-                Text(period.title(locale: locale))
-                    .tag(period)
-            }
-        }
-        .pickerStyle(.segmented)
-        .accessibilityIdentifier("chart-period-picker")
+        LedgerSwitch(
+            label: AccountLocalization.string("chart.period.accessibility", locale: locale),
+            selection: $selection,
+            options: ChartPeriod.allCases.map {
+                .init(
+                    value: $0,
+                    title: $0.title(locale: locale),
+                    identifier: "chart-period-picker-\($0.rawValue)"
+                )
+            },
+            size: .compact
+        )
     }
 }
 
@@ -262,7 +335,7 @@ struct ChartTimeSelector: View {
     /// 当前周范围、月份或年份标题。
     private var periodTitle: some View {
         Text(chart.formattedPeriod)
-            .font(.headline)
+            .font(.system(.headline, design: .serif))
             .lineLimit(1)
             .minimumScaleFactor(0.75)
     }
@@ -277,43 +350,44 @@ struct ChartTimeSelector: View {
     }
 }
 
-/// 图表页顶部的周期收支总额与记录数量摘要。
-private struct ChartSummaryCard: View {
+/// 趋势卡片顶部的收支摘要，突出总额，笔数作为次级信息。
+private struct ChartSummaryHeader: View {
     @Environment(\.locale) private var locale
 
     /// 当前周期的完整展示投影。
     let chart: ChartOverviewPresentation
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(AccountLocalization.string(chart.summaryTitleLocalizationKey, locale: locale))
-                .font(.headline)
-
-            HStack(spacing: 24) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(AccountLocalization.string(chart.totalTitleLocalizationKey, locale: locale))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(formattedTotal)
-                        .font(.title3.weight(.semibold).monospacedDigit())
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(AccountLocalization.string("chart.summary.records", locale: locale))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(chart.transactionCount.formatted(.number.locale(locale)))
-                        .font(.title3.weight(.semibold).monospacedDigit())
-                }
-
-                Spacer(minLength: 0)
+        // 总额在左、笔数在右写成一行，把高度留给下面的折线。
+        HStack(alignment: .lastTextBaseline, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(AccountLocalization.string(chart.totalTitleLocalizationKey, locale: locale))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text(formattedTotal)
+                    .font(.system(.title, design: .serif, weight: .medium).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
+            Spacer(minLength: 8)
+            HStack(spacing: 6) {
+                Text(AccountLocalization.string("chart.summary.records", locale: locale))
+                Text(chart.transactionCount.formatted(.number.locale(locale)))
+            }
+            .font(.system(.footnote, design: .serif).monospacedDigit())
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .fixedSize()
         }
-        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text([
+            AccountLocalization.string(chart.summaryTitleLocalizationKey, locale: locale),
+            AccountLocalization.string(chart.totalTitleLocalizationKey, locale: locale),
+            formattedTotal,
+            AccountLocalization.string("chart.summary.records", locale: locale),
+            chart.transactionCount.formatted(.number.locale(locale))
+        ].joined(separator: ", ")))
         .accessibilityIdentifier("chart-summary-card")
     }
 
@@ -323,7 +397,7 @@ private struct ChartSummaryCard: View {
     }
 }
 
-/// 图表页当前周期的收支折线图；没有对应流水的时间桶按零展示。
+/// 将当前周期总额与收支趋势合并展示；没有对应流水的时间桶仍按零绘制。
 private struct ChartTrendCard: View {
     @Environment(\.locale) private var locale
 
@@ -332,72 +406,105 @@ private struct ChartTrendCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            ChartSummaryHeader(chart: chart)
+
+            HandDrawnRule(seed: 13)
+                .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                .frame(height: 3)
+                .accessibilityHidden(true)
+
             Text(
                 AccountLocalization.string(
                     chart.chartTitleLocalizationKey,
                     locale: locale
                 )
             )
-            .font(.headline)
+            .font(.caption)
+            .foregroundStyle(.secondary)
 
-            Chart(chart.points) { point in
-                LineMark(
-                    x: .value(
-                        AccountLocalization.string("chart.axis.period", locale: locale),
-                        point.formattedLabel
-                    ),
-                    y: .value(
-                        chart.entryType.localizedTitle(locale: locale),
-                        point.amount.doubleValue
-                    )
+            if chart.transactionCount == 0 {
+                // 当前周期没有记录：不画一张全是零的折线，保留同样的高度避免切换周期时卡片跳动。
+                Text(AccountLocalization.string("category.ranking.empty", locale: locale))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 150)
+                    .accessibilityIdentifier("chart-period-empty")
+            } else {
+                trendChart
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            HandDrawnBox(cornerRadius: 22, seed: 5)
+                .stroke(
+                    Color.primary.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
                 )
-                .foregroundStyle(Color.accentColor)
-                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                .interpolationMethod(.linear)
+        }
+    }
 
-                PointMark(
-                    x: .value(
-                        AccountLocalization.string("chart.axis.period", locale: locale),
-                        point.formattedLabel
-                    ),
-                    y: .value(
-                        chart.entryType.localizedTitle(locale: locale),
-                        point.amount.doubleValue
-                    )
+    /// 当前周期的收支折线。
+    private var trendChart: some View {
+        Chart(chart.points) { point in
+            LineMark(
+                x: .value(
+                    AccountLocalization.string("chart.axis.period", locale: locale),
+                    point.formattedLabel
+                ),
+                y: .value(
+                    chart.entryType.localizedTitle(locale: locale),
+                    point.amount.doubleValue
                 )
-                .foregroundStyle(Color.accentColor)
-                .symbolSize(24)
-                .accessibilityLabel(point.formattedLabel)
-                .accessibilityValue(point.formattedAmount)
+            )
+            .foregroundStyle(Color.accentColor)
+            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            .interpolationMethod(.linear)
+
+            PointMark(
+                x: .value(
+                    AccountLocalization.string("chart.axis.period", locale: locale),
+                    point.formattedLabel
+                ),
+                y: .value(
+                    chart.entryType.localizedTitle(locale: locale),
+                    point.amount.doubleValue
+                )
+            )
+            .foregroundStyle(Color.accentColor)
+            .symbolSize(16)
+            .accessibilityLabel(point.formattedLabel)
+            .accessibilityValue(point.formattedAmount)
+        }
+        .chartYScale(domain: .automatic(includesZero: true))
+        .chartYAxis {
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
+                // 网格线压到和账本横线一样淡，让墨色折线成为唯一的重笔。
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 1, lineCap: .round))
+                    .foregroundStyle(Color.primary.opacity(0.12))
+                AxisValueLabel()
+                    .font(.system(.caption2, design: .serif).monospacedDigit())
             }
-            .chartYScale(domain: .automatic(includesZero: true))
-            .chartYAxis {
-                AxisMarks(position: .leading) { _ in
-                    AxisGridLine()
-                    AxisValueLabel()
-                }
-            }
-            .chartXAxis {
-                AxisMarks(values: xAxisLabelValues) { value in
-                    AxisValueLabel(
-                        centered: false,
-                        collisionResolution: .greedy(minimumSpacing: 8)
-                    ) {
-                        if let label = value.as(String.self) {
-                            Text(label)
-                                .lineLimit(1)
-                                .fixedSize()
-                        }
+        }
+        .chartXAxis {
+            AxisMarks(values: xAxisLabelValues) { value in
+                AxisValueLabel(
+                    centered: false,
+                    collisionResolution: .greedy(minimumSpacing: 8)
+                ) {
+                    if let label = value.as(String.self) {
+                        Text(label)
+                            .font(.system(.caption2, design: .serif).monospacedDigit())
+                            .lineLimit(1)
+                            .fixedSize()
                     }
                 }
             }
-            .frame(height: 240)
-            .accessibilityIdentifier("chart-\(chart.entryType.rawValue)-\(chart.period.rawValue)")
         }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        // 趋势只需看出起伏，矮一些让下面的分类排行在首屏露出来。
+        .frame(height: 150)
+        .accessibilityIdentifier("chart-\(chart.entryType.rawValue)-\(chart.period.rawValue)")
     }
 
     /// 月视图先减少日期刻度，其余周期由系统按实际标签宽度避让；折线仍使用全部数据点。
@@ -419,9 +526,23 @@ private extension Decimal {
 #Preview {
     NavigationStack {
         ChartView()
+            .navigationDestination(for: ChartsRoute.self) { $0.destination }
     }
     .modelContainer(
         for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
         inMemory: true
     )
 }
+
+#if DEBUG
+#Preview("Spending trend · populated") {
+    if let container = try? HomeDesignPreviewData.makeContainer() {
+        NavigationStack {
+            ChartView()
+                .navigationDestination(for: ChartsRoute.self) { $0.destination }
+        }
+        .modelContainer(container)
+        .environment(\.locale, Locale(identifier: "zh-Hans"))
+    }
+}
+#endif

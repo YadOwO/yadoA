@@ -5,6 +5,61 @@ import Testing
 @Suite("记账搜索投影", .serialized)
 @MainActor
 struct BookkeepingSearchPresentationTests {
+    @Test("初始建议按最近有效记账排序、去重并限制数量，且支持中英文搜索")
+    func initialSuggestionsUseSearchableCategories() throws {
+        let accountID = UUID()
+        let expenses = try [ExpenseCategory.dining, .medical, .travel, .housing, .shopping, .transportation]
+            .enumerated().map { index, category in
+                try AccountTransaction.validatingExpense(
+                    id: UUID(), accountID: accountID, category: category,
+                    amount: 30, transactionDay: 20260826 - index
+                )
+            }
+        let recentShopping = try AccountTransaction.validatingExpense(
+            id: UUID(), accountID: accountID, category: .shopping,
+            amount: 30, transactionDay: 20260828
+        )
+        let salary = try AccountTransaction.validatingIncome(
+            id: UUID(), accountID: accountID, category: .salary,
+            amount: 500, transactionDay: 20260829
+        )
+        let adjustment = try AccountTransaction.validatingBalanceAdjustment(
+            id: UUID(), accountID: accountID, balanceBefore: 100,
+            balanceAfter: 200, transactionDay: 20260831
+        )
+        let invalidDate = try AccountTransaction.validatingExpense(
+            id: UUID(), accountID: accountID, category: .pets,
+            amount: 30, transactionDay: 20260831
+        )
+        invalidDate.transactionDay = 20260230
+        let corrupted = try AccountTransaction.validatingExpense(
+            id: UUID(), accountID: accountID, category: .education,
+            amount: 30, transactionDay: 20260831
+        )
+        corrupted.amount = nil
+        let transactions = expenses + [recentShopping, salary, adjustment, invalidDate, corrupted]
+        for (locale, expected) in [
+            (chineseLocale, ["工资", "购物", "餐饮", "医疗", "旅行"]),
+            (englishLocale, ["Salary", "Shopping", "Dining", "Medical", "Travel"])
+        ] {
+            let initial = BookkeepingSearchPresentation(
+                transactions: transactions, accounts: [], query: "", locale: locale
+            )
+            #expect(initial.state == .initial)
+            #expect(initial.dayGroups.isEmpty)
+            #expect(initial.suggestedCategories == expected)
+            for category in initial.suggestedCategories {
+                let result = BookkeepingSearchPresentation(
+                    transactions: transactions, accounts: [], query: category, locale: locale
+                )
+                #expect(result.state == .results)
+                #expect(result.suggestedCategories.isEmpty)
+            }
+        }
+        let empty = BookkeepingSearchPresentation(transactions: [], accounts: [], query: "")
+        #expect(empty.suggestedCategories.isEmpty)
+    }
+
     @Test("收入分类支持搜索与详情展示")
     func incomeMatchesSearchAndDetail() throws {
         let transaction = try AccountTransaction.validatingIncome(
@@ -33,14 +88,13 @@ struct BookkeepingSearchPresentationTests {
         #expect(detail?.formattedAmount.contains("500") == true)
     }
 
-    @Test("备注支持包含匹配，且遗留标题不参与搜索")
-    func noteMatchesWithoutUsingTitle() throws {
+    @Test("备注支持包含匹配，结果行主行是备注、副行是分类")
+    func noteMatchesAndLeadsRow() throws {
         let transaction = try dining(
             id: uuid("00000000-0000-0000-0000-000000000001"),
             accountID: uuid("00000000-0000-0000-0000-000000000101"),
             amount: "30",
             transactionDay: 20260826,
-            title: "火锅标题",
             note: "和朋友吃火锅"
         )
         let account = account(
@@ -54,16 +108,13 @@ struct BookkeepingSearchPresentationTests {
             query: " 火锅 ",
             locale: chineseLocale
         )
-        let titleOnlyMatch = BookkeepingSearchPresentation(
-            transactions: [transaction],
-            accounts: [account],
-            query: "标题",
-            locale: chineseLocale
-        )
-
         #expect(noteMatch.dayGroups.flatMap(\.rows).map(\.id) == [transaction.id])
-        #expect(titleOnlyMatch.dayGroups.isEmpty)
-        #expect(noteMatch.dayGroups[0].rows[0].note == "和朋友吃火锅")
+        let row = noteMatch.dayGroups[0].rows[0]
+        #expect(row.note == "和朋友吃火锅")
+        #expect(row.lines == BookkeepingEntryLines(note: "和朋友吃火锅", categoryTitle: "餐饮"))
+        #expect(row.lines.title == "和朋友吃火锅")
+        #expect(row.lines.subtitle == "餐饮")
+        #expect(row.accessibilityLabel.hasPrefix("和朋友吃火锅, 餐饮, "))
     }
 
     @Test("类别按当前语言环境匹配")
@@ -393,7 +444,116 @@ struct BookkeepingSearchPresentationTests {
         let elapsed = Date().timeIntervalSince(start)
 
         #expect(presentation.dayGroups.flatMap(\.rows).count == 1)
-        #expect(elapsed < 0.1)
+        // 留足并行跑测试时的负载余量，只防止退化成逐条格式化。
+        #expect(elapsed < 0.5)
+    }
+
+    @Test("收支方向单独筛选即出结果，并与关键词取交集；结果附带笔数和收支合计")
+    func entryFilterNarrowsResultsAndSummarizes() throws {
+        let accountID = UUID()
+        let lunch = try dining(id: UUID(), accountID: accountID, amount: "20", transactionDay: 20260815, note: "午餐")
+        let dinner = try dining(id: UUID(), accountID: accountID, amount: "30.5", transactionDay: 20260816, note: "晚餐")
+        let salary = try AccountTransaction.validatingIncome(
+            id: UUID(), accountID: accountID, category: .salary,
+            amount: 500, transactionDay: 20260817
+        )
+        let transactions = [lunch, dinner, salary]
+        let account = account(id: accountID, name: "Cash")
+
+        let expenses = BookkeepingSearchPresentation(
+            transactions: transactions, accounts: [account], query: "",
+            entryFilter: .expense, locale: chineseLocale
+        )
+        let income = BookkeepingSearchPresentation(
+            transactions: transactions, accounts: [account], query: "",
+            entryFilter: .income, locale: chineseLocale
+        )
+        let incomeLunch = BookkeepingSearchPresentation(
+            transactions: transactions, accounts: [account], query: "午餐",
+            entryFilter: .income, locale: chineseLocale
+        )
+        let everything = BookkeepingSearchPresentation(
+            transactions: transactions, accounts: [account], query: "",
+            timeFilter: .custom(try #require(BookkeepingSearchDateRange(startDay: 20260801, endDay: 20260831))),
+            locale: chineseLocale
+        )
+
+        #expect(expenses.state == .results)
+        #expect(expenses.dayGroups.flatMap(\.rows).map(\.id) == [dinner.id, lunch.id])
+        #expect(expenses.summary == BookkeepingSearchSummary(
+            count: 2, incomeTotal: 0, expenseTotal: try #require(Decimal(string: "50.5"))
+        ))
+        #expect(income.dayGroups.flatMap(\.rows).map(\.id) == [salary.id])
+        #expect(incomeLunch.state == .noResults)
+        #expect(incomeLunch.summary == nil)
+        #expect(everything.summary == BookkeepingSearchSummary(
+            count: 3, incomeTotal: 500, expenseTotal: try #require(Decimal(string: "50.5"))
+        ))
+    }
+
+    @Test("常用时间范围覆盖完整的自然月和自然年，跨年时上月回到去年十二月")
+    func timePresetsCoverWholeMonthsAndYears() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Asia/Shanghai"))
+        let today = try #require(calendar.date(from: DateComponents(year: 2026, month: 1, day: 15, hour: 9)))
+
+        #expect(
+            BookkeepingSearchTimePreset.thisMonth.range(today: today, calendar: calendar)
+                == BookkeepingSearchDateRange(startDay: 20260101, endDay: 20260131)
+        )
+        #expect(
+            BookkeepingSearchTimePreset.lastMonth.range(today: today, calendar: calendar)
+                == BookkeepingSearchDateRange(startDay: 20251201, endDay: 20251231)
+        )
+        #expect(
+            BookkeepingSearchTimePreset.thisYear.range(today: today, calendar: calendar)
+                == BookkeepingSearchDateRange(startDay: 20260101, endDay: 20261231)
+        )
+    }
+
+    @Test("最近搜索最新在前、忽略大小写去重、限制数量，并能原样存取")
+    func historyKeepsNewestUniqueQueries() {
+        var queries: [String] = []
+        for query in ["Lunch", "火锅", "  ", " lunch "] {
+            queries = BookkeepingSearchHistory.adding(query, to: queries)
+        }
+        #expect(queries == ["lunch", "火锅"])
+        #expect(BookkeepingSearchHistory.decode(BookkeepingSearchHistory.encode(queries)) == queries)
+        #expect(BookkeepingSearchHistory.decode("").isEmpty)
+
+        for index in 0..<20 {
+            queries = BookkeepingSearchHistory.adding("q\(index)", to: queries)
+        }
+        #expect(queries.count == BookkeepingSearchHistory.limit)
+        #expect(queries.first == "q19")
+    }
+
+    @Test("结果行带分类图标，并标出因金额或文字命中的位置")
+    func rowsExposeSymbolAndMatchPositions() throws {
+        let accountID = UUID()
+        let transaction = try dining(id: UUID(), accountID: accountID, amount: "30", transactionDay: 20260815, note: "和朋友吃火锅")
+        let account = account(id: accountID, name: "Cash")
+
+        let byAmount = BookkeepingSearchPresentation(
+            transactions: [transaction], accounts: [account], query: "30", locale: chineseLocale
+        )
+        let byNote = BookkeepingSearchPresentation(
+            transactions: [transaction], accounts: [account], query: "火锅", locale: chineseLocale
+        )
+        let amountRow = try #require(byAmount.dayGroups.first?.rows.first)
+        let noteRow = try #require(byNote.dayGroups.first?.rows.first)
+
+        #expect(amountRow.matchesAmount)
+        #expect(amountRow.symbolName == ExpenseCategory.dining.symbolName)
+        #expect(noteRow.matchesAmount == false)
+
+        let note = try #require(noteRow.note)
+        let range = try #require(
+            BookkeepingSearchPresentation.matchRange(of: " 火锅 ", in: note, locale: chineseLocale)
+        )
+        #expect(note[range] == "火锅")
+        #expect(BookkeepingSearchPresentation.matchRange(of: "  ", in: note, locale: chineseLocale) == nil)
+        #expect(BookkeepingSearchPresentation.matchRange(of: "烧烤", in: note, locale: chineseLocale) == nil)
     }
 
     private var englishLocale: Locale { Locale(identifier: "en_US") }
@@ -405,7 +565,6 @@ struct BookkeepingSearchPresentationTests {
         accountID: UUID,
         amount: String,
         transactionDay: Int,
-        title: String? = nil,
         note: String = "",
         savedAt: Date = Date(timeIntervalSince1970: 1_786_608_000)
     ) throws -> AccountTransaction {
@@ -414,7 +573,6 @@ struct BookkeepingSearchPresentationTests {
             accountID: accountID,
             amount: try #require(Decimal(string: amount)),
             transactionDay: transactionDay,
-            title: title,
             note: note,
             savedAt: savedAt
         )

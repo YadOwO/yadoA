@@ -48,6 +48,139 @@ enum BookkeepingSearchTimeFilter: Equatable, Sendable {
     }
 }
 
+/// 搜索页一点即用的常用时间范围。
+enum BookkeepingSearchTimePreset: String, CaseIterable, Identifiable, Sendable {
+    /// 今天所在的自然月。
+    case thisMonth
+
+    /// 今天所在自然月的上一个月。
+    case lastMonth
+
+    /// 今天所在的自然年。
+    case thisYear
+
+    /// 使用稳定原始值作为标识。
+    var id: String { rawValue }
+
+    /// 筛选条上显示的本地化键。
+    var titleLocalizationKey: String {
+        switch self {
+        case .thisMonth: "bookkeeping.search.preset.this_month"
+        case .lastMonth: "bookkeeping.search.preset.last_month"
+        case .thisYear: "bookkeeping.search.preset.this_year"
+        }
+    }
+
+    /// 以 `today` 为基准算出这段时间的完整业务日闭区间。
+    ///
+    /// 范围覆盖整个月或整年而不是截到今天，提前记下的未来日期流水也能搜到。
+    ///
+    /// - Parameters:
+    ///   - today: 当前时间。
+    ///   - calendar: 提供时区的日历，内部统一按公历计算。
+    /// - Returns: 对应的日期范围；日历无法推算时为 `nil`。
+    func range(today: Date, calendar source: Calendar) -> BookkeepingSearchDateRange? {
+        let calendar = TransactionDay.gregorianCalendar(basedOn: source)
+        let component: Calendar.Component = self == .thisYear ? .year : .month
+        let anchor = self == .lastMonth
+            ? calendar.date(byAdding: .month, value: -1, to: today)
+            : today
+        guard let anchor,
+              let interval = calendar.dateInterval(of: component, for: anchor),
+              let lastDay = calendar.date(byAdding: .day, value: -1, to: interval.end)
+        else {
+            return nil
+        }
+        return BookkeepingSearchDateRange(
+            startDay: TransactionDay.encode(interval.start, calendar: calendar),
+            endDay: TransactionDay.encode(lastDay, calendar: calendar)
+        )
+    }
+}
+
+/// 搜索页已选中的收支方向条件。
+enum BookkeepingSearchEntryFilter: Equatable, Sendable {
+    /// 收入和支出都搜。
+    case all
+
+    /// 只搜支出。
+    case expense
+
+    /// 只搜收入。
+    case income
+
+    /// 当前条件是否不限制收支方向。
+    var isUnbounded: Bool { self == .all }
+
+    /// 判断一笔流水的收支方向是否符合当前条件。
+    func matches(_ entryType: BookkeepingEntryType) -> Bool {
+        switch self {
+        case .all: true
+        case .expense: entryType == .expense
+        case .income: entryType == .income
+        }
+    }
+}
+
+/// 搜索前展示的分类快捷入口。
+struct BookkeepingSearchSuggestion: Identifiable, Equatable, Sendable {
+    /// 当前语言环境下的分类名称，点击后直接作为关键词。
+    let title: String
+
+    /// 分类使用的 SF Symbol 名称。
+    let symbolName: String
+
+    /// 分类名称在建议列表中已去重，可直接作为标识。
+    var id: String { title }
+}
+
+/// 当前搜索结果的笔数与收支合计。
+struct BookkeepingSearchSummary: Equatable, Sendable {
+    /// 匹配的流水笔数。
+    let count: Int
+
+    /// 匹配流水中的收入合计。
+    let incomeTotal: Decimal
+
+    /// 匹配流水中的支出合计（正数）。
+    let expenseTotal: Decimal
+}
+
+/// 最近搜索词的保存规则：最新的排最前，忽略大小写去重，只留最近几条。
+enum BookkeepingSearchHistory {
+    /// 最近搜索词在 `UserDefaults` 中的键。
+    static let storageKey = "bookkeeping.search.recentQueries"
+
+    /// 最多保留的搜索词数量。
+    static let limit = 8
+
+    /// 把存储的文本拆回搜索词列表；搜索栏是单行输入，按换行分隔不会拆坏关键词。
+    static func decode(_ stored: String) -> [String] {
+        stored.split(separator: "\n").map(String.init)
+    }
+
+    /// 把搜索词列表拼成可存储的文本。
+    static func encode(_ queries: [String]) -> String {
+        queries.joined(separator: "\n")
+    }
+
+    /// 记下一次搜索。
+    ///
+    /// - Parameters:
+    ///   - query: 用户刚用过的关键词，首尾空白会被去掉；为空时列表不变。
+    ///   - queries: 现有的最近搜索词，最新的在前。
+    /// - Returns: 更新后的列表。
+    static func adding(_ query: String, to queries: [String]) -> [String] {
+        let cleaned = query
+            .components(separatedBy: .newlines)
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespaces)
+        guard !cleaned.isEmpty else { return queries }
+        let others = queries.filter { $0.caseInsensitiveCompare(cleaned) != .orderedSame }
+        return Array(([cleaned] + others).prefix(limit))
+    }
+}
+
 /// 搜索结果关联账户的只读生命周期状态。
 enum BookkeepingTransactionAccountState: Equatable, Sendable {
     /// 账户存在且仍可用，详情允许显示未来编辑入口。
@@ -58,6 +191,15 @@ enum BookkeepingTransactionAccountState: Equatable, Sendable {
 
     /// 流水保存时的账户已不存在，只能以降级状态查看。
     case unavailable
+
+    /// 根据流水关联账户的当前快照推导生命周期状态；账户缺失时为不可用。
+    init(account: Account?) {
+        self = switch account?.isActive {
+        case true: .active
+        case false: .deactivated
+        case nil: .unavailable
+        }
+    }
 
     /// 输出当前语言环境下的账户生命周期状态标题。
     func localizedTitle(locale: Locale) -> String {
@@ -80,8 +222,14 @@ struct BookkeepingSearchRowPresentation: Identifiable, Equatable {
     /// 当前语言环境下的真实分类名称。
     let categoryTitle: String
 
+    /// 分类使用的 SF Symbol 名称。
+    let symbolName: String
+
     /// 使用负向金额表示支出的本地化金额。
     let formattedAmount: String
+
+    /// 这一行是否因为金额与关键词相等而被搜到，用于标出金额。
+    let matchesAmount: Bool
 
     /// 该行对应的 `YYYYMMDD` 业务日。
     let transactionDay: Int
@@ -98,8 +246,13 @@ struct BookkeepingSearchRowPresentation: Identifiable, Equatable {
     /// 已清理的可选备注。
     let note: String?
 
-    /// 包含分类、金额、日期、账户状态和备注的播报文本。
+    /// 包含主行、副行、金额、日期和账户状态的播报文本。
     let accessibilityLabel: String
+
+    /// 与首页一致的两行文字：主行是备注或分类名，副行在写了备注时是分类名。
+    var lines: BookkeepingEntryLines {
+        BookkeepingEntryLines(note: note, categoryTitle: categoryTitle)
+    }
 }
 
 /// 记账搜索结果按业务日分组后的展示数据。
@@ -122,7 +275,7 @@ struct BookkeepingSearchDayPresentation: Identifiable, Equatable {
 
 /// 搜索页由已提交条件派生出的三种页面状态。
 enum BookkeepingSearchState: Equatable, Sendable {
-    /// 没有关键词且没有时间条件，等待用户开始搜索。
+    /// 没有关键词，也没有时间和收支方向条件，等待用户开始搜索。
     case initial
 
     /// 已执行条件但没有匹配流水。
@@ -140,11 +293,26 @@ struct BookkeepingSearchPresentation {
     /// 已提交的时间条件。
     let timeFilter: BookkeepingSearchTimeFilter
 
+    /// 已选中的收支方向条件。
+    let entryFilter: BookkeepingSearchEntryFilter
+
     /// 当前条件派生出的页面状态。
     let state: BookkeepingSearchState
 
     /// 按业务日倒序排列的结果分组。
     let dayGroups: [BookkeepingSearchDayPresentation]
+
+    /// 结果的笔数与收支合计；没有结果时为空。
+    let summary: BookkeepingSearchSummary?
+
+    /// 初始页中最近有效记账的类别建议，按本地化名称去重且最多展示五项。
+    let suggestions: [BookkeepingSearchSuggestion]
+
+    /// 类别建议的名称列表。
+    var suggestedCategories: [String] { suggestions.map(\.title) }
+
+    /// 初始页最多展示的类别建议数量。
+    static let suggestionLimit = 5
 
     /// 复用首页的跨账户稳定排序描述符，避免查询层出现不同顺序。
     static func descriptor() -> FetchDescriptor<AccountTransaction> {
@@ -158,11 +326,7 @@ struct BookkeepingSearchPresentation {
             predicate: #Predicate<AccountTransaction> { transaction in
                 transaction.id == targetTransactionID
             },
-            sortBy: [
-                SortDescriptor(\AccountTransaction.transactionDay, order: .reverse),
-                SortDescriptor(\AccountTransaction.savedAt, order: .reverse),
-                SortDescriptor(\AccountTransaction.id, order: .forward)
-            ]
+            sortBy: AccountTransactionOrdering.sortDescriptors
         )
     }
 
@@ -186,15 +350,19 @@ struct BookkeepingSearchPresentation {
     ///   - accounts: SwiftData 提供的启用与停用账户快照。
     ///   - query: 用户当前输入的原始关键词。
     ///   - timeFilter: 已提交的业务日条件。
+    ///   - entryFilter: 已选中的收支方向条件。
     ///   - calendar: 提供业务日时区的日历。
     ///   - locale: 提供分类、金额和日期本地化的语言环境。
+    ///   - catalog: 解析分类名称与图标使用的分类目录，含自定义分类。
     init(
         transactions: [AccountTransaction],
         accounts: [Account],
         query: String,
         timeFilter: BookkeepingSearchTimeFilter = .all,
+        entryFilter: BookkeepingSearchEntryFilter = .all,
         calendar sourceCalendar: Calendar = .current,
-        locale: Locale = .current
+        locale: Locale = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
     ) {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let calendar = TransactionDay.gregorianCalendar(
@@ -203,12 +371,20 @@ struct BookkeepingSearchPresentation {
         )
         self.normalizedQuery = normalizedQuery
         self.timeFilter = timeFilter
+        self.entryFilter = entryFilter
 
-        guard !normalizedQuery.isEmpty || !timeFilter.isUnbounded else {
+        guard !normalizedQuery.isEmpty || !timeFilter.isUnbounded || !entryFilter.isUnbounded else {
             self.state = .initial
             self.dayGroups = []
+            self.summary = nil
+            self.suggestions = Self.categorySuggestions(
+                from: transactions,
+                locale: locale,
+                catalog: catalog
+            )
             return
         }
+        self.suggestions = []
 
         var accountsByID: [UUID: Account] = [:]
         accountsByID.reserveCapacity(accounts.count)
@@ -219,22 +395,29 @@ struct BookkeepingSearchPresentation {
         let parsedAmount = normalizedQuery.isEmpty
             ? nil
             : AccountAmountParser.amount(from: normalizedQuery, locale: locale)
+        // 业务日与分类的种类远少于流水数量，日期解析和分类本地化各自只做一次。
+        var dayCache = TransactionDay.DateCache(calendar: calendar, locale: locale)
+        var categoryTitles: [String: String] = [:]
         let filteredTransactions = transactions
             .compactMap { transaction -> ValidatedTransaction? in
-                guard let payload = try? transaction.validatedPayload() else {
+                // 先用整数业务日排除范围外的流水，避免为其校验载荷。
+                let matchesDate = timeFilter.dateRange?.contains(transaction.transactionDay) ?? true
+                guard matchesDate,
+                      let payload = try? transaction.validatedPayload(),
+                      let searchablePayload = Self.searchablePayload(
+                          from: payload,
+                          locale: locale,
+                          catalog: catalog,
+                          categoryTitles: &categoryTitles
+                      )
+                else {
                     return nil
                 }
-                guard let searchablePayload = Self.searchablePayload(
-                    from: payload,
-                    locale: locale
-                ) else {
+                guard entryFilter.matches(searchablePayload.entryType) else {
                     return nil
                 }
                 let amount = searchablePayload.amount
                 let categoryTitle = searchablePayload.categoryTitle
-
-                let matchesDate = timeFilter.dateRange?.contains(transaction.transactionDay) ?? true
-                guard matchesDate else { return nil }
 
                 let note = Self.sanitizedOptionalText(transaction.note)
                 let matchesQuery = normalizedQuery.isEmpty
@@ -247,62 +430,91 @@ struct BookkeepingSearchPresentation {
                         locale: locale
                     )
                 guard matchesQuery,
-                      let date = TransactionDay.date(
-                          from: transaction.transactionDay,
-                          calendar: calendar,
-                          locale: locale
-                      )
+                      dayCache.date(for: transaction.transactionDay) != nil
                 else {
                     return nil
                 }
 
                 let account = accountsByID[transaction.accountID]
-                let accountState: BookkeepingTransactionAccountState = switch account?.isActive {
-                case true: .active
-                case false: .deactivated
-                case nil: .unavailable
-                }
-
                 return ValidatedTransaction(
                     transaction: transaction,
-                    date: date,
                     amount: amount,
                     entryType: searchablePayload.entryType,
                     categoryTitle: categoryTitle,
+                    // 图标只为通过全部条件的流水解析，不增加被过滤流水的计算。
+                    symbolName: payload.categorySymbolName(in: catalog) ?? Self.fallbackSymbolName,
+                    matchesAmount: parsedAmount == amount,
                     accountName: account?.name,
-                    accountState: accountState,
+                    accountState: BookkeepingTransactionAccountState(account: account),
                     note: note
                 )
             }
-        let validTransactions = Self.isOrdered(filteredTransactions)
-            ? filteredTransactions
-            : filteredTransactions.sorted { Self.isOrderedBefore($0.transaction, $1.transaction) }
+        let validTransactions = AccountTransactionOrdering.sorted(filteredTransactions, by: \.transaction)
 
         let groupedTransactions = Dictionary(
             grouping: validTransactions,
             by: \ValidatedTransaction.transaction.transactionDay
         )
+        let weekdayFormatter = BookkeepingDateFormatting.formatter(
+            template: "EEEE",
+            locale: locale,
+            calendar: calendar
+        )
         let dayGroups: [BookkeepingSearchDayPresentation] = groupedTransactions.keys.sorted(by: >).compactMap {
             transactionDay in
-            guard let date = TransactionDay.date(
-                from: transactionDay,
-                calendar: calendar,
-                locale: locale
-            ) else {
+            guard let date = dayCache.date(for: transactionDay) else {
                 return nil
             }
+            let formattedDate = BookkeepingDateFormatting.shortDate(
+                date,
+                locale: locale,
+                calendar: calendar
+            )
             let rows = groupedTransactions[transactionDay, default: []].map {
-                Self.row(for: $0, locale: locale, calendar: calendar)
+                Self.row(for: $0, formattedDate: formattedDate, locale: locale)
             }
             return BookkeepingSearchDayPresentation(
                 transactionDay: transactionDay,
-                formattedDate: Self.formattedDate(date, locale: locale, calendar: calendar),
-                formattedWeekday: Self.formattedWeekday(date, locale: locale, calendar: calendar),
+                formattedDate: formattedDate,
+                formattedWeekday: weekdayFormatter.string(from: date),
                 rows: rows
             )
         }
         self.dayGroups = dayGroups
         self.state = dayGroups.isEmpty ? .noResults : .results
+        self.summary = dayGroups.isEmpty
+            ? nil
+            : BookkeepingSearchSummary(
+                count: validTransactions.count,
+                incomeTotal: validTransactions.reduce(into: Decimal.zero) { total, item in
+                    if item.entryType == .income { total += item.amount }
+                },
+                expenseTotal: validTransactions.reduce(into: Decimal.zero) { total, item in
+                    if item.entryType == .expense { total += item.amount }
+                }
+            )
+    }
+
+    /// 分类图标缺失时使用的通用图标。
+    private static let fallbackSymbolName = "tag"
+
+    /// 关键词在一段文字里命中的位置，供结果行标出命中的字。
+    ///
+    /// 使用与搜索相同的匹配规则，保证标出来的正是被搜到的部分。
+    ///
+    /// - Parameters:
+    ///   - query: 用户输入的关键词，首尾空白会被去掉。
+    ///   - value: 结果行上显示的分类或备注。
+    ///   - locale: 匹配使用的语言环境。
+    /// - Returns: 首个命中的范围；关键词为空或没有命中时为 `nil`。
+    static func matchRange(of query: String, in value: String, locale: Locale) -> Range<String.Index>? {
+        let cleaned = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return nil }
+        return value.range(
+            of: cleaned,
+            options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+            locale: locale
+        )
     }
 
     /// 按稳定流水 UUID 定向解析详情，不会缺失时降级到其他流水。
@@ -311,7 +523,8 @@ struct BookkeepingSearchPresentation {
         transactions: [AccountTransaction],
         accounts: [Account],
         calendar sourceCalendar: Calendar = .current,
-        locale: Locale = .current
+        locale: Locale = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
     ) -> BookkeepingTransactionDetailPresentation? {
         guard let transaction = transactions.first(where: { $0.id == transactionID }) else {
             return nil
@@ -321,7 +534,8 @@ struct BookkeepingSearchPresentation {
             for: transaction,
             account: account,
             calendar: sourceCalendar,
-            locale: locale
+            locale: locale,
+            catalog: catalog
         )
     }
 
@@ -330,7 +544,8 @@ struct BookkeepingSearchPresentation {
         for transaction: AccountTransaction,
         account: Account?,
         calendar sourceCalendar: Calendar = .current,
-        locale: Locale = .current
+        locale: Locale = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
     ) -> BookkeepingTransactionDetailPresentation? {
         let calendar = TransactionDay.gregorianCalendar(
             basedOn: sourceCalendar,
@@ -346,41 +561,46 @@ struct BookkeepingSearchPresentation {
             return nil
         }
 
-        guard let searchablePayload = searchablePayload(from: payload, locale: locale) else {
+        var categoryTitles: [String: String] = [:]
+        // 图标只在打开详情时解析，不增加批量搜索的展示计算。
+        guard let searchablePayload = searchablePayload(
+            from: payload,
+            locale: locale,
+            catalog: catalog,
+            categoryTitles: &categoryTitles
+        ),
+        let categorySymbolName = payload.categorySymbolName(in: catalog)
+        else {
             return nil
         }
         let amount = searchablePayload.amount
         let categoryTitle = searchablePayload.categoryTitle
 
-        let accountState: BookkeepingTransactionAccountState = switch account?.isActive {
-        case true: .active
-        case false: .deactivated
-        case nil: .unavailable
-        }
+        let accountState = BookkeepingTransactionAccountState(account: account)
         let accountName = account?.name
         let displayAmount = searchablePayload.entryType == .income ? amount : -amount
         let formattedAmount = displayAmount.formatted(
             .currency(code: transaction.currencyCode).locale(locale)
         )
-        let formattedDate = formattedDate(date, locale: locale, calendar: calendar)
+        let formattedDate = BookkeepingDateFormatting.shortDate(date, locale: locale, calendar: calendar)
         let note = sanitizedOptionalText(transaction.note)
         let accountStatus = accountState.localizedTitle(locale: locale)
-        let title = sanitizedOptionalText(transaction.title) ?? categoryTitle
+        let lines = BookkeepingEntryLines(note: note, categoryTitle: categoryTitle)
         let spokenParts = [
-            title,
-            categoryTitle,
+            lines.title,
+            lines.subtitle,
             formattedAmount,
             formattedDate,
             accountName,
-            accountStatus,
-            note
+            accountStatus
         ].compactMap { $0 }
 
         return BookkeepingTransactionDetailPresentation(
             id: transaction.id,
-            title: title,
+            title: lines.title,
             entryType: searchablePayload.entryType,
             categoryTitle: categoryTitle,
+            categorySymbolName: categorySymbolName,
             formattedAmount: formattedAmount,
             transactionDay: transaction.transactionDay,
             formattedDate: formattedDate,
@@ -388,6 +608,7 @@ struct BookkeepingSearchPresentation {
             accountState: accountState,
             note: note,
             accessibilityLabel: spokenParts.joined(separator: ", "),
+            isRecurring: transaction.recurringRuleID != nil,
             canEdit: accountState == .active
                 && account?.supportsBookkeeping == true
                 && account?.currencyCode == "CNY"
@@ -400,9 +621,6 @@ struct BookkeepingSearchPresentation {
         /// 原始流水，用于稳定标识和最终金额展示。
         let transaction: AccountTransaction
 
-        /// 解析后的公历业务日期。
-        let date: Date
-
         /// 已校验的精确记账金额。
         let amount: Decimal
 
@@ -410,6 +628,12 @@ struct BookkeepingSearchPresentation {
         let entryType: BookkeepingEntryType
         /// 当前语言环境下的分类名称。
         let categoryTitle: String
+
+        /// 分类使用的 SF Symbol 名称。
+        let symbolName: String
+
+        /// 金额是否与关键词解析出的金额相等。
+        let matchesAmount: Bool
 
         /// 关联账户名称；孤立流水为空。
         let accountName: String?
@@ -433,34 +657,77 @@ struct BookkeepingSearchPresentation {
         let entryType: BookkeepingEntryType
     }
 
+    /// 从最近的有效收支记录提取类别，保证每个建议都能通过现有关键词搜索找到结果。
+    private static func categorySuggestions(
+        from transactions: [AccountTransaction],
+        locale: Locale,
+        catalog: BookkeepingCategoryCatalog
+    ) -> [BookkeepingSearchSuggestion] {
+        var suggestions: [BookkeepingSearchSuggestion] = []
+        var seenTitles: Set<String> = []
+        var categoryTitles: [String: String] = [:]
+        let orderedTransactions = AccountTransactionOrdering.sorted(transactions) { $0 }
+        for transaction in orderedTransactions {
+            guard TransactionDay.isValid(transaction.transactionDay),
+                  let payload = try? transaction.validatedPayload(),
+                  let searchable = searchablePayload(
+                      from: payload,
+                      locale: locale,
+                      catalog: catalog,
+                      categoryTitles: &categoryTitles
+                  ),
+                  seenTitles.insert(searchable.categoryTitle).inserted
+            else { continue }
+            suggestions.append(
+                BookkeepingSearchSuggestion(
+                    title: searchable.categoryTitle,
+                    symbolName: payload.categorySymbolName(in: catalog) ?? fallbackSymbolName
+                )
+            )
+            if suggestions.count == suggestionLimit { break }
+        }
+        return suggestions
+    }
+
     /// 将有效收支载荷转换为搜索语义，排除余额调整。
+    ///
+    /// - Parameters:
+    ///   - payload: 已校验的流水载荷。
+    ///   - locale: 分类名称使用的语言环境。
+    ///   - catalog: 解析分类名称使用的分类目录。
+    ///   - categoryTitles: 按分类标识缓存的本地化名称，批量搜索时每个分类只解析一次。
     private static func searchablePayload(
         from payload: AccountTransactionPayload,
-        locale: Locale
+        locale: Locale,
+        catalog: BookkeepingCategoryCatalog,
+        categoryTitles: inout [String: String]
     ) -> SearchablePayload? {
-        switch payload {
-        case let .expense(category, amount):
-            SearchablePayload(
-                amount: amount,
-                categoryTitle: category.localizedTitle(locale: locale),
-                entryType: .expense
-            )
-        case let .income(category, amount):
-            SearchablePayload(
-                amount: amount,
-                categoryTitle: category.localizedTitle(locale: locale),
-                entryType: .income
-            )
-        case .balanceAdjustment:
-            nil
+        guard let entry = payload.bookkeepingAmount,
+              let categoryID = payload.categoryID
+        else {
+            return nil
         }
+        let categoryTitle: String
+        if let cachedTitle = categoryTitles[categoryID] {
+            categoryTitle = cachedTitle
+        } else if let title = payload.categoryTitle(locale: locale, catalog: catalog) {
+            categoryTitles[categoryID] = title
+            categoryTitle = title
+        } else {
+            return nil
+        }
+        return SearchablePayload(
+            amount: entry.amount,
+            categoryTitle: categoryTitle,
+            entryType: entry.entryType
+        )
     }
 
     /// 将已过滤的中间结果格式化为结果行。
     private static func row(
         for transaction: ValidatedTransaction,
-        locale: Locale,
-        calendar: Calendar
+        formattedDate: String,
+        locale: Locale
     ) -> BookkeepingSearchRowPresentation {
         let displayAmount = transaction.entryType == .income
             ? transaction.amount
@@ -468,24 +735,22 @@ struct BookkeepingSearchPresentation {
         let formattedAmount = displayAmount.formatted(
             .currency(code: transaction.transaction.currencyCode).locale(locale)
         )
-        let formattedDate = formattedDate(
-            transaction.date,
-            locale: locale,
-            calendar: calendar
-        )
+        let lines = BookkeepingEntryLines(note: transaction.note, categoryTitle: transaction.categoryTitle)
         let spokenParts = [
-            transaction.categoryTitle,
+            lines.title,
+            lines.subtitle,
             formattedAmount,
             formattedDate,
             transaction.accountName,
-            transaction.accountState.localizedTitle(locale: locale),
-            transaction.note
+            transaction.accountState.localizedTitle(locale: locale)
         ].compactMap { $0 }
 
         return BookkeepingSearchRowPresentation(
             id: transaction.transaction.id,
             categoryTitle: transaction.categoryTitle,
+            symbolName: transaction.symbolName,
             formattedAmount: formattedAmount,
+            matchesAmount: transaction.matchesAmount,
             transactionDay: transaction.transaction.transactionDay,
             formattedDate: formattedDate,
             accountName: transaction.accountName,
@@ -512,25 +777,7 @@ struct BookkeepingSearchPresentation {
 
     /// 使用注入语言环境进行不区分大小写和变音符的包含匹配。
     private static func contains(_ query: String, in value: String, locale: Locale) -> Bool {
-        value.range(
-            of: query,
-            options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
-            locale: locale
-        ) != nil
-    }
-
-    /// 保持首页相同的业务日、保存时间、UUID 三层稳定顺序。
-    private nonisolated static func isOrderedBefore(
-        _ lhs: AccountTransaction,
-        _ rhs: AccountTransaction
-    ) -> Bool {
-        if lhs.transactionDay != rhs.transactionDay {
-            return lhs.transactionDay > rhs.transactionDay
-        }
-        if lhs.savedAt != rhs.savedAt {
-            return lhs.savedAt > rhs.savedAt
-        }
-        return lhs.id.uuidString < rhs.id.uuidString
+        matchRange(of: query, in: value, locale: locale) != nil
     }
 
     /// 将空白可选文本归一为 `nil`，避免脏数据影响匹配和展示。
@@ -539,51 +786,6 @@ struct BookkeepingSearchPresentation {
         let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return cleaned.isEmpty ? nil : cleaned
     }
-
-    /// 判断过滤后的结果是否已经符合稳定排序，避免对已排序查询重复排序。
-    private static func isOrdered(_ transactions: [ValidatedTransaction]) -> Bool {
-        guard transactions.count > 1 else { return true }
-        for index in 1..<transactions.count {
-            if isOrderedBefore(
-                transactions[index].transaction,
-                transactions[index - 1].transaction
-            ) {
-                return false
-            }
-        }
-        return true
-    }
-
-    /// 将业务日期格式化为当前语言环境下的短日期。
-    private static func formattedDate(
-        _ date: Date,
-        locale: Locale,
-        calendar: Calendar
-    ) -> String {
-        date.formatted(
-            Date.FormatStyle(
-                date: .numeric,
-                time: .omitted,
-                locale: locale,
-                calendar: calendar,
-                timeZone: calendar.timeZone
-            )
-        )
-    }
-
-    /// 将业务日期格式化为当前语言环境下的星期标题。
-    private static func formattedWeekday(
-        _ date: Date,
-        locale: Locale,
-        calendar sourceCalendar: Calendar
-    ) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.calendar = sourceCalendar
-        formatter.timeZone = sourceCalendar.timeZone
-        formatter.setLocalizedDateFormatFromTemplate("EEEE")
-        return formatter.string(from: date)
-    }
 }
 
 /// 搜索结果进入详情页后的只读本地化展示数据。
@@ -591,7 +793,7 @@ struct BookkeepingTransactionDetailPresentation: Equatable {
     /// 流水稳定标识。
     let id: UUID
 
-    /// 用户标题，旧流水回退到分类名。
+    /// 详情主标题：备注，没写备注时为分类名。
     let title: String
 
     /// 收入与支出方向，供详情明确展示。
@@ -599,6 +801,9 @@ struct BookkeepingTransactionDetailPresentation: Equatable {
 
     /// 当前语言环境下的真实分类名称。
     let categoryTitle: String
+
+    /// 从合法收支载荷解析的分类图标，不通过本地化名称反推类别。
+    let categorySymbolName: String
 
     /// 使用负向金额表示支出的本地化金额。
     let formattedAmount: String
@@ -615,11 +820,14 @@ struct BookkeepingTransactionDetailPresentation: Equatable {
     /// 账户当前生命周期状态。
     let accountState: BookkeepingTransactionAccountState
 
-    /// 已清理的可选备注。
+    /// 已清理的可选备注；有值时就是主标题，详情不再单独列一行。
     let note: String?
 
     /// 包含详情字段和账户状态的播报文本。
     let accessibilityLabel: String
+
+    /// 是否由周期记账自动记入。
+    let isRecurring: Bool
 
     /// 当前账户是否允许编辑与删除流水。
     let canEdit: Bool

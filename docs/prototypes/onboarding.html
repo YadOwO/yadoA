@@ -1,0 +1,1011 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>芽豆初次引导</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600&display=swap">
+<style>
+/* 布局：左边一部纸面手机跑引导，右边是控制台和触感轨道；窄屏时控制台落到手机下方。 */
+:root {
+  --desk: #E4E0D6;          /* 手机外的桌面 */
+  --paper: #F2EFE7;         /* PaperBackground */
+  --ink: #17181A;           /* AccentColor / 主文字 */
+  --on-accent: #FFFFFF;     /* OnAccent */
+  --red: #D5452B;           /* LedgerRed */
+  --pencil: rgba(23, 24, 26, 0.42);
+  --rule: rgba(23, 24, 26, 0.16);
+  --card: #FBFAF6;
+  --panel: #EDE9E0;
+  --serif: "Noto Serif SC", "Songti SC", "STSong", "New York", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+  --S: 1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --desk: #1B1C1E; --paper: #101112; --ink: #F2EFE7; --on-accent: #17181A; --red: #F0674C;
+    --pencil: rgba(242, 239, 231, 0.42); --rule: rgba(242, 239, 231, 0.16); --card: #18191B; --panel: #222326;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --desk: #1B1C1E; --paper: #101112; --ink: #F2EFE7; --on-accent: #17181A; --red: #F0674C;
+  --pencil: rgba(242, 239, 231, 0.42); --rule: rgba(242, 239, 231, 0.16); --card: #18191B; --panel: #222326;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body {
+  background: var(--desk); color: var(--ink); font-family: var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px;
+  margin: 0;
+  box-sizing: border-box;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+.wrap { display: flex; gap: 32px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+
+/* ---------- 手机 ---------- */
+.phone {
+  position: relative; overflow: hidden; flex: none;
+  width: min(390px, 100%);
+  height: min(812px, max(660px, calc(100dvh - 48px)));
+  border-radius: 46px; background: var(--paper);
+  box-shadow: 0 0 0 10px var(--ink), 0 30px 60px rgba(0,0,0,.18);
+  margin: 10px;
+}
+.home, .sheet { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.sheet { background: var(--paper); z-index: 2; transform-origin: 85% 0; }
+.top { padding: 56px 22px 0; display: flex; align-items: center; gap: 14px; }
+.top svg { flex: 1; height: 14px; overflow: visible; }
+.top path { fill: none; stroke-linecap: round; }
+.skip { background: none; border: 0; color: var(--pencil); font-size: 14px; padding: 6px 2px; cursor: pointer; }
+.history { list-style: none; margin: 14px 26px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; min-height: 22px; }
+.history li { transition: color calc(500ms * var(--S)), font-size calc(400ms * var(--S)); color: var(--pencil); font-size: 13px; }
+.history:not(.summary) li:nth-last-child(n+4) { display: none; }
+.history button { all: unset; cursor: pointer; display: block; padding: 2px 0; border-bottom: 1px dashed transparent; }
+.history button:hover, .history button:focus-visible { border-bottom-color: var(--pencil); }
+.history.summary li { color: var(--ink); font-size: 15px; font-family: var(--serif); }
+.history.summary li::before { content: "·"; color: var(--red); margin-right: 8px; font-weight: 700; }
+.stage { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 0 26px; }
+.foot { min-height: 128px; padding: 0 22px 40px; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; }
+.foot .row { display: flex; gap: 10px; }
+.foot .row .btn { flex: 1; }
+
+.headline { font-family: var(--serif); font-weight: 500; font-size: 26px; line-height: 1.4; margin: 0; text-wrap: balance; min-height: 1.4em; }
+.desc { font-size: 15px; line-height: 1.65; color: var(--pencil); margin: 0; }
+.note { font-size: 12.5px; color: var(--pencil); margin: 0; }
+.g { display: inline-block; white-space: pre; }
+.em { color: var(--red); }
+.center { text-align: center; align-items: center; }
+
+.btn {
+  height: 52px; border-radius: 26px; border: 0; cursor: pointer; font-size: 16px; font-weight: 600;
+  background: var(--ink); color: var(--on-accent); position: relative; overflow: hidden;
+  transition: transform calc(120ms * var(--S)) ease;
+}
+.btn:active { transform: scale(.97); }
+.btn.line { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.btn.text { background: transparent; color: var(--pencil); height: 40px; font-weight: 500; }
+.btn .fill { position: absolute; inset: 0; background: color-mix(in srgb, var(--red) 30%, transparent); transform-origin: left; transform: scaleX(0); }
+.btn .lbl { position: relative; }
+.btn[hidden] { display: none !important; }
+
+.opts { display: flex; flex-direction: column; gap: 10px; }
+.opt {
+  text-align: left; background: var(--card); border: 0; border-radius: 16px; padding: 14px 16px; cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--rule); display: grid; gap: 2px; transition: box-shadow calc(160ms * var(--S));
+}
+.opt b { font-family: var(--serif); font-weight: 600; font-size: 17px; }
+.opt span { font-size: 13px; color: var(--pencil); }
+.opt[aria-pressed="true"] { box-shadow: inset 0 0 0 1.6px var(--ink); }
+
+/* ---------- 豆子：x、y、缩放分层，才能画出抛物线 ---------- */
+.bx, .by, .bs { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.bx { z-index: 5; pointer-events: none; }
+.core { position: absolute; width: 26px; height: 26px; left: -13px; top: -13px; border-radius: 50%; background: var(--red); }
+
+/* ---------- 插画 ---------- */
+svg.ink path, svg.ink line { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; }
+svg.ink .pencil { stroke: var(--pencil); }
+svg.ink .redline { stroke: var(--red); }
+.brand-tick { width: 64px; height: 40px; }
+.brand-tick path { stroke: var(--red) !important; stroke-width: 70; }
+.brand { font-family: var(--serif); font-weight: 600; font-size: 34px; letter-spacing: .08em; margin: 0; }
+.ground { width: 200px; height: 14px; }
+
+.phone-art { width: 170px; height: 150px; margin: 0 auto; }
+
+.link { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; font-family: var(--serif); font-size: 17px; }
+.link svg { width: 100%; height: 20px; overflow: visible; }
+.avatar { width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 6px; display: grid; place-items: center; font-family: var(--serif); font-size: 26px; box-shadow: inset 0 0 0 1.6px var(--ink); background: var(--card); }
+
+.big { font-family: var(--serif); font-size: 64px; line-height: 1; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 8px; justify-content: center; }
+.big small { font-size: 16px; color: var(--pencil); font-family: var(--sans); }
+.ruler { width: 100%; height: 64px; touch-action: none; cursor: ew-resize; overflow: visible; }
+.ruler text { font-size: 11px; fill: var(--pencil); text-anchor: middle; font-family: var(--sans); }
+.ruler .knob { fill: var(--red); transition: transform calc(220ms * var(--S)) cubic-bezier(.3, 1.5, .5, 1); }
+
+.dots { display: grid; grid-template-columns: repeat(21, 12px); grid-auto-rows: 12px; justify-content: center; }
+.dot { width: 6px; height: 6px; margin: 3px; border-radius: 50%; background: var(--rule); transition: transform calc(180ms * var(--S)) cubic-bezier(.3, 1.8, .5, 1), background calc(120ms * var(--S)); }
+.dot.on { background: var(--ink); transform: scale(1.15); }
+.dot.last.on { background: var(--red); transform: scale(1.5); }
+.num { font-variant-numeric: tabular-nums; }
+
+.say { align-self: center; display: inline-flex; align-items: center; gap: 10px; height: 52px; padding: 0 20px; border-radius: 26px; border: 0; cursor: pointer; background: var(--card); box-shadow: inset 0 0 0 1.4px var(--ink); font-family: var(--serif); font-size: 17px; }
+.say svg { width: 18px; height: 18px; }
+.wave { display: inline-flex; align-items: center; gap: 3px; height: 22px; }
+.wave i { display: block; width: 3px; border-radius: 2px; background: var(--red); height: 6px; }
+.ledger { display: grid; grid-template-columns: auto 1fr auto 22px; align-items: center; gap: 10px; padding: 10px 2px 8px; border-bottom: 1px solid var(--rule); min-height: 30px; }
+.slot { opacity: 0; }
+.slot.cat { font-family: var(--serif); font-size: 17px; }
+.slot.acct { font-size: 13px; color: var(--pencil); }
+.slot.amt { font-family: var(--serif); font-size: 18px; font-variant-numeric: tabular-nums; }
+.tag { position: absolute; left: 0; top: 0; padding: 4px 10px; border-radius: 12px; background: var(--card); box-shadow: inset 0 0 0 1px var(--ink); font-size: 14px; white-space: nowrap; z-index: 3; }
+.ledger svg { width: 22px; height: 16px; }
+.ledger svg path { stroke: var(--red) !important; stroke-width: 70; }
+
+.tabs { display: flex; gap: 4px; padding: 8px; border-radius: 30px; background: var(--card); box-shadow: inset 0 0 0 1px var(--rule); }
+.tab { flex: 1; display: grid; justify-items: center; gap: 2px; font-size: 11px; color: var(--pencil); padding: 4px 0; border-radius: 22px; }
+.tab svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.tab.first { color: var(--ink); background: color-mix(in srgb, var(--ink) 7%, transparent); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { height: 38px; padding: 0 16px; border-radius: 19px; border: 0; cursor: pointer; background: var(--card); box-shadow: inset 0 0 0 1px var(--rule); font-size: 15px; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--on-accent); box-shadow: none; }
+.table { min-height: 132px; display: flex; flex-wrap: wrap; gap: 14px 12px; align-content: center; justify-content: center; padding: 8px 0; }
+.acard { position: relative; width: 92px; height: 58px; border-radius: 9px; background: var(--card); box-shadow: inset 0 0 0 1.4px var(--ink); padding: 8px 10px; box-sizing: border-box; font-family: var(--serif); font-size: 14px; }
+.acard::after { content: ""; position: absolute; left: 10px; right: 30px; bottom: 11px; height: 2px; border-radius: 1px; background: var(--rule); }
+.acard .tape { position: absolute; width: 34px; height: 13px; top: -7px; left: 28px; background: color-mix(in srgb, var(--red) 22%, transparent); transform: rotate(-6deg); }
+
+.sprout { width: min(210px, 30vh); aspect-ratio: 1; margin: 0 auto; overflow: visible; }
+.sprout path { stroke-width: 4.8; }
+.sprout .leaf { transform-box: view-box; }
+
+.benefits { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.benefits li { display: flex; gap: 10px; align-items: baseline; font-size: 15px; }
+.benefits li::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--red); flex: none; transform: translateY(-2px); }
+
+
+.say { height: auto; min-height: 52px; padding: 12px 18px; border-radius: 22px; text-align: left; line-height: 1.5; }
+.say svg { flex: none; }
+.seg { transition: color calc(200ms * var(--S)); background-image: linear-gradient(var(--red), var(--red)); background-repeat: no-repeat; background-position: 0 100%; background-size: 0 1.5px; }
+.seg.on { color: var(--red); background-size: 100% 1.5px; transition: background-size calc(260ms * var(--S)) ease-out, color calc(200ms * var(--S)); }
+.book { display: grid; }
+.book-h { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--serif); font-size: 16px; padding-bottom: 6px; border-bottom: 1.3px solid color-mix(in srgb, var(--ink) 60%, transparent); }
+.book-h span:last-child { font-family: var(--sans); font-size: 12px; color: var(--pencil); }
+.entry { position: relative; display: grid; grid-template-columns: auto 1fr auto 18px; gap: 10px; align-items: baseline; padding-block: 10px; border-bottom: 1px solid var(--rule); overflow: hidden; }
+.entry .c { font-family: var(--serif); font-size: 16px; }
+.entry .a { font-size: 12.5px; color: var(--pencil); }
+.entry .m { font-family: var(--serif); font-size: 16px; font-variant-numeric: tabular-nums; }
+.entry svg { width: 18px; height: 12px; align-self: center; }
+.entry svg path { stroke: var(--red) !important; stroke-width: 70; }
+.entry.fresh { animation: fresh calc(1600ms * var(--S)) ease-out; }
+@keyframes fresh { from { background: color-mix(in srgb, var(--red) 14%, transparent); } to { background: transparent; } }
+.strike { position: absolute; left: 0; right: 18px; top: 50%; height: 1.6px; background: var(--red); transform: scaleX(0); transform-origin: left; }
+.result { margin: 0; text-align: center; font-family: var(--serif); font-size: 16px; min-height: 1.5em; }
+.answer { display: grid; gap: 12px; }
+.ans { margin: 0; font-family: var(--serif); font-size: 18px; line-height: 1.5; }
+.bars { display: grid; grid-template-columns: auto 1fr auto; gap: 10px 12px; align-items: center; font-size: 14px; }
+.bars .num { font-variant-numeric: tabular-nums; color: var(--pencil); text-align: right; }
+.bar { display: block; height: 10px; border-radius: 5px; background: color-mix(in srgb, var(--ink) 70%, transparent); transform-origin: left; }
+.bar.hot { background: var(--red); }
+
+
+.beats { display: flex; gap: 6px; }
+.beats button { all: unset; cursor: pointer; flex: 1; display: grid; gap: 6px; font-size: 12.5px; color: var(--pencil); text-align: center; }
+.beats button i { display: block; height: 2px; border-radius: 1px; background: var(--rule); transition: background calc(300ms * var(--S)); }
+.beats button.seen i { background: var(--ink); }
+.beats button[aria-selected="true"] { color: var(--ink); }
+.beats button:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+.beat-card { display: grid; gap: 14px; min-height: 210px; align-content: start; cursor: pointer; }
+.bar { opacity: 1; }
+.bar.debt { background: transparent; box-shadow: inset 0 0 0 1.4px color-mix(in srgb, var(--ink) 70%, transparent); }
+.worth { font-family: var(--serif); font-size: 40px; line-height: 1.1; }
+.week { position: relative; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; height: 150px; align-items: end; }
+.week div { height: 100%; display: grid; grid-template-rows: 1fr auto; justify-items: center; gap: 6px; font-size: 11px; color: var(--pencil); }
+.week .col { align-self: end; display: block; width: 60%; max-width: 22px; border-radius: 5px 5px 2px 2px; background: color-mix(in srgb, var(--ink) 70%, transparent); transform-origin: bottom; }
+.week .col.hot { background: var(--red); }
+.week hr { position: absolute; left: 0; right: 0; margin: 0; border: 0; border-top: 1.2px dashed var(--pencil); transform-origin: left; }
+
+/* ---------- 落地后的首页 ---------- */
+.home { padding: 60px 22px 0; gap: 10px; }
+.home h3 { font-family: var(--serif); font-size: 30px; font-weight: 500; margin: 0; }
+.home .sub { font-size: 13px; color: var(--pencil); }
+.home .hrule { height: 1.3px; background: var(--ink); opacity: .6; margin: 6px 0 4px; }
+.home .empty { flex: 1; display: grid; place-content: center; text-align: center; gap: 6px; color: var(--pencil); font-size: 14px; }
+.home .empty b { font-family: var(--serif); font-weight: 500; color: var(--ink); font-size: 18px; }
+.home .acct-row { display: flex; justify-content: space-between; padding: 12px 2px; border-bottom: 1px solid var(--rule); font-family: var(--serif); font-size: 17px; }
+.home .acct-row span { font-family: var(--sans); font-size: 13px; color: var(--pencil); }
+.home .dock { padding-bottom: 30px; display: grid; gap: 10px; }
+.mic { justify-self: center; display: inline-flex; align-items: center; gap: 8px; height: 46px; padding: 0 22px; border-radius: 23px; background: var(--card); box-shadow: inset 0 0 0 1px var(--rule), 0 6px 18px rgba(0,0,0,.08); font-size: 14px; }
+.mic svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.mic.hot { color: var(--red); }
+.hint { justify-self: center; font-size: 13px; color: var(--pencil); opacity: 0; }
+
+/* ---------- 控制台 ---------- */
+.panel { flex: 1 1 320px; max-width: 420px; min-width: 0; display: grid; gap: 18px; padding-top: 10px; }
+.panel h1 { font-family: var(--serif); font-weight: 600; font-size: 22px; margin: 0; }
+.panel p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--pencil); }
+.ctrls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pbtn { height: 34px; padding: 0 14px; border-radius: 17px; border: 0; cursor: pointer; background: var(--panel); box-shadow: inset 0 0 0 1px var(--rule); font-size: 13.5px; }
+.pbtn[aria-pressed="true"] { background: var(--ink); color: var(--on-accent); }
+.panel select { height: 34px; border-radius: 17px; border: 0; padding: 0 12px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--rule); font: inherit; font-size: 13.5px; color: var(--ink); }
+.box { background: var(--panel); border-radius: 16px; padding: 14px; display: grid; gap: 8px; }
+.box h2 { font-size: 12px; letter-spacing: .08em; color: var(--pencil); margin: 0; font-weight: 600; }
+#hcanvas { width: 100%; height: 96px; display: block; }
+.hlabel { font-size: 14px; font-variant-numeric: tabular-nums; min-height: 1.4em; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--pencil); flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; }
+.steps button { all: unset; cursor: pointer; display: block; padding: 6px 10px; border-radius: 10px; font-size: 13px; }
+.steps button[aria-current="step"] { background: var(--ink); color: var(--on-accent); }
+.steps button:focus-visible { outline: 2px solid var(--red); }
+.steps .n { font-variant-numeric: tabular-nums; opacity: .55; margin-right: 6px; }
+#stepnote { font-size: 13.5px; line-height: 1.7; color: var(--ink); white-space: pre-line; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="phone" id="phone">
+    <div class="home" id="home" aria-hidden="true"></div>
+    <div class="sheet" id="sheet">
+      <div class="top">
+        <svg id="rule" viewBox="0 0 300 14" preserveAspectRatio="none" aria-hidden="true">
+          <path id="rulePencil" d="M4 8 C60 5 110 10 160 7 C210 4 262 9 296 7" stroke="var(--rule)" stroke-width="1.6"></path>
+          <path id="ruleInk" d="M4 8 C60 5 110 10 160 7 C210 4 262 9 296 7" stroke="var(--ink)" stroke-width="1.6"></path>
+        </svg>
+        <button class="skip" id="skip">跳过</button>
+      </div>
+      <ol class="history" id="history" aria-label="已回答"></ol>
+      <div class="stage" id="stage" aria-live="polite"></div>
+      <div class="foot" id="foot"></div>
+    </div>
+    <div class="bx" id="bean" aria-hidden="true"><div class="by"><div class="bs"><div class="core"></div></div></div></div>
+  </div>
+
+  <aside class="panel">
+    <div style="display:grid;gap:6px">
+      <h1>芽豆初次引导 · 动效原型</h1>
+      <p>看节奏用。浏览器里感受不到震动，右下的触感轨道把每一下画出来：竖线是瞬时触感，高度是强度；红色带是持续触感。</p>
+    </div>
+    <div class="ctrls">
+      <button class="pbtn" id="restart">从头播放</button>
+      <button class="pbtn" id="replay">重播本步</button>
+      <button class="pbtn" id="slow" aria-pressed="false">慢放 ×0.4</button>
+      <label for="scenario" class="note" style="margin-left:4px">账号</label>
+      <select id="scenario">
+        <option value="none">没识别到登录态</option>
+        <option value="auto">已识别芽豆有物登录态</option>
+      </select>
+    </div>
+    <div class="box">
+      <h2>触感轨道</h2>
+      <canvas id="hcanvas"></canvas>
+      <div class="hlabel" id="hlabel">—</div>
+      <div class="legend"><span><i style="background:var(--ink)"></i>瞬时</span><span><i style="background:var(--red);opacity:.6"></i>持续</span><span>最近 6 秒</span></div>
+    </div>
+    <div class="box">
+      <h2>这一步</h2>
+      <div id="stepnote"></div>
+    </div>
+    <div class="box">
+      <h2>跳到</h2>
+      <ol class="steps" id="steps"></ol>
+    </div>
+  </aside>
+</div>
+
+<script>
+(() => {
+const $ = (s, r = document) => r.querySelector(s);
+const phone = $('#phone'), sheet = $('#sheet'), stage = $('#stage'), foot = $('#foot'), hist = $('#history'), home = $('#home');
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let S = 1;
+const K = () => (RM ? 0.02 : S);
+const sync = () => document.documentElement.style.setProperty('--S', K());
+sync();
+
+/* ---------- 时间与取消：换步后，旧序列里的等待永远不再返回 ---------- */
+let runId = 0;
+const freeze = (id, p) => p.then(v => (id === runId ? v : new Promise(() => {})));
+const sleep = ms => freeze(runId, new Promise(r => setTimeout(r, ms * K())));
+function A(node, kf, o = {}) {
+  const a = node.animate(kf, { duration: (o.duration ?? 400) * K(), delay: (o.delay ?? 0) * K(), easing: o.easing ?? 'ease', fill: o.fill ?? 'both', iterations: o.iterations ?? 1, direction: o.direction ?? 'normal' });
+  return freeze(runId, a.finished.catch(() => {}).then(() => a));
+}
+const SPRING = 'cubic-bezier(.3, 1.45, .45, 1)';
+const OUT = 'cubic-bezier(.2, .7, .2, 1)';
+
+/* ---------- 触感：记录并画在轨道上 ---------- */
+const events = [];
+const hlabel = $('#hlabel');
+function hap(label, i, s = 0.5) {
+  events.push({ t: performance.now(), k: 't', i, s });
+  hlabel.textContent = `${label} · 强度 ${i.toFixed(2)} · 锐度 ${s.toFixed(2)}`;
+  try { navigator.vibrate && navigator.vibrate(Math.round(8 + i * 26)); } catch (e) {}
+  if (i >= 0.6 && !RM) phone.animate([{ transform: 'translateY(0)' }, { transform: `translateY(${i * 1.6}px)` }, { transform: 'translateY(0)' }], { duration: 90 });
+}
+const sample = i => events.push({ t: performance.now(), k: 'c', i });
+function texture(label, ms, i0, i1 = i0) {
+  const id = runId, start = performance.now(), dur = ms * K();
+  hlabel.textContent = `${label} · 持续 ${Math.round(ms)}ms`;
+  (function f() {
+    if (id !== runId) return;
+    const p = Math.min(1, (performance.now() - start) / dur);
+    sample(i0 + (i1 - i0) * p);
+    if (p < 1) requestAnimationFrame(f);
+  })();
+}
+const canvas = $('#hcanvas'), ctx = canvas.getContext('2d');
+(function draw() {
+  const dpr = devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== w * dpr) { canvas.width = w * dpr; canvas.height = h * dpr; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const cs = getComputedStyle(document.documentElement);
+  const ink = cs.getPropertyValue('--ink').trim(), red = cs.getPropertyValue('--red').trim(), rule = cs.getPropertyValue('--rule').trim();
+  ctx.fillStyle = rule; ctx.fillRect(0, h - 1, w, 1);
+  const now = performance.now(), win = 6000;
+  while (events.length && now - events[0].t > win) events.shift();
+  ctx.globalAlpha = 0.55; ctx.fillStyle = red;
+  for (const e of events) if (e.k === 'c') { const x = w - (now - e.t) / win * w; const hh = e.i * (h - 8); ctx.fillRect(x, h - 1 - hh, 2, hh); }
+  ctx.globalAlpha = 1; ctx.fillStyle = ink;
+  for (const e of events) if (e.k === 't') {
+    const x = w - (now - e.t) / win * w, hh = e.i * (h - 8), lw = 1 + (1 - e.s) * 2.5;
+    ctx.fillRect(x - lw / 2, h - 1 - hh, lw, hh);
+    ctx.beginPath(); ctx.arc(x, h - 1 - hh, 2.5, 0, Math.PI * 2); ctx.fill();
+  }
+  requestAnimationFrame(draw);
+})();
+
+/* ---------- 文字逐字写出 ---------- */
+function ink(node, text, { delay = 0, stagger = 42 } = {}) {
+  node.textContent = '';
+  node.setAttribute('aria-label', text);
+  const parts = typeof text === 'string' ? [...text] : text;
+  parts.forEach((ch, k) => {
+    const s = document.createElement('span');
+    s.className = 'g'; s.setAttribute('aria-hidden', 'true');
+    if (typeof ch === 'string') s.textContent = ch; else { s.textContent = ch.t; s.classList.add(ch.c); }
+    node.appendChild(s);
+    s.animate([{ opacity: 0, filter: 'blur(5px)', transform: 'translateY(6px)' }, { opacity: 1, filter: 'blur(0)', transform: 'none' }],
+      { duration: 420 * K(), delay: (delay + k * stagger) * K(), easing: OUT, fill: 'both' });
+  });
+  return sleep(delay + parts.length * stagger + 300);
+}
+const fadeIn = (node, delay = 0) => A(node, [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 420, delay, easing: OUT });
+
+/* ---------- 墨线书写 ---------- */
+function prep(p) { const L = p.getTotalLength(); p._L = L; p.style.strokeDasharray = `${L} ${L}`; p.style.strokeDashoffset = L; return L; }
+function draw(p, ms, { delay = 0, easing = 'ease-in-out' } = {}) {
+  const L = p._L ?? prep(p);
+  return A(p, [{ strokeDashoffset: L }, { strokeDashoffset: 0 }], { duration: ms, delay, easing });
+}
+function setSeq(paths, prog) {
+  const total = paths.reduce((a, p) => a + (p._L ?? prep(p)), 0);
+  let walked = 0;
+  return paths.map(p => {
+    const local = Math.max(0, Math.min(1, (prog * total - walked) / p._L));
+    walked += p._L;
+    p.style.strokeDashoffset = p._L * (1 - local);
+    return local;
+  });
+}
+
+/* ---------- 豆子 ---------- */
+const beanX = $('#bean'), beanY = beanX.firstElementChild, beanS = beanY.firstElementChild, core = beanS.firstElementChild;
+const bean = { x: -40, y: -40, s: 1, parked: false };
+function beanSet(x, y, s = bean.s) {
+  Object.assign(bean, { x, y, s });
+  for (const n of [beanX, beanY, beanS]) n.getAnimations().forEach(a => a.cancel());
+  beanX.style.transform = `translateX(${x}px)`; beanY.style.transform = `translateY(${y}px)`; beanS.style.transform = `scale(${s})`;
+}
+function beanMove(x, y, s = bean.s, { duration = 600, arc = 0, fall = false, easing = 'cubic-bezier(.45,0,.25,1)' } = {}) {
+  const from = { ...bean };
+  const yk = arc
+    ? [{ transform: `translateY(${from.y}px)`, easing: 'cubic-bezier(.2,.6,.35,1)' }, { transform: `translateY(${Math.min(from.y, y) - arc}px)`, offset: 0.42, easing: 'cubic-bezier(.6,0,.85,.45)' }, { transform: `translateY(${y}px)` }]
+    : [{ transform: `translateY(${from.y}px)` }, { transform: `translateY(${y}px)` }];
+  const ps = [
+    A(beanX, [{ transform: `translateX(${from.x}px)` }, { transform: `translateX(${x}px)` }], { duration, easing: arc ? 'cubic-bezier(.35,.1,.45,1)' : easing }),
+    A(beanY, yk, { duration, easing: arc ? 'linear' : (fall ? 'cubic-bezier(.55,0,1,.45)' : easing) }),
+    A(beanS, [{ transform: `scale(${from.s})` }, { transform: `scale(${s})` }], { duration, easing })
+  ];
+  bean.parked = false;
+  return Promise.all(ps).then(() => beanSet(x, y, s));
+}
+const squash = (amt = 1) => A(core, [{ transform: 'scale(1)' }, { transform: `scale(${1 + .3 * amt}, ${1 - .3 * amt})`, offset: .22 }, { transform: `scale(${1 - .1 * amt}, ${1 + .12 * amt})`, offset: .55 }, { transform: 'scale(1)' }], { duration: 440, easing: 'ease-out' });
+const pop = () => A(core, [{ transform: 'scale(1)' }, { transform: 'scale(1.38)', offset: .3 }, { transform: 'scale(.92)', offset: .62 }, { transform: 'scale(1)' }], { duration: 520, easing: 'ease-out' });
+
+function rel(node, fx = .5, fy = .5) {
+  const r = node.getBoundingClientRect(), P = phone.getBoundingClientRect();
+  return { x: r.left - P.left + r.width * fx, y: r.top - P.top + r.height * fy, w: r.width, h: r.height };
+}
+function svgPt(svg, vx, vy) {
+  const m = svg.getScreenCTM(), P = phone.getBoundingClientRect();
+  return { x: m.a * vx + m.c * vy + m.e - P.left, y: m.b * vx + m.d * vy + m.f - P.top };
+}
+const LAST = 9;
+function parkPoint(step) {
+  const p = $('#rulePencil'), L = p.getTotalLength(), pt = p.getPointAtLength(L * Math.min(1, step / (LAST - 1)));
+  return svgPt($('#rule'), pt.x, pt.y);
+}
+function park(animated = true) {
+  const pt = parkPoint(state.step);
+  const done = animated && bean.y > 0 ? beanMove(pt.x, pt.y, .42, { duration: 650, arc: bean.parked ? 0 : 26 }) : Promise.resolve(beanSet(pt.x, pt.y, .42));
+  return done.then(() => { bean.parked = true; });
+}
+function ruleProgress(step) {
+  const p = $('#ruleInk'), L = p._L ?? prep(p);
+  const to = L * (1 - Math.min(1, step / (LAST - 1)));
+  p.animate([{ strokeDashoffset: getComputedStyle(p).strokeDashoffset }, { strokeDashoffset: to }], { duration: 650 * K(), easing: 'cubic-bezier(.45,0,.25,1)', fill: 'forwards' });
+}
+
+/* ---------- 状态 ---------- */
+const fresh = () => ({ step: 0, loggedIn: false, sync: false, start: 'home', accounts: [] });
+let state = fresh();
+const fmt = n => n.toLocaleString('zh-CN');
+
+function historyText(i) {
+  switch (i) {
+    case 1: return state.sync ? '账本：已开启云同步' : '账本：只存在本机';
+    case 2: return state.loggedIn ? '芽豆账号：小豆' : '第一次用芽豆';
+    case 5: return `打开先看：${state.start === 'home' ? '记一笔' : '我的账户'}`;
+    case 6: return `账户：${state.accounts.length ? state.accounts.join('、') : '先不建'}`;
+    default: return null;
+  }
+}
+function renderHistory(animateLast) {
+  hist.innerHTML = '';
+  hist.classList.toggle('summary', state.step === 7);
+  const upTo = Math.min(state.step, 7);
+  let lastLi = null;
+  for (let i = 1; i < upTo; i++) {
+    const t = historyText(i);
+    if (!t) continue;
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.textContent = t; b.setAttribute('aria-label', `回到这一题：${t}`);
+    b.onclick = () => goTo(i);
+    li.appendChild(b); hist.appendChild(li); if (i === upTo - 1) lastLi = li;
+  }
+  if (animateLast && lastLi && state.step !== 7) {
+    lastLi.animate([{ opacity: 0, transform: 'translateY(26px) scale(1.5)', transformOrigin: 'left', color: getComputedStyle(document.documentElement).getPropertyValue('--ink') }, { opacity: 1, transform: 'none', transformOrigin: 'left' }], { duration: 520 * K(), easing: OUT });
+  }
+}
+
+/* ---------- 共用小部件 ---------- */
+function button(label, onClick, cls = '') {
+  const b = document.createElement('button');
+  b.className = `btn ${cls}`; b.innerHTML = `<span class="lbl"></span>`; b.firstChild.textContent = label;
+  b.onclick = e => { hap('按下主要按钮', .35, .3); onClick(e); };
+  return b;
+}
+function scaffold(html) { stage.innerHTML = html; foot.innerHTML = ''; }
+function addFoot(...nodes) { nodes.forEach(n => foot.appendChild(n)); }
+const TICK = 'M372 588 C404 622 432 658 458 696 C540 628 630 572 729 526';
+const ICONS = {
+  pen: '<path d="M4 20l4-1 10.5-10.5-3-3L5 16z"/><path d="M13.5 7.5l3 3"/>',
+  chart: '<path d="M5 19v-7M12 19V5M19 19v-10"/>',
+  card: '<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M3 10.5h18"/>',
+  me: '<circle cx="12" cy="8.5" r="3.6"/><path d="M4.5 20c1.4-3.6 4.2-5.4 7.5-5.4s6.1 1.8 7.5 5.4"/>',
+  mic: '<path d="M12 3.5a3 3 0 0 0-3 3v5.5a3 3 0 0 0 6 0V6.5a3 3 0 0 0-3-3z"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5"/>'
+};
+const TABS = { home: ['记账', 'pen'], chart: ['图表', 'chart'], accounts: ['账户', 'card'], me: ['我的', 'me'] };
+const tabOrder = start => start === 'accounts' ? ['accounts', 'home', 'chart', 'me'] : ['home', 'chart', 'accounts', 'me'];
+const tabHTML = k => `<div class="tab" data-k="${k}"><svg viewBox="0 0 24 24">${ICONS[TABS[k][1]]}</svg>${TABS[k][0]}</div>`;
+
+/* ---------- 每一步 ---------- */
+const STEPS = [
+  { name: '开场', note: '动画：品牌对勾一笔写出 → “芽豆资产”逐字出现 → 地面线划出 → 豆子从上方落下、压扁回弹 → 出现按钮“进入芽豆资产”。\n不放口号，也不加说明文字。\n触感：笔尖划纸的轻纹理；落笔一下；豆子落定最重的一下，紧跟一下回弹。', run: s0 },
+  { name: '本地承诺', note: '动画：墨线画出手机轮廓圈住账本，豆子落进圈里。\n触感：轮廓首尾合上一下，豆子落进来一下。\n文案：只写已实现的事实，不提加密。', run: s1 },
+  { name: '芽豆账号', note: '右上“账号”下拉可切换是否识别到芽豆有物的登录态。\n动画：豆子从“芽豆有物”滚到“芽豆资产”，身后连出一条线。\n触感：连线写完一下。\n同步两个选项一样醒目，不预选。', run: s2 },
+  { name: '一句记几笔', note: '点那句话。一句话里两笔新增、一笔删除，一次请求返回，依次落到示例账本上：新增的行长出来并画对勾，咖啡那行被划掉后收起。\n触感：开始收音、提交；每记一笔一下，删一笔稍重一下；最后成功。\n只是演示：不联网、不录音、不写入。', run: s3 },
+  { name: '看清自己的钱', note: '三张卡自动往下翻，对应 App 里真实的两个页面：\n· 花在哪：近 7 天总额和分类排行（图表页的分类统计）\n· 怎么变：近 7 天每天的柱子和日均线，今天那根是红的（图表页的趋势）\n· 还剩多少：净资产 = 资产 − 负债，各账户余额（账户页的汇总）\n刚才语音记的两笔算在数据里，前后对得上。点卡片或上方标签可以自己翻。\n触感：翻页一下选择触感；金额落定一下；每长出一条一下。', run: s4 },
+  { name: '先看什么', note: '动画：下方 Tab 栏预览实时重排，“我的”始终在最右。\n触感：选中变化一下。', run: s6 },
+  { name: '钱放在哪', note: '动画：卡片一张张拍到纸上，贴胶带；取消时缩走。\n触感：贴上一下，取消轻一下。', run: s7 },
+  { name: '种下', note: '前面的回答重新变成墨色，排成小结。\n按住按钮：芽随时间长出、豆子被顶上去；中途松手会缩回。\n触感：持续震动由弱到强；两片叶子出现时各一下；长满时最重的一下加成功。\n这一刻一次写入所有设置。', run: s8 },
+  { name: '登录邀请', note: '只在未登录时出现。可跳过。\n注明“登录不会上传账本”。', run: s9 },
+  { name: '落地', note: '动画：写出“第一页，写好了。”，纸像便签一样被撕走；豆子留在半空，落到语音入口上，入口跳一下。\n触感：撕纸一段渐强纹理，脱离时一下；豆子落定一下。', run: s10 }
+];
+
+async function s0() {
+  scaffold(`<div class="center" style="display:flex;flex-direction:column;gap:14px">
+      <svg class="ink brand-tick" viewBox="338 497 420 244" style="margin:0 auto"><path d="${TICK}"/></svg>
+      <h1 class="brand"></h1>
+      <svg class="ink ground" viewBox="0 0 200 14" style="margin:6px auto 0"><path d="M6 8 C50 4 90 11 120 7 C150 4 180 8 194 7" stroke-width="1.8"/></svg>
+      <p class="desc" style="min-height:1.6em"></p>
+    </div>`);
+  const tick = $('.brand-tick path', stage), ground = $('.ground path', stage), brand = $('.brand', stage), lead = $('.desc', stage);
+  prep(tick); prep(ground);
+  const go = button('进入芽豆资产', () => next()); go.style.opacity = 0; addFoot(go);
+  beanSet(-60, -60, 1);
+  await sleep(300);
+  hap('落笔', .42, .45); texture('笔尖划纸', 650, .2, .12);
+  draw(tick, 650);
+  await sleep(480);
+  ink(brand, '芽豆资产', { stagger: 95 });
+  await sleep(620);
+  texture('笔尖划纸', 480, .15, .1);
+  await draw(ground, 480, { easing: 'ease-out' });
+  const gp = rel(ground);
+  beanSet(gp.x, -30, 1);
+  await beanMove(gp.x, gp.y - 13, 1, { duration: 560, fall: true });
+  hap('豆子落定', .9, .3); squash(1);
+  await sleep(190); hap('回弹', .35, .5);
+  await sleep(320);
+  lead.remove();
+  fadeIn(go);
+}
+
+async function s1() {
+  scaffold(`<svg class="ink phone-art" viewBox="0 0 200 170">
+      <path class="pencil" d="M84 50 C95 48 108 52 118 49" stroke-width="2"/>
+      <path class="pencil" d="M84 68 C96 66 106 70 118 67" stroke-width="2"/>
+      <path class="pencil" d="M84 86 C94 84 104 88 112 85" stroke-width="2"/>
+      <path class="outline" d="M84 9 C77 9 72 13 72 21 L71 148 C71 156 76 161 84 161 L117 162 C125 162 129 157 129 149 L130 21 C130 13 126 8 118 8 L84 9" stroke-width="3"/>
+    </svg>
+    <h2 class="headline"></h2><p class="desc"></p>`);
+  const [l1, l2, l3, outline] = stage.querySelectorAll('path');
+  [l1, l2, l3, outline].forEach(prep);
+  const ok = button('好', () => next()); ok.style.opacity = 0; addFoot(ok);
+  await sleep(250);
+  for (const l of [l1, l2, l3]) { draw(l, 220, { easing: 'ease-out' }); await sleep(150); }
+  texture('笔尖划纸', 1100, .18, .14);
+  await draw(outline, 1100);
+  hap('轮廓合上', .55, .6);
+  const svg = $('svg', stage), t = svgPt(svg, 100, 128), scale = svg.getBoundingClientRect().width / 200;
+  await beanMove(t.x, t.y, Math.max(.6, 20 * scale / 26), { duration: 720, arc: 40 });
+  hap('豆子落进来', .6, .4); squash(.7);
+  await sleep(200);
+  await ink($('.headline', stage), '你的账本，只存在这台手机上。');
+  const d = $('.desc', stage);
+  d.textContent = '不登录也能用全部记账功能。登录了也不会自动上传，同不同步由你决定，随时可以改。';
+  await fadeIn(d);
+  fadeIn(ok);
+}
+
+async function s2() {
+  if (scenario.value === 'auto') { state.loggedIn = true; return welcome(true); }
+  scaffold(`<h2 class="headline"></h2><p class="desc"></p>
+    <div class="opts">
+      <button class="opt" data-v="yes"><b>用过，用芽豆账号登录</b><span>芽豆系列共用一个账号</span></button>
+      <button class="opt" data-v="no"><b>第一次用</b><span>先在本机用，之后随时能登录</span></button>
+    </div>`);
+  park();
+  const opts = stage.querySelectorAll('.opt'); opts.forEach(o => (o.style.opacity = 0));
+  await ink($('.headline', stage), '用过芽豆系列的其他 App 吗？');
+  const d = $('.desc', stage); d.textContent = '比如芽豆有物。'; fadeIn(d);
+  opts.forEach((o, k) => fadeIn(o, 80 + k * 90));
+  opts.forEach(o => o.onclick = async () => {
+    hap('选中', .35, .8);
+    opts.forEach(x => x.setAttribute('aria-pressed', x === o));
+    if (o.dataset.v === 'no') { state.loggedIn = false; state.sync = false; await sleep(260); next(); return; }
+    $('b', o).textContent = '正在打开芽豆账号登录…';
+    await sleep(900);
+    state.loggedIn = true;
+    welcome(false);
+  });
+}
+
+async function welcome(auto) {
+  scaffold(`<div class="avatar" style="opacity:0">豆</div>
+    <div class="link"><span id="from">芽豆有物</span><svg class="ink" viewBox="0 0 100 20" preserveAspectRatio="none"><path class="pencil" d="M2 11 C30 7 60 14 98 9" stroke-width="1.6"/></svg><span id="to">芽豆资产</span></div>
+    <h2 class="headline"></h2><p class="desc"></p>`);
+  const line = $('.link path', stage), from = $('#from', stage), to = $('#to', stage);
+  prep(line);
+  const a = rel(from, 1.08, .5), b = rel(to, -.08, .5);
+  await beanMove(a.x, a.y, .55, { duration: 600, arc: 30 });
+  draw(line, 700, { easing: 'cubic-bezier(.45,0,.25,1)' });
+  await beanMove(b.x, b.y, .55, { duration: 700 });
+  hap('连上了', .5, .6); squash(.6);
+  A($('.avatar', stage), [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 520, easing: SPRING });
+  await ink($('.headline', stage), '欢迎回来，小豆。');
+  const d = $('.desc', stage);
+  d.textContent = auto ? '你在芽豆有物的芽豆账号，这里直接能用。' : '登录好了。芽豆系列都能用这个账号。';
+  await fadeIn(d);
+  const go = button('继续', () => askSync()); addFoot(go); fadeIn(go);
+}
+
+async function askSync() {
+  scaffold(`<h2 class="headline"></h2><p class="desc"></p>`);
+  park();
+  const yes = button('开启同步', () => choose(true), 'line'), no = button('只存在本机', () => choose(false), 'line');
+  const row = document.createElement('div'); row.className = 'row'; row.append(yes, no);
+  const note = document.createElement('p'); note.className = 'note'; note.style.textAlign = 'center'; note.textContent = '以后可以在设置里随时开关。';
+  row.style.opacity = 0; note.style.opacity = 0;
+  addFoot(row, note);
+  await ink($('.headline', stage), '要把账本同步到云端吗？');
+  const d = $('.desc', stage);
+  d.textContent = '开启后，账本会上传到芽豆的服务器，换手机、多台设备都能看到。不开启，账本就只存在本机。';
+  await fadeIn(d);
+  fadeIn(row); fadeIn(note, 120);
+  function choose(v) { state.sync = v; next(); }
+}
+
+async function s3() {
+  const SEGS = [['午饭 32 微信付', 'add'], ['，打车 28', 'add'], ['，早上那杯咖啡删掉', 'del']];
+  scaffold(`<h2 class="headline"></h2><p class="desc"></p>
+    <div class="book" aria-label="示例账本">
+      <div class="book-h"><span>今天</span><span>示例</span></div>
+      <div class="entry" data-k="coffee"><span class="c">咖啡</span><span class="a">早上 · 微信</span><span class="m">−18.00</span><i class="strike"></i></div>
+    </div>
+    <button class="say" id="say"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">${ICONS.mic}</svg><span class="words">“${SEGS.map(([t]) => `<span class="seg">${t}</span>`).join('')}”</span></button>
+    <p class="result" aria-live="polite"></p>
+    <p class="note">真正使用时，这句话需要联网识别。</p>`);
+  park();
+  const say = $('#say', stage), book = $('.book', stage), result = $('.result', stage), segs = [...say.querySelectorAll('.seg')];
+  [say, book, $('.note', stage)].forEach(n => (n.style.opacity = 0));
+  const go = button('继续', () => next()); go.style.opacity = 0; addFoot(go);
+  await ink($('.headline', stage), '说一句，记好几笔');
+  const d = $('.desc', stage); d.textContent = '记错了、不要了，也是一句话的事。点下面这句试试。'; fadeIn(d);
+  fadeIn(book, 100); fadeIn(say, 200); fadeIn($('.note', stage), 300); fadeIn(go, 380);
+
+  const row = (c, a, m) => {
+    const r = document.createElement('div'); r.className = 'entry fresh';
+    r.innerHTML = `<span class="c">${c}</span><span class="a">${a}</span><span class="m">${m}</span><svg class="ink" viewBox="338 497 420 244"><path d="${TICK}"/></svg>`;
+    return r;
+  };
+  const grow = r => A(r, [{ height: '0px', opacity: 0, paddingBlock: '0px' }, { height: `${r.offsetHeight}px`, opacity: 1, paddingBlock: getComputedStyle(r).paddingBlock }], { duration: 300, easing: OUT });
+  say.onclick = async () => {
+    say.onclick = null;
+    hap('开始收音', .6, .5);
+    const words = $('.words', say), html = words.innerHTML;
+    words.innerHTML = `<span class="wave">${'<i></i>'.repeat(18)}</span>`;
+    [...say.querySelectorAll('.wave i')].forEach((b, k) => b.animate([{ height: '5px' }, { height: `${8 + Math.random() * 14}px` }, { height: '5px' }], { duration: (360 + k * 19) * K(), iterations: 4, easing: 'ease-in-out' }));
+    await sleep(1400);
+    words.innerHTML = html;
+    hap('提交', .5, .6);
+    await sleep(380);
+    // 一次请求返回三个动作，依次落到账本上
+    const live = [...say.querySelectorAll('.seg')];
+    const adds = [['餐饮', '午饭 · 微信', '−32.00'], ['交通', '打车 · 微信', '−28.00']];
+    for (let k = 0; k < 3; k++) {
+      live[k].classList.add('on');
+      if (k < 2) {
+        const r = row(...adds[k]); book.appendChild(r);
+        const tick = $('path', r); prep(tick);
+        grow(r);
+        await sleep(160);
+        draw(tick, 260, { easing: 'ease-out' });
+        hap('记一笔', .45, .6);
+      } else {
+        const c = $('[data-k="coffee"]', book), s = $('.strike', c);
+        await A(s, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 300, easing: 'ease-out' });
+        hap('删一笔', .6, .45);
+        await sleep(160);
+        A(c, [{ opacity: 1, height: `${c.offsetHeight}px` }, { opacity: 0, height: '0px', paddingBlock: '0px', borderBottomWidth: '0px' }], { duration: 320, easing: 'ease-in' });
+      }
+      await sleep(330);
+    }
+    result.textContent = '已记 2 笔，删掉 1 笔';
+    fadeIn(result);
+    hap('完成', .6, .5); await sleep(110); hap('完成', .9, .5);
+  };
+}
+
+async function s4() {
+  // 示例数据：与第 3 步刚记的午饭 32、打车 28 对得上
+  const CATS = [['餐饮', 186], ['购物', 120], ['交通', 64], ['日用', 38]];
+  const DAYS = [['二', 64], ['三', 38], ['四', 92], ['五', 55], ['六', 84], ['日', 15], ['今天', 60]];
+  const ACCTS = [['银行卡', 12400], ['微信', 1050], ['现金', 260], ['信用卡', -2300]];
+  const spent = CATS.reduce((a, [, v]) => a + v, 0);
+  const assets = ACCTS.filter(([, v]) => v > 0).reduce((a, [, v]) => a + v, 0), debt = -ACCTS.filter(([, v]) => v < 0).reduce((a, [, v]) => a + v, 0);
+  const money = n => n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  scaffold(`<h2 class="headline"></h2>
+    <div class="beats" role="tablist" aria-label="三种看法">${['花在哪', '怎么变', '还剩多少'].map((t, k) => `<button role="tab" data-k="${k}"><i></i>${t}</button>`).join('')}</div>
+    <div class="beat-card" id="card"></div>
+    <p class="note">示例数据。刚才那句记下的两笔也算在里面。</p>`);
+  park();
+  const card = $('#card', stage), tabs = [...stage.querySelectorAll('.beats button')];
+  [card, $('.beats', stage), $('.note', stage)].forEach(n => (n.style.opacity = 0));
+  const go = button('继续', () => next()); go.style.opacity = 0; addFoot(go);
+
+  const id = runId;
+  const count = (node, to, ms, f = v => v) => new Promise(res => {
+    const t1 = performance.now(), dur = ms * K();
+    (function g() { if (id !== runId) return; const p = Math.min(1, (performance.now() - t1) / dur); node.textContent = f(to * (1 - Math.pow(1 - p, 3))); p < 1 ? requestAnimationFrame(g) : res(); })();
+  });
+  const grow = async (bars, axis, gap = 110) => {
+    for (let k = 0; k < bars.length; k++) {
+      A(bars[k], [{ opacity: 1, transform: `scale${axis}(0)` }, { opacity: 1, transform: `scale${axis}(1)` }], { duration: 520, easing: SPRING });
+      await sleep(gap); hap('长出一条', .4 - k * .03, .65);
+    }
+  };
+  const beats = [
+    async () => {
+      card.innerHTML = `<p class="ans">最近 7 天花了 <b class="num" id="v">0</b> 元，<span class="em">餐饮</span>最多。</p>
+        <div class="bars">${CATS.map(([n, v], k) => `<span>${n}</span><i class="bar${k ? '' : ' hot'}" style="width:${v / CATS[0][1] * 100}%"></i><span class="num">${v}</span>`).join('')}</div>`;
+      const bars = [...card.querySelectorAll('.bar')]; bars.forEach(b => (b.style.opacity = 0));
+      await count($('#v', card), spent, 600, v => Math.round(v));
+      hap('金额落定', .5, .55);
+      await grow(bars, 'X');
+    },
+    async () => {
+      const max = Math.max(...DAYS.map(([, v]) => v));
+      card.innerHTML = `<p class="ans">今天花了 <b class="num em">60</b> 元，和这 7 天的平均差不多。</p>
+        <div class="week">${DAYS.map(([d, v], k) => `<div><i class="col${k === DAYS.length - 1 ? ' hot' : ''}" style="height:${v / max * 100}%"></i><span>${d}</span></div>`).join('')}<hr style="bottom:calc(${spent / 7 / max * 100}% * .87 + 20px)"></div>`;
+      const cols = [...card.querySelectorAll('.col')]; cols.forEach(c => (c.style.opacity = 0));
+      await grow(cols, 'Y', 80);
+      A($('hr', card), [{ opacity: 0, transform: 'scaleX(0)' }, { opacity: 1, transform: 'scaleX(1)' }], { duration: 420, easing: OUT });
+    },
+    async () => {
+      const max = Math.max(...ACCTS.map(([, v]) => Math.abs(v)));
+      card.innerHTML = `<p class="ans" style="margin-bottom:-6px">净资产</p>
+        <div class="worth num" id="v">0.00</div>
+        <p class="note" style="margin-top:-6px">资产 ${money(assets)} · 负债 ${money(debt)}</p>
+        <div class="bars">${ACCTS.map(([n, v]) => `<span>${n}</span><i class="bar${v < 0 ? ' debt' : ''}" style="width:${Math.abs(v) / max * 100}%"></i><span class="num">${v < 0 ? '−' : ''}${money(Math.abs(v))}</span>`).join('')}</div>`;
+      const bars = [...card.querySelectorAll('.bar')]; bars.forEach(b => (b.style.opacity = 0));
+      await count($('#v', card), assets - debt, 750, money);
+      hap('净资产落定', .6, .45);
+      await grow(bars, 'X');
+    }
+  ];
+  let cur = -1, busy = false;
+  async function show(k) {
+    if (busy || k === cur || k >= beats.length) return;
+    busy = true; cur = k;
+    tabs.forEach((t, j) => { t.setAttribute('aria-selected', j === k); t.classList.toggle('seen', j <= k); });
+    hap('切换', .3, .85);
+    if (card.childElementCount) await A(card, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(-16px)' }], { duration: 200, easing: 'ease-in' });
+    card.getAnimations().forEach(a => a.cancel());
+    A(card, [{ opacity: 0, transform: 'translateX(16px)' }, { opacity: 1, transform: 'none' }], { duration: 280, easing: OUT });
+    await beats[k]();
+    busy = false;
+    if (k === beats.length - 1) fadeIn(go);
+  }
+  tabs.forEach(t => t.onclick = () => show(+t.dataset.k));
+  card.onclick = () => show(cur + 1);
+  await ink($('.headline', stage), '钱去哪了、还剩多少，都看得到');
+  fadeIn($('.beats', stage)); card.style.opacity = 1; fadeIn($('.note', stage), 200);
+  // 自动往下翻，用户也可以点卡片或上方标签自己翻
+  for (let k = 0; k < beats.length; k++) {
+    await show(k);
+    await sleep(1500);
+    if (cur !== k) break;
+  }
+}
+
+async function s6() {
+  scaffold(`<h2 class="headline"></h2>
+    <div class="opts">
+      <button class="opt" data-v="home"><b>记一笔</b><span>首页就是账本，打开就能记</span></button>
+      <button class="opt" data-v="accounts"><b>我的账户</b><span>先看每个账户还剩多少</span></button>
+    </div>
+    <div class="tabs" aria-label="底部导航预览">${tabOrder(state.start).map(tabHTML).join('')}</div>
+    <p class="note" style="text-align:center">它会排在底部导航的第一个，“我的”始终在最右。</p>`);
+  park();
+  const opts = [...stage.querySelectorAll('.opt')], tabs = $('.tabs', stage);
+  const paint = () => { opts.forEach(o => o.setAttribute('aria-pressed', o.dataset.v === state.start)); [...tabs.children].forEach((t, k) => t.classList.toggle('first', k === 0)); };
+  paint();
+  [...opts, tabs, $('.note', stage)].forEach(n => (n.style.opacity = 0));
+  const go = button('继续', () => next()); go.style.opacity = 0; addFoot(go);
+  opts.forEach(o => o.onclick = () => {
+    if (state.start === o.dataset.v) return;
+    state.start = o.dataset.v; hap('选中变化', .35, .8);
+    const first = new Map([...tabs.children].map(t => [t.dataset.k, t.getBoundingClientRect().left]));
+    tabOrder(state.start).forEach(k => tabs.appendChild(tabs.querySelector(`[data-k="${k}"]`)));
+    paint();
+    [...tabs.children].forEach(t => {
+      const dx = first.get(t.dataset.k) - t.getBoundingClientRect().left;
+      if (dx) t.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: 520 * K(), easing: SPRING });
+    });
+  });
+  await ink($('.headline', stage), '打开 App，先看什么？');
+  opts.forEach((o, k) => fadeIn(o, k * 90)); fadeIn(tabs, 220); fadeIn($('.note', stage), 300); fadeIn(go, 360);
+}
+
+async function s7() {
+  const ALL = ['现金', '银行卡', '支付宝', '微信', '信用卡'];
+  scaffold(`<h2 class="headline"></h2><p class="desc"></p>
+    <div class="table" aria-hidden="true"></div>
+    <div class="chips">${ALL.map(a => `<button class="chip" aria-pressed="${state.accounts.includes(a)}">${a}</button>`).join('')}</div>`);
+  park();
+  const table = $('.table', stage), chips = [...stage.querySelectorAll('.chip')];
+  const go = button(state.accounts.length ? '继续' : '先不建', () => next()); go.style.opacity = 0; addFoot(go);
+  const cards = new Map();
+  const card = name => {
+    const c = document.createElement('div'); c.className = 'acard';
+    c.innerHTML = '<span class="tape"></span>'; c.append(name);
+    c.style.rotate = `${(Math.random() * 7 - 3.5).toFixed(1)}deg`;
+    return c;
+  };
+  state.accounts.forEach(a => { const c = card(a); cards.set(a, c); table.appendChild(c); });
+  chips.forEach(ch => ch.onclick = async () => {
+    const name = ch.textContent, on = ch.getAttribute('aria-pressed') !== 'true';
+    ch.setAttribute('aria-pressed', on);
+    if (on) {
+      state.accounts = ALL.filter(a => a === name || state.accounts.includes(a));
+      const c = card(name); cards.set(name, c);
+      table.insertBefore(c, [...table.children].find(x => ALL.indexOf(x.lastChild.textContent) > ALL.indexOf(name)) ?? null);
+      A(c, [{ opacity: 0, transform: 'translateY(-34px) scale(1.4)' }, { opacity: 1, transform: 'translateY(0) scale(.96)', offset: .7 }, { transform: 'scale(1)' }], { duration: 380, easing: 'cubic-bezier(.5,0,.7,.4)' })
+        .then(() => hap('贴上', .45, .7));
+    } else {
+      state.accounts = state.accounts.filter(a => a !== name);
+      const c = cards.get(name); cards.delete(name); hap('取下', .25, .3);
+      A(c, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.6)' }], { duration: 220 }).then(() => c.remove());
+    }
+    go.firstChild.textContent = state.accounts.length ? '继续' : '先不建';
+  });
+  chips.forEach(c => (c.style.opacity = 0));
+  await ink($('.headline', stage), '你的钱放在哪？');
+  const d = $('.desc', stage); d.textContent = '选几个常用的，余额之后再填也行。'; fadeIn(d);
+  chips.forEach((c, k) => fadeIn(c, 80 + k * 60)); fadeIn(go, 400);
+}
+
+async function s8() {
+  scaffold(`<h2 class="headline" style="text-align:center"></h2>
+    <svg class="ink sprout" viewBox="0 0 240 240">
+      <path class="ground" d="M42 199 C70 191 94 203 118 196 C144 189 170 203 192 197"/>
+      <path d="M117 198 C115 207 109 213 101 217"/>
+      <path d="M120 198 C124 206 131 211 138 214"/>
+      <path class="stem" d="M118 196 C104 170 128 142 116 120 C108 106 111 93 113 85"/>
+      <g class="leaf" id="leafL" style="transform-origin:114px 150px"><path d="M114 150 C92 126 60 124 50 140 C66 158 98 162 114 150"/><path d="M62 141 Q84 140 104 147"/></g>
+      <g class="leaf" id="leafR" style="transform-origin:118px 128px"><path d="M118 128 C138 102 174 96 188 108 C176 130 142 140 118 128"/></g>
+      ${[-155, -100, -42].map(d => { const a = d * Math.PI / 180; return `<path class="spark pencil" stroke-width="2.8" d="M${112 + Math.cos(a) * 31} ${62 + Math.sin(a) * 31} L${112 + Math.cos(a) * 40} ${62 + Math.sin(a) * 40}"/>`; }).join('')}
+    </svg>
+    <p class="note" style="text-align:center">这些随时可以在设置里改。</p>`);
+  const svg = $('.sprout', stage), groundP = $('.ground', stage), sparks = [...stage.querySelectorAll('.spark')];
+  const pieces = [...svg.querySelectorAll('path:not(.ground):not(.spark)')];
+  [groundP, ...pieces, ...sparks].forEach(prep);
+  const stem = $('.stem', svg), stemL = stem._L;
+  const unit = () => svg.getBoundingClientRect().width / 240;
+  const beanAt = local => { const p = stem.getPointAtLength(stemL * local); return svgPt(svg, p.x, p.y - 23); };
+  const holdBtn = button('', () => {}, 'line hold');
+  holdBtn.onclick = null;
+  holdBtn.innerHTML = '<span class="fill"></span><span class="lbl">按住，种下第一颗豆</span>';
+  holdBtn.style.opacity = 0; addFoot(holdBtn);
+  await ink($('.headline', stage), '这一页，快写好了。');
+  texture('笔尖划纸', 420, .14, .1);
+  await draw(groundP, 420, { easing: 'ease-out' });
+  const g0 = beanAt(0);
+  await beanMove(g0.x, g0.y, 44 * unit() / 26, { duration: 700, arc: 50 });
+  hap('豆子落到地上', .5, .4); squash(.6);
+  fadeIn(holdBtn); fadeIn($('.note', stage), 100);
+
+  // 按住：进度驱动整条墨线，豆子骑在茎尖上
+  const id = runId, fill = $('.fill', holdBtn), lbl = $('.lbl', holdBtn);
+  const HOLD_MS = 1800;
+  let p = 0, holding = false, done = false, last = 0, crossed = new Set();
+  const leafStarts = (() => { const L = pieces.map(x => x._L), tot = L.reduce((a, b) => a + b, 0); let w = 0; return L.map(l => { const s = w / tot; w += l; return s; }); })();
+  const render = () => {
+    const locals = setSeq(pieces, p);
+    const b = beanAt(locals[2]); beanSet(b.x, b.y, 44 * unit() / 26);
+    fill.style.transform = `scaleX(${p})`;
+  };
+  function loop(t) {
+    if (id !== runId || done) return;
+    const dt = Math.min(50, t - (last || t)); last = t;
+    p = Math.max(0, Math.min(1, p + (holding ? 1 : -2.4) * dt / (HOLD_MS * K())));
+    render();
+    if (holding) {
+      sample(.15 + .55 * p);
+      [[3, '左叶出现', .45, .5], [5, '右叶出现', .5, .55]].forEach(([k, name, i, s]) => { if (p >= leafStarts[k] && !crossed.has(k)) { crossed.add(k); hap(name, i, s); } });
+    } else {
+      crossed = new Set([...crossed].filter(k => p >= leafStarts[k]));
+    }
+    if (p >= 1) return finish();
+    if (holding || p > 0) requestAnimationFrame(loop); else last = 0;
+  }
+  const press = () => { if (done) return; if (RM) { p = 1; render(); return finish(); } if (!holding) { holding = true; hap('开始蓄力', .3, .3); if (!last) requestAnimationFrame(loop); } };
+  const release = () => { if (!holding || done) return; holding = false; if (p > 0.02) { hap('松手', .3, .15); lbl.textContent = '再按住一会儿'; } };
+  holdBtn.addEventListener('pointerdown', e => { holdBtn.setPointerCapture(e.pointerId); press(); });
+  ['pointerup', 'pointercancel'].forEach(ev => holdBtn.addEventListener(ev, release));
+  holdBtn.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); press(); } });
+  holdBtn.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') release(); });
+
+  async function finish() {
+    done = true; holding = false; p = 1; render();
+    hap('长满', 1, .35); pop();
+    await sleep(170); hap('成功', .6, .5); await sleep(100); hap('成功', .9, .5);
+    sparks.forEach((s, k) => { draw(s, 260, { delay: k * 80, easing: 'ease-out' }); setTimeout(() => id === runId && hap('闪光', .3, .95), (k * 80 + 60) * K()); });
+    lbl.textContent = '种下了';
+    // 叶子和豆子开始轻轻浮动
+    [$('#leafL', svg), $('#leafR', svg)].forEach((g, k) => g.animate([{ rotate: '0deg' }, { rotate: `${k ? -4 : 4}deg` }], { duration: 2200 * K(), delay: 250 * K(), iterations: Infinity, direction: 'alternate', easing: 'ease-in-out' }));
+    core.animate([{ translate: '0 0' }, { translate: '0 -3px' }], { duration: 2200 * K(), iterations: Infinity, direction: 'alternate', easing: 'ease-in-out' });
+    await ink($('.headline', stage), '种下了。');
+    await sleep(1300);
+    next();
+  }
+}
+
+async function s9() {
+  scaffold(`<h2 class="headline"></h2>
+    <ul class="benefits"><li>语音记账：说一句话，自动记好</li><li>一个芽豆账号，通用芽豆系列 App</li></ul>
+    <p class="desc">登录不会上传账本，同不同步由你决定。</p>`);
+  park();
+  const ul = $('.benefits', stage), d = $('.desc', stage);
+  ul.style.opacity = 0; d.style.opacity = 0;
+  const login = button('登录', async () => { login.firstChild.textContent = '正在登录…'; await sleep(700); state.loggedIn = true; next(); });
+  const later = button('先不用', () => next(), 'text');
+  [login, later].forEach(b => (b.style.opacity = 0)); addFoot(login, later);
+  await ink($('.headline', stage), '登录芽豆账号，能做的更多');
+  [...ul.children].forEach((li, k) => fadeIn(li, k * 110)); ul.style.opacity = 1;
+  fadeIn(d, 260); fadeIn(login, 340); fadeIn(later, 400);
+}
+
+function buildHome(view) {
+  const order = tabOrder(view.start);
+  const body = view.start === 'accounts'
+    ? `<h3>账户</h3><div class="sub">总资产 0.00</div><div class="hrule"></div>${view.accounts.length ? view.accounts.map(a => `<div class="acct-row">${a}<span>余额未填</span></div>`).join('') + '<div style="flex:1"></div>' : '<div class="empty"><b>还没有账户</b>先记一笔，或在这里添加账户</div>'}`
+    : `<h3>十月</h3><div class="sub">本月支出 0.00</div><div class="hrule"></div><div class="empty"><b>还没有记账</b>按住下面的麦克风，说一句就好</div>`;
+  home.innerHTML = `${body}<div class="dock"><div class="hint" id="hint">从这里记第一笔</div><div class="mic" id="mic"><svg viewBox="0 0 24 24">${ICONS.mic}</svg>按住说话</div><div class="tabs">${order.map(tabHTML).join('')}</div></div>`;
+  home.querySelector('.tab').classList.add('first');
+}
+
+async function s10(skip) {
+  const view = skip ? fresh() : state;
+  buildHome(view);
+  scaffold(`<h2 class="headline" style="text-align:center;font-size:30px"></h2>`);
+  if (!skip) {
+    if (bean.parked) park();
+    await ink($('.headline', stage), '第一页，写好了。', { stagger: 80 });
+    await sleep(650);
+  }
+  // 撕下这一页：先被捏起一点，再向右上甩走
+  const teeth = 26, jag = Array.from({ length: teeth + 1 }, (_, k) => `${(k / teeth * 100).toFixed(2)}% ${k % 2 ? 98.6 : 100}%`).join(', ');
+  sheet.style.clipPath = `polygon(0 0, 100% 0, ${jag.split(', ').reverse().join(', ')})`;
+  texture('撕纸', 420, .25, .65);
+  const tear = A(sheet, [{ transform: 'none' }, { transform: 'translateY(-6px) rotate(-.8deg)', offset: .3 }, { transform: 'translate(40px, -115%) rotate(-9deg)' }], { duration: 820, easing: 'cubic-bezier(.55,0,.75,.2)' });
+  await sleep(300); hap('纸张脱离', .5, .7);
+  await tear;
+  const mic = $('#mic', home), m = rel(mic, .5, .5);
+  if (bean.y < 0 || bean.parked) {
+    const fromX = bean.y < 0 ? m.x : bean.x;
+    beanSet(fromX, Math.max(bean.y, 80), .7);
+  }
+  await beanMove(m.x, m.y - 2, .7, { duration: 640, fall: true });
+  hap('豆子落定', .8, .35);
+  A(mic, [{ transform: 'scale(1)' }, { transform: 'scale(1.12)', offset: .35 }, { transform: 'scale(.97)', offset: .7 }, { transform: 'scale(1)' }], { duration: 520, easing: 'ease-out' });
+  mic.classList.add('hot');
+  await beanMove(m.x, m.y - 2, 0.01, { duration: 260, easing: 'ease-in' });
+  fadeIn($('#hint', home), 80);
+  await sleep(1400);
+  mic.classList.remove('hot');
+}
+
+/* ---------- 导航 ---------- */
+const scenario = $('#scenario');
+function goTo(i, opts = {}) {
+  runId++;
+  state.step = i;
+  sheet.getAnimations().forEach(a => a.cancel()); sheet.style.clipPath = ''; sheet.style.transform = '';
+  core.getAnimations().forEach(a => a.cancel());
+  home.innerHTML = '';
+  renderHistory(opts.fromNext);
+  ruleProgress(i);
+  stage.style.opacity = 1;
+  $('#stepnote').textContent = STEPS[i].note;
+  document.querySelectorAll('#steps button').forEach((b, k) => (k === i ? b.setAttribute('aria-current', 'step') : b.removeAttribute('aria-current')));
+  STEPS[i].run(opts.skip);
+}
+async function next() {
+  let n = state.step + 1;
+  if (n === 8 && state.loggedIn) n = 9;
+  const id = runId;
+  await A(stage, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-14px)' }], { duration: 240, easing: 'ease-in' });
+  if (id !== runId) return;
+  stage.getAnimations().forEach(a => a.cancel());
+  goTo(n, { fromNext: true });
+}
+
+$('#steps').innerHTML = STEPS.map((s, k) => `<li><button data-k="${k}"><span class="n">${k}</span>${s.name}</button></li>`).join('');
+$('#steps').addEventListener('click', e => { const b = e.target.closest('button'); if (b) goTo(+b.dataset.k); });
+$('#skip').onclick = () => goTo(9, { skip: true });
+$('#restart').onclick = () => { state = fresh(); beanSet(-60, -60, 1); goTo(0); };
+$('#replay').onclick = () => goTo(state.step);
+$('#slow').onclick = e => { S = S === 1 ? 2.5 : 1; e.currentTarget.setAttribute('aria-pressed', S !== 1); sync(); goTo(state.step); };
+scenario.onchange = () => { if (state.step === 2) goTo(2); };
+addEventListener('resize', () => { if (bean.parked) park(false); });
+
+prep($('#ruleInk'));
+const startUp = () => goTo(0);
+document.fonts && document.fonts.ready ? document.fonts.ready.then(startUp) : startUp();
+})();
+</script>
+</body>
+</html>

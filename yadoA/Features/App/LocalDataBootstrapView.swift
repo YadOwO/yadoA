@@ -84,6 +84,8 @@ final class LocalDataBootstrap: ObservableObject {
                 // 生产引导绝不接受临时存储，即使工厂被错误配置。
                 throw LocalDataBootstrapError.ephemeralStoreRejected
             }
+            // 补齐预置分类行；失败不阻断启动，分类目录会用预置默认值兜底，下次写分类时再补。
+            try? LocalCategoryRepository(container: container.modelContainer).ensurePresets()
             dataContainer = container
             phase = .ready
         } catch {
@@ -100,6 +102,8 @@ private enum LocalDataBootstrapError: Error {
 
 /// 在本地文件数据可用前阻断账户界面的应用级引导视图。
 struct LocalDataBootstrapView<Content: View>: View {
+    /// 引导与错误提示使用窗口当前选择的界面语言。
+    @Environment(\.locale) private var locale
     @StateObject private var bootstrap: LocalDataBootstrap
     private let content: () -> Content
 
@@ -124,7 +128,7 @@ struct LocalDataBootstrapView<Content: View>: View {
         Group {
             switch bootstrap.phase {
             case .initializing, .retrying:
-                ProgressView(AccountLocalization.string("local_data.loading"))
+                ProgressView(AccountLocalization.string("local_data.loading", locale: locale))
             case .ready:
                 if let dataContainer = bootstrap.dataContainer {
                     content()
@@ -145,13 +149,13 @@ struct LocalDataBootstrapView<Content: View>: View {
     private var blockedContent: some View {
         ContentUnavailableView {
             Label(
-                AccountLocalization.string("local_data.error.title"),
+                AccountLocalization.string("local_data.error.title", locale: locale),
                 systemImage: "externaldrive.badge.exclamationmark"
             )
         } description: {
-            Text(AccountLocalization.string(failureMessageLocalizationKey))
+            Text(AccountLocalization.string(failureMessageLocalizationKey, locale: locale))
         } actions: {
-            Button(AccountLocalization.string("common.retry")) {
+            Button(AccountLocalization.string("common.retry", locale: locale)) {
                 Task {
                     await bootstrap.retry()
                 }

@@ -6,6 +6,7 @@ struct BookkeepingTransactionDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
+    @Environment(\.calendar) private var calendar
     @State private var editDraft: DiningExpenseEditDraft?
     @State private var deletionSelection: BookkeepingTransactionDetailPresentation?
     @State private var isDeleteConfirmationPresented = false
@@ -28,8 +29,20 @@ struct BookkeepingTransactionDetailView: View {
         .sheet(item: $editDraft) { draft in
             NavigationStack {
                 DiningExpenseQuickEditView(draft: draft) { updatedDraft in
+                    // 保存后流水即被改写，先拷贝修改前的首页行，供首页展示从什么改成了什么。
+                    let previousRow = transaction(id: updatedDraft.id).flatMap {
+                        HomeOverviewPresentation.row(
+                            for: $0, locale: locale, calendar: calendar, catalog: currentCatalog()
+                        )
+                    }
                     try LocalExpenseRepository(container: modelContext.container).update(updatedDraft)
                     queryRefreshToken = UUID()
+                    // 日期改到别的月份时首页会跟着切过去。
+                    HomeRecentEntryHighlight.shared.mark(
+                        id: updatedDraft.id,
+                        transactionDay: updatedDraft.transactionDay,
+                        change: .updated(previous: previousRow)
+                    )
                 }
             }
         }
@@ -54,17 +67,43 @@ struct BookkeepingTransactionDetailView: View {
         .alert(text("bookkeeping.delete.failed"), isPresented: $isDeleteFailed) {
             Button(text("common.close"), role: .cancel) {}
         }
+        .paperPage()
     }
 
     /// 只有持久化成功才离开详情；失败保留当前页面和可重试入口。
     private func deleteTransaction(id: UUID) {
+        // 删除后流水对象即失效，先拷贝首页行快照，供首页在原位置画出被划掉的残影。
+        let deletedRow = transaction(id: id).flatMap {
+            HomeOverviewPresentation.deletedRow(
+                for: $0, locale: locale, calendar: calendar, catalog: currentCatalog()
+            )
+        }
         do {
             try LocalExpenseRepository(container: modelContext.container).delete(id: id)
+            AppHaptics.play(.destructive)
+            if let deletedRow {
+                HomeRecentEntryHighlight.shared.markDeleted(deletedRow)
+            }
             dismiss()
         } catch {
             queryRefreshToken = UUID()
+            AppHaptics.play(.error)
             isDeleteFailed = true
         }
+    }
+
+    /// 从主上下文读取流水当前的持久化状态，用于在修改或删除前拷贝首页行快照。
+    ///
+    /// - Parameter id: 流水 UUID。
+    /// - Returns: 对应流水；不存在或读取失败时返回 `nil`。
+    private func transaction(id: UUID) -> AccountTransaction? {
+        try? modelContext.fetch(BookkeepingSearchPresentation.descriptor(transactionID: id)).first
+    }
+
+    /// 从主上下文读取当前分类目录，保证快照中的分类名称与图标与首页一致。
+    private func currentCatalog() -> BookkeepingCategoryCatalog {
+        let categories = (try? modelContext.fetch(FetchDescriptor<BookkeepingCategory>())) ?? []
+        return BookkeepingCategoryCatalog(categories: categories)
     }
 
     /// 按当前应用语言解析 String Catalog 文案。
@@ -79,6 +118,7 @@ private struct BookkeepingTransactionDetailQueryContent: View {
     @Environment(\.locale) private var locale
     @Query private var transactions: [AccountTransaction]
     @Query private var accounts: [Account]
+    @Query private var categories: [BookkeepingCategory]
 
     /// 导航栈传入的稳定流水标识。
     let transactionID: UUID
@@ -100,6 +140,12 @@ private struct BookkeepingTransactionDetailQueryContent: View {
             BookkeepingSearchPresentation.descriptor(transactionID: transactionID)
         )
         _accounts = Query(BookkeepingSearchPresentation.accountDescriptor())
+        _categories = Query()
+    }
+
+    /// 存储中的分类设置与预置默认值合并后的目录。
+    private var catalog: BookkeepingCategoryCatalog {
+        BookkeepingCategoryCatalog(categories: categories)
     }
 
     var body: some View {
@@ -108,7 +154,8 @@ private struct BookkeepingTransactionDetailQueryContent: View {
             transactions: transactions,
             accounts: accounts,
             calendar: environmentCalendar,
-            locale: locale
+            locale: locale,
+            catalog: catalog
         )
 
         Group {
@@ -130,7 +177,7 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         if let transaction = transactions.first(where: { $0.id == transactionID }),
-                           let draft = DiningExpenseEditDraft(transaction: transaction, locale: locale) {
+                           let draft = DiningExpenseEditDraft(transaction: transaction, catalog: catalog) {
                             onEdit(draft)
                         }
                     } label: {
@@ -147,106 +194,142 @@ private struct BookkeepingTransactionDetailQueryContent: View {
         }
     }
 
-    /// 展示详情字段和账户生命周期状态。
+    /// 一张收据式的卡片写完摘要和各项资料，删除操作单独放在卡片下方。
     @ViewBuilder
     private func detailContent(
         _ presentation: BookkeepingTransactionDetailPresentation
     ) -> some View {
-        Form {
+        List {
             Section {
-                LabeledContent(
-                    AccountLocalization.string("expense.edit.title.field", locale: locale),
-                    value: presentation.title
-                )
-                .accessibilityIdentifier("bookkeeping-detail-title")
-
-                LabeledContent(
-                    AccountLocalization.string("bookkeeping.entry.type", locale: locale),
-                    value: presentation.entryType.localizedTitle(locale: locale)
-                )
-                .accessibilityIdentifier("bookkeeping-detail-type")
-
-                LabeledContent(
-                    AccountLocalization.string(
-                        "bookkeeping.search.detail.category",
-                        locale: locale
-                    ),
-                    value: presentation.categoryTitle
-                )
-                .accessibilityIdentifier("bookkeeping-detail-category")
-
-                LabeledContent(
-                    AccountLocalization.string(
-                        "bookkeeping.search.detail.amount",
-                        locale: locale
-                    ),
-                    value: presentation.formattedAmount
-                )
-                .accessibilityIdentifier("bookkeeping-detail-amount")
-
-                LabeledContent(
-                    AccountLocalization.string(
-                        "bookkeeping.search.detail.date",
-                        locale: locale
-                    ),
-                    value: presentation.formattedDate
-                )
-                .accessibilityIdentifier("bookkeeping-detail-date")
+                receipt(presentation)
+                    // 方框画在内容自己的背景上；画成系统行底会被行的圆角裁掉四个角。
+                    .listRowInsets(EdgeInsets(top: 8, leading: 2, bottom: 8, trailing: 2))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
 
-            Section {
-                LabeledContent(
-                    AccountLocalization.string(
-                        "bookkeeping.search.detail.account",
-                        locale: locale
-                    ),
-                    value: presentation.accountName ?? accountStatusText(
-                        presentation.accountState
-                    )
-                )
-                .accessibilityIdentifier("bookkeeping-detail-account")
-
-                LabeledContent(
-                    AccountLocalization.string(
-                        "bookkeeping.search.detail.account_status",
-                        locale: locale
-                    ),
-                    value: accountStatusText(presentation.accountState)
-                )
-                .accessibilityIdentifier("bookkeeping-detail-account-status")
-            }
-
-            if let note = presentation.note {
-                Section {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(
-                            AccountLocalization.string(
-                                "account.detail.note",
-                                locale: locale
-                            )
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        Text(note)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier("bookkeeping-detail-note")
-                }
-            }
             if presentation.canEdit {
                 Section {
                     Button(role: .destructive) {
                         onDelete(presentation)
                     } label: {
                         Label(AccountLocalization.string("bookkeeping.delete.action", locale: locale), systemImage: "trash")
+                            .foregroundStyle(Color(.ledgerRed))
+                            .frame(maxWidth: .infinity)
                     }
+                    .ledgerRow(seed: 57, showsRule: false)
                     .accessibilityIdentifier("bookkeeping-detail-delete")
                 }
             }
         }
+        .listStyle(.insetGrouped)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("bookkeeping-detail-content")
+    }
+
+    /// 收据卡片：上半是摘要，一条细线之后逐行列出类型、分类、账户和备注。
+    private func receipt(
+        _ presentation: BookkeepingTransactionDetailPresentation
+    ) -> some View {
+        VStack(spacing: 20) {
+            transactionSummary(presentation)
+
+            HandDrawnRule(seed: 52)
+                .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                .frame(height: 3)
+                .accessibilityHidden(true)
+
+            VStack(spacing: 12) {
+                LedgerField(
+                    title: AccountLocalization.string("bookkeeping.entry.type", locale: locale),
+                    value: presentation.entryType.localizedTitle(locale: locale)
+                )
+                .accessibilityIdentifier("bookkeeping-detail-type")
+
+                LedgerField(
+                    title: AccountLocalization.string("bookkeeping.search.detail.category", locale: locale),
+                    value: presentation.categoryTitle
+                )
+                .accessibilityIdentifier("bookkeeping-detail-category")
+
+                LedgerField(
+                    title: AccountLocalization.string("bookkeeping.search.detail.account", locale: locale),
+                    value: presentation.accountName ?? accountStatusText(presentation.accountState)
+                )
+                .accessibilityIdentifier("bookkeeping-detail-account")
+
+                // 账户正常时这一行只会写"正常"，没有信息量；只在停用、删除等异常状态下出现。
+                if presentation.accountState != .active {
+                    LedgerField(
+                        title: AccountLocalization.string("bookkeeping.search.detail.account_status", locale: locale),
+                        value: accountStatusText(presentation.accountState)
+                    )
+                    .accessibilityIdentifier("bookkeeping-detail-account-status")
+                }
+
+                if presentation.isRecurring {
+                    LedgerField(
+                        title: AccountLocalization.string("bookkeeping.search.detail.source", locale: locale),
+                        value: AccountLocalization.string("bookkeeping.search.detail.source.recurring", locale: locale)
+                    )
+                    .accessibilityIdentifier("bookkeeping-detail-recurring")
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 24)
+        .padding(.bottom, 20)
+        .frame(maxWidth: .infinity)
+        .background {
+            HandDrawnBox(cornerRadius: 22, seed: 51)
+                .stroke(
+                    Color.primary.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                )
+        }
+    }
+
+    /// 收据式摘要突出交易名称和带收支方向的金额，同时保留字段语义供辅助功能读取。
+    private func transactionSummary(
+        _ presentation: BookkeepingTransactionDetailPresentation
+    ) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: presentation.categorySymbolName)
+                .font(.title2.weight(.medium))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 60, height: 60)
+                .background(Color.accentColor.opacity(0.08), in: HandDrawnBlob(seed: presentation.id.handDrawnSeed))
+                .accessibilityHidden(true)
+
+            VStack(spacing: 8) {
+                Text(presentation.title)
+                    .font(.title3.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel(Text(
+                        "\(AccountLocalization.string(titleFieldKey(presentation), locale: locale)), \(presentation.title)"
+                    ))
+                    .accessibilityIdentifier("bookkeeping-detail-title")
+
+                Text(presentation.formattedAmount)
+                    .font(.system(.largeTitle, design: .serif, weight: .medium).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .accessibilityLabel(Text(
+                        "\(AccountLocalization.string("bookkeeping.search.detail.amount", locale: locale)), \(presentation.formattedAmount)"
+                    ))
+                    .accessibilityIdentifier("bookkeeping-detail-amount")
+
+                Text(presentation.formattedDate)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(Text(
+                        "\(AccountLocalization.string("bookkeeping.search.detail.date", locale: locale)), \(presentation.formattedDate)"
+                    ))
+                    .accessibilityIdentifier("bookkeeping-detail-date")
+            }
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
     }
 
     /// 流水缺失、失效或损坏时的安全降级状态。
@@ -276,4 +359,23 @@ private struct BookkeepingTransactionDetailQueryContent: View {
     ) -> String {
         state.localizedTitle(locale: locale)
     }
+
+    /// 主标题播报时的字段名：主标题是备注时读「备注」，回退到分类名时读「分类」。
+    private func titleFieldKey(_ presentation: BookkeepingTransactionDetailPresentation) -> String {
+        presentation.note == nil ? "bookkeeping.search.detail.category" : "account.detail.note"
+    }
 }
+
+#if DEBUG
+#Preview("Transaction receipt · populated") {
+    if let container = try? HomeDesignPreviewData.makeContainer(),
+       let transactions = try? container.mainContext.fetch(FetchDescriptor<AccountTransaction>()),
+       let transaction = transactions.first {
+        NavigationStack {
+            BookkeepingTransactionDetailView(transactionID: transaction.id)
+        }
+        .modelContainer(container)
+        .environment(\.locale, Locale(identifier: "zh-Hans"))
+    }
+}
+#endif

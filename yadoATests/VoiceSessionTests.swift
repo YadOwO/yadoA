@@ -1,0 +1,632 @@
+import Foundation
+import SwiftData
+import Testing
+@testable import yadoA
+
+/// 用假接口驱动语音记账会话循环：本地结束本轮、追问、失败处理、撤销与闲置结束。
+@Suite("语音记账会话", .serialized)
+@MainActor
+struct VoiceSessionTests {
+    @Test("canFinishLocally 且全部成功时只请求一次，在本地生成结果并追加为 assistant 事件")
+    func finishesLocallyWithSingleRequest() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [.success(.toolCalls([fixture.createCall("c1", amount: "28", note: "午饭")], canFinishLocally: true))]
+        _ = HomeRecentEntryHighlight.shared.consume()
+        // 用户正看着首页时语音记账才登记首页提示
+        HomeRecentEntryHighlight.shared.homeDidAppear()
+        defer { HomeRecentEntryHighlight.shared.homeDidDisappear() }
+
+        await fixture.session.send("  午饭 28  ")
+
+        #expect(fixture.api.requests.count == 1)
+        let request = try #require(fixture.api.requests.first)
+        #expect(request.locale == "zh-Hans")
+        #expect(request.events == [.user(text: "午饭 28", selectedOptionId: nil)])
+        #expect(request.accounts.map(\.isActive) == [true, false])
+        #expect(request.defaultAccountId == nil)
+
+        let turn = try #require(fixture.session.latestTurn)
+        guard case let .reply(text) = turn.outcome else {
+            Issue.record("应在本地结束本轮")
+            return
+        }
+        #expect(text.contains("午饭"))
+        #expect(turn.changes.count == 1)
+        #expect(fixture.session.events.count == 4)
+        #expect(fixture.session.events.last == .assistant(text: text))
+        #expect(!fixture.session.isProcessing)
+        #expect(try fixture.balance() == 72)
+        #expect(HomeRecentEntryHighlight.shared.consume().count == 1)
+    }
+
+    @Test("不能本地结束时带结果继续请求，直到追问")
+    func continuesUntilAsk() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.toolCalls([fixture.createCall("c1", amount: "28")], canFinishLocally: false)),
+            .success(.ask(question: "打车花了多少钱？", options: [])),
+        ]
+
+        await fixture.session.send("午饭 28，还打了车")
+
+        #expect(fixture.api.requests.count == 2)
+        let second = try #require(fixture.api.requests.last)
+        guard case .toolResult? = second.events.last else {
+            Issue.record("第二次请求应以执行结果结尾")
+            return
+        }
+        #expect(fixture.session.latestTurn?.outcome == .ask(question: "打车花了多少钱？", options: []))
+        #expect(fixture.session.latestTurn?.offersManualEntry == true)
+        #expect(fixture.session.events.last == .assistant(text: "打车花了多少钱？"))
+    }
+
+    @Test("随调用下发的追问：全部成功时只请求一次，直接显示追问")
+    func followUpAskEndsTurnWithoutRequest() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [.success(.toolCalls(
+            [fixture.createCall("c1", amount: "28", note: "午饭")],
+            canFinishLocally: false,
+            followUpAsk: VoiceFollowUpAsk(question: "打车花了多少钱？")
+        ))]
+
+        await fixture.session.send("午饭 28，打车")
+
+        #expect(fixture.api.requests.count == 1)
+        let turn = try #require(fixture.session.latestTurn)
+        #expect(turn.outcome == .ask(question: "打车花了多少钱？", options: []))
+        #expect(turn.changes.count == 1)
+        #expect(fixture.session.events.count == 4)
+        #expect(fixture.session.events.last == .assistant(text: "打车花了多少钱？"))
+        #expect(try fixture.balance() == 72)
+        #expect(!fixture.session.isProcessing)
+    }
+
+    @Test("随调用下发追问但有调用失败时忽略追问，带结果继续请求")
+    func followUpAskIgnoredOnFailure() async throws {
+        let fixture = try Fixture()
+        let inactiveCall = VoiceToolCall.createTransaction(id: "c1", input: VoiceCreateTransactionInput(
+            type: .expense, amount: "28", accountId: fixture.inactiveAccountID.uuidString, categoryId: "dining",
+            date: "2026-10-20", note: nil, inferredFields: []
+        ))
+        fixture.api.responses = [
+            .success(.toolCalls(
+                [inactiveCall],
+                canFinishLocally: false,
+                followUpAsk: VoiceFollowUpAsk(question: "打车花了多少钱？")
+            )),
+            .success(.reply(text: "这个账户已停用")),
+        ]
+
+        await fixture.session.send("午饭 28 用旧卡，打车")
+
+        #expect(fixture.api.requests.count == 2)
+        #expect(fixture.session.latestTurn?.outcome == .reply("这个账户已停用"))
+    }
+
+    @Test("工具执行失败时即使允许本地结束也要继续请求，让模型告知用户")
+    func toolFailureRequiresFollowUp() async throws {
+        let fixture = try Fixture()
+        let inactiveCall = VoiceToolCall.createTransaction(id: "c1", input: VoiceCreateTransactionInput(
+            type: .expense, amount: "28", accountId: fixture.inactiveAccountID.uuidString, categoryId: "dining",
+            date: "2026-10-20", note: nil, inferredFields: []
+        ))
+        fixture.api.responses = [
+            .success(.toolCalls([inactiveCall], canFinishLocally: true)),
+            .success(.reply(text: "这个账户已停用")),
+        ]
+
+        await fixture.session.send("午饭 28 用旧卡")
+
+        #expect(fixture.api.requests.count == 2)
+        #expect(fixture.session.latestTurn?.outcome == .reply("这个账户已停用"))
+        #expect(fixture.session.latestTurn?.changes.isEmpty == true)
+    }
+
+    @Test("还没写入就失败时移出本轮事件，可以重说")
+    func failureBeforeWriteDropsTurnEvents() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [.failure(.rateLimited(isDaily: true))]
+
+        await fixture.session.send("午饭 28")
+
+        let turn = try #require(fixture.session.latestTurn)
+        #expect(turn.outcome == .failed(.rateLimited(isDaily: true)))
+        #expect(!turn.isInContext)
+        #expect(fixture.session.events.isEmpty)
+        #expect(fixture.session.undoableTurn == nil)
+    }
+
+    @Test("计费轮次 ID：同一句的续步沿用，回答追问时换新的")
+    func reusesBillingTurnIDWithinSentence() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.toolCalls([fixture.createCall("c1", amount: "28")], canFinishLocally: false)),
+            .success(.ask(question: "打车花了多少钱？", options: [])),
+            .success(.toolCalls([fixture.createCall("c2", amount: "25")], canFinishLocally: true)),
+        ]
+
+        await fixture.session.send("午饭 28，还打了车")
+        await fixture.session.send("25")
+
+        let turnIDs = fixture.api.turnIDs
+        #expect(turnIDs.count == 3)
+        #expect(turnIDs[0] == turnIDs[1])
+        #expect(turnIDs[2] != turnIDs[0])
+    }
+
+    @Test("模型档位：每句开始时取一次，同一句的续步沿用，下一句才用新选的档位")
+    func capturesModelTierPerSentence() async throws {
+        let fixture = try Fixture()
+        fixture.tierChoice.tier = .precise
+        fixture.api.responses = [
+            .success(.toolCalls([fixture.createCall("c1", amount: "28")], canFinishLocally: false)),
+            .success(.ask(question: "打车花了多少钱？", options: [])),
+            .success(.toolCalls([fixture.createCall("c2", amount: "25")], canFinishLocally: true)),
+        ]
+
+        await fixture.session.send("午饭 28，还打了车")
+        fixture.tierChoice.tier = .standard
+        await fixture.session.send("25")
+
+        #expect(fixture.api.tiers == [.precise, .precise, .standard])
+    }
+
+    @Test("点数不足时不改动数据，移出本轮事件，可以手动记账或重说")
+    func insufficientPointsDropsTurn() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [.failure(.insufficientPoints)]
+
+        await fixture.session.send("午饭 28")
+
+        let turn = try #require(fixture.session.latestTurn)
+        #expect(turn.outcome == .failed(.insufficientPoints))
+        #expect(turn.offersManualEntry)
+        #expect(!turn.isInContext)
+        #expect(fixture.session.events.isEmpty)
+        #expect(try fixture.balance() == 100)
+    }
+
+    @Test("已经写入后请求失败时保留写入，按已执行内容提示结果")
+    func failureAfterWriteKeepsChanges() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.toolCalls([fixture.createCall("c1", amount: "28", note: "午饭")], canFinishLocally: false)),
+            .failure(.timeout),
+        ]
+
+        await fixture.session.send("午饭 28")
+
+        let turn = try #require(fixture.session.latestTurn)
+        guard case let .reply(text) = turn.outcome else {
+            Issue.record("应按已执行内容提示")
+            return
+        }
+        #expect(text.contains("午饭"))
+        #expect(try fixture.balance() == 72)
+        #expect(fixture.session.events.last == .assistant(text: text))
+        #expect(fixture.session.undoableTurn?.id == turn.id)
+    }
+
+    @Test("撤销一轮回滚全部写入，并把本轮事件移出会话记录")
+    func undoRevertsTurn() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [.success(.toolCalls([
+            fixture.createCall("c1", amount: "28"),
+            fixture.createCall("c2", amount: "35"),
+        ], canFinishLocally: true))]
+        await fixture.session.send("午饭 28，打车 35")
+        #expect(try fixture.balance() == 37)
+
+        fixture.session.undoLatestTurn()
+
+        #expect(try fixture.balance() == 100)
+        #expect(try ModelContext(fixture.container).fetchCount(FetchDescriptor<AccountTransaction>()) == 0)
+        #expect(fixture.session.events.isEmpty)
+        #expect(fixture.session.latestTurn?.isUndone == true)
+        #expect(fixture.session.undoableTurn == nil)
+        #expect(fixture.session.activeChanges.isEmpty)
+        #expect(!fixture.session.hasUndoFailure)
+    }
+
+    @Test("引导新建账户的一轮：要新建账户、不提供手动记账，不进入上下文，再说一次同样的请求")
+    func keepsAccountRequiredTurnOutOfContext() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.accountRequired(text: "还没有可用的账户")),
+            .success(.accountRequired(text: "还没有可用的账户")),
+        ]
+
+        await fixture.session.send("打车 30")
+
+        let turn = try #require(fixture.session.latestTurn)
+        #expect(turn.requiresAccount)
+        #expect(!turn.offersManualEntry)
+        #expect(turn.resultText(locale: fixture.session.locale) == "还没有可用的账户")
+        #expect(fixture.session.events.isEmpty)
+
+        await fixture.session.send("打车 30")
+
+        // 模型看不到上一次的引导，不会照抄成没有按钮的普通回复
+        #expect(fixture.api.requests.last?.events == [.user(text: "打车 30", selectedOptionId: nil)])
+        #expect(fixture.session.latestTurn?.requiresAccount == true)
+        #expect(fixture.session.turns.count == 2)
+    }
+
+    @Test("这一轮已经有写入时才要新建账户：保留写入和上下文，仍然可以撤销")
+    func keepsWrittenTurnWhenAccountRequired() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.toolCalls([fixture.createCall("c1", amount: "28", note: "午饭")], canFinishLocally: false)),
+            .success(.accountRequired(text: "还没有可用的账户")),
+        ]
+
+        await fixture.session.send("午饭 28")
+
+        let turn = try #require(fixture.session.latestTurn)
+        #expect(turn.requiresAccount)
+        #expect(turn.isInContext)
+        #expect(turn.changes.count == 1)
+        #expect(fixture.session.events.last == .assistant(text: "还没有可用的账户"))
+        #expect(fixture.session.undoableTurn?.id == turn.id)
+    }
+
+    @Test("闲置 2 分钟只收起卡片，上下文保留；闲置 30 分钟才结束对话段")
+    func hidesCardThenEndsWhenIdle() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [.success(.reply(text: "我只能帮你记账"))]
+        await fixture.session.send("你好")
+        #expect(fixture.session.isActive)
+
+        fixture.clock.date = fixture.clock.date.addingTimeInterval(60)
+        fixture.session.hideCardIfIdle()
+        #expect(fixture.session.isActive)
+
+        fixture.clock.date = fixture.clock.date.addingTimeInterval(VoiceSession.cardIdleTimeout)
+        fixture.session.hideCardIfIdle()
+        fixture.session.endIfIdle()
+        #expect(!fixture.session.isActive)
+        #expect(!fixture.session.events.isEmpty)
+        #expect(fixture.session.turns.count == 1)
+
+        fixture.clock.date = fixture.clock.date.addingTimeInterval(VoiceSession.contextIdleTimeout)
+        fixture.session.endIfIdle()
+        #expect(fixture.session.events.isEmpty)
+        #expect(fixture.session.turns.isEmpty)
+    }
+
+    @Test("关闭卡片后接着说，卡片只显示新的一轮，模型仍能看到之前的内容")
+    func closingCardKeepsContext() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.reply(text: "第一句")),
+            .success(.reply(text: "第二句")),
+        ]
+        await fixture.session.send("一")
+        fixture.session.closeCard()
+        #expect(!fixture.session.isActive)
+
+        await fixture.session.send("二")
+
+        #expect(fixture.session.cardTurns.map(\.userText) == ["二"])
+        #expect(fixture.session.turns.count == 2)
+        let lastRequest = try #require(fixture.api.requests.last)
+        #expect(lastRequest.events.contains(.user(text: "一", selectedOptionId: nil)))
+    }
+
+    @Test("事件数达到上限后自动开新段，不提示对话太长")
+    func rollsOverToNewSegment() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = Array(
+            repeating: .success(.reply(text: "好")),
+            count: VoiceSessionLimits.segmentEventLimit / 2 + 1
+        )
+        for index in 0..<(VoiceSessionLimits.segmentEventLimit / 2) {
+            await fixture.session.send("第 \(index) 句")
+        }
+        #expect(fixture.session.events.count == VoiceSessionLimits.segmentEventLimit)
+
+        await fixture.session.send("新的一句")
+
+        #expect(fixture.session.turns.map(\.userText) == ["新的一句"])
+        #expect(fixture.session.latestTurn?.outcome == .reply("好"))
+        #expect(fixture.api.requests.last?.events.count == 1)
+    }
+
+    @Test("等待回答追问时不开新段，回答能接上追问")
+    func keepsSegmentWhileAwaitingAnswer() async throws {
+        let fixture = try Fixture()
+        let replyCount = VoiceSessionLimits.segmentEventLimit / 2 - 1
+        fixture.api.responses = Array(repeating: .success(.reply(text: "好")), count: replyCount) + [
+            .success(.ask(question: "多少钱？", options: [])),
+            .success(.reply(text: "记好了")),
+        ]
+        for index in 0..<replyCount {
+            await fixture.session.send("第 \(index) 句")
+        }
+        await fixture.session.send("打车")
+        #expect(fixture.session.events.count == VoiceSessionLimits.segmentEventLimit)
+
+        await fixture.session.send("35")
+
+        #expect(fixture.session.turns.count == replyCount + 2)
+        #expect(fixture.api.requests.last?.events.count == VoiceSessionLimits.segmentEventLimit + 1)
+    }
+
+    @Test("图片随这一轮发送，结束后从事件里去掉")
+    func removesImagesAfterTurn() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.reply(text: "没有找到可以记账的内容")),
+            .success(.reply(text: "好")),
+        ]
+        let image = VoiceImageUpload(fileName: "a.jpg", data: Data([1, 2, 3]))
+
+        await fixture.session.send("", images: [image])
+
+        #expect(fixture.session.latestTurn?.userText == "")
+        #expect(fixture.session.latestTurn?.imageFileNames == ["a.jpg"])
+        let firstRequest = try #require(fixture.api.requests.first)
+        let expected = VoiceSessionImage(data: Data([1, 2, 3]).base64EncodedString(), mediaType: "image/jpeg")
+        guard case let .userWithImages(text, images) = firstRequest.events.first else {
+            Issue.record("第一条事件应该带图片")
+            return
+        }
+        #expect(!text.isEmpty)
+        #expect(images == [expected])
+
+        await fixture.session.send("好的")
+
+        let lastRequest = try #require(fixture.api.requests.last)
+        #expect(!lastRequest.events.contains { event in
+            if case .userWithImages = event { return true }
+            return false
+        })
+    }
+
+    @Test("以追问结束时保留图片，回答之后才去掉")
+    func keepsImagesWhileAwaitingAnswer() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.ask(question: "第二笔多少钱？", options: [])),
+            .success(.reply(text: "记好了")),
+        ]
+        let image = VoiceImageUpload(fileName: "a.jpg", data: Data([1]))
+
+        await fixture.session.send("记一下", images: [image])
+        await fixture.session.send("35")
+
+        let answerRequest = try #require(fixture.api.requests.last)
+        #expect(answerRequest.events.contains { event in
+            if case .userWithImages = event { return true }
+            return false
+        })
+        #expect(!fixture.session.events.contains { event in
+            if case .userWithImages = event { return true }
+            return false
+        })
+    }
+
+    @Test("每轮结束和撤销都写入对话记录，结束对话段后记录还在")
+    func savesTurnsToHistory() async throws {
+        let fixture = try Fixture()
+        let history = AIChatHistoryStore(
+            container: fixture.container,
+            images: AIChatImageStore(directory: URL.temporaryDirectory.appending(path: UUID().uuidString))
+        )
+        let session = VoiceSession(
+            container: fixture.container,
+            api: fixture.api,
+            locale: Locale(identifier: "zh-Hans"),
+            timingStore: fixture.timingStore,
+            history: history,
+            now: { fixture.clock.date }
+        )
+        fixture.api.responses = [.success(.toolCalls(
+            [fixture.createCall("c1", amount: "28", note: "午饭")], canFinishLocally: true
+        ))]
+
+        await session.send("午饭 28")
+
+        history.loadLatest()
+        let saved = try #require(history.turns.first)
+        #expect(saved.userText == "午饭 28")
+        #expect(saved.changes.count == 1)
+        #expect(!saved.isUndone)
+
+        session.undoLatestTurn()
+        history.loadLatest()
+        #expect(history.turns.first?.isUndone == true)
+
+        session.end()
+        history.loadLatest()
+        #expect(history.turns.count == 1)
+        #expect(session.turns.isEmpty)
+    }
+
+    @Test("空白输入不发送")
+    func ignoresBlankInput() async throws {
+        let fixture = try Fixture()
+        await fixture.session.send("   ")
+        #expect(fixture.api.requests.isEmpty)
+        #expect(!fixture.session.isActive)
+    }
+
+    @Test("本地结果提示按新增、修改、删除分段")
+    func summaryText() {
+        let locale = Locale(identifier: "zh-Hans")
+        func change(_ kind: VoiceEntryChange.Kind, _ label: String) -> VoiceChange {
+            .entry(VoiceEntryChange(
+                kind: kind, transactionID: UUID(), transactionDay: 20261020, row: nil, accountName: nil, label: label,
+                formattedAmount: "¥1.00", inferredFields: [], inverse: .delete(UUID()), highlight: nil
+            ))
+        }
+        let text = VoiceSessionSummary.text(
+            for: [change(.created, "午饭"), change(.created, "打车"), change(.deleted, "奶茶")],
+            locale: locale
+        )
+        #expect(text.contains("2"))
+        #expect(text.contains("午饭"))
+        #expect(text.contains("打车"))
+        #expect(text.contains("奶茶"))
+        #expect(VoiceSessionSummary.text(for: [], locale: locale).isEmpty == false)
+    }
+
+    @Test("每句记录耗时：请求带句序号与请求序号，结束会话后重新编号")
+    func recordsTurnTiming() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.toolCalls([fixture.createCall("c1", amount: "28")], canFinishLocally: false)),
+            .success(.reply(text: "已记 1 笔")),
+            .success(.reply(text: "好的")),
+        ]
+
+        await fixture.session.send("午饭 28", speechFinalizeDuration: .milliseconds(180))
+        await fixture.session.send("没事了")
+
+        let traces = fixture.api.traces
+        #expect(traces.map(\.turn) == [1, 1, 2])
+        #expect(traces.map(\.request) == [1, 2, 1])
+        #expect(Set(traces.map(\.sessionID)).count == 1)
+
+        let first = try #require(fixture.session.turns.first?.timing)
+        #expect(first.turnIndex == 1)
+        #expect(first.outcome == .reply)
+        #expect(first.speechFinalizeMs == 180)
+        #expect(first.requests.map(\.outcome) == [.toolCalls, .reply])
+        #expect(first.requests.first?.toolCallCount == 1)
+        #expect(first.requests.first?.executionMs != nil)
+        #expect(first.requests.last?.executionMs == nil)
+        #expect(first.requests.first?.server?.totalMs == 2104)
+        #expect(first.requests.first?.requestID == "req-1")
+        #expect(first.totalMs >= 180)
+        #expect(fixture.session.turns.last?.timing?.speechFinalizeMs == nil)
+        #expect(fixture.timingStore.records.map(\.turnIndex) == [1, 2])
+
+        fixture.session.end()
+        fixture.api.responses = [.failure(.serviceUnavailable)]
+        await fixture.session.send("午饭 28")
+
+        let afterEnd = try #require(fixture.api.traces.last)
+        #expect(afterEnd.turn == 1)
+        #expect(afterEnd.sessionID != traces[0].sessionID)
+        let failed = try #require(fixture.session.latestTurn?.timing)
+        #expect(failed.outcome == .failed)
+        #expect(failed.requests.map(\.outcome) == [.failed])
+    }
+
+    // MARK: - 辅助
+
+    /// 一次测试使用的容器、账户、时钟、模型档位与假接口。
+    @MainActor
+    private final class Fixture {
+        let container: ModelContainer
+        let accountID: UUID
+        let inactiveAccountID: UUID
+        let api: FakeVoiceSessionAPI
+        let clock: TestClock
+        let tierChoice: TestTierChoice
+        let timingStore = VoiceTimingStore(fileURL: nil)
+        let session: VoiceSession
+
+        init() throws {
+            container = try AccountDataContainer.inMemory().modelContainer
+            let context = ModelContext(container)
+            let active = Account(
+                id: UUID(), typeRawValue: AccountType.cash.rawValue, templateID: nil, name: "现金",
+                note: nil, lastFourDigits: nil, balance: 100, currencyCode: "CNY",
+                createdAt: Date(timeIntervalSince1970: 1), updatedAt: .now
+            )
+            let inactive = Account(
+                id: UUID(), typeRawValue: AccountType.cash.rawValue, templateID: nil, name: "旧卡",
+                note: nil, lastFourDigits: nil, balance: 0, currencyCode: "CNY",
+                createdAt: Date(timeIntervalSince1970: 0), updatedAt: .now, deactivatedAt: .now
+            )
+            context.insert(active)
+            context.insert(inactive)
+            try context.save()
+            accountID = active.id
+            inactiveAccountID = inactive.id
+
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+            let api = FakeVoiceSessionAPI()
+            let clock = TestClock()
+            let tierChoice = TestTierChoice()
+            self.api = api
+            self.clock = clock
+            self.tierChoice = tierChoice
+            session = VoiceSession(
+                container: container,
+                api: api,
+                modelTier: { tierChoice.tier },
+                locale: Locale(identifier: "zh-Hans"),
+                calendar: calendar,
+                timingStore: timingStore,
+                now: { clock.date }
+            )
+        }
+
+        func createCall(_ id: String, amount: String, note: String? = nil) -> VoiceToolCall {
+            .createTransaction(id: id, input: VoiceCreateTransactionInput(
+                type: .expense, amount: amount, accountId: accountID.uuidString, categoryId: "dining",
+                date: "2026-10-20", note: note, inferredFields: []
+            ))
+        }
+
+        func balance() throws -> Decimal {
+            try #require(ModelContext(container).fetch(FetchDescriptor<Account>()).first { $0.id == accountID }).balance
+        }
+    }
+}
+
+/// 可手动推进的时钟。
+@MainActor
+private final class TestClock {
+    /// 当前时间。
+    var date = Date(timeIntervalSince1970: 1_792_470_600)
+}
+
+/// 用户当前选的模型档位，用例中途可以改。
+@MainActor
+private final class TestTierChoice {
+    /// 当前档位；为 nil 时不带档位。
+    var tier: AIModelTier?
+}
+
+/// 按顺序返回预设响应、记录每次请求的假接口；预设用完后视为服务不可用。
+@MainActor
+private final class FakeVoiceSessionAPI: VoiceSessionTurnSending {
+    /// 依次返回的响应。
+    var responses: [Result<VoiceSessionTurnResponse, VoiceSessionAPIError>] = []
+
+    /// 收到的请求。
+    private(set) var requests: [VoiceSessionTurnRequest] = []
+
+    /// 每次请求的追踪信息。
+    private(set) var traces: [VoiceRequestTrace] = []
+
+    /// 每次请求带的计费轮次 ID。
+    private(set) var turnIDs: [UUID] = []
+
+    /// 每次请求带的模型档位。
+    private(set) var tiers: [AIModelTier?] = []
+
+    /// 每次请求填回的服务端耗时，模拟响应头中的 `Server-Timing`。
+    var serverTiming = "pre;dur=1.2, prepare;dur=0.4, ttft-1;dur=900, gen-1;dur=1200;desc=\"in=3000 out=96\", check-1;dur=2, total;dur=2104"
+
+    func send(
+        _ request: VoiceSessionTurnRequest,
+        turnID: UUID,
+        tier: AIModelTier?,
+        trace: VoiceRequestTrace
+    ) async throws -> VoiceSessionTurnResponse {
+        requests.append(request)
+        traces.append(trace)
+        turnIDs.append(turnID)
+        tiers.append(tier)
+        trace.server = VoiceServerTiming.parse(serverTiming)
+        trace.requestID = "req-\(traces.count)"
+        guard !responses.isEmpty else { throw VoiceSessionAPIError.serviceUnavailable }
+        return try responses.removeFirst().get()
+    }
+}

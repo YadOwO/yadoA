@@ -1,12 +1,6 @@
 import Combine
 import Foundation
 
-/// 收支流水编辑草稿的校验错误。
-enum DiningExpenseEditDraftValidationError: Error, Equatable {
-    /// 完整编辑必须保留非空标题。
-    case titleRequired
-}
-
 /// 完整编辑一笔收支流水的值类型草稿，不直接修改查询中的持久化模型。
 struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
     /// 需要更新的流水 UUID。
@@ -18,14 +12,11 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
     /// 修改后的收支方向。
     var entryType: BookkeepingEntryType
 
-    /// 支出方向下使用的分类。
-    var category: ExpenseCategory
+    /// 支出方向下使用的分类 key。
+    var expenseCategoryKey: String
 
-    /// 收入方向下使用的分类。
-    var incomeCategory: IncomeCategory
-
-    /// 用户可编辑的流水标题。
-    var title: String
+    /// 收入方向下使用的分类 key。
+    var incomeCategoryKey: String
 
     /// 系统数字键盘维护的金额字符缓冲区。
     var amountText: String
@@ -33,7 +24,7 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
     /// 公历业务日；修改日期只影响归属与展示，不重放历史余额。
     var transactionDay: Int
 
-    /// 可选备注；空白内容在保存时归一为 nil。
+    /// 可选备注；空白内容在保存时归一为 nil，展示层随之回退到分类名称。
     var note: String
 
     /// 创建一份收支流水完整编辑草稿。
@@ -42,9 +33,8 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
     ///   - id: 需要更新的流水 UUID。
     ///   - accountID: 修改后绑定的启用账户。
     ///   - entryType: 修改后的收入或支出方向。
-    ///   - category: 支出分类。
-    ///   - incomeCategory: 收入分类。
-    ///   - title: 当前展示标题；旧数据回退到分类默认标题。
+    ///   - expenseCategoryKey: 支出分类 key。
+    ///   - incomeCategoryKey: 收入分类 key。
     ///   - amountText: 使用英文句点的小数金额字符。
     ///   - transactionDay: 有效的公历业务日。
     ///   - note: 允许为空的备注。
@@ -52,9 +42,8 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
         id: UUID,
         accountID: UUID,
         entryType: BookkeepingEntryType = .expense,
-        category: ExpenseCategory = .dining,
-        incomeCategory: IncomeCategory = .salary,
-        title: String,
+        expenseCategoryKey: String = ExpenseCategory.dining.rawValue,
+        incomeCategoryKey: String = IncomeCategory.salary.rawValue,
         amountText: String,
         transactionDay: Int,
         note: String = ""
@@ -62,47 +51,42 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
         self.id = id
         self.accountID = accountID
         self.entryType = entryType
-        self.category = category
-        self.incomeCategory = incomeCategory
-        self.title = title
+        self.expenseCategoryKey = expenseCategoryKey
+        self.incomeCategoryKey = incomeCategoryKey
         self.amountText = amountText
         self.transactionDay = transactionDay
         self.note = note
     }
 
     /// 从合法收入或支出初始化完整草稿；余额调整与损坏数据不进入编辑流程。
-    init?(transaction: AccountTransaction, locale: Locale = .current) {
+    ///
+    /// - Parameters:
+    ///   - transaction: 需要编辑的流水。
+    ///   - catalog: 解析另一方向默认分类使用的分类目录。
+    init?(
+        transaction: AccountTransaction,
+        catalog: BookkeepingCategoryCatalog = .presets
+    ) {
         guard transaction.currencyCode == "CNY",
               TransactionDay.isValid(transaction.transactionDay),
-              let payload = try? transaction.validatedPayload()
+              let payload = try? transaction.validatedPayload(),
+              let entry = payload.bookkeepingAmount,
+              let reference = payload.categoryReference
         else { return nil }
-        let amount: Decimal
-        let entryType: BookkeepingEntryType
-        var category: ExpenseCategory = .dining
-        var incomeCategory: IncomeCategory = .salary
-        let categoryTitle: String
-        switch payload {
-        case let .expense(value, expenseAmount):
-            entryType = .expense
-            category = value
-            amount = expenseAmount
-            categoryTitle = value.localizedTitle(locale: locale)
-        case let .income(value, incomeAmount):
-            entryType = .income
-            incomeCategory = value
-            amount = incomeAmount
-            categoryTitle = value.localizedTitle(locale: locale)
-        case .balanceAdjustment:
-            return nil
+        // 另一方向使用目录的默认分类，用户在编辑时切换方向也能立即得到可选分类。
+        var expenseCategoryKey = catalog.defaultKey(for: .expense)
+        var incomeCategoryKey = catalog.defaultKey(for: .income)
+        switch reference.direction {
+        case .expense: expenseCategoryKey = reference.key
+        case .income: incomeCategoryKey = reference.key
         }
-        var value = amount
+        var value = entry.amount
         self.init(
             id: transaction.id,
             accountID: transaction.accountID,
-            entryType: entryType,
-            category: category,
-            incomeCategory: incomeCategory,
-            title: transaction.title ?? categoryTitle,
+            entryType: entry.entryType,
+            expenseCategoryKey: expenseCategoryKey,
+            incomeCategoryKey: incomeCategoryKey,
             amountText: NSDecimalString(&value, Locale(identifier: "en_US_POSIX")),
             transactionDay: transaction.transactionDay,
             note: transaction.note ?? ""
@@ -111,17 +95,14 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
 
     /// 复用新增收支的校验工厂，生成用于替换现有字段的已校验值。
     func validatedTransaction(savedAt: Date) throws -> AccountTransaction {
-        guard hasValidTitle else { throw DiningExpenseEditDraftValidationError.titleRequired }
-        let transaction = try AccountTransaction.validating(
+        try AccountTransaction.validating(
             draft: DiningExpenseDraft(
                 id: id, accountID: accountID, entryType: entryType,
-                category: category, incomeCategory: incomeCategory,
+                expenseCategoryKey: expenseCategoryKey, incomeCategoryKey: incomeCategoryKey,
                 amountText: amountText, transactionDay: transactionDay, note: note
             ),
             savedAt: savedAt
         )
-        transaction.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        return transaction
     }
 
     /// 按页面统一的英文句点格式解析精确金额。
@@ -130,11 +111,6 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
               amount > 0
         else { return nil }
         return amount
-    }
-
-    /// 标题是否包含可持久化的有效内容。
-    var hasValidTitle: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }
 
@@ -162,6 +138,12 @@ final class DiningExpenseEditFlow: ObservableObject {
     /// 当前提交流程状态。
     @Published private(set) var submissionState: DiningExpenseEditSubmissionState = .editing
 
+    /// 草稿分类已连同流水一起被删除、需要用户重新选择分类的收支方向。
+    @Published private(set) var directionsAwaitingCategory: Set<BookkeepingEntryType> = []
+
+    /// 所编辑的流水本身是否已被删除（例如随原分类一起删除），删除后不能再保存。
+    @Published private(set) var isTransactionRemoved = false
+
     /// 由上层注入的本地更新动作。
     private let saveAction: DiningExpenseEditSaveAction
 
@@ -184,10 +166,12 @@ final class DiningExpenseEditFlow: ObservableObject {
         submissionState == .failed
     }
 
-    /// 标题、金额与业务日均有效且当前没有保存任务时允许提交。
+    /// 金额与业务日均有效、当前方向的分类仍然可用、流水仍然存在且没有保存任务时允许提交。
     var canSubmit: Bool {
-        draft.hasValidTitle && draft.amount != nil
-            && TransactionDay.isValid(draft.transactionDay) && !isSaving
+        draft.amount != nil
+            && TransactionDay.isValid(draft.transactionDay)
+            && !directionsAwaitingCategory.contains(draft.entryType)
+            && !isTransactionRemoved && !isSaving
     }
 
     /// 通过同一入口修改分类、账户、日期等字段；提交期间保持草稿稳定。
@@ -197,11 +181,31 @@ final class DiningExpenseEditFlow: ObservableObject {
         markAsEditing()
     }
 
-    /// 接收标题输入，并在修改后清除失败状态。
-    func updateTitle(_ title: String) {
+    /// 选择当前方向下的分类；若该方向的分类刚被删除，重新选择后恢复可提交。
+    ///
+    /// - Parameter key: 用户在分类面板中点选的分类 key。
+    func selectCategory(key: String) {
         guard !isSaving else { return }
-        draft.title = title
+        switch draft.entryType {
+        case .expense: draft.expenseCategoryKey = key
+        case .income: draft.incomeCategoryKey = key
+        }
+        directionsAwaitingCategory.remove(draft.entryType)
         markAsEditing()
+    }
+
+    /// 当前方向的草稿分类在分类管理里连同流水一起删除后，撤销这次选择，要求用户重新选择。
+    ///
+    /// 草稿里的 key 保持原值，只标记失效，避免把空字符串当成分类写进草稿。
+    func clearCategory() {
+        guard !isSaving else { return }
+        directionsAwaitingCategory.insert(draft.entryType)
+        markAsEditing()
+    }
+
+    /// 所编辑的流水已不存在时调用，此后草稿不再允许提交。
+    func markTransactionRemoved() {
+        isTransactionRemoved = true
     }
 
     /// 接收系统数字键盘输入，统一小数点格式并限制最多两位小数。

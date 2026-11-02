@@ -43,6 +43,12 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
     /// canonical 默认记账账户偏好；为 `nil` 表示存储中还没有偏好记录。
     let bookkeepingPreference: BackupBookkeepingPreference?
 
+    /// 全部分类设置，包含预置分类的排序、自定义分类以及删除墓碑。
+    let categories: [BackupCategory]
+
+    /// 全部周期记账规则，包含已暂停和已结束的。
+    let recurringRules: [BackupRecurringRule]
+
     /// 从完整业务快照构造备份信封。
     init(
         formatVersion: Int = BackupFormatVersion.current,
@@ -51,7 +57,9 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
         appBuild: String,
         accounts: [BackupAccount],
         transactions: [BackupTransaction],
-        bookkeepingPreference: BackupBookkeepingPreference?
+        bookkeepingPreference: BackupBookkeepingPreference?,
+        categories: [BackupCategory] = [],
+        recurringRules: [BackupRecurringRule] = []
     ) {
         self.formatVersion = formatVersion
         self.exportedAt = exportedAt
@@ -60,6 +68,8 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
         self.accounts = accounts
         self.transactions = transactions
         self.bookkeepingPreference = bookkeepingPreference
+        self.categories = categories
+        self.recurringRules = recurringRules
     }
 
     /// 从备份 JSON 解码信封。
@@ -78,6 +88,8 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
             BackupBookkeepingPreference.self,
             forKey: .bookkeepingPreference
         )
+        categories = try container.decodeIfPresent([BackupCategory].self, forKey: .categories) ?? []
+        recurringRules = try container.decodeIfPresent([BackupRecurringRule].self, forKey: .recurringRules) ?? []
     }
 }
 
@@ -105,7 +117,12 @@ nonisolated struct BackupAccount: Codable, Equatable, Sendable {
     let lastFourDigits: String?
 
     /// 精确十进制余额的字符串表达（`Decimal.description`）。
+    ///
+    /// 只是导出时的缓存值；导入时以期初余额和流水重算，不直接采用。
     let balance: String
+
+    /// 期初余额的字符串表达；旧文件缺少时为 `nil`，导入端由 `balance` 和流水倒推。
+    let openingBalance: String?
 
     /// ISO 4217 货币代码。
     let currencyCode: String
@@ -128,6 +145,7 @@ nonisolated struct BackupAccount: Codable, Equatable, Sendable {
         note = account.note
         lastFourDigits = account.lastFourDigits
         balance = account.balance.description
+        openingBalance = account.openingBalance.description
         currencyCode = account.currencyCode
         createdAt = account.createdAt
         updatedAt = account.updatedAt
@@ -146,6 +164,7 @@ nonisolated struct BackupAccount: Codable, Equatable, Sendable {
         try container.encode(note, forKey: .note)
         try container.encode(lastFourDigits, forKey: .lastFourDigits)
         try container.encode(balance, forKey: .balance)
+        try container.encode(openingBalance, forKey: .openingBalance)
         try container.encode(currencyCode, forKey: .currencyCode)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
@@ -161,6 +180,7 @@ nonisolated struct BackupAccount: Codable, Equatable, Sendable {
         note: String?,
         lastFourDigits: String?,
         balance: String,
+        openingBalance: String? = nil,
         currencyCode: String,
         createdAt: Date,
         updatedAt: Date,
@@ -173,6 +193,7 @@ nonisolated struct BackupAccount: Codable, Equatable, Sendable {
         self.note = note
         self.lastFourDigits = lastFourDigits
         self.balance = balance
+        self.openingBalance = openingBalance
         self.currencyCode = currencyCode
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -192,6 +213,7 @@ nonisolated struct BackupAccount: Codable, Equatable, Sendable {
         note = try container.decodeIfPresent(String.self, forKey: .note)
         lastFourDigits = try container.decodeIfPresent(String.self, forKey: .lastFourDigits)
         balance = try container.decodeIfPresent(String.self, forKey: .balance) ?? "0"
+        openingBalance = try container.decodeIfPresent(String.self, forKey: .openingBalance)
         currencyCode = try container.decodeIfPresent(String.self, forKey: .currencyCode) ?? "CNY"
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? .distantPast
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
@@ -219,9 +241,6 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
     /// 支出/收入的正数字符串金额；其他类型为 `nil`。
     let amount: String?
 
-    /// 用户可选的流水标题。
-    let title: String?
-
     /// 余额调整前值的字符串金额；其他类型为 `nil`。
     let balanceBefore: String?
 
@@ -230,6 +249,9 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
 
     /// 带符号差额的字符串金额；其他类型为 `nil`。
     let balanceDelta: String?
+
+    /// 转账的转入账户 UUID；其他类型为 `nil`。
+    let counterpartAccountID: UUID?
 
     /// ISO 4217 货币代码。
     let currencyCode: String
@@ -243,6 +265,9 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
     /// 流水首次保存时间，用于同业务日内排序。
     let savedAt: Date
 
+    /// 生成这笔流水的周期记账规则；手动记的流水为 `nil`。
+    let recurringRuleID: UUID?
+
     /// 从持久化流水生成值快照。
     init(_ transaction: AccountTransaction) {
         id = transaction.id
@@ -250,18 +275,20 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         type = transaction.typeRawValue
         category = transaction.categoryRawValue
         amount = transaction.amount?.description
-        title = transaction.title
         balanceBefore = transaction.balanceBefore?.description
         balanceAfter = transaction.balanceAfter?.description
         balanceDelta = transaction.balanceDelta?.description
+        counterpartAccountID = transaction.counterpartAccountID
         currencyCode = transaction.currencyCode
         transactionDay = transaction.transactionDay
         note = transaction.note
         savedAt = transaction.savedAt
+        recurringRuleID = transaction.recurringRuleID
     }
 
     /// 编码流水快照；所有字段都写入，`nil` 可选值以 JSON `null` 保留。
     ///
+    /// 只有后来新增的 `recurringRuleID` 在为空时省略：手动记的流水内容哈希不变，升级后不会被当成修改重新上传。
     /// UUID 显式使用小写连字符字符串，避免依赖 Foundation 默认编码的大小写。
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
@@ -270,14 +297,15 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         try container.encode(type, forKey: .type)
         try container.encode(category, forKey: .category)
         try container.encode(amount, forKey: .amount)
-        try container.encode(title, forKey: .title)
         try container.encode(balanceBefore, forKey: .balanceBefore)
         try container.encode(balanceAfter, forKey: .balanceAfter)
         try container.encode(balanceDelta, forKey: .balanceDelta)
+        try container.encode(counterpartAccountID?.backupJSONString, forKey: .counterpartAccountID)
         try container.encode(currencyCode, forKey: .currencyCode)
         try container.encode(transactionDay, forKey: .transactionDay)
         try container.encode(note, forKey: .note)
         try container.encode(savedAt, forKey: .savedAt)
+        try container.encodeIfPresent(recurringRuleID?.backupJSONString, forKey: .recurringRuleID)
     }
 
     /// 成员逐一初始化，供测试构造精确夹具。
@@ -287,28 +315,30 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         type: String,
         category: String?,
         amount: String?,
-        title: String?,
         balanceBefore: String?,
         balanceAfter: String?,
         balanceDelta: String?,
+        counterpartAccountID: UUID? = nil,
         currencyCode: String,
         transactionDay: Int,
         note: String?,
-        savedAt: Date
+        savedAt: Date,
+        recurringRuleID: UUID? = nil
     ) {
         self.id = id
         self.accountID = accountID
         self.type = type
         self.category = category
         self.amount = amount
-        self.title = title
         self.balanceBefore = balanceBefore
         self.balanceAfter = balanceAfter
         self.balanceDelta = balanceDelta
+        self.counterpartAccountID = counterpartAccountID
         self.currencyCode = currencyCode
         self.transactionDay = transactionDay
         self.note = note
         self.savedAt = savedAt
+        self.recurringRuleID = recurringRuleID
     }
 
     /// 从备份 JSON 解码流水快照。
@@ -321,14 +351,221 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         type = try container.decodeIfPresent(String.self, forKey: .type) ?? ""
         category = try container.decodeIfPresent(String.self, forKey: .category)
         amount = try container.decodeIfPresent(String.self, forKey: .amount)
-        title = try container.decodeIfPresent(String.self, forKey: .title)
         balanceBefore = try container.decodeIfPresent(String.self, forKey: .balanceBefore)
         balanceAfter = try container.decodeIfPresent(String.self, forKey: .balanceAfter)
         balanceDelta = try container.decodeIfPresent(String.self, forKey: .balanceDelta)
+        counterpartAccountID = try container.decodeIfPresent(UUID.self, forKey: .counterpartAccountID)
         currencyCode = try container.decodeIfPresent(String.self, forKey: .currencyCode) ?? "CNY"
         transactionDay = try container.decodeIfPresent(Int.self, forKey: .transactionDay) ?? 0
         note = try container.decodeIfPresent(String.self, forKey: .note)
         savedAt = try container.decodeIfPresent(Date.self, forKey: .savedAt) ?? .distantPast
+        recurringRuleID = try container.decodeIfPresent(UUID.self, forKey: .recurringRuleID)
+    }
+}
+
+/// 备份中的周期记账规则快照；字段与 `RecurringRule` 的持久化列一一镜像。云端同步也用它作为内容格式。
+nonisolated struct BackupRecurringRule: Codable, Equatable, Sendable {
+    /// 规则的稳定标识；不得重新生成，每期流水的标识由它计算。
+    let id: UUID
+
+    /// `BookkeepingEntryType.rawValue`。
+    let entryType: String
+
+    /// 记入账户的 UUID；账户可能已被删除，由展示层提示。
+    let accountID: UUID
+
+    /// 收支分类 key。
+    let categoryKey: String
+
+    /// 每期金额的字符串表达（`Decimal.description`）。
+    let amount: String
+
+    /// 可选备注。
+    let note: String?
+
+    /// `RecurringFrequency.rawValue`；未来新增的频率原样保留，不认识的规则不生成。
+    let frequency: String
+
+    /// 排期起始日的 `YYYYMMDD`。
+    let anchorDay: Int
+
+    /// 下一期的 `YYYYMMDD`。
+    let nextDueDay: Int
+
+    /// 结束日期的 `YYYYMMDD`；为 `nil` 表示一直重复。
+    let endDay: Int?
+
+    /// 暂停时间；为 `nil` 表示正常生成。
+    let pausedAt: Date?
+
+    /// 规则创建时间。
+    let createdAt: Date
+
+    /// 最近一次修改时间。
+    let updatedAt: Date
+
+    /// 从持久化规则生成值快照。
+    init(_ rule: RecurringRule) {
+        id = rule.id
+        entryType = rule.entryTypeRawValue
+        accountID = rule.accountID
+        categoryKey = rule.categoryKey
+        amount = rule.amount.description
+        note = rule.note
+        frequency = rule.frequencyRawValue
+        anchorDay = rule.anchorDay
+        nextDueDay = rule.nextDueDay
+        endDay = rule.endDay
+        pausedAt = rule.pausedAt
+        createdAt = rule.createdAt
+        updatedAt = rule.updatedAt
+    }
+
+    /// 编码规则快照；所有字段都写入，`nil` 可选值以 JSON `null` 保留。
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id.backupJSONString, forKey: .id)
+        try container.encode(entryType, forKey: .entryType)
+        try container.encode(accountID.backupJSONString, forKey: .accountID)
+        try container.encode(categoryKey, forKey: .categoryKey)
+        try container.encode(amount, forKey: .amount)
+        try container.encode(note, forKey: .note)
+        try container.encode(frequency, forKey: .frequency)
+        try container.encode(anchorDay, forKey: .anchorDay)
+        try container.encode(nextDueDay, forKey: .nextDueDay)
+        try container.encode(endDay, forKey: .endDay)
+        try container.encode(pausedAt, forKey: .pausedAt)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(updatedAt, forKey: .updatedAt)
+    }
+
+    /// 从备份 JSON 解码规则快照；身份字段严格解码，其余字段缺省时使用安全默认值，由校验拦下。
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        entryType = try container.decodeIfPresent(String.self, forKey: .entryType) ?? ""
+        accountID = try container.decode(UUID.self, forKey: .accountID)
+        categoryKey = try container.decodeIfPresent(String.self, forKey: .categoryKey) ?? ""
+        amount = try container.decodeIfPresent(String.self, forKey: .amount) ?? ""
+        note = try container.decodeIfPresent(String.self, forKey: .note)
+        frequency = try container.decodeIfPresent(String.self, forKey: .frequency) ?? ""
+        anchorDay = try container.decodeIfPresent(Int.self, forKey: .anchorDay) ?? 0
+        nextDueDay = try container.decodeIfPresent(Int.self, forKey: .nextDueDay) ?? 0
+        endDay = try container.decodeIfPresent(Int.self, forKey: .endDay)
+        pausedAt = try container.decodeIfPresent(Date.self, forKey: .pausedAt)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? .distantPast
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
+    }
+
+    /// 稳定 JSON 键名。
+    enum CodingKeys: String, CodingKey {
+        case id
+        case entryType
+        case accountID
+        case categoryKey
+        case amount
+        case note
+        case frequency
+        case anchorDay
+        case nextDueDay
+        case endDay
+        case pausedAt
+        case createdAt
+        case updatedAt
+    }
+}
+
+/// 备份中的分类设置快照；字段与 `BookkeepingCategory` 的持久化列一一镜像。
+nonisolated struct BackupCategory: Codable, Equatable, Sendable {
+    /// 分类行的稳定标识；预置分类由「方向 + key」派生。
+    let id: UUID
+
+    /// `BookkeepingEntryType.rawValue`。
+    let direction: String
+
+    /// 流水引用的分类 key。
+    let key: String
+
+    /// 自定义分类名称；预置分类为 `nil`。
+    let customName: String?
+
+    /// 分类图标。
+    let symbolName: String
+
+    /// 同方向内的展示顺序。
+    let sortIndex: Int
+
+    /// 最近一次修改时间。
+    let updatedAt: Date
+
+    /// 删除时间；非空表示墓碑。
+    let deletedAt: Date?
+
+    /// 删除时流水迁往的分类 key；已删除但为 `nil` 表示流水随分类一并删除。
+    let replacementKey: String?
+
+    /// 从持久化分类生成值快照。
+    init(_ category: BookkeepingCategory) {
+        id = category.id
+        direction = category.directionRawValue
+        key = category.key
+        customName = category.customName
+        symbolName = category.symbolName
+        sortIndex = category.sortIndex
+        updatedAt = category.updatedAt
+        deletedAt = category.deletedAt
+        replacementKey = category.replacementKey
+    }
+
+    /// 成员逐一初始化，供测试构造精确夹具。
+    init(
+        id: UUID,
+        direction: String,
+        key: String,
+        customName: String?,
+        symbolName: String,
+        sortIndex: Int,
+        updatedAt: Date,
+        deletedAt: Date?,
+        replacementKey: String?
+    ) {
+        self.id = id
+        self.direction = direction
+        self.key = key
+        self.customName = customName
+        self.symbolName = symbolName
+        self.sortIndex = sortIndex
+        self.updatedAt = updatedAt
+        self.deletedAt = deletedAt
+        self.replacementKey = replacementKey
+    }
+
+    /// 编码分类快照；所有字段都写入，`nil` 可选值以 JSON `null` 保留。
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id.backupJSONString, forKey: .id)
+        try container.encode(direction, forKey: .direction)
+        try container.encode(key, forKey: .key)
+        try container.encode(customName, forKey: .customName)
+        try container.encode(symbolName, forKey: .symbolName)
+        try container.encode(sortIndex, forKey: .sortIndex)
+        try container.encode(updatedAt, forKey: .updatedAt)
+        try container.encode(deletedAt, forKey: .deletedAt)
+        try container.encode(replacementKey, forKey: .replacementKey)
+    }
+
+    /// 从备份 JSON 解码分类快照；身份字段严格解码，其余字段缺省时使用安全默认值。
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        direction = try container.decode(String.self, forKey: .direction)
+        key = try container.decode(String.self, forKey: .key)
+        customName = try container.decodeIfPresent(String.self, forKey: .customName)
+        symbolName = try container.decodeIfPresent(String.self, forKey: .symbolName) ?? ""
+        sortIndex = try container.decodeIfPresent(Int.self, forKey: .sortIndex) ?? 0
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
+        deletedAt = try container.decodeIfPresent(Date.self, forKey: .deletedAt)
+        replacementKey = try container.decodeIfPresent(String.self, forKey: .replacementKey)
     }
 }
 
@@ -375,6 +612,8 @@ extension BackupFile {
         case accounts
         case transactions
         case bookkeepingPreference
+        case categories
+        case recurringRules
     }
 }
 
@@ -388,6 +627,7 @@ extension BackupAccount {
         case note
         case lastFourDigits
         case balance
+        case openingBalance
         case currencyCode
         case createdAt
         case updatedAt
@@ -403,14 +643,30 @@ extension BackupTransaction {
         case type
         case category
         case amount
-        case title
         case balanceBefore
         case balanceAfter
         case balanceDelta
+        case counterpartAccountID
         case currencyCode
         case transactionDay
         case note
         case savedAt
+        case recurringRuleID
+    }
+}
+
+extension BackupCategory {
+    /// 分类快照的稳定 JSON 键名。
+    enum CodingKeys: String, CodingKey {
+        case id
+        case direction
+        case key
+        case customName
+        case symbolName
+        case sortIndex
+        case updatedAt
+        case deletedAt
+        case replacementKey
     }
 }
 

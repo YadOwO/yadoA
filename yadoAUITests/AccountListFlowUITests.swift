@@ -37,11 +37,16 @@ final class AccountListFlowUITests: XCTestCase {
         XCTAssertFalse(summaryCard.label.isEmpty)
         XCTAssertTrue(summaryCard.label.contains("40"))
 
-        let management = app.buttons["account-list-management"]
+        // 系统菜单保留操作标题，但不会保留 SwiftUI 按钮的 identifier。
+        let management = app.buttons["Account Management"]
+        if !management.exists {
+            app.navigationBars["Accounts"].buttons["More"].tap()
+        }
         XCTAssertTrue(management.waitForExistence(timeout: 2))
         management.tap()
         XCTAssertTrue(app.buttons["account-management-choose-default"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.buttons["account-management-deactivated"].exists)
+        // 没有已停用账户时不显示入口。
+        XCTAssertFalse(app.buttons["account-management-deactivated"].exists)
         app.buttons["account-management-close"].tap()
 
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
@@ -49,17 +54,28 @@ final class AccountListFlowUITests: XCTestCase {
         app.staticTexts["Cash"].firstMatch.tap()
 
         XCTAssertTrue(app.navigationBars["Account Details"].waitForExistence(timeout: 3))
-        XCTAssertTrue(
-            app.tabBars.firstMatch.waitForNonExistence(timeout: 3),
-            "进入账户详情后不应继续展示 Tab Bar"
-        )
+        XCTAssertTrue(app.tabBars.firstMatch.exists, "账户详情保留 Tab Bar")
         XCTAssertEqual(app.staticTexts["account-detail-name"].label, "Cash")
-        XCTAssertEqual(app.staticTexts["account-detail-type"].label, "Type, Cash")
+        // 账户资料直接展示在余额下方，无需展开。
+        XCTAssertEqual(
+            app.descendants(matching: .any)["account-detail-type"].label,
+            "Type, Cash"
+        )
 
         let detailAmount = app.staticTexts["account-detail-amount"]
         XCTAssertTrue(detailAmount.waitForExistence(timeout: 2))
         XCTAssertTrue(detailAmount.label.contains("40"))
         XCTAssertTrue(detailAmount.label.contains("¥"))
+
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Account balance overview"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        app.buttons["account-detail-adjust-balance"].tap()
+        XCTAssertTrue(app.textFields["balance-adjustment-target"].waitForExistence(timeout: 2))
+        app.buttons["balance-adjustment-cancel"].tap()
+        XCTAssertTrue(detailAmount.waitForExistence(timeout: 2))
 
         app.navigationBars["Account Details"].buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))

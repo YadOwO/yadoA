@@ -39,7 +39,7 @@ struct BackupExportServiceTests {
                 id: UUID(),
                 accountID: activeID,
                 entryType: .expense,
-                category: .dining,
+                expenseCategoryKey: ExpenseCategory.dining.rawValue,
                 amountText: "1",
                 transactionDay: 20260902
             ),
@@ -50,7 +50,7 @@ struct BackupExportServiceTests {
                 id: UUID(),
                 accountID: activeID,
                 entryType: .income,
-                incomeCategory: .salary,
+                incomeCategoryKey: IncomeCategory.salary.rawValue,
                 amountText: "100",
                 transactionDay: 20260901
             ),
@@ -127,7 +127,7 @@ struct BackupExportServiceTests {
         #expect(
             accountKeys == [
                 "id", "type", "templateID", "name", "note", "lastFourDigits",
-                "balance", "currencyCode", "createdAt", "updatedAt", "deactivatedAt",
+                "balance", "openingBalance", "currencyCode", "createdAt", "updatedAt", "deactivatedAt",
             ]
         )
         let transactionKeys = Set(
@@ -135,8 +135,8 @@ struct BackupExportServiceTests {
         )
         #expect(
             transactionKeys == [
-                "id", "accountID", "type", "category", "amount", "title",
-                "balanceBefore", "balanceAfter", "balanceDelta", "currencyCode",
+                "id", "accountID", "type", "category", "amount",
+                "balanceBefore", "balanceAfter", "balanceDelta", "counterpartAccountID", "currencyCode",
                 "transactionDay", "note", "savedAt",
             ]
         )

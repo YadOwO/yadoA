@@ -83,11 +83,15 @@ enum AccountDetailPresentationFactory {
     }
 }
 
-/// 账户详情外层负责余额调整 Sheet 与查询刷新生命周期。
+/// 账户详情外层负责余额调整、转账 Sheet 与查询刷新生命周期。
 struct AccountDetailView: View {
     @Environment(\.locale) private var locale
+    @Environment(\.calendar) private var calendar
     @Environment(\.modelContext) private var modelContext
     @State private var adjustmentSeed: BalanceAdjustmentSheetSeed?
+    @State private var transferDraft: TransferDraft?
+    @State private var pendingTransferDeletion: UUID?
+    @State private var isTransferDeleteFailed = false
     @State private var editSeed: AccountEditSheetSeed?
     @State private var queryRefreshToken = UUID()
     @State private var isDefaultActionFailed = false
@@ -107,6 +111,15 @@ struct AccountDetailView: View {
                     accountID: accountID,
                     currentBalance: currentBalance
                 )
+            },
+            onTransfer: { accountID in
+                transferDraft = TransferDraft(
+                    fromAccountID: accountID,
+                    transactionDay: TransactionDay.encode(.now, calendar: calendar)
+                )
+            },
+            onDeleteTransfer: { transactionID in
+                pendingTransferDeletion = transactionID
             },
             onEditAccount: { account in
                 editSeed = AccountEditSheetSeed(draft: AccountEditDraft(account: account))
@@ -165,6 +178,43 @@ struct AccountDetailView: View {
             isPresented: $isLifecyclePlanLoadFailed
         ) {
             Button(AccountLocalization.string("common.close", locale: locale), role: .cancel) {}
+        }
+        .alert(
+            AccountLocalization.string("account.transfer.delete_failed", locale: locale),
+            isPresented: $isTransferDeleteFailed
+        ) {
+            Button(AccountLocalization.string("common.close", locale: locale), role: .cancel) {}
+        }
+        // 删除转账会同时改动两个账户的余额，先确认一次。
+        .confirmationDialog(
+            AccountLocalization.string("account.transfer.delete_confirm", locale: locale),
+            isPresented: Binding(
+                get: { pendingTransferDeletion != nil },
+                set: { if !$0 { pendingTransferDeletion = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingTransferDeletion
+        ) { transactionID in
+            Button(AccountLocalization.string("account.transfer.delete", locale: locale), role: .destructive) {
+                deleteTransfer(id: transactionID)
+            }
+            Button(AccountLocalization.string("common.cancel", locale: locale), role: .cancel) {}
+        }
+        .sheet(item: $transferDraft) { draft in
+            NavigationStack {
+                TransferView(
+                    draft: draft,
+                    save: { draft in
+                        try LocalTransferRepository(container: modelContext.container).save(draft)
+                    },
+                    onSaved: {
+                        transferDraft = nil
+                        queryRefreshToken = UUID()
+                    }
+                )
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $adjustmentSeed) { seed in
             NavigationStack {
@@ -227,6 +277,21 @@ struct AccountDetailView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
+        .paperPage()
+    }
+
+    /// 删除一笔转账并刷新详情；失败时提示，余额保持不变。
+    ///
+    /// - Parameter id: 要删除的转账流水 UUID。
+    private func deleteTransfer(id: UUID) {
+        do {
+            try LocalTransferRepository(container: modelContext.container).delete(id: id)
+            AppHaptics.play(.destructive)
+            queryRefreshToken = UUID()
+        } catch {
+            AppHaptics.play(.error)
+            isTransferDeleteFailed = true
+        }
     }
 }
 
@@ -234,14 +299,23 @@ struct AccountDetailView: View {
 private struct AccountDetailQueryContent: View {
     @Environment(\.locale) private var locale
     @Query private var accounts: [Account]
+    /// 全部账户，用于转账对方账户的名称和判断是否有可转入的账户。
+    @Query private var allAccounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
     @Query private var transactions: [AccountTransaction]
+    @Query private var categories: [BookkeepingCategory]
 
     /// 当前详情页对应的稳定账户 UUID。
     let accountID: UUID
 
-    /// 点击余额整行时回传原始账户余额，不从格式化文本反解析。
+    /// 点击调整余额时回传原始账户余额，不从格式化文本反解析。
     let onAdjustBalance: (UUID, Decimal) -> Void
+
+    /// 点击转账时回传当前账户，作为默认的转出账户。
+    let onTransfer: (UUID) -> Void
+
+    /// 左滑删除一笔转账时回传流水 UUID，由外层确认后删除。
+    let onDeleteTransfer: (UUID) -> Void
 
     /// 点击详情页编辑入口时回传当前账户模型。
     let onEditAccount: (Account) -> Void
@@ -259,6 +333,8 @@ private struct AccountDetailQueryContent: View {
     init(
         accountID: UUID,
         onAdjustBalance: @escaping (UUID, Decimal) -> Void,
+        onTransfer: @escaping (UUID) -> Void,
+        onDeleteTransfer: @escaping (UUID) -> Void,
         onEditAccount: @escaping (Account) -> Void,
         onSetDefault: @escaping (UUID) -> Void,
         onRestore: @escaping (UUID) -> Void,
@@ -267,11 +343,15 @@ private struct AccountDetailQueryContent: View {
         let targetAccountID = accountID
         self.accountID = targetAccountID
         self.onAdjustBalance = onAdjustBalance
+        self.onTransfer = onTransfer
+        self.onDeleteTransfer = onDeleteTransfer
         self.onEditAccount = onEditAccount
         self.onSetDefault = onSetDefault
         self.onRestore = onRestore
         self.onManageLifecycle = onManageLifecycle
         _preferences = Query()
+        _categories = Query()
+        _allAccounts = Query()
         _accounts = Query(
             filter: #Predicate<Account> { account in
                 account.id == targetAccountID
@@ -303,115 +383,26 @@ private struct AccountDetailQueryContent: View {
         }
     }
 
-    /// 当前账户的基础信息、可调整余额入口与账户范围内流水。
+    /// 首屏是写有账户身份、余额和资料的卡片，下面按日分组列出流水（含转入本账户的转账）。
     private func detailContent(
         account: Account,
         presentation: AccountDetailPresentation
     ) -> some View {
-        let historyRows = transactions.compactMap { transaction in
-            AccountTransactionHistoryPresentation.row(
-                for: transaction,
-                locale: locale
-            )
-        }
+        let days = AccountTransactionHistoryPresentation.days(
+            for: transactions,
+            accountID: account.id,
+            accountNames: Dictionary(allAccounts.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first }),
+            locale: locale,
+            catalog: BookkeepingCategoryCatalog(categories: categories)
+        )
 
         return List {
             Section {
-                HStack(spacing: 12) {
-                    AccountIconView(presentation: presentation.icon)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(presentation.name)
-                            .font(.headline)
-                            .accessibilityIdentifier("account-detail-name")
-                        if presentation.isDefault {
-                            Text(AccountLocalization.string("account.default.badge", locale: locale))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.tint)
-                                .accessibilityIdentifier("account-default-badge-\(presentation.id.uuidString)")
-                        }
-                        if !presentation.isActive {
-                            Text(AccountLocalization.string("account.detail.deactivated_message", locale: locale))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-
-            Section {
-                LabeledContent(
-                    AccountLocalization.string("account.detail.type", locale: locale),
-                    value: presentation.typeTitle
-                )
-                .accessibilityIdentifier("account-detail-type")
-
-                if let institution = presentation.institution {
-                    LabeledContent(
-                        AccountLocalization.string("account.detail.institution", locale: locale),
-                        value: institution
-                    )
-                    .accessibilityIdentifier("account-detail-institution")
-                }
-
-                if let lastFourDigits = presentation.lastFourDigits {
-                    LabeledContent(
-                        AccountLocalization.string("account.detail.last_four_digits", locale: locale),
-                        value: AccountLocalization.formatted(
-                            "account.detail.masked_suffix_format",
-                            value: lastFourDigits,
-                            locale: locale
-                        )
-                    )
-                    .accessibilityIdentifier("account-detail-last-four-digits")
-                }
-
-                if let note = presentation.note {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(AccountLocalization.string("account.detail.note", locale: locale))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(note)
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier("account-detail-note")
-                }
-            }
-
-            Section {
-                if presentation.isActive && account.supportsBookkeeping {
-                    Button {
-                        onAdjustBalance(account.id, account.balance)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Text(presentation.amountLabel)
-                            Spacer(minLength: 8)
-                            Text(presentation.formattedAmount)
-                                .font(.body.monospacedDigit())
-                                .accessibilityIdentifier("account-detail-amount")
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                                .accessibilityHidden(true)
-                        }
-                        .frame(minHeight: 44)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(presentation.amountAccessibilityLabel)
-                    .accessibilityHint(
-                        AccountLocalization.string(
-                            "account.detail.balance.adjust_action",
-                            locale: locale
-                        )
-                    )
-                    .accessibilityIdentifier("account-detail-adjust-balance")
-                } else {
-                    LabeledContent(
-                        AccountLocalization.string("account.detail.current_balance", locale: locale),
-                        value: presentation.formattedAmount
-                    )
-                }
+                accountSummary(account: account, presentation: presentation)
+                    // 方框画在内容自己的背景上；画成系统行底会被行的圆角裁掉四个角。
+                    .listRowInsets(EdgeInsets(top: 8, leading: 2, bottom: 8, trailing: 2))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
 
             if !presentation.isActive {
@@ -424,12 +415,13 @@ private struct AccountDetailQueryContent: View {
                             systemImage: "arrow.uturn.backward"
                         )
                     }
+                    .ledgerRow(seed: 35, showsRule: false)
                     .accessibilityIdentifier("account-detail-restore")
                 }
             }
 
-            Section {
-                if historyRows.isEmpty {
+            if days.isEmpty {
+                Section {
                     Text(
                         AccountLocalization.string(
                             "account.detail.history.empty",
@@ -438,32 +430,38 @@ private struct AccountDetailQueryContent: View {
                     )
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .ledgerRow(seed: 36, showsRule: false)
                     .accessibilityIdentifier("account-detail-transaction-history-empty")
-                } else {
-                    ForEach(historyRows) { presentation in
-                        if presentation.canOpenBookkeepingDetail {
-                            // 详情也会出现在设置和账户管理的导航栈中，直接目标无需依赖 Tab 路由注册。
-                            NavigationLink {
-                                BookkeepingTransactionDetailView(transactionID: presentation.id)
-                                    .secondaryPage()
-                            } label: {
-                                AccountTransactionHistoryRow(presentation: presentation)
-                            }
-                            .accessibilityIdentifier("account-transaction-detail-\(presentation.id.uuidString)")
-                        } else {
-                            AccountTransactionHistoryRow(presentation: presentation)
+                } header: {
+                    historyHeading
+                        .ledgerHeadingRule(seed: 37)
+                }
+            } else {
+                ForEach(days) { day in
+                    Section {
+                        ForEach(day.rows) { row in
+                            historyRow(row, canDeleteTransfer: presentation.isActive)
+                                .ledgerRow(
+                                    seed: row.id.handDrawnSeed,
+                                    showsRule: row.id != day.rows.last?.id
+                                )
                         }
+                    } header: {
+                        VStack(alignment: .leading, spacing: 14) {
+                            // 「流水」标题只出现一次，压在第一天的日期上方。
+                            if day.id == days.first?.id {
+                                historyHeading
+                            }
+                            AccountHistoryDayHeader(day: day)
+                        }
+                        .textCase(nil)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 2, bottom: 2, trailing: 2))
                     }
                 }
-            } header: {
-                Text(
-                    AccountLocalization.string(
-                        "account.detail.history.title",
-                        locale: locale
-                    )
-                )
             }
         }
+        .listSectionSpacing(18)
+        .listStyle(.insetGrouped)
         .toolbar {
             if presentation.isActive {
                 ToolbarItem(placement: .primaryAction) {
@@ -495,18 +493,179 @@ private struct AccountDetailQueryContent: View {
                 }
             }
             if presentation.isActive {
+                // 没有流水的账户可以直接删除；记过账的只能停用，菜单按实际会发生的操作命名。
+                let canDelete = transactions.isEmpty
                 ToolbarItem(placement: .secondaryAction) {
-                    Button {
+                    Button(role: canDelete ? .destructive : nil) {
                         onManageLifecycle(account.id)
                     } label: {
                         Label(
-                            AccountLocalization.string("account.management.title", locale: locale),
-                            systemImage: "archivebox"
+                            AccountLocalization.string(
+                                canDelete ? "account.lifecycle.delete_account" : "account.lifecycle.deactivate",
+                                locale: locale
+                            ),
+                            systemImage: canDelete ? "trash" : "pause.circle"
                         )
                     }
                     .accessibilityIdentifier("account-detail-lifecycle")
                 }
             }
+        }
+    }
+
+    /// 流水区域的衬线标题。
+    private var historyHeading: some View {
+        Text(AccountLocalization.string("account.detail.history.title", locale: locale))
+            .font(.system(.callout, design: .serif, weight: .medium))
+            // 分组标题里的 `.primary` 会被系统解析成灰色，这里指定墨色本身。
+            .foregroundStyle(Color.primary)
+            .textCase(nil)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    /// 一行流水：收支可进入记账详情；转账在启用账户里可以左滑删除。
+    @ViewBuilder
+    private func historyRow(
+        _ row: AccountTransactionHistoryRowPresentation,
+        canDeleteTransfer: Bool
+    ) -> some View {
+        if row.canOpenBookkeepingDetail {
+            // 详情也会出现在设置和账户管理的导航栈中，直接目标无需依赖 Tab 路由注册。
+            NavigationLink {
+                BookkeepingTransactionDetailView(transactionID: row.id)
+            } label: {
+                AccountTransactionHistoryRow(presentation: row)
+            }
+            .navigationLinkIndicatorVisibility(.hidden)
+            .accessibilityIdentifier("account-transaction-detail-\(row.id.uuidString)")
+        } else if row.isTransfer, canDeleteTransfer {
+            AccountTransactionHistoryRow(presentation: row)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        onDeleteTransfer(row.id)
+                    } label: {
+                        Label(
+                            AccountLocalization.string("account.transfer.delete", locale: locale),
+                            systemImage: "trash"
+                        )
+                    }
+                }
+                .accessibilityAction(named: AccountLocalization.string("account.transfer.delete", locale: locale)) {
+                    onDeleteTransfer(row.id)
+                }
+        } else {
+            AccountTransactionHistoryRow(presentation: row)
+        }
+    }
+
+    /// 能否从本账户发起转账：本账户可记账，且至少还有一个可转入的启用账户。
+    private func canTransfer(from account: Account) -> Bool {
+        account.supportsBookkeeping
+            && TransferView.transferableAccounts(allAccounts).contains { $0.id != account.id }
+    }
+
+    /// 一张手绘方框里写完账户的身份、余额、操作和资料；停用或不支持记账的账户不显示操作栏。
+    private func accountSummary(
+        account: Account,
+        presentation: AccountDetailPresentation
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .center, spacing: 12) {
+                AccountIconView(presentation: presentation.icon)
+                    .frame(width: 48, height: 48)
+                    .background(Color.accentColor.opacity(0.08), in: HandDrawnBlob(seed: presentation.id.handDrawnSeed))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(presentation.name)
+                        .font(.title3.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("account-detail-name")
+                    if presentation.isDefault {
+                        Text(AccountLocalization.string("account.default.badge", locale: locale))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tint)
+                            .accessibilityIdentifier("account-default-badge-\(presentation.id.uuidString)")
+                    }
+                    if !presentation.isActive {
+                        Text(AccountLocalization.string("account.detail.deactivated_message", locale: locale))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(presentation.amountLabel)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                Text(presentation.formattedAmount)
+                    .font(.system(.largeTitle, design: .serif, weight: .medium).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .accessibilityLabel(presentation.amountAccessibilityLabel)
+                    .accessibilityIdentifier("account-detail-amount")
+            }
+
+            // 操作栏自带上下两道细线，同时把余额和下面的资料隔开；没有操作栏时只画一道。
+            if presentation.isActive && account.supportsBookkeeping {
+                AccountDetailActionBar(
+                    canTransfer: canTransfer(from: account),
+                    onTransfer: { onTransfer(account.id) },
+                    onAdjustBalance: { onAdjustBalance(account.id, account.balance) }
+                )
+            } else {
+                HandDrawnRule(seed: 29)
+                    .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                    .frame(height: 3)
+                    .accessibilityHidden(true)
+            }
+
+            // 资料直接写在卡片下半部分，不再需要展开。
+            VStack(spacing: 12) {
+                LedgerField(
+                    title: AccountLocalization.string("account.detail.type", locale: locale),
+                    value: presentation.typeTitle
+                )
+                .accessibilityIdentifier("account-detail-type")
+
+                if let institution = presentation.institution {
+                    LedgerField(
+                        title: AccountLocalization.string("account.detail.institution", locale: locale),
+                        value: institution
+                    )
+                    .accessibilityIdentifier("account-detail-institution")
+                }
+
+                if let lastFourDigits = presentation.lastFourDigits {
+                    LedgerField(
+                        title: AccountLocalization.string("account.detail.last_four_digits", locale: locale),
+                        value: AccountLocalization.formatted(
+                            "account.detail.masked_suffix_format",
+                            value: lastFourDigits,
+                            locale: locale
+                        )
+                    )
+                    .accessibilityIdentifier("account-detail-last-four-digits")
+                }
+
+                if let note = presentation.note {
+                    LedgerField(
+                        title: AccountLocalization.string("account.detail.note", locale: locale),
+                        value: note
+                    )
+                    .accessibilityIdentifier("account-detail-note")
+                }
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            HandDrawnBox(cornerRadius: 22, seed: 23)
+                .stroke(
+                    Color.primary.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                )
         }
     }
 
@@ -521,6 +680,104 @@ private struct AccountDetailQueryContent: View {
             Text(AccountLocalization.string("account.detail.unavailable.message", locale: locale))
         }
         .accessibilityIdentifier("account-detail-unavailable")
+    }
+}
+
+/// 账户卡片里余额下方的操作栏：转账和调整余额并排，像账页上的两个手写栏目，中间一道竖线隔开。
+///
+/// 只有一个账户时没有可转入的地方，只显示调整余额。
+private struct AccountDetailActionBar: View {
+    @Environment(\.locale) private var locale
+
+    /// 是否有可转入的其他账户。
+    let canTransfer: Bool
+
+    /// 打开转账表单。
+    let onTransfer: () -> Void
+
+    /// 打开余额调整表单。
+    let onAdjustBalance: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            rule(seed: 31)
+            HStack(spacing: 0) {
+                if canTransfer {
+                    action(
+                        titleKey: "account.transfer.title",
+                        symbol: "arrow.left.arrow.right",
+                        identifier: "account-detail-transfer",
+                        perform: onTransfer
+                    )
+                    HandDrawnRule(seed: 32)
+                        .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                        // 横线画好再转成竖线；布局仍按横向尺寸占位，正好当两个操作之间的间隔。
+                        .frame(width: 24, height: 3)
+                        .rotationEffect(.degrees(90))
+                        .accessibilityHidden(true)
+                }
+                action(
+                    titleKey: "account.balance_adjustment.title",
+                    symbol: "plusminus",
+                    identifier: "account-detail-adjust-balance",
+                    perform: onAdjustBalance
+                )
+            }
+            rule(seed: 33)
+        }
+    }
+
+    /// 一个操作：图标和文字居中，整块都可点。
+    private func action(
+        titleKey: String,
+        symbol: String,
+        identifier: String,
+        perform: @escaping () -> Void
+    ) -> some View {
+        Button(action: perform) {
+            Label(AccountLocalization.string(titleKey, locale: locale), systemImage: symbol)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.tint)
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
+    }
+
+    /// 操作栏上下的淡色手绘细线。
+    private func rule(seed: UInt64) -> some View {
+        HandDrawnRule(seed: seed)
+            .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+            .frame(height: 3)
+            .accessibilityHidden(true)
+    }
+}
+
+/// 账户流水按日分组的日期标题：日期和星期，下面压一条与首页一致的墨线。
+private struct AccountHistoryDayHeader: View {
+    /// 当前日期组。
+    let day: AccountTransactionHistoryDayPresentation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(day.formattedDate)
+                    .font(.system(.callout, design: .serif, weight: .medium))
+                    .foregroundStyle(Color.primary)
+                Text(day.formattedWeekday)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            HandDrawnRule(seed: UInt64(truncatingIfNeeded: day.transactionDay))
+                .stroke(Color.primary.opacity(0.6), style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+                .frame(height: 3)
+                .accessibilityHidden(true)
+        }
+        .padding(.top, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+        .accessibilityIdentifier("account-detail-day-\(day.transactionDay)")
     }
 }
 
@@ -567,17 +824,15 @@ private struct AccountTransactionHistoryRow: View {
 
             if let balanceTransition = presentation.balanceTransition {
                 Text(balanceTransition)
-                    .font(.subheadline.monospacedDigit())
+                    .font(.system(.subheadline, design: .serif).monospacedDigit())
                     .foregroundStyle(.secondary)
             }
 
-            Text(presentation.formattedDate)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if let note = presentation.note {
-                Text(note)
+            // 日期已写在所在日期组的标题里，行内不再重复。
+            if let subtitle = presentation.subtitle {
+                Text(subtitle)
                     .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 4)
@@ -586,7 +841,7 @@ private struct AccountTransactionHistoryRow: View {
         .accessibilityIdentifier("account-detail-transaction-\(presentation.id.uuidString)")
     }
 
-    /// 餐饮或余额调整标题，不依赖颜色表达流水类型。
+    /// 收支、转账或余额调整标题，不依赖颜色表达流水类型。
     private var title: some View {
         Text(presentation.title)
             .font(.headline)
@@ -595,7 +850,7 @@ private struct AccountTransactionHistoryRow: View {
     /// 已带明确正负方向的本地化 CNY 金额。
     private var amount: some View {
         Text(presentation.formattedAmount)
-            .font(.body.monospacedDigit())
+            .font(.system(.body, design: .serif).monospacedDigit())
     }
 }
 
@@ -608,3 +863,17 @@ private struct AccountTransactionHistoryRow: View {
         inMemory: true
     )
 }
+
+#if DEBUG
+#Preview("Account details · populated") {
+    if let container = try? HomeDesignPreviewData.makeContainer(),
+       let accounts = try? container.mainContext.fetch(FetchDescriptor<Account>()),
+       let account = accounts.first {
+        NavigationStack {
+            AccountDetailView(accountID: account.id)
+        }
+        .modelContainer(container)
+        .environment(\.locale, Locale(identifier: "zh-Hans"))
+    }
+}
+#endif

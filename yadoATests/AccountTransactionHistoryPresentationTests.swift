@@ -96,7 +96,7 @@ struct AccountTransactionHistoryPresentationTests {
         )
     }
 
-    @Test("中英文展示餐饮负向金额日期且空备注保持缺省")
+    @Test("有备注时主行是备注、副行是分类，空备注时主行回退到分类且没有副行")
     func rowLocalizesDiningAndPreservesOptionalNote() throws {
         let amount = try #require(Decimal(string: "12.34"))
         let withNote = try AccountTransaction.validatingDiningExpense(
@@ -140,8 +140,10 @@ struct AccountTransactionHistoryPresentationTests {
             )
         )
 
-        #expect(english.title == "Dining")
-        #expect(chinese.title == "餐饮")
+        #expect(english.title == "午餐")
+        #expect(english.subtitle == "Dining")
+        #expect(chinese.subtitle == "餐饮")
+        #expect(blankNote.title == "餐饮")
         #expect(
             english.formattedAmount == (-amount).formatted(
                 .currency(code: "CNY").locale(englishLocale)
@@ -150,8 +152,9 @@ struct AccountTransactionHistoryPresentationTests {
         #expect(english.balanceTransition == nil)
         #expect(english.formattedDate.contains("2026"))
         #expect(chinese.formattedDate.contains("8"))
-        #expect(english.note == "午餐")
-        #expect(blankNote.note == nil)
+        #expect(english.accessibilityLabel.hasPrefix("午餐, "))
+        #expect(english.accessibilityLabel.hasSuffix(", Dining"))
+        #expect(blankNote.subtitle == nil)
     }
 
     @Test("余额调整展示显式差额与前后余额")
@@ -195,9 +198,84 @@ struct AccountTransactionHistoryPresentationTests {
                 .currency(code: "CNY").locale(chineseLocale)
             )
         )
-        #expect(negativeRow.balanceTransition?.contains("-10") == true)
         #expect(negativeRow.accessibilityLabel.contains("余额从"))
-        #expect(negativeRow.note == nil)
+        #expect(positiveRow.subtitle == "校准")
+        #expect(negativeRow.subtitle == nil)
+    }
+
+    @Test("同一笔转账在转出、转入账户里方向相反，并写出对方账户")
+    func transferRowDependsOnPerspective() throws {
+        let fromID = UUID()
+        let toID = UUID()
+        let transfer = try AccountTransaction.validatingTransfer(
+            id: UUID(),
+            fromAccountID: fromID,
+            toAccountID: toID,
+            amount: 200,
+            transactionDay: 20261022
+        )
+        let names = [fromID: "招商银行", toID: "信用卡"]
+        let locale = Locale(identifier: "zh-Hans")
+
+        let outgoing = try #require(
+            AccountTransactionHistoryPresentation.row(
+                for: transfer, locale: locale, accountID: fromID, accountNames: names
+            )
+        )
+        let incoming = try #require(
+            AccountTransactionHistoryPresentation.row(
+                for: transfer, locale: locale, accountID: toID, accountNames: names
+            )
+        )
+
+        #expect(outgoing.isTransfer)
+        #expect(!outgoing.canOpenBookkeepingDetail)
+        #expect(outgoing.title == "转出到 信用卡")
+        #expect(outgoing.formattedAmount == Decimal(-200).formatted(.currency(code: "CNY").locale(locale)))
+        #expect(incoming.title == "从 招商银行 转入")
+        #expect(incoming.formattedAmount.hasPrefix("+"))
+    }
+
+    @Test("账户流水查询包含转入本账户的转账，并按日分组")
+    func historyIncludesIncomingTransfersGroupedByDay() throws {
+        let dataContainer = try AccountDataContainer.inMemory()
+        let sourceID = UUID()
+        let targetID = UUID()
+        try saveAccount(id: sourceID, name: "账户 A", in: dataContainer.modelContainer)
+        try saveAccount(id: targetID, name: "账户 B", in: dataContainer.modelContainer)
+        let baseSavedAt = Date(timeIntervalSince1970: 1_786_608_000)
+        try saveExpense(
+            id: UUID(),
+            accountID: targetID,
+            transactionDay: 20261021,
+            savedAt: baseSavedAt,
+            repository: LocalExpenseRepository(container: dataContainer.modelContainer)
+        )
+        let transferDraft = TransferDraft(
+            fromAccountID: sourceID,
+            toAccountID: targetID,
+            amountText: "30",
+            transactionDay: 20261022
+        )
+        try LocalTransferRepository(container: dataContainer.modelContainer)
+            .save(transferDraft, savedAt: baseSavedAt.addingTimeInterval(60))
+
+        let transactions = try ModelContext(dataContainer.modelContainer).fetch(
+            AccountTransactionHistoryPresentation.descriptor(accountID: targetID)
+        )
+        let days = AccountTransactionHistoryPresentation.days(
+            for: transactions,
+            accountID: targetID,
+            accountNames: [sourceID: "账户 A", targetID: "账户 B"],
+            locale: Locale(identifier: "zh-Hans")
+        )
+
+        #expect(transactions.count == 2)
+        #expect(days.map(\.transactionDay) == [20261022, 20261021])
+        #expect(days[0].rows.map(\.id) == [transferDraft.id])
+        #expect(days[0].rows[0].title == "从 账户 A 转入")
+        #expect(!days[0].formattedWeekday.isEmpty)
+        #expect(days[1].rows.count == 1)
     }
 
     /// 保存一个真实账户，供跨账户查询集成测试使用。

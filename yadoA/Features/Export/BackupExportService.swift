@@ -93,6 +93,16 @@ final class BackupExportService {
         return fileURL
     }
 
+    /// 读取并校验当前全部业务数据，返回不落盘的备份信封。
+    ///
+    /// 供撤销快照等应用内用途复用导出的一致性读取与完整性校验。
+    ///
+    /// - Returns: 以当前时间源为导出时间的完整备份信封。
+    /// - Throws: 任一流水校验失败时抛出 `BackupExportError`。
+    func makeSnapshot() throws -> BackupFile {
+        try makeBackup(exportedAt: now())
+    }
+
     /// 删除分享面板关闭后的导出文件；尽力而为，失败不向调用方抛错。
     func removeExportedFile(at url: URL) {
         try? fileManager.removeItem(at: url)
@@ -115,7 +125,7 @@ final class BackupExportService {
 
     /// 在单一新鲜 context 中读取、校验并组装备份信封。
     private func makeBackup(exportedAt: Date) throws -> BackupFile {
-        let context = makeContext()
+        let context = container.makeManualSaveContext()
 
         let accounts = try context.fetch(FetchDescriptor<Account>()).sorted { lhs, rhs in
             if lhs.createdAt != rhs.createdAt { return lhs.createdAt < rhs.createdAt }
@@ -135,7 +145,20 @@ final class BackupExportService {
             }
         }
 
-        let preference = try canonicalPreference(in: context)
+        let categories = try context.fetch(FetchDescriptor<BookkeepingCategory>()).sorted { lhs, rhs in
+            if lhs.directionRawValue != rhs.directionRawValue {
+                return lhs.directionRawValue < rhs.directionRawValue
+            }
+            if lhs.sortIndex != rhs.sortIndex { return lhs.sortIndex < rhs.sortIndex }
+            return lhs.key < rhs.key
+        }
+
+        let recurringRules = try context.fetch(FetchDescriptor<RecurringRule>()).sorted { lhs, rhs in
+            if lhs.createdAt != rhs.createdAt { return lhs.createdAt < rhs.createdAt }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
+
+        let preference = try context.canonicalBookkeepingPreference()
         return BackupFile(
             exportedAt: exportedAt,
             appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
@@ -146,7 +169,9 @@ final class BackupExportService {
             transactions: transactions.map(BackupTransaction.init),
             bookkeepingPreference: preference.map {
                 BackupBookkeepingPreference(defaultAccountID: $0.defaultAccountID)
-            }
+            },
+            categories: categories.map(BackupCategory.init),
+            recurringRules: recurringRules.map(BackupRecurringRule.init)
         )
     }
 
@@ -167,24 +192,5 @@ final class BackupExportService {
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         let fileName = "yadoA-backup-\(formatter.string(from: exportedAt)).yadoabackup"
         return exportDirectory.appending(path: fileName)
-    }
-
-    /// 读取 canonical singleton 偏好，忽略非 canonical 的杂散记录。
-    private func canonicalPreference(in context: ModelContext) throws -> BookkeepingPreference? {
-        let singletonID = BookkeepingPreference.singletonID
-        var descriptor = FetchDescriptor<BookkeepingPreference>(
-            predicate: #Predicate<BookkeepingPreference> { preference in
-                preference.id == singletonID
-            }
-        )
-        descriptor.fetchLimit = 1
-        return try context.fetch(descriptor).first
-    }
-
-    /// 创建一个关闭自动保存的新鲜 context。
-    private func makeContext() -> ModelContext {
-        let context = ModelContext(container)
-        context.autosaveEnabled = false
-        return context
     }
 }

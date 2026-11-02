@@ -46,7 +46,6 @@ struct BackupFileRoundTripTests {
                     type: "diningExpense",
                     category: "dining",
                     amount: "25.50",
-                    title: "午餐",
                     balanceBefore: nil,
                     balanceAfter: nil,
                     balanceDelta: nil,
@@ -61,7 +60,6 @@ struct BackupFileRoundTripTests {
                     type: "income",
                     category: "salary",
                     amount: "100000.99",
-                    title: nil,
                     balanceBefore: nil,
                     balanceAfter: nil,
                     balanceDelta: nil,
@@ -76,7 +74,6 @@ struct BackupFileRoundTripTests {
                     type: "balanceAdjustment",
                     category: nil,
                     amount: nil,
-                    title: nil,
                     balanceBefore: "-12.34",
                     balanceAfter: "6666.66",
                     balanceDelta: "6679.00",
@@ -145,11 +142,11 @@ struct BackupFileRoundTripTests {
 
         #expect(Set(account.keys) == [
             "id", "type", "templateID", "name", "note", "lastFourDigits",
-            "balance", "currencyCode", "createdAt", "updatedAt", "deactivatedAt",
+            "balance", "openingBalance", "currencyCode", "createdAt", "updatedAt", "deactivatedAt",
         ])
         #expect(Set(transaction.keys) == [
-            "id", "accountID", "type", "category", "amount", "title",
-            "balanceBefore", "balanceAfter", "balanceDelta", "currencyCode",
+            "id", "accountID", "type", "category", "amount",
+            "balanceBefore", "balanceAfter", "balanceDelta", "counterpartAccountID", "currencyCode",
             "transactionDay", "note", "savedAt",
         ])
         #expect(account["templateID"] is NSNull)
@@ -158,6 +155,7 @@ struct BackupFileRoundTripTests {
         #expect(transaction["balanceBefore"] is NSNull)
         #expect(transaction["balanceAfter"] is NSNull)
         #expect(transaction["balanceDelta"] is NSNull)
+        #expect(transaction["counterpartAccountID"] is NSNull)
         #expect(transaction["note"] is NSNull)
     }
 
@@ -191,7 +189,6 @@ struct BackupFileRoundTripTests {
                     type: "balanceAdjustment",
                     category: nil,
                     amount: nil,
-                    title: nil,
                     balanceBefore: "-99999999.99",
                     balanceAfter: "0",
                     balanceDelta: "99999999.99",

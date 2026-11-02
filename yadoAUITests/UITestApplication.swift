@@ -44,6 +44,21 @@ extension XCTestCase {
         return app
     }
 
+    /// 使用数据导出夹具作为现有数据，并启用备份恢复夹具替代系统文件选择器。
+    @MainActor
+    func launchImportFixtureInEnglish() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "--ui-testing-in-memory",
+            "--ui-testing-export-fixture",
+            "--ui-testing-import-fixture",
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US"
+        ]
+        app.launch()
+        return app
+    }
+
     /// 使用记账搜索专用夹具和固定英文环境启动应用。
     @MainActor
     func launchBookkeepingSearchFixtureInEnglish() -> XCUIApplication {
@@ -58,6 +73,33 @@ extension XCTestCase {
         ]
         app.launch()
         return app
+    }
+
+    /// 在可滚动区域上反复轻扫，直到目标元素进入屏幕、可以点击。
+    ///
+    /// 列表是懒加载的，屏幕外的行可能还不在无障碍树里，所以每次轻扫后都重新判断。
+    /// - Parameters:
+    ///   - element: 要滚进可视区的元素。
+    ///   - container: 承接轻扫手势的滚动区域。
+    ///   - swipe: 每次执行的轻扫，例如 `{ $0.swipeUp() }`。
+    ///   - maxSwipes: 最多轻扫次数，避免目标不存在时无限滚动。
+    /// - Returns: 目标元素最终是否可点击。
+    @MainActor
+    @discardableResult
+    func scroll(
+        to element: XCUIElement,
+        in container: XCUIElement,
+        by swipe: (XCUIElement) -> Void,
+        maxSwipes: Int = 6
+    ) -> Bool {
+        let window = XCUIApplication().windows.firstMatch.frame
+        // 完全在屏幕外的元素没有可用的点击点，直接读 isHittable 会报错，先用位置排除。
+        let isVisible = { element.exists && window.contains(element.frame) && element.isHittable }
+        for _ in 0..<maxSwipes {
+            if isVisible() { return true }
+            swipe(container)
+        }
+        return isVisible()
     }
 
     /// 从默认首页切换到账户 Tab，并等待账户页完成展示。

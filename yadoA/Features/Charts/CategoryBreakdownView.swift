@@ -7,6 +7,7 @@ struct CategoryBreakdownView: View {
     @Environment(\.calendar) private var calendar
     @Environment(\.locale) private var locale
     @Query private var transactions: [AccountTransaction]
+    @Query private var categories: [BookkeepingCategory]
 
     /// 当前收支类型、周期与业务日锚点。
     @State private var entryType: BookkeepingEntryType
@@ -21,6 +22,7 @@ struct CategoryBreakdownView: View {
         _period = State(initialValue: period)
         _anchorDay = State(initialValue: anchorDay)
         _transactions = Query(ChartOverviewPresentation.descriptor())
+        _categories = Query()
     }
 
     var body: some View {
@@ -30,13 +32,13 @@ struct CategoryBreakdownView: View {
             anchorDate: TransactionDay.date(from: anchorDay, calendar: calendar, locale: locale),
             transactions: transactions,
             calendar: calendar,
-            locale: locale
+            locale: locale,
+            catalog: BookkeepingCategoryCatalog(categories: categories)
         )
 
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                ChartEntryTypePicker(selection: $entryType)
-                ChartPeriodPicker(selection: $period)
+                ChartFilterSwitches(entryType: $entryType, period: $period)
                 ChartTimeSelector(
                     chart: chart,
                     onSelectPrevious: { shiftPeriod(by: -1, chart: chart) },
@@ -59,10 +61,9 @@ struct CategoryBreakdownView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .paperPage()
         .navigationTitle(AccountLocalization.string("chart.category.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
-        .secondaryPage()
         .sheet(isPresented: $isMonthPickerPresented) {
             NavigationStack {
                 HomeMonthPickerView(
@@ -110,7 +111,7 @@ private struct CategoryBreakdownCard: View {
         let breakdown = CategoryBreakdownPresentation(items: chart.categoryRanking, locale: locale)
         VStack(alignment: .leading, spacing: 18) {
             Text(AccountLocalization.string("chart.category.share", locale: locale))
-                .font(.headline)
+                .font(.system(.headline, design: .serif))
                 .accessibilityAddTraits(.isHeader)
 
             if breakdown.segments.isEmpty {
@@ -147,8 +148,13 @@ private struct CategoryBreakdownCard: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background {
+            HandDrawnBox(cornerRadius: 22, seed: 9)
+                .stroke(
+                    Color.primary.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+                )
+        }
         .onChange(of: chart) { _, _ in
             selectedAngle = nil
             selectedID = nil
@@ -192,6 +198,8 @@ private struct CategoryBreakdownCard: View {
             }
         }
         .accessibilityIdentifier("category-breakdown-donut")
+        // 滑过扇区或点图例每换一个分类震一下，取消选中不震
+        .appHaptic(.selection, trigger: selectedID) { _, id in id != nil }
         .overlay {
             GeometryReader { geometry in
                 totalLabel(breakdown: breakdown)
@@ -214,7 +222,7 @@ private struct CategoryBreakdownCard: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Text(amount)
-                .font(.title3.weight(.semibold))
+                .font(.system(.title3, design: .serif, weight: .medium).monospacedDigit())
                 .lineLimit(1)
                 .minimumScaleFactor(0.55)
                 .contentTransition(.numericText())
@@ -275,7 +283,7 @@ private struct CategoryBreakdownCard: View {
         Text(breakdown.share(of: segment).formatted(
             .percent.precision(.fractionLength(1)).locale(locale)
         ))
-        .font(.caption.monospacedDigit())
+        .font(.system(.caption, design: .serif).monospacedDigit())
         .foregroundStyle(.secondary)
         .fixedSize()
     }

@@ -32,15 +32,20 @@ final class DiningExpenseEntryFlow: ObservableObject {
     /// 区分新草稿的占位分类与用户已经明确确认的分类。
     private var hasConfirmedCategory: Bool
 
+    /// 预选了最近分类的方向；切到这些方向时不用再确认一次分类。
+    private var directionsWithRecentCategory: Set<BookkeepingEntryType> = []
+
     /// 创建一条带稳定 UUID 的支出流程。
     ///
     /// - Parameters:
     ///   - draft: 需要恢复的既有草稿；为空时以今天创建新草稿。
+    ///   - requiresCategoryConfirmation: 传入的草稿是否仍要用户确认分类；周期记账新建时用它指定规则标识，但分类还没选。
     ///   - now: 新草稿的默认记账日期。
     ///   - calendar: 提供当前时区的日历，内部统一转换为公历。
     ///   - saveAction: 显式保存支出流水与账户金额的动作。
     init(
         draft: DiningExpenseDraft? = nil,
+        requiresCategoryConfirmation: Bool = false,
         initialAccountID: UUID? = nil,
         now: Date = .now,
         calendar: Calendar = .current,
@@ -51,7 +56,7 @@ final class DiningExpenseEntryFlow: ObservableObject {
         self.saveAction = saveAction
         if let draft {
             self.draft = draft
-            self.hasConfirmedCategory = true
+            self.hasConfirmedCategory = !requiresCategoryConfirmation
         } else {
             self.draft = DiningExpenseDraft(
                 accountID: initialAccountID,
@@ -72,14 +77,9 @@ final class DiningExpenseEntryFlow: ObservableObject {
         submissionState == .failed
     }
 
-    /// 供界面展示的已确认分类；新草稿在用户选择前返回 `nil`。
-    var selectedCategory: ExpenseCategory? {
-        hasConfirmedCategory && draft.entryType == .expense ? draft.category : nil
-    }
-
-    /// 供界面展示的已确认收入分类；其他状态返回 `nil`。
-    var selectedIncomeCategory: IncomeCategory? {
-        hasConfirmedCategory && draft.entryType == .income ? draft.incomeCategory : nil
+    /// 当前方向下已确认的分类 key；新草稿在用户选择前返回 `nil`。
+    var selectedCategoryKey: String? {
+        hasConfirmedCategory ? draft.categoryKey : nil
     }
 
     /// 草稿是否已经具备明确分类、有效金额和账户选择。
@@ -129,27 +129,49 @@ final class DiningExpenseEntryFlow: ObservableObject {
         markAsEditing()
     }
 
-    /// 更新支出分类，并在编辑后清除上一次失败提示。
-    func selectCategory(_ category: ExpenseCategory) {
+    /// 选择当前方向下的分类，并在编辑后清除上一次失败提示。
+    ///
+    /// - Parameter key: 用户在分类面板中点选的分类 key。
+    func selectCategory(key: String) {
         guard !isSaving else { return }
         hasConfirmedCategory = true
-        draft.category = category
+        switch draft.entryType {
+        case .expense: draft.expenseCategoryKey = key
+        case .income: draft.incomeCategoryKey = key
+        }
         markAsEditing()
     }
 
-    /// 切换收支方向；新方向必须重新确认分类，避免把占位值当成用户选择。
+    /// 已选分类在分类管理里连同流水一起删除后，撤销分类选择，让用户重新选择。
+    func clearCategory() {
+        guard !isSaving, hasConfirmedCategory else { return }
+        // 确认标记不是 @Published，手动通知页面刷新分类区域与提交按钮。
+        objectWillChange.send()
+        hasConfirmedCategory = false
+        directionsWithRecentCategory.remove(draft.entryType)
+    }
+
+    /// 为还没确认过分类的新草稿预选最近用过的分类；恢复的草稿和已经选过分类的草稿不受影响。
+    ///
+    /// - Parameter recent: 两个方向各自最近使用的分类。
+    func applyRecentCategories(_ recent: BookkeepingRecentCategories) {
+        guard !hasConfirmedCategory, directionsWithRecentCategory.isEmpty else { return }
+        if let key = recent.expenseKey {
+            draft.expenseCategoryKey = key
+            directionsWithRecentCategory.insert(.expense)
+        }
+        if let key = recent.incomeKey {
+            draft.incomeCategoryKey = key
+            directionsWithRecentCategory.insert(.income)
+        }
+        hasConfirmedCategory = directionsWithRecentCategory.contains(draft.entryType)
+    }
+
+    /// 切换收支方向；新方向有最近分类时直接沿用，否则必须重新确认，避免把占位值当成用户选择。
     func selectEntryType(_ entryType: BookkeepingEntryType) {
         guard !isSaving, draft.entryType != entryType else { return }
         draft.entryType = entryType
-        hasConfirmedCategory = false
-        markAsEditing()
-    }
-
-    /// 更新收入分类，并在编辑后清除上一次失败提示。
-    func selectIncomeCategory(_ category: IncomeCategory) {
-        guard !isSaving else { return }
-        hasConfirmedCategory = true
-        draft.incomeCategory = category
+        hasConfirmedCategory = directionsWithRecentCategory.contains(entryType)
         markAsEditing()
     }
 

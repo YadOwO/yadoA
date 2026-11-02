@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		617E5D03302C24960076C208 /* LogtoClient in Frameworks */ = {isa = PBXBuildFile; productRef = 617E5D02302C24960076C208 /* LogtoClient */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		617E5CDC302C24960076C208 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +31,7 @@
 		617E5CCE302C24940076C208 /* yadoA.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = yadoA.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		617E5CDB302C24960076C208 /* yadoATests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = yadoATests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		617E5CE5302C24960076C208 /* yadoAUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = yadoAUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		617E5D10302C24960076C208 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -52,6 +57,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				617E5D03302C24960076C208 /* LogtoClient in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +84,7 @@
 				617E5CD0302C24940076C208 /* yadoA */,
 				617E5CDE302C24960076C208 /* yadoATests */,
 				617E5CE8302C24960076C208 /* yadoAUITests */,
+				617E5D11302C24960076C208 /* Config */,
 				617E5CCF302C24940076C208 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -90,6 +97,14 @@
 				617E5CE5302C24960076C208 /* yadoAUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		617E5D11302C24960076C208 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				617E5D10302C24960076C208 /* Debug.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +127,7 @@
 			);
 			name = yadoA;
 			packageProductDependencies = (
+				617E5D02302C24960076C208 /* LogtoClient */,
 			);
 			productName = yadoA;
 			productReference = 617E5CCE302C24940076C208 /* yadoA.app */;
@@ -196,6 +212,9 @@
 			);
 			mainGroup = 617E5CC5302C24940076C208;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				617E5D01302C24960076C208 /* XCRemoteSwiftPackageReference "swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 617E5CCF302C24940076C208 /* Products */;
 			projectDirPath = "";
@@ -391,6 +410,7 @@
 		};
 		617E5CF0302C24960076C208 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 617E5D10302C24960076C208 /* Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -400,9 +420,9 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "yadoA-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Yado Asset";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -433,9 +453,9 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "yadoA-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Yado Asset";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -575,6 +595,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		617E5D01302C24960076C208 /* XCRemoteSwiftPackageReference "swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/logto-io/swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		617E5D02302C24960076C208 /* LogtoClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 617E5D01302C24960076C208 /* XCRemoteSwiftPackageReference "swift" */;
+			productName = LogtoClient;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 617E5CC6302C24940076C208 /* Project object */;
 }

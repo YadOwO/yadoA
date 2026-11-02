@@ -12,7 +12,12 @@ struct DefaultBookkeepingAccountPersistenceTests {
         let repository = LocalAccountRepository(container: container.modelContainer)
 
         try repository.save(
-            AccountDraft(accountType: .investment, name: "证券", amountText: "10"),
+            AccountDraft(
+                accountType: .investment,
+                template: AccountType.investment.templates[0],
+                name: "证券",
+                amountText: "10"
+            ),
             locale: Locale(identifier: "en_US")
         )
         #expect(try repository.defaultResolution() == .none)
@@ -50,7 +55,13 @@ struct DefaultBookkeepingAccountPersistenceTests {
             locale: Locale(identifier: "en_US")
         )
         try repository.save(
-            AccountDraft(id: investmentID, accountType: .investment, name: "投资", amountText: "10"),
+            AccountDraft(
+                id: investmentID,
+                accountType: .investment,
+                template: AccountType.investment.templates[0],
+                name: "投资",
+                amountText: "10"
+            ),
             locale: Locale(identifier: "en_US")
         )
 

@@ -28,6 +28,11 @@ final class BookkeepingPreference {
     /// 默认账户的稳定 UUID；为空表示用户确认当前没有默认账户。
     var defaultAccountID: UUID?
 
+    /// 本实体是否由写账户命令自动创建；不持久化，只在创建它的那次保存中有效。
+    ///
+    /// 同步台账据此区分系统初始化和用户或导入写入的「无默认」，见 `SyncPayloadCoder.isPristineDefault`。
+    @Transient var isAutoCreated = false
+
     /// 创建一条偏好实体。
     init(
         id: UUID = BookkeepingPreference.singletonID,

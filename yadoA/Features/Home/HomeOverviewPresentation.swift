@@ -91,15 +91,11 @@ struct HomeMonth: Comparable, Hashable, Sendable {
             return String(format: "%04d-%02d", year, month)
         }
 
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.calendar = TransactionDay.gregorianCalendar(
-            basedOn: sourceCalendar,
-            locale: locale
-        )
-        formatter.timeZone = sourceCalendar.timeZone
-        formatter.setLocalizedDateFormatFromTemplate("MMMM yyyy")
-        return formatter.string(from: date)
+        return BookkeepingDateFormatting.formatter(
+            template: "MMMM yyyy",
+            locale: locale,
+            calendar: TransactionDay.gregorianCalendar(basedOn: sourceCalendar, locale: locale)
+        ).string(from: date)
     }
 }
 
@@ -108,7 +104,7 @@ struct HomeOverviewRowPresentation: Identifiable, Equatable {
     /// 流水稳定标识。
     let id: UUID
 
-    /// 当前语言环境下的流水分类标题。
+    /// 主行文字：备注，没写备注时为分类名称。
     let title: String
 
     /// 流水分类使用的 SF Symbol 名称。
@@ -117,11 +113,62 @@ struct HomeOverviewRowPresentation: Identifiable, Equatable {
     /// 使用负向金额表示支出的本地化金额。
     let formattedAmount: String
 
-    /// 已清理的可选备注。
-    let note: String?
+    /// 副行文字：写了备注时为分类名称，否则为 `nil`。
+    let subtitle: String?
 
-    /// 包含分类、金额、日期和备注的完整播报文本。
+    /// 包含主行、金额、日期和副行的完整播报文本。
     let accessibilityLabel: String
+}
+
+/// 一笔流水修改前后在首页行上可见字段的差异，决定修改提示动画里哪些地方要"划掉旧值、写上新值"。
+struct HomeOverviewRowRevision: Equatable {
+    /// 修改前的首页行快照。
+    let previous: HomeOverviewRowPresentation
+
+    /// 修改后的首页行。
+    let current: HomeOverviewRowPresentation
+
+    /// 分类图标是否变化。
+    var isSymbolChanged: Bool { previous.symbolName != current.symbolName }
+
+    /// 主行（备注或分类名）是否变化。
+    var isTitleChanged: Bool { previous.title != current.title }
+
+    /// 副行是否变化，包括因新增或清空备注而出现、消失。
+    var isSubtitleChanged: Bool { previous.subtitle != current.subtitle }
+
+    /// 带收支方向的金额是否变化；收支类型切换时符号变化也算。
+    var isAmountChanged: Bool { previous.formattedAmount != current.formattedAmount }
+
+    /// 行上是否有任何可见变化；只改了账户或同月日期时为 `false`。
+    var hasVisibleChanges: Bool {
+        isSymbolChanged || isTitleChanged || isSubtitleChanged || isAmountChanged
+    }
+}
+
+/// 刚被删除的流水在首页的行快照，用于在原位置短暂画出被划掉的残影。
+///
+/// 删除后流水对象已失效，因此在删除前把展示内容和排序键一并拷贝下来。
+struct HomeOverviewDeletedRow: Equatable {
+    /// 删除前的首页行展示数据。
+    let row: HomeOverviewRowPresentation
+
+    /// 被删除流水的 `YYYYMMDD` 业务日，决定残影所在的日期分组。
+    let transactionDay: Int
+
+    /// 被删除流水的保存时间，用于在同日流水中还原原来的位置。
+    let savedAt: Date
+
+    /// 当前快照是否应排在指定流水之前，与 `AccountTransactionOrdering.newestFirst` 的同日规则一致。
+    ///
+    /// - Parameter transaction: 同一业务日内仍然存在的流水。
+    /// - Returns: 残影应排在该流水之前时返回 `true`。
+    func precedes(_ transaction: AccountTransaction) -> Bool {
+        if savedAt != transaction.savedAt {
+            return savedAt > transaction.savedAt
+        }
+        return row.id.uuidString < transaction.id.uuidString
+    }
 }
 
 /// 首页按业务日分组的明细展示数据。
@@ -205,12 +252,26 @@ struct HomeOverviewPresentation {
     ///
     /// - Returns: 可直接提供给 SwiftData `@Query` 或查询上下文的描述符。
     static func descriptor() -> FetchDescriptor<AccountTransaction> {
-        FetchDescriptor(
-            sortBy: [
-                SortDescriptor(\AccountTransaction.transactionDay, order: .reverse),
-                SortDescriptor(\AccountTransaction.savedAt, order: .reverse),
-                SortDescriptor(\AccountTransaction.id, order: .forward)
-            ]
+        FetchDescriptor(sortBy: AccountTransactionOrdering.sortDescriptors)
+    }
+
+    /// 当前可以修改或删除的流水，规则与流水详情的 `canEdit` 一致：已停用或已不存在的账户下只能查看。
+    ///
+    /// - Parameters:
+    ///   - transactions: 跨账户查询得到的原始流水。
+    ///   - accounts: 当前账户快照。
+    /// - Returns: 可以修改或删除的流水 UUID。
+    static func editableTransactionIDs(
+        transactions: [AccountTransaction],
+        accounts: [Account]
+    ) -> Set<UUID> {
+        let editableAccountIDs = Set(
+            accounts.filter { $0.supportsBookkeeping && $0.currencyCode == "CNY" }.map(\.id)
+        )
+        return Set(
+            transactions
+                .filter { $0.currencyCode == "CNY" && editableAccountIDs.contains($0.accountID) }
+                .map(\.id)
         )
     }
 
@@ -233,50 +294,37 @@ struct HomeOverviewPresentation {
     ///   - now: 用于选择初始月份的注入日期。
     ///   - calendar: 提供时区和公历规则的日历。
     ///   - locale: 用于月份、日期、星期和行展示的语言环境。
+    ///   - catalog: 解析分类名称与图标使用的分类目录。
     init(
         transactions: [AccountTransaction],
         now: Date = .now,
         calendar sourceCalendar: Calendar = .current,
-        locale: Locale = .current
+        locale: Locale = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
     ) {
         let calendar = TransactionDay.gregorianCalendar(
             basedOn: sourceCalendar,
             locale: locale
         )
-        let sortedTransactions = transactions.sorted(by: Self.isOrderedBefore)
+        // 流水数量远多于业务日数量：日期按业务日解析一次，月份直接取自 `YYYYMM`。
+        var dayCache = TransactionDay.DateCache(calendar: calendar, locale: locale)
+        let sortedTransactions = AccountTransactionOrdering.sorted(transactions) { $0 }
         let validTransactions = sortedTransactions.compactMap { transaction -> ValidatedTransaction? in
-            guard let transactionDate = TransactionDay.date(
-                from: transaction.transactionDay,
-                calendar: calendar,
-                locale: locale
-            ),
-            let month = HomeMonth.from(
-                date: transactionDate,
-                calendar: calendar,
-                locale: locale
-            ),
-            let payload = try? transaction.validatedPayload()
+            guard dayCache.date(for: transaction.transactionDay) != nil,
+                  let month = HomeMonth(value: transaction.transactionDay / 100),
+                  let payload = try? transaction.validatedPayload(),
+                  let entry = payload.bookkeepingAmount,
+                  let symbolName = payload.categorySymbolName(in: catalog)
             else {
-                return nil
-            }
-
-            let amount: Decimal
-            let entryType: BookkeepingEntryType
-            switch payload {
-            case let .expense(_, value):
-                amount = value
-                entryType = .expense
-            case let .income(_, value):
-                amount = value
-                entryType = .income
-            case .balanceAdjustment:
                 return nil
             }
             return ValidatedTransaction(
                 transaction: transaction,
                 month: month,
-                amount: amount,
-                entryType: entryType
+                payload: payload,
+                symbolName: symbolName,
+                amount: entry.amount,
+                entryType: entry.entryType
             )
         }
         self.validTransactions = validTransactions
@@ -290,16 +338,36 @@ struct HomeOverviewPresentation {
         )
         self.locale = locale
         self.calendar = calendar
+        self.catalog = catalog
     }
 
     /// 生成指定月份的完整展示投影；空月份也会返回可渲染的空状态数据。
     ///
-    /// - Parameter month: 要展示的自然年月，可以是任意有效月份。
+    /// - Parameters:
+    ///   - month: 要展示的自然年月，可以是任意有效月份。
+    ///   - deletedRows: 需要在原位置保留残影的已删除流水；只插入明细行，不计入任何汇总。
     /// - Returns: 月份标题、精确汇总和按日明细。
-    func presentation(for month: HomeMonth) -> HomeOverviewMonthPresentation {
+    func presentation(
+        for month: HomeMonth,
+        retaining deletedRows: [HomeOverviewDeletedRow] = []
+    ) -> HomeOverviewMonthPresentation {
         let monthTransactions = validTransactions.filter { $0.month == month }
         let groupedTransactions = Dictionary(grouping: monthTransactions, by: \.transaction.transactionDay)
-        let dayGroups = groupedTransactions.keys.sorted(by: >).compactMap {
+        // 查询尚未刷新时被删流水仍在结果里，不再重复插入残影；残影所在日期可能已没有其他流水，此时仍要为它保留日期分组。
+        let deletedRows = deletedRows.filter { candidate in
+            HomeMonth(value: candidate.transactionDay / 100) == month
+                && !monthTransactions.contains { $0.transaction.id == candidate.row.id }
+        }
+        var transactionDays = Set(groupedTransactions.keys)
+        for deletedRow in deletedRows {
+            transactionDays.insert(deletedRow.transactionDay)
+        }
+        let weekdayFormatter = BookkeepingDateFormatting.formatter(
+            template: "EEEE",
+            locale: locale,
+            calendar: calendar
+        )
+        let dayGroups = transactionDays.sorted(by: >).compactMap {
             transactionDay -> HomeOverviewDayPresentation? in
             guard let date = TransactionDay.date(
                 from: transactionDay,
@@ -310,11 +378,25 @@ struct HomeOverviewPresentation {
             }
 
             let transactions = groupedTransactions[transactionDay, default: []]
-            let rows = transactions.compactMap { Self.row(
-                for: $0.transaction,
+            let formattedDate = BookkeepingDateFormatting.shortDate(
+                date,
                 locale: locale,
                 calendar: calendar
-            ) }
+            )
+            var rows = transactions.map {
+                Self.row(for: $0, formattedDate: formattedDate, locale: locale, catalog: catalog)
+            }
+            // 多条残影按保存时间从新到旧依次插入，每条都插到第一条比它旧的真实流水之前，同日顺序与删除前一致
+            let dayDeletedRows = deletedRows
+                .filter { $0.transactionDay == transactionDay }
+                .sorted { $0.savedAt > $1.savedAt }
+            for deletedRow in dayDeletedRows {
+                let index = rows.firstIndex { row in
+                    transactions.first { $0.transaction.id == row.id }.map { deletedRow.precedes($0.transaction) }
+                        ?? false
+                } ?? rows.endIndex
+                rows.insert(deletedRow.row, at: index)
+            }
             let incomeTotal = transactions.reduce(into: Decimal.zero) { total, transaction in
                 if transaction.entryType == .income {
                     total += transaction.amount
@@ -327,8 +409,8 @@ struct HomeOverviewPresentation {
             }
             return HomeOverviewDayPresentation(
                 transactionDay: transactionDay,
-                formattedDate: Self.formattedDate(date, locale: locale, calendar: calendar),
-                formattedWeekday: Self.formattedWeekday(date, locale: locale, calendar: calendar),
+                formattedDate: formattedDate,
+                formattedWeekday: weekdayFormatter.string(from: date),
                 incomeTotal: incomeTotal,
                 expenseTotal: expenseTotal,
                 rows: rows
@@ -350,49 +432,107 @@ struct HomeOverviewPresentation {
         )
     }
 
+    /// 在删除前为一笔流水生成首页残影快照。
+    ///
+    /// - Parameters:
+    ///   - transaction: 即将删除、仍然有效的原始流水。
+    ///   - locale: 标题、金额和日期使用的语言环境。
+    ///   - calendar: 日期使用的公历及时区。
+    ///   - catalog: 解析分类名称与图标使用的分类目录。
+    /// - Returns: 残影快照；流水不会出现在首页时返回 `nil`。
+    static func deletedRow(
+        for transaction: AccountTransaction,
+        locale: Locale = .current,
+        calendar: Calendar = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
+    ) -> HomeOverviewDeletedRow? {
+        guard let row = row(for: transaction, locale: locale, calendar: calendar, catalog: catalog)
+        else { return nil }
+        return HomeOverviewDeletedRow(
+            row: row,
+            transactionDay: transaction.transactionDay,
+            savedAt: transaction.savedAt
+        )
+    }
+
     /// 将一笔有效收支流水转换为首页本地化明细行。
     ///
     /// - Parameters:
     ///   - transaction: 需要转换的原始流水。
     ///   - locale: 标题、金额和日期使用的语言环境。
     ///   - calendar: 日期使用的公历及时区。
+    ///   - catalog: 解析分类名称与图标使用的分类目录。
     /// - Returns: 可展示的首页行；无效日期、损坏载荷和非真实支出返回 `nil`。
     static func row(
         for transaction: AccountTransaction,
         locale: Locale = .current,
-        calendar sourceCalendar: Calendar = .current
+        calendar sourceCalendar: Calendar = .current,
+        catalog: BookkeepingCategoryCatalog = .presets
     ) -> HomeOverviewRowPresentation? {
         guard let payload = try? transaction.validatedPayload(),
+              let symbolName = payload.categorySymbolName(in: catalog),
               TransactionDay.date(
                   from: transaction.transactionDay,
                   calendar: sourceCalendar,
                   locale: locale
-              ) != nil,
-              let historyRow = AccountTransactionHistoryPresentation.row(
-                  for: transaction,
-                  locale: locale,
-                  calendar: sourceCalendar
-              )
+              ) != nil
         else {
             return nil
         }
 
-        let symbolName: String
-        switch payload {
-        case let .expense(category, _):
-            symbolName = category.symbolName
-        case let .income(category, _):
-            symbolName = category.symbolName
-        case .balanceAdjustment:
-            return nil
-        }
+        return row(
+            for: transaction,
+            payload: payload,
+            symbolName: symbolName,
+            formattedDate: AccountTransactionHistoryPresentation.formattedDate(
+                transaction.transactionDay,
+                locale: locale,
+                calendar: sourceCalendar
+            ),
+            locale: locale,
+            catalog: catalog
+        )
+    }
 
+    /// 把初始化阶段已校验的收支流水转换为首页明细行，不再重复校验载荷。
+    private static func row(
+        for validated: ValidatedTransaction,
+        formattedDate: String,
+        locale: Locale,
+        catalog: BookkeepingCategoryCatalog
+    ) -> HomeOverviewRowPresentation {
+        row(
+            for: validated.transaction,
+            payload: validated.payload,
+            symbolName: validated.symbolName,
+            formattedDate: formattedDate,
+            locale: locale,
+            catalog: catalog
+        )
+    }
+
+    /// 复用账户流水行的标题、金额与播报文本，并补充首页使用的分类图标。
+    private static func row(
+        for transaction: AccountTransaction,
+        payload: AccountTransactionPayload,
+        symbolName: String,
+        formattedDate: String,
+        locale: Locale,
+        catalog: BookkeepingCategoryCatalog
+    ) -> HomeOverviewRowPresentation {
+        let historyRow = AccountTransactionHistoryPresentation.row(
+            for: transaction,
+            payload: payload,
+            formattedDate: formattedDate,
+            locale: locale,
+            catalog: catalog
+        )
         return HomeOverviewRowPresentation(
             id: historyRow.id,
             title: historyRow.title,
             symbolName: symbolName,
             formattedAmount: historyRow.formattedAmount,
-            note: historyRow.note,
+            subtitle: historyRow.subtitle,
             accessibilityLabel: historyRow.accessibilityLabel
         )
     }
@@ -423,20 +563,6 @@ struct HomeOverviewPresentation {
         return months.first(where: { $0 > currentMonth }) ?? currentMonth
     }
 
-    /// 供 SwiftData 查询结果和纯数组投影共用的稳定流水排序。
-    private nonisolated static func isOrderedBefore(
-        _ lhs: AccountTransaction,
-        _ rhs: AccountTransaction
-    ) -> Bool {
-        if lhs.transactionDay != rhs.transactionDay {
-            return lhs.transactionDay > rhs.transactionDay
-        }
-        if lhs.savedAt != rhs.savedAt {
-            return lhs.savedAt > rhs.savedAt
-        }
-        return lhs.id.uuidString < rhs.id.uuidString
-    }
-
     /// 已完成有效日期、载荷和自然月份解码的收支流水。
     private struct ValidatedTransaction {
         /// 原始流水，供本地化行展示使用。
@@ -444,6 +570,12 @@ struct HomeOverviewPresentation {
 
         /// 由业务日解析出的自然月份。
         let month: HomeMonth
+
+        /// 已校验的收支载荷，生成明细行时直接复用。
+        let payload: AccountTransactionPayload
+
+        /// 分类使用的系统图标名称。
+        let symbolName: String
 
         /// 经 `validatedPayload()` 确认的精确记账金额。
         let amount: Decimal
@@ -458,34 +590,6 @@ struct HomeOverviewPresentation {
     /// 首页投影使用的固定公历及时区。
     private let calendar: Calendar
 
-    /// 格式化短日期，失败时回退到公历数字日期。
-    private static func formattedDate(
-        _ date: Date,
-        locale: Locale,
-        calendar: Calendar
-    ) -> String {
-        date.formatted(
-            Date.FormatStyle(
-                date: .numeric,
-                time: .omitted,
-                locale: locale,
-                calendar: calendar,
-                timeZone: calendar.timeZone
-            )
-        )
-    }
-
-    /// 格式化本地化星期标题。
-    private static func formattedWeekday(
-        _ date: Date,
-        locale: Locale,
-        calendar sourceCalendar: Calendar
-    ) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.calendar = sourceCalendar
-        formatter.timeZone = sourceCalendar.timeZone
-        formatter.setLocalizedDateFormatFromTemplate("EEEE")
-        return formatter.string(from: date)
-    }
+    /// 首页投影使用的分类目录。
+    private let catalog: BookkeepingCategoryCatalog
 }

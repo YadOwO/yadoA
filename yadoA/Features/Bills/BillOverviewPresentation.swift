@@ -58,9 +58,12 @@ struct BillOverviewPresentation {
     private let monthlyTotals: [HomeMonth: BillTotals]
     /// 年份对应的精确汇总。
     private let yearlyTotals: [Int: BillTotals]
-    /// 标题格式化使用的公历与语言环境。
+    /// 标题格式化使用的公历。
     private let calendar: Calendar
-    private let locale: Locale
+    /// 单次投影内复用的月份标题格式器。
+    private let monthFormatter: DateFormatter
+    /// 单次投影内复用的年份标题格式器。
+    private let yearFormatter: DateFormatter
 
     /// 单次遍历按业务年月汇总，排除余额调整、无效日期与损坏载荷。
     init(
@@ -75,21 +78,17 @@ struct BillOverviewPresentation {
         var monthly: [HomeMonth: BillTotals] = [:]
         var yearly: [Int: BillTotals] = [:]
         var total = BillTotals()
+        var dayCache = TransactionDay.DateCache(calendar: calendar)
 
         for transaction in transactions {
-            guard TransactionDay.date(from: transaction.transactionDay, calendar: calendar) != nil,
+            guard dayCache.date(for: transaction.transactionDay) != nil,
                   let month = HomeMonth(value: transaction.transactionDay / 100),
-                  let payload = try? transaction.validatedPayload()
+                  let bookkeeping = try? transaction.validatedPayload().bookkeepingAmount
             else { continue }
 
-            let entry: BillTotals
-            switch payload {
-            case let .income(_, amount):
-                entry = BillTotals(income: amount, transactionCount: 1)
-            case let .expense(_, amount):
-                entry = BillTotals(expense: amount, transactionCount: 1)
-            case .balanceAdjustment:
-                continue
+            let entry = switch bookkeeping.entryType {
+            case .income: BillTotals(income: bookkeeping.amount, transactionCount: 1)
+            case .expense: BillTotals(expense: bookkeeping.amount, transactionCount: 1)
             }
             monthly[month, default: BillTotals()].add(entry)
             yearly[month.year, default: BillTotals()].add(entry)
@@ -102,7 +101,16 @@ struct BillOverviewPresentation {
         self.yearlyTotals = yearly
         self.total = total
         self.calendar = calendar
-        self.locale = locale
+        self.monthFormatter = BookkeepingDateFormatting.formatter(
+            template: "MMM",
+            locale: locale,
+            calendar: calendar
+        )
+        self.yearFormatter = BookkeepingDateFormatting.formatter(
+            template: "yyyy",
+            locale: locale,
+            calendar: calendar
+        )
     }
 
     /// 指定年份的全年收支，空年份返回零值。
@@ -119,7 +127,7 @@ struct BillOverviewPresentation {
             guard let month = HomeMonth(year: year, month: number) else { return nil }
             return BillRowPresentation(
                 id: month.value,
-                title: formattedDate(year: year, month: number, template: "MMM"),
+                title: formattedDate(year: year, month: number, formatter: monthFormatter),
                 totals: monthlyTotals[month, default: BillTotals()]
             )
         }
@@ -134,19 +142,14 @@ struct BillOverviewPresentation {
 
     /// 不使用数字分组符的本地化公历年标题。
     func yearTitle(_ year: Int) -> String {
-        formattedDate(year: year, month: 1, template: "yyyy")
+        formattedDate(year: year, month: 1, formatter: yearFormatter)
     }
 
     /// 使用统一的公历及时区格式化周期标题。
-    private func formattedDate(year: Int, month: Int, template: String) -> String {
+    private func formattedDate(year: Int, month: Int, formatter: DateFormatter) -> String {
         guard let date = calendar.date(from: DateComponents(year: year, month: month, day: 1)) else {
             return String(year)
         }
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-        formatter.setLocalizedDateFormatFromTemplate(template)
         return formatter.string(from: date)
     }
 }

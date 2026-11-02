@@ -10,7 +10,6 @@ struct DiningExpenseEditFlowTests {
         let original = DiningExpenseEditDraft(
             id: UUID(),
                 accountID: UUID(),
-            title: "餐饮",
             amountText: "12.34",
                 transactionDay: 20260901
         )
@@ -19,7 +18,7 @@ struct DiningExpenseEditFlowTests {
         let flow = DiningExpenseEditFlow(draft: original) { draft in
             attempts.append(draft)
         }
-        flow.updateTitle("工作午餐")
+        flow.updateNote("工作午餐")
         flow.updateAmountText("20.00", decimalSeparator: ".")
 
         await flow.submit {
@@ -27,35 +26,35 @@ struct DiningExpenseEditFlowTests {
         }
 
         #expect(attempts.count == 1)
-        #expect(attempts[0].title == "工作午餐")
+        #expect(attempts[0].note == "工作午餐")
         #expect(attempts[0].amount == Decimal(20))
         #expect(dismissals == 1)
         #expect(flow.submissionState == .editing)
     }
 
-    @Test("空标题或无效金额不会保存")
-    func invalidEditNeverSaves() async {
+    @Test("备注留空可以保存，无效金额不会保存")
+    func blankNoteSavesButInvalidAmountNeverSaves() async {
         let draft = DiningExpenseEditDraft(
             id: UUID(),
                 accountID: UUID(),
-            title: "餐饮",
             amountText: "12.34",
-                transactionDay: 20260901
+                transactionDay: 20260901,
+            note: "午餐"
         )
         var attempts = 0
         let flow = DiningExpenseEditFlow(draft: draft) { _ in
             attempts += 1
         }
 
-        flow.updateTitle("  ")
+        flow.updateNote("  ")
+        #expect(flow.canSubmit)
         await flow.submit {}
-        #expect(attempts == 0)
+        #expect(attempts == 1)
 
         let invalidAmountFlow = DiningExpenseEditFlow(
             draft: DiningExpenseEditDraft(
                 id: UUID(),
                 accountID: UUID(),
-                title: "晚餐",
                 amountText: "1.001",
                 transactionDay: 20260901
             )
@@ -63,7 +62,7 @@ struct DiningExpenseEditFlowTests {
             attempts += 1
         }
         await invalidAmountFlow.submit {}
-        #expect(attempts == 0)
+        #expect(attempts == 1)
     }
 
     @Test("保存失败保留编辑内容，重试成功后只关闭一次")
@@ -71,7 +70,6 @@ struct DiningExpenseEditFlowTests {
         let draft = DiningExpenseEditDraft(
             id: UUID(),
                 accountID: UUID(),
-            title: "餐饮",
             amountText: "12.34",
                 transactionDay: 20260901
         )
@@ -84,11 +82,11 @@ struct DiningExpenseEditFlowTests {
                 throw InjectedEditFailure()
             }
         }
-        flow.updateTitle("新的标题")
+        flow.updateNote("新的备注")
 
         await flow.submit { dismissals += 1 }
         #expect(flow.hasSaveError)
-        #expect(flow.draft.title == "新的标题")
+        #expect(flow.draft.note == "新的备注")
         #expect(dismissals == 0)
 
         failureState.shouldFail = false
@@ -103,7 +101,7 @@ struct DiningExpenseEditFlowTests {
     @Test("完整字段提交使用稳定快照，保存中禁止再次提交和修改")
     func pendingSaveFreezesAllFieldsAndPreventsDuplicateSubmission() async {
         let original = DiningExpenseEditDraft(
-            id: UUID(), accountID: UUID(), title: "午餐",
+            id: UUID(), accountID: UUID(),
             amountText: "20", transactionDay: 20260901
         )
         let gate = AsyncSaveGate()
@@ -116,7 +114,7 @@ struct DiningExpenseEditFlowTests {
         flow.update {
             $0.accountID = targetAccount
             $0.entryType = .income
-            $0.incomeCategory = .refund
+            $0.incomeCategoryKey = IncomeCategory.refund.rawValue
             $0.transactionDay = 20260902
             $0.note = "已退回"
         }
@@ -137,11 +135,58 @@ struct DiningExpenseEditFlowTests {
     @Test("无效公历日期不能提交")
     func invalidBusinessDayPreventsSubmission() async {
         let flow = DiningExpenseEditFlow(draft: DiningExpenseEditDraft(
-            id: UUID(), accountID: UUID(), title: "午餐",
+            id: UUID(), accountID: UUID(),
             amountText: "20", transactionDay: 20260230
         )) { _ in
             Issue.record("无效日期不应进入保存动作")
         }
+        #expect(!flow.canSubmit)
+        await flow.submit {}
+    }
+
+    @Test("草稿分类随流水删除后撤销选择，重新选择前不能提交")
+    func clearedCategoryRequiresReselectionBeforeSubmit() async {
+        let original = DiningExpenseEditDraft(
+            id: UUID(), accountID: UUID(),
+            amountText: "20", transactionDay: 20260901
+        )
+        var attempts: [DiningExpenseEditDraft] = []
+        let flow = DiningExpenseEditFlow(draft: original) { attempts.append($0) }
+        flow.selectCategory(key: "custom-pet")
+
+        flow.clearCategory()
+        #expect(flow.formCategoryKey == nil)
+        #expect(!flow.canSubmit)
+        await flow.submit {}
+        #expect(attempts.isEmpty)
+
+        // 另一方向不受影响；切回来仍需重新选择。
+        flow.selectEntryType(.income)
+        #expect(flow.formCategoryKey == IncomeCategory.salary.rawValue)
+        #expect(flow.canSubmit)
+        flow.selectEntryType(.expense)
+        #expect(flow.formCategoryKey == nil)
+
+        flow.selectCategory(key: ExpenseCategory.dining.rawValue)
+        #expect(flow.formCategoryKey == ExpenseCategory.dining.rawValue)
+        await flow.submit {}
+        #expect(attempts.count == 1)
+        #expect(attempts[0].expenseCategoryKey == ExpenseCategory.dining.rawValue)
+    }
+
+    @Test("所编辑的流水被删除后不能再提交")
+    func removedTransactionPreventsSubmission() async {
+        let flow = DiningExpenseEditFlow(draft: DiningExpenseEditDraft(
+            id: UUID(), accountID: UUID(),
+            amountText: "20", transactionDay: 20260901
+        )) { _ in
+            Issue.record("流水已删除时不应进入保存动作")
+        }
+        #expect(flow.canSubmit)
+
+        flow.markTransactionRemoved()
+
+        #expect(flow.isEntryRemoved)
         #expect(!flow.canSubmit)
         await flow.submit {}
     }

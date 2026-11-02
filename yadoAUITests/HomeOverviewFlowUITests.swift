@@ -48,12 +48,14 @@ final class HomeOverviewFlowUITests: XCTestCase {
         wait(for: [changed], timeout: 2)
     }
 
-    /// List 的辅助功能边框包含底部安全区，手势只能从记账按钮上方的可见明细区域开始。
+    /// List 的辅助功能边框延伸到顶部汇总栏下面，也包含底部安全区；
+    /// 手势只能从汇总栏下方、麦克风按钮上方的可见明细区域开始，按在汇总栏上拖不动列表。
     @MainActor
     private func listCoordinate(in app: XCUIApplication, list: XCUIElement, fraction: CGFloat) -> XCUICoordinate {
         let frame = list.frame
-        let top = frame.minY + 12
-        let bottom = min(frame.maxY, app.buttons["home-add-expense"].frame.minY - 20)
+        let header = app.otherElements["home-fixed-header"].firstMatch
+        let top = max(frame.minY, header.exists ? header.frame.maxY : frame.minY) + 12
+        let bottom = min(frame.maxY, app.buttons["voice-mic"].frame.minY - 20)
         return list.coordinate(withNormalizedOffset: .zero).withOffset(
             CGVector(dx: frame.width * 0.5, dy: top - frame.minY + (bottom - top) * fraction)
         )
@@ -74,10 +76,11 @@ final class HomeOverviewFlowUITests: XCTestCase {
     func testFixtureShowsHomeDataAndMonthPickerCanCancel() throws {
         let app = launchHomeFixtureInEnglish()
 
-        XCTAssertTrue(app.navigationBars["Home"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Ledger"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["home-month-selector"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["home-summary-visibility"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["voice-mic"].exists)
         XCTAssertFalse(app.otherElements["home-details-empty"].exists)
 
         app.buttons["home-month-selector"].tap()
@@ -123,32 +126,32 @@ final class HomeOverviewFlowUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Transaction Details"].waitForExistence(timeout: 3))
         app.buttons["bookkeeping-detail-edit"].tap()
         XCTAssertTrue(app.navigationBars["Edit Transaction"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.textFields["expense-edit-title"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.textFields["expense-edit-amount"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.textFields["expense-edit-title"].exists)
         XCTAssertTrue(app.buttons["expense-edit-save"].exists)
         XCTAssertTrue(app.datePickers["expense-edit-date"].exists)
         XCTAssertTrue(app.textViews["expense-edit-note"].exists || app.textFields["expense-edit-note"].exists)
     }
 
+    /// 夹具里已有支出：预选最近分类，不再弹分类面板，点分类区域仍可以换。
     @MainActor
-    func testAddExpenseSelectsCategoryAndShowsItOnHome() throws {
+    func testAddExpensePreselectsRecentCategoryAndCanChangeIt() throws {
         let app = launchHomeFixtureInEnglish()
         XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
         XCTAssertTrue(app.tabBars.firstMatch.isHittable)
         app.buttons["home-add-expense"].tap()
 
-        XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 3))
-        XCTAssertTrue(
-            app.tabBars.firstMatch.waitForNonExistence(timeout: 3),
-            "进入记账流程后不应继续展示 Tab Bar"
-        )
+        let category = app.buttons["expense-entry-category"]
+        XCTAssertTrue(category.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.navigationBars["Select Category"].exists)
+        XCTAssertTrue(app.tabBars.firstMatch.exists, "记账流程是二级页面，保留 Tab Bar")
 
+        category.tap()
+        XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 3))
         let travel = app.buttons["expense-category-travel"]
         XCTAssertTrue(travel.waitForExistence(timeout: 2))
         travel.tap()
-
-        let category = app.buttons["expense-entry-category"]
         XCTAssertTrue(category.waitForExistence(timeout: 2))
 
         app.buttons["expense-entry-account"].tap()
@@ -172,15 +175,15 @@ final class HomeOverviewFlowUITests: XCTestCase {
         XCTAssertEqual(app.tabBars.buttons.count, 4)
     }
 
+    /// 夹具里没有收入：切到收入时还没有最近分类，要先选一个。
     @MainActor
     func testAddIncomeSelectsCategoryAndShowsItOnHome() throws {
         let app = launchHomeFixtureInEnglish()
         XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 3))
         app.buttons["home-add-expense"].tap()
 
-        XCTAssertTrue(app.navigationBars["Select Category"].waitForExistence(timeout: 3))
-        let income = app.segmentedControls["bookkeeping-category-entry-type"].buttons["Income"]
-        XCTAssertTrue(income.waitForExistence(timeout: 2))
+        let income = app.buttons["bookkeeping-entry-type-income"]
+        XCTAssertTrue(income.waitForExistence(timeout: 3))
         income.tap()
 
         XCTAssertTrue(app.navigationBars["Select Income Category"].waitForExistence(timeout: 2))
@@ -208,9 +211,10 @@ final class HomeOverviewFlowUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
     }
 
+    /// 空账本没有最近分类，第一笔仍要先选分类。
     @MainActor
     func testAddExpenseCannotSaveAfterCancellingInitialCategorySelection() throws {
-        let app = launchHomeFixtureInEnglish()
+        let app = launchIsolatedAppInEnglish()
         XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 3))
         app.buttons["home-add-expense"].tap()
 
@@ -219,5 +223,55 @@ final class HomeOverviewFlowUITests: XCTestCase {
 
         XCTAssertTrue(app.buttons["expense-entry-category"].waitForExistence(timeout: 2))
         XCTAssertFalse(app.buttons["expense-entry-save"].isEnabled)
+    }
+
+    /// 左滑删除要先确认，取消后流水还在，确认后从列表消失。
+    @MainActor
+    func testSwipeToDeleteAsksForConfirmation() throws {
+        let app = launchHomeFixtureInEnglish()
+        let row = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'home-transaction-'")
+        ).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 3))
+        let identifier = row.identifier
+
+        row.swipeLeft()
+        let delete = app.buttons["Delete Transaction"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 2))
+        delete.tap()
+
+        let alert = app.alerts.firstMatch
+        XCTAssertTrue(alert.waitForExistence(timeout: 2))
+        alert.buttons["Cancel"].tap()
+        XCTAssertTrue(app.buttons[identifier].waitForExistence(timeout: 2))
+
+        app.buttons[identifier].swipeLeft()
+        XCTAssertTrue(delete.waitForExistence(timeout: 2))
+        delete.tap()
+        XCTAssertTrue(alert.waitForExistence(timeout: 2))
+        alert.buttons["Delete Transaction"].tap()
+
+        XCTAssertTrue(app.buttons[identifier].waitForNonExistence(timeout: 4))
+    }
+
+    /// 长按“再记一笔”进入新增页面，金额已预填，不再弹分类面板。
+    @MainActor
+    func testLongPressRepeatsEntryWithPrefilledAmount() throws {
+        let app = launchHomeFixtureInEnglish()
+        let row = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'home-transaction-'")
+        ).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 3))
+
+        row.press(forDuration: 1)
+        let repeatAction = app.buttons["Record Again"]
+        XCTAssertTrue(repeatAction.waitForExistence(timeout: 3))
+        repeatAction.tap()
+
+        let amount = app.textFields["expense-entry-amount"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.navigationBars["Select Category"].exists)
+        XCTAssertEqual(amount.value as? String, "48.71")
+        XCTAssertTrue(app.buttons["expense-entry-save"].isEnabled)
     }
 }
