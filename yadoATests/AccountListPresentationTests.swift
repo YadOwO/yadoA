@@ -168,6 +168,35 @@ struct AccountListPresentationTests {
         #expect(!presentation.formattedAmount.contains("-"))
     }
 
+    @Test("只有拉低净资产的金额上负向色：欠款和透支，资产余额与溢缴不上色")
+    func onlyDebtAndOverdraftUseNegativeTone() {
+        let cases: [(String, Decimal, AmountTone)] = [
+            (AccountType.cash.rawValue, 100, .neutral),
+            (AccountType.debitCard.rawValue, -20, .negative),
+            (AccountType.creditCard.rawValue, 30, .negative),
+            (AccountType.creditCard.rawValue, -10, .neutral),
+            (AccountType.liability.rawValue, 0, .neutral),
+            ("futureType", -5, .negative)
+        ]
+
+        for (typeRawValue, balance, tone) in cases {
+            let account = makeAccount(typeRawValue: typeRawValue, balance: balance)
+            #expect(AccountListPresentation.row(for: account).amountTone == tone)
+            #expect(AccountDetailPresentationFactory.detail(for: account).amountTone == tone)
+        }
+    }
+
+    @Test("汇总卡片只在有欠款或净资产为负时上负向色")
+    func summaryTonesHighlightOnlyNegativeSide() {
+        let healthy = AccountSummaryPresentation.summary(assets: 100, liabilities: 0)
+        #expect(healthy.netAssetsTone == .neutral)
+        #expect(healthy.liabilitiesTone == .neutral)
+
+        let indebted = AccountSummaryPresentation.summary(assets: 100, liabilities: 300)
+        #expect(indebted.netAssetsTone == .negative)
+        #expect(indebted.liabilitiesTone == .negative)
+    }
+
     @Test("未知持久类型安全降级且金额标签可访问")
     func unknownTypeHasSafeFallback() {
         let account = makeAccount(typeRawValue: "futureType", name: "未来账户")

@@ -5,11 +5,7 @@ import SwiftUI
 struct BillView: View {
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
-    @Environment(\.colorScheme) private var colorScheme
     @Query private var transactions: [AccountTransaction]
-
-    /// 账单页独立保存结余配色，默认正红负绿。
-    @AppStorage("bill.balance.positiveIsRed") private var positiveBalanceIsRed = true
 
     /// 模式切换保留用户上次选中的月账单年份。
     @State private var period: BillPeriod = .monthly
@@ -38,7 +34,7 @@ struct BillView: View {
                 )
 
                 // 年份选择放进汇总框的标题行；该行高度固定，切换月/年账单时下方内容不会上下跳动。
-                BillSummaryCard(totals: totals, period: period, positiveBalanceIsRed: positiveBalanceIsRed) {
+                BillSummaryCard(totals: totals, period: period) {
                     if period == .monthly {
                         Menu {
                             Picker(
@@ -79,8 +75,7 @@ struct BillView: View {
                 } else {
                     BillTable(
                         rows: period == .monthly ? presentation.monthlyRows(for: year) : presentation.yearlyRows,
-                        period: period,
-                        positiveBalanceIsRed: positiveBalanceIsRed
+                        period: period
                     )
                 }
             }
@@ -90,36 +85,6 @@ struct BillView: View {
         .paperPage()
         .navigationTitle(AccountLocalization.string("bill.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Picker(
-                        AccountLocalization.string("bill.balance.color", locale: locale),
-                        selection: $positiveBalanceIsRed
-                    ) {
-                        // 系统菜单不支持给部分文字上色，改用带颜色的正负号示意两种配色。
-                        Label {
-                            Text(AccountLocalization.string("bill.balance.positiveRed", locale: locale))
-                        } icon: {
-                            billBalanceSwatch(positiveIsRed: true, colorScheme: colorScheme)
-                        }
-                        .tag(true)
-                        Label {
-                            Text(AccountLocalization.string("bill.balance.positiveGreen", locale: locale))
-                        } icon: {
-                            billBalanceSwatch(positiveIsRed: false, colorScheme: colorScheme)
-                        }
-                        .tag(false)
-                    }
-                } label: {
-                    Label(
-                        AccountLocalization.string("bill.balance.color", locale: locale),
-                        systemImage: "paintpalette"
-                    )
-                }
-                .accessibilityIdentifier("bill-balance-color")
-            }
-        }
     }
 }
 
@@ -130,8 +95,6 @@ private struct BillSummaryCard<Accessory: View>: View {
     /// 当前模式对应的汇总与文案范围。
     let totals: BillTotals
     let period: BillPeriod
-    /// 汇总和明细共用页面选择的结余配色。
-    let positiveBalanceIsRed: Bool
     /// 标题行右侧的附加控件，月账单下是年份选择；为空时标题行高度不变。
     @ViewBuilder let accessory: () -> Accessory
 
@@ -154,7 +117,8 @@ private struct BillSummaryCard<Accessory: View>: View {
                     .font(.system(.largeTitle, design: .serif, weight: .medium).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
-                    .foregroundStyle(billBalanceColor(totals.balance, positiveIsRed: positiveBalanceIsRed))
+                    // 结余按全局正负颜色上色，零结余保持墨色。
+                    .amountTone(AmountTone(signOf: totals.balance))
                     .accessibilityIdentifier("bill-summary-balance")
             }
             HandDrawnRule(seed: 11)
@@ -212,8 +176,6 @@ private struct BillTable: View {
     let rows: [BillRowPresentation]
     /// 当前是月账单还是年账单。
     let period: BillPeriod
-    /// 汇总和明细共用页面选择的结余配色。
-    let positiveBalanceIsRed: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -252,7 +214,7 @@ private struct BillTable: View {
                 Spacer(minLength: 8)
                 Text(formatted(row.totals.balance))
                     .font(.system(.body, design: .serif, weight: .medium).monospacedDigit())
-                    .foregroundStyle(billBalanceColor(row.totals.balance, positiveIsRed: positiveBalanceIsRed))
+                    .amountTone(AmountTone(signOf: row.totals.balance))
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
             }
@@ -317,43 +279,6 @@ private struct BillTable: View {
             AccountLocalization.string("bill.balance", locale: locale), formatted(row.totals.balance)
         ].joined(separator: ", ")
     }
-}
-
-/// 正负结余按用户偏好映射为账本红、账本绿，零结余保持中性文字色。
-private func billBalanceColor(_ amount: Decimal, positiveIsRed: Bool) -> Color {
-    guard amount != 0 else { return .primary }
-    return (amount > 0) == positiveIsRed ? Color(.ledgerRed) : Color(.ledgerGreen)
-}
-
-/// 配色菜单项里的示意图：带颜色的加号和减号，对应正、负结余各自的颜色。
-///
-/// 系统菜单只会原样显示"原色"位图，因此按当前外观把两种颜色画进一张图。
-@MainActor
-private func billBalanceSwatch(positiveIsRed: Bool, colorScheme: ColorScheme) -> Image {
-    let traits = UITraitCollection(userInterfaceStyle: colorScheme == .dark ? .dark : .light)
-    let red = UIColor(resource: .ledgerRed).resolvedColor(with: traits)
-    let green = UIColor(resource: .ledgerGreen).resolvedColor(with: traits)
-    let configuration = UIImage.SymbolConfiguration(pointSize: 13, weight: .bold)
-
-    guard
-        let plus = UIImage(systemName: "plus", withConfiguration: configuration)?
-            .withTintColor(positiveIsRed ? red : green, renderingMode: .alwaysOriginal),
-        let minus = UIImage(systemName: "minus", withConfiguration: configuration)?
-            .withTintColor(positiveIsRed ? green : red, renderingMode: .alwaysOriginal)
-    else {
-        return Image(systemName: "plusminus")
-    }
-
-    let spacing: CGFloat = 4
-    let size = CGSize(
-        width: plus.size.width + spacing + minus.size.width,
-        height: max(plus.size.height, minus.size.height)
-    )
-    let image = UIGraphicsImageRenderer(size: size).image { _ in
-        plus.draw(at: CGPoint(x: 0, y: (size.height - plus.size.height) / 2))
-        minus.draw(at: CGPoint(x: plus.size.width + spacing, y: (size.height - minus.size.height) / 2))
-    }
-    return Image(uiImage: image.withRenderingMode(.alwaysOriginal))
 }
 
 #if DEBUG

@@ -374,8 +374,10 @@ private struct TransferAccountPicker: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Spacer(minLength: 16)
+                // 欠款与账户页一样用负向色，其余余额保持灰色。
                 Text(row.formattedAmount)
                     .font(.body.monospacedDigit())
+                    .amountTone(row.amountTone)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 // 不论是否选中都占住勾的位置，余额才能上下对齐。

@@ -7,6 +7,7 @@ import UIKit
 /// 分组顺序为通用、记账、数据、关于、危险操作、账号；重置数据单独成卡，避免与导入导出相邻误触。
 struct SettingsView: View {
     @Environment(\.locale) private var locale
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     /// 全局登录状态；只决定是否显示退出登录分组。
     @Environment(AuthStore.self) private var authStore
@@ -21,6 +22,8 @@ struct SettingsView: View {
     @AppStorage(AppLanguage.storageKey) private var language: AppLanguage = .system
     /// 与窗口根部共享外观偏好，修改后立即同步亮暗色。
     @AppStorage(AppAppearance.storageKey) private var appearance: AppAppearance = .system
+    /// 全局正负颜色，账单、账户、点数等页面的金额都读同一个键，修改后立即生效。
+    @AppStorage(AmountColorConvention.storageKey) private var amountColors: AmountColorConvention = .positiveRed
     /// 启动页面偏好：底部导航顺序立即更新，落点在下次冷启动时生效。
     @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
     /// 全局触感开关，所有 `appHaptic` 与 `AppHaptics.play` 都读同一个键，修改后立即生效。
@@ -59,6 +62,11 @@ struct SettingsView: View {
                         $0.titleLocalizationKey
                     }
                     .accessibilityIdentifier("profile-appearance")
+
+                    ProfileSettingsRowDivider()
+
+                    amountColorsRow
+                        .accessibilityIdentifier("settings-amount-colors")
 
                     ProfileSettingsRowDivider()
 
@@ -314,6 +322,28 @@ struct SettingsView: View {
             }
         } label: {
             ProfileSettingsRow(titleKey: titleKey, symbol: symbol, value: text(optionTitleKey(selection.wrappedValue)))
+        }
+    }
+
+    /// 正负颜色偏好行；系统菜单不支持给部分文字上色，菜单项用带颜色的加减号示意两种配色。
+    private var amountColorsRow: some View {
+        Menu {
+            Picker(text("settings.amount_colors.title"), selection: $amountColors) {
+                ForEach(AmountColorConvention.allCases) { option in
+                    Label {
+                        Text(text(option.titleLocalizationKey))
+                    } icon: {
+                        option.swatch(colorScheme: colorScheme)
+                    }
+                    .tag(option)
+                }
+            }
+        } label: {
+            ProfileSettingsRow(
+                titleKey: "settings.amount_colors.title",
+                symbol: "plusminus",
+                value: text(amountColors.titleLocalizationKey)
+            )
         }
     }
 

@@ -91,6 +91,47 @@ enum AppStartPage: String, CaseIterable, Identifiable {
     }
 }
 
+/// 全局正负颜色：账单结余、账户欠款、点数增减等带正负含义的金额都按它上色。
+enum AmountColorConvention: String, CaseIterable, Identifiable {
+    /// 正数红、负数绿，与国内行情的红涨绿跌一致；默认值。
+    case positiveRed
+    /// 正数绿、负数红。
+    case positiveGreen
+
+    /// 在本机保存的正负颜色偏好键。
+    static let storageKey = "app.display.amountColors"
+
+    /// 选择项的稳定标识。
+    var id: String { rawValue }
+
+    /// 选择项标题的本地化资源键。
+    var titleLocalizationKey: String {
+        switch self {
+        case .positiveRed: "settings.amount_colors.positive_red"
+        case .positiveGreen: "settings.amount_colors.positive_green"
+        }
+    }
+
+    /// 某种正负语义是否用账本红。
+    ///
+    /// - Parameter tone: 金额的正负语义。
+    /// - Returns: 用账本红为 `true`、账本绿为 `false`；中性不上色，返回 `nil`。
+    func usesRed(for tone: AmountTone) -> Bool? {
+        switch tone {
+        case .positive: self == .positiveRed
+        case .negative: self == .positiveGreen
+        case .neutral: nil
+        }
+    }
+
+    /// 某种正负语义对应的颜色；中性返回 `nil`，保持调用方原来的文字色。
+    ///
+    /// - Parameter tone: 金额的正负语义。
+    func color(for tone: AmountTone) -> Color? {
+        usesRed(for: tone).map { $0 ? Color(.ledgerRed) : Color(.ledgerGreen) }
+    }
+}
+
 /// 在窗口根部应用显示偏好，使各 Tab 与其弹层共享同一语言和外观。
 struct AppDisplayPreferencesModifier: ViewModifier {
     @Environment(\.locale) private var systemLocale

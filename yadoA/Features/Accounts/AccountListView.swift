@@ -22,6 +22,9 @@ struct AccountRowPresentation: Identifiable, Equatable {
     /// 同时包含金融语义与金额的无障碍播报文本。
     let amountAccessibilityLabel: String
 
+    /// 金额的上色语义：欠款、透支为负向，其余不上色。
+    let amountTone: AmountTone
+
     /// 是否是当前唯一默认记账账户。
     let isDefault: Bool
 
@@ -51,6 +54,12 @@ struct AccountSummaryPresentation: Equatable {
 
     /// 包含三项汇总和金额的完整播报文本。
     let accessibilityLabel: String
+
+    /// 净资产为负时用负向色提示，否则保持墨色。
+    var netAssetsTone: AmountTone { netAssets < 0 ? .negative : .neutral }
+
+    /// 有欠款时负债总额用负向色，与账户行的欠款一致。
+    var liabilitiesTone: AmountTone { liabilities > 0 ? .negative : .neutral }
 
     /// 从账户列表生成资产、负债和净资产汇总。
     ///
@@ -218,6 +227,7 @@ enum AccountListPresentation {
             formattedAmount: formattedAmount,
             amountLabel: amountLabel,
             amountAccessibilityLabel: accessibilityLabel,
+            amountTone: amountTone(accountType: accountType, balance: balance),
             isDefault: isDefault,
             icon: AccountIconPresentation(
                 brandImageName: template?.brandImageName,
@@ -225,6 +235,20 @@ enum AccountListPresentation {
                 tint: accountType?.tint ?? .secondary
             )
         )
+    }
+
+    /// 账户金额的上色规则：只给拉低净资产的金额上负向色，资产余额保持墨色，作为资产与负债的轻提示。
+    ///
+    /// 负债类账户的正余额是欠款，负余额（溢缴）不上色；资产类（含未知类型，与汇总一致）的负余额是透支。
+    ///
+    /// - Parameters:
+    ///   - accountType: 账户类型；未知类型为 `nil`，按资产处理。
+    ///   - balance: 当前余额或欠款。
+    /// - Returns: 负向或中性。
+    static func amountTone(accountType: AccountType?, balance: Decimal) -> AmountTone {
+        let isDebt = accountType?.expenseBalanceEffect == .increaseDebt
+        let netAssetsEffect = isDebt ? -balance : balance
+        return netAssetsEffect < 0 ? .negative : .neutral
     }
 
     /// 仅接受与持久账户类型一致的当前静态模板，避免过期或损坏 ID 误配品牌。
@@ -540,6 +564,7 @@ struct AccountSummaryCard: View {
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
+                    .amountTone(presentation.netAssetsTone)
             }
 
             HStack(alignment: .top, spacing: 16) {
@@ -553,7 +578,8 @@ struct AccountSummaryCard: View {
                         "account.summary.liabilities",
                         locale: locale
                     ),
-                    amount: presentation.formattedLiabilities
+                    amount: presentation.formattedLiabilities,
+                    tone: presentation.liabilitiesTone
                 )
             }
         }
@@ -581,6 +607,9 @@ private struct AccountSummaryMetric: View {
     let title: String
     let amount: String
 
+    /// 金额的上色语义；资产保持墨色，有欠款的负债用负向色。
+    var tone: AmountTone = .neutral
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
@@ -591,12 +620,13 @@ private struct AccountSummaryMetric: View {
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
+                .amountTone(tone)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-/// 支持动态字体换行、且不依赖颜色表达金额语义的共享账户行。
+/// 支持动态字体换行的共享账户行；金额语义由“余额/欠款”标签表达，欠款金额的颜色只是轻提示。
 struct AccountListRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.locale) private var locale
@@ -673,6 +703,7 @@ struct AccountListRow: View {
                 .foregroundStyle(.secondary)
             Text(presentation.formattedAmount)
                 .font(.system(.body, design: .serif).monospacedDigit())
+                .amountTone(presentation.amountTone)
                 .modifier(voiceUnderline(seed: 9))
         }
         .fixedSize(horizontal: false, vertical: true)

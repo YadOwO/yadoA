@@ -144,8 +144,8 @@ private struct AICreditEntryRow: View {
                 Text(entry.signedPoints(locale: locale))
                     .font(.body.weight(.medium))
                     .monospacedDigit()
-                    // 增加用账本绿；扣点是正常消耗，不用红色
-                    .foregroundStyle(entry.points > 0 ? Color(.ledgerGreen) : Color.primary)
+                    // 增加按全局正负颜色用正向色；扣点是正常消耗，不上色
+                    .amountTone(entry.points > 0 ? .positive : .neutral)
                 Text(
                     AccountLocalization.formatted(
                         "ai.entry.balanceAfter",

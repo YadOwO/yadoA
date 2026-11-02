@@ -31,6 +31,9 @@ struct AccountDetailPresentation: Equatable {
     /// 同时包含金额语义和值的无障碍播报文本。
     let amountAccessibilityLabel: String
 
+    /// 与列表一致的金额上色语义：欠款、透支为负向。
+    let amountTone: AmountTone
+
     /// 与列表一致的品牌图片或类型降级图标。
     let icon: AccountIconPresentation
 
@@ -76,6 +79,7 @@ enum AccountDetailPresentationFactory {
             formattedAmount: row.formattedAmount,
             amountLabel: row.amountLabel,
             amountAccessibilityLabel: row.amountAccessibilityLabel,
+            amountTone: row.amountTone,
             icon: row.icon,
             isActive: account.isActive,
             isDefault: row.isDefault
@@ -604,6 +608,7 @@ private struct AccountDetailQueryContent: View {
                     .font(.system(.largeTitle, design: .serif, weight: .medium).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
+                    .amountTone(presentation.amountTone)
                     .accessibilityLabel(presentation.amountAccessibilityLabel)
                     .accessibilityIdentifier("account-detail-amount")
             }

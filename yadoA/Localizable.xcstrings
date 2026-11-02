@@ -1234,24 +1234,26 @@
         }
       }
     },
-    "bill.balance.color": {
+    "settings.amount_colors.title": {
+      "comment": "设置页全局正负颜色偏好的标题，账单结余、账户欠款、点数增减都按它上色。",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Balance colors"
+            "value": "Positive/Negative Colors"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "结余颜色"
+            "value": "正负颜色"
           }
         }
       }
     },
-    "bill.balance.positiveRed": {
+    "settings.amount_colors.positive_red": {
+      "comment": "正负颜色选项：正数红、负数绿。",
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -1268,7 +1270,8 @@
         }
       }
     },
-    "bill.balance.positiveGreen": {
+    "settings.amount_colors.positive_green": {
+      "comment": "正负颜色选项：正数绿、负数红。",
       "extractionState": "manual",
       "localizations": {
         "en": {
