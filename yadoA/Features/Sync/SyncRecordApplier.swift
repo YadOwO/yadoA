@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 import SwiftData
 
-/// 应用一批服务端记录的结果，同步引擎据此决定后续动作并汇报。
+/// 应用一批服务端记录的结果，同步引擎据此决定后续动作并汇 报。
 struct SyncApplyOutcome: Equatable {
     /// 写入或删除了本地数据的记录数。
     var appliedCount = 0
