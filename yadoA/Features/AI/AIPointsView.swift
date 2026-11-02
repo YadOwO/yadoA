@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 /// “我的 › AI 点数”：当前余额、模型档位入口、扣点规则和点数明细。
@@ -12,10 +13,17 @@ struct AIPointsView: View {
     @Environment(AuthStore.self) private var authStore
     @Environment(SignInPresentation.self) private var signInPresentation
     /// 当前账号的 AI 点数；预览中没有注入时为 nil。
+    @Environment(\.modelContext) private var modelContext
     @Environment(AIPointsStore.self) private var points: AIPointsStore?
 
     /// 本页的流水分页；已登录时在页面出现后创建，退出登录时丢弃。
     @State private var feed: AICreditEntryFeed?
+
+    /// 是否在确认清空对话记录。
+    @State private var isClearChatHistoryConfirming = false
+
+    /// 清空对话记录是否失败。
+    @State private var isClearChatHistoryFailed = false
 
     var body: some View {
         ScrollView {
@@ -25,6 +33,7 @@ struct AIPointsView: View {
                 if authStore.isAuthenticated {
                     tierSection
                     traceConsentSection
+                    chatHistorySection
                 }
 
                 rulesSection
@@ -259,6 +268,50 @@ struct AIPointsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 20)
             }
+        }
+    }
+
+    // MARK: - 对话记录
+
+    /// 对话记录的说明与清空入口；记录只在本机，说明要写清不进云同步和备份。
+    private var chatHistorySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ProfileSettingsSection(nil, seed: "ai.chatHistory") {
+                Button(role: .destructive) {
+                    isClearChatHistoryConfirming = true
+                } label: {
+                    Label(text("ai.chatHistory.clear"), systemImage: "trash")
+                        .labelStyle(ProfileSettingsLabelStyle())
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 14)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityIdentifier("ai-points-clear-chat-history")
+            }
+
+            Text(text("ai.chatHistory.footnote"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 20)
+        }
+        .confirmationDialog(
+            text("ai.chatHistory.clear.confirm"),
+            isPresented: $isClearChatHistoryConfirming,
+            titleVisibility: .visible
+        ) {
+            Button(text("ai.chatHistory.clear"), role: .destructive) {
+                do {
+                    try AIChatHistoryStore(container: modelContext.container).clearAll()
+                } catch {
+                    isClearChatHistoryFailed = true
+                }
+            }
+            Button(text("common.cancel"), role: .cancel) {}
+        }
+        .alert(text("ai.chatHistory.clear.failed"), isPresented: $isClearChatHistoryFailed) {
+            Button(text("common.close"), role: .cancel) {}
         }
     }
 

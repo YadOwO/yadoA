@@ -65,6 +65,7 @@ final class LocalDataResetService {
             try context.fetch(FetchDescriptor<BookkeepingCategory>()).forEach(context.delete)
             try context.fetch(FetchDescriptor<RecurringRule>()).forEach(context.delete)
             try context.fetch(FetchDescriptor<SyncLedgerEntry>()).forEach(context.delete)
+            try context.fetch(FetchDescriptor<AIChatTurnRecord>()).forEach(context.delete)
             try context.saveOrRollback(tracksSyncChanges: false, beforeSave: beforeSave)
         } catch {
             context.rollback()
@@ -72,5 +73,8 @@ final class LocalDataResetService {
         }
         // 预置行与被删的行标识相同，放在独立保存里补回，避免同一次保存里先删后插同一唯一标识。
         try? LocalCategoryRepository(container: container).ensurePresets()
+        // 对话记录跟随账本一起清空，当前对话段不能再引用已清空的数据
+        AIChatImageStore.production.removeAll()
+        NotificationCenter.default.post(name: .aiChatContextInvalidated, object: nil)
     }
 }

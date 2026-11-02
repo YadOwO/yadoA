@@ -1,11 +1,12 @@
+import Combine
 import SwiftData
 import SwiftUI
 import UIKit
 
 /// 一级页面底部的语音记账区域：唯一的会话卡片、悬浮麦克风和一次性提示。
 ///
-/// 主要靠按住说话，不方便出声时可以点旁边的键盘改为打字（见 `VoiceTextInputSheet`）。四个一级页面各挂一份，共用根导航持有的同一个会话，切换 Tab 时卡片跟过去；
-/// 会话在当前页面往下进入二级页面、关闭卡片或闲置约 2 分钟后结束；切到停在二级页面的 Tab 时会话保留，卡片随页面收起。创建会话、计时、播报和弹层只需要一份，由 `voiceBookkeepingHost(_:)` 挂在根导航上。
+/// 这里只负责按住说话；打字和发图片走旁边的聊天入口（见 `AIChatView`）。四个一级页面各挂一份，共用根导航持有的同一个会话，切换 Tab 时卡片跟过去；
+/// 卡片在当前页面往下进入二级页面、点关闭或闲置约 2 分钟后收起，对话段继续；切到停在二级页面的 Tab 时卡片随页面收起，回来还在。创建会话、计时、播报和弹层只需要一份，由 `voiceBookkeepingHost(_:)` 挂在根导航上。
 /// 麦克风放进 Tab Bar 附属栏时（见 `VoiceMicPlacement`），这里只显示卡片和提示，麦克风由 `VoiceMicAccessory` 显示。
 struct VoiceBookkeepingDock: View {
     @Environment(\.modelContext) private var modelContext
@@ -41,7 +42,8 @@ struct VoiceBookkeepingDock: View {
                     onManualEntry: { voice.manualEntryNote = VoiceManualEntryNote(text: $0) },
                     onSignIn: { signInPresentation.present(reason: .voiceBookkeeping) },
                     onSwitchModelTier: { voice.isModelTierPresented = true },
-                    onEnd: { voice.endSession() }
+                    onEnd: { voice.closeCard() },
+                    onOpenChat: { voice.openChat(isSignedIn: authStore.isAuthenticated) }
                 )
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
@@ -51,9 +53,9 @@ struct VoiceBookkeepingDock: View {
                     // 麦克风上方轮换示例说法；卡片或一次性提示出现时只隐藏不移除，列表底部留白不跟着跳
                     floatingSpeakingPrompt
                     HStack(spacing: 12) {
-                        // 与右侧打字按钮等宽的占位，让麦克风保持居中；不接收触摸，点到这里仍是下面的列表
+                        // 与右侧聊天按钮等宽的占位，让麦克风保持居中；不接收触摸，点到这里仍是下面的列表
                         Color.clear
-                            .frame(width: VoiceTextInputButton.size, height: VoiceTextInputButton.size)
+                            .frame(width: AIChatEntryButton.size, height: AIChatEntryButton.size)
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
                         VoiceMicButton(
@@ -65,7 +67,7 @@ struct VoiceBookkeepingDock: View {
                                 voice.toggleRecording(isSignedIn: authStore.isAuthenticated, locale: locale)
                             }
                         )
-                        VoiceTextInputButton(voice: voice)
+                        AIChatEntryButton(voice: voice)
                     }
                 }
                 .padding(.vertical, 12)
@@ -93,7 +95,7 @@ struct VoiceBookkeepingDock: View {
                 // 卡片外的任何触摸只用来关闭卡片：松手即关，列表不会被点开或滚动
                 Color.clear
                     .contentShape(Rectangle())
-                    .gesture(DragGesture(minimumDistance: 0).onEnded { _ in voice.endSession() })
+                    .gesture(DragGesture(minimumDistance: 0).onEnded { _ in voice.closeCard() })
                     .accessibilityHidden(true)
                     .accessibilityIdentifier("voice-card-dismiss-area")
             }
@@ -226,9 +228,11 @@ private struct VoiceBookkeepingHost: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .environment(voice)
             .task {
                 guard voice.session == nil else { return }
+                // 启动时清理一次；放在创建会话之前，这时还没有新一轮的图片，不会误删
+                let history = AIChatHistoryStore(container: modelContext.container)
+                history.prune()
                 voice.session = VoiceSession(
                     container: modelContext.container,
                     api: VoiceSessionAPI(
@@ -239,8 +243,21 @@ private struct VoiceBookkeepingHost: ViewModifier {
                     },
                     modelTier: { [aiPoints] in aiPoints?.requestTier },
                     locale: locale,
-                    calendar: calendar
+                    calendar: calendar,
+                    history: history
                 )
+            }
+            // 账本被替换、记录被清空时，当前对话段不能再引用之前的内容；聊天页重新读取记录
+            .onReceive(
+                NotificationCenter.default.publisher(for: .aiChatContextInvalidated).receive(on: DispatchQueue.main)
+            ) { _ in
+                voice.endSession()
+                voice.session?.history?.loadLatest()
+            }
+            // 换账号或退出登录时结束对话段，不把上一个账号的内容带进下一轮
+            .onChange(of: authStore.userID) { _, _ in
+                voice.endSession()
+                voice.isChatPresented = false
             }
             .onChange(of: locale) { _, newValue in
                 voice.session?.locale = newValue
@@ -258,10 +275,13 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 }
                 voice.input.transientHint = nil
             }
-            // 闲置约 2 分钟后自动结束会话；每轮结束都会重新计时
+            // 闲置约 2 分钟后收起卡片，约 30 分钟后结束对话段；每轮结束都会重新计时
             .task(id: session?.lastActivityAt) {
                 guard session?.lastActivityAt != nil else { return }
-                try? await Task.sleep(for: .seconds(VoiceSession.idleTimeout))
+                guard (try? await Task.sleep(for: .seconds(VoiceSession.cardIdleTimeout))) != nil else { return }
+                session?.hideCardIfIdle()
+                let remaining = VoiceSession.contextIdleTimeout - VoiceSession.cardIdleTimeout
+                guard (try? await Task.sleep(for: .seconds(remaining))) != nil else { return }
                 session?.endIfIdle()
             }
             // 每轮结束后用触感和 VoiceOver 播报结果
@@ -313,8 +333,11 @@ private struct VoiceBookkeepingHost: ViewModifier {
                     }
                 }
             }
-            .sheet(isPresented: $voice.isTextInputPresented) {
-                VoiceTextInputSheet { voice.send($0) }
+            .fullScreenCover(isPresented: $voice.isChatPresented, onDismiss: {
+                // 这些轮次已经在聊天页看过了，回到一级页面不再弹出卡片
+                voice.session?.hideFinishedCardTurns()
+            }) {
+                AIChatView()
             }
             .sheet(isPresented: $voice.isModelTierPresented) {
                 NavigationStack {
@@ -326,12 +349,15 @@ private struct VoiceBookkeepingHost: ViewModifier {
                         }
                 }
             }
-            .voiceInputAlerts(voice.input) {
+            // 聊天页盖在上面时，这些提示由聊天页自己弹，这里弹不出来
+            .voiceInputAlerts(voice.input, isEnabled: !voice.isChatPresented) {
                 signInPresentation.present(reason: .voiceBookkeeping)
             }
             .alert(text("voice.undo.failed"), isPresented: undoFailureBinding) {
                 Button(text("common.close"), role: .cancel) {}
             }
+            // 放在最外层：弹层只继承挂载点外面的环境，放在弹层修饰符里面时聊天页读不到，会直接崩溃
+            .environment(voice)
     }
 
     /// 一次性提示的展示时长（秒）。
@@ -346,7 +372,7 @@ private struct VoiceBookkeepingHost: ViewModifier {
 
     private var undoFailureBinding: Binding<Bool> {
         Binding(
-            get: { session?.hasUndoFailure == true },
+            get: { !voice.isChatPresented && session?.hasUndoFailure == true },
             set: { if !$0 { voice.session?.hasUndoFailure = false } }
         )
     }
@@ -362,6 +388,9 @@ private struct VoiceInputAlertModifier: ViewModifier {
 
     /// 按住说话的交互逻辑，提示来自它的 `alert`。
     let input: VoiceInputController
+
+    /// 是否由这一层弹出提示；同一份提示同时挂在根导航和聊天页，只有最上面的一层能弹。
+    let isEnabled: Bool
 
     /// 用户在未登录弹窗里选择去登录。
     let onSignIn: () -> Void
@@ -383,7 +412,7 @@ private struct VoiceInputAlertModifier: ViewModifier {
 
     private var inputAlertBinding: Binding<Bool> {
         Binding(
-            get: { input.alert != nil },
+            get: { isEnabled && input.alert != nil },
             set: { if !$0 { input.alert = nil } }
         )
     }
@@ -433,9 +462,14 @@ extension View {
     ///
     /// - Parameters:
     ///   - input: 按住说话的交互逻辑。
+    ///   - isEnabled: 是否由这一层弹出提示。
     ///   - onSignIn: 用户在未登录弹窗里选择去登录。
-    func voiceInputAlerts(_ input: VoiceInputController, onSignIn: @escaping () -> Void) -> some View {
-        modifier(VoiceInputAlertModifier(input: input, onSignIn: onSignIn))
+    func voiceInputAlerts(
+        _ input: VoiceInputController,
+        isEnabled: Bool = true,
+        onSignIn: @escaping () -> Void
+    ) -> some View {
+        modifier(VoiceInputAlertModifier(input: input, isEnabled: isEnabled, onSignIn: onSignIn))
     }
 }
 

@@ -123,6 +123,7 @@ struct DataImportEntryView: View {
         var parts = [summary(for: plan)]
         if plan.replacesExistingData {
             parts.append(text("account.management.import.confirm.replace_warning"))
+            parts.append(text("account.management.import.confirm.chat_note"))
         }
         parts.append(undoHint)
         return parts.joined(separator: "\n\n")

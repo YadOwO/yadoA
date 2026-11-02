@@ -30,8 +30,11 @@ struct VoiceSessionCard: View {
     /// 打开模型选择，换用扣点更少的档位。
     let onSwitchModelTier: () -> Void
 
-    /// 结束会话。
+    /// 关闭卡片。
     let onEnd: () -> Void
+
+    /// 打开聊天页，查看完整的对话记录。
+    var onOpenChat: () -> Void = {}
 
     /// 滚动区域的最大高度，超出部分在卡片里滚动查看；一般一句话就能记完，不会用满。
     private static let maxScrollHeight: CGFloat = 300
@@ -133,7 +136,7 @@ struct VoiceSessionCard: View {
     /// 完整的显示内容；任何一轮、实时转写或交互状态更新，都统一请求贴底。
     private var scrollContent: VoiceCardScrollContent {
         VoiceCardScrollContent(
-            turns: session?.turns ?? [],
+            turns: Array(session?.cardTurns ?? []),
             isProcessing: session?.isProcessing == true,
             transcript: input.recognizer.transcript,
             isRecording: input.isRecording,
@@ -161,6 +164,16 @@ struct VoiceSessionCard: View {
             }
             #endif
             Spacer(minLength: 0)
+            Button(action: onOpenChat) {
+                Image(systemName: "bubble.left.and.text.bubble.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(text("voice.chat.view"))
+            .accessibilityIdentifier("voice-card-open-chat")
             Button(action: onEnd) {
                 Image(systemName: "xmark")
                     .font(.footnote.weight(.semibold))
@@ -180,7 +193,7 @@ struct VoiceSessionCard: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let session {
-                ForEach(session.turns) { turn in
+                ForEach(session.cardTurns) { turn in
                     VoiceSessionTurnView(
                         session: session,
                         turn: turn,
@@ -217,8 +230,6 @@ struct VoiceSessionCard: View {
 /// 卡片中的一轮：用户的话靠右，结果、写入的流水和操作靠左。
 private struct VoiceSessionTurnView: View {
     @Environment(\.locale) private var locale
-    /// 当前账号的 AI 点数，用来判断点数不足时能否换用扣点更少的档位；预览和测试中没有注入时为 nil。
-    @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
 
     /// 当前会话。
     let session: VoiceSession
@@ -246,7 +257,8 @@ private struct VoiceSessionTurnView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            VoiceUserBubble(text: turn.userText)
+            // 只发图片的一轮没有文字；卡片上不放图片，图片在聊天页看
+            VoiceUserBubble(text: turn.userText.isEmpty ? text("voice.chat.image.label") : turn.userText)
                 .strikethrough(turn.isUndone)
 
             if turn.outcome == .processing {
@@ -277,12 +289,18 @@ private struct VoiceSessionTurnView: View {
                     Task { await session.send(option.label, selectedOption: option) }
                 }
             }
-            actions
+            VoiceTurnActions(
+                session: session,
+                turn: turn,
+                onManualEntry: onManualEntry,
+                onSignIn: onSignIn,
+                onSwitchModelTier: onSwitchModelTier
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 是否为最近一轮；追问候选项、登录和手动记账只对最近一轮有意义。
+    /// 是否为最近一轮；追问候选项只对最近一轮有意义。
     private var isLatest: Bool {
         session.latestTurn?.id == turn.id
     }
@@ -349,14 +367,47 @@ private struct VoiceSessionTurnView: View {
         .accessibilityHint(accountID == nil ? Text(verbatim: "") : Text(text("voice.change.account.hint")))
     }
 
-    /// 本轮可用的操作。
-    @ViewBuilder
-    private var actions: some View {
+    private func text(_ key: String) -> String {
+        AccountLocalization.string(key, locale: locale)
+    }
+}
+
+/// 一轮可用的操作：撤销、手动记账、登录、换模型和重新发送；卡片和聊天页共用。
+struct VoiceTurnActions: View {
+    @Environment(\.locale) private var locale
+    /// 当前账号的 AI 点数，用来判断点数不足时能否换用扣点更少的档位；预览和测试中没有注入时为 nil。
+    @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
+
+    /// 当前会话。
+    let session: VoiceSession
+
+    /// 这一轮。
+    let turn: VoiceSession.Turn
+
+    /// 带着这句话去手动记账。
+    let onManualEntry: (String) -> Void
+
+    /// 去登录。
+    let onSignIn: () -> Void
+
+    /// 打开模型选择，换用扣点更少的档位。
+    let onSwitchModelTier: () -> Void
+
+    /// 重新发送没能完成的这一轮；只有聊天页提供，打字和图片不重发就没了。
+    var onRetry: (() -> Void)?
+
+    /// 是否为最近一轮；登录和手动记账只对最近一轮有意义。
+    private var isLatest: Bool {
+        session.latestTurn?.id == turn.id
+    }
+
+    var body: some View {
         let isUndoable = session.undoableTurn?.id == turn.id
         let requiresSignIn = isLatest && turn.failure?.requiresSignIn == true
         let offersManualEntry = isLatest && turn.offersManualEntry
         // 点数不够所用档位、但够更便宜的档位时，给出换模型的入口；换好后余额够说一句，入口随之消失
         let offersTierSwitch = isLatest && turn.failure == .insufficientPoints && aiPoints?.canAffordCheaperTier == true
+        let offersRetry = isLatest && !session.isProcessing && turn.failure != nil && !requiresSignIn && onRetry != nil
         if isUndoable || offersManualEntry || requiresSignIn || turn.isUndone {
             HStack(spacing: 12) {
                 if turn.isUndone {
@@ -380,6 +431,13 @@ private struct VoiceSessionTurnView: View {
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                         .accessibilityIdentifier("voice-manual-entry")
+                    if offersRetry, let onRetry {
+                        Button(text("voice.chat.retry"), action: onRetry)
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                            .onAccentForeground()
+                            .accessibilityIdentifier("voice-chat-retry")
+                    }
                 }
                 if isUndoable {
                     Button(text("voice.turn.undo")) { session.undoLatestTurn() }
@@ -398,7 +456,7 @@ private struct VoiceSessionTurnView: View {
 }
 
 /// 正在说的这句话：按住时实时显示转写和上滑取消提示，松手后保留到这句话发出。
-private struct VoiceLiveTranscript: View {
+struct VoiceLiveTranscript: View {
     @Environment(\.locale) private var locale
 
     /// 截至目前的转写文字。
@@ -442,7 +500,7 @@ private struct VoiceLiveTranscript: View {
 }
 
 /// 用户说的一句话，靠右的气泡。
-private struct VoiceUserBubble: View {
+struct VoiceUserBubble: View {
     /// 气泡文字。
     let text: String
 

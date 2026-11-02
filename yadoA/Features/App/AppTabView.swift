@@ -226,20 +226,20 @@ struct AppTabView: View {
             guard scenePhase == .active else { return }
             await feedback?.refreshUnread()
         }
-        // 当前 Tab 往下进页面时结束会话；只按导航路径变深判断，切到停在二级页面的 Tab 不算
+        // 当前 Tab 往下进页面时收起会话卡片；只按导航路径变深判断，切到停在二级页面的 Tab 不算
         .onChange(of: homePath.count) { oldDepth, newDepth in
-            endVoiceSessionIfPushed(on: .home, from: oldDepth, to: newDepth)
+            closeVoiceCardIfPushed(on: .home, from: oldDepth, to: newDepth)
         }
         .onChange(of: chartsPath.count) { oldDepth, newDepth in
-            endVoiceSessionIfPushed(on: .charts, from: oldDepth, to: newDepth)
+            closeVoiceCardIfPushed(on: .charts, from: oldDepth, to: newDepth)
         }
         .onChange(of: accountsPath.count) { oldDepth, newDepth in
-            endVoiceSessionIfPushed(on: .accounts, from: oldDepth, to: newDepth)
+            closeVoiceCardIfPushed(on: .accounts, from: oldDepth, to: newDepth)
         }
         .onChange(of: profilePath.count) { oldDepth, newDepth in
-            endVoiceSessionIfPushed(on: .profile, from: oldDepth, to: newDepth)
+            closeVoiceCardIfPushed(on: .profile, from: oldDepth, to: newDepth)
         }
-        // 卡片上点了一笔流水：回到记账页根页面，由记账页取走请求并定位；路径变浅不会结束会话
+        // 卡片上点了一笔流水：回到记账页根页面，由记账页取走请求并定位；路径变浅不会收起卡片
         .onChange(of: voice.pendingLocate) { _, change in
             guard change != nil else { return }
             homePath = []
@@ -252,17 +252,17 @@ struct AppTabView: View {
         }
     }
 
-    /// 当前 Tab 往下进了页面时结束语音会话。
+    /// 当前 Tab 往下进了页面时收起语音卡片；对话段不结束，内容仍在聊天页。
     ///
-    /// 只是切到一个停在二级页面的 Tab 时路径不变，会话保留：卡片和麦克风随页面收起，回到一级页面时卡片还在，
-    /// 闲置计时照常进行。从图表点“记一笔”会同时切到记账页并进入记账表单，这时记账页路径变深，同样结束会话。
+    /// 只是切到一个停在二级页面的 Tab 时路径不变，卡片保留：卡片和麦克风随页面收起，回到一级页面时卡片还在，
+    /// 闲置计时照常进行。从图表点“记一笔”会同时切到记账页并进入记账表单，这时记账页路径变深，同样收起卡片。
     /// - Parameters:
     ///   - tab: 路径发生变化的 Tab。
     ///   - oldDepth: 变化前的导航深度。
     ///   - newDepth: 变化后的导航深度。
-    private func endVoiceSessionIfPushed(on tab: AppTab, from oldDepth: Int, to newDepth: Int) {
+    private func closeVoiceCardIfPushed(on tab: AppTab, from oldDepth: Int, to newDepth: Int) {
         guard tab == selectedTab, newDepth > oldDepth else { return }
-        voice.endSession()
+        voice.closeCard()
     }
 
     /// 记账页导航栈里的新增页面，保存到本地账本。

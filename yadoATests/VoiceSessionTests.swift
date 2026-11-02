@@ -228,21 +228,177 @@ struct VoiceSessionTests {
         #expect(!fixture.session.hasUndoFailure)
     }
 
-    @Test("闲置超过 2 分钟后结束会话；结束后清空记录")
-    func endsWhenIdle() async throws {
+    @Test("闲置 2 分钟只收起卡片，上下文保留；闲置 30 分钟才结束对话段")
+    func hidesCardThenEndsWhenIdle() async throws {
         let fixture = try Fixture()
         fixture.api.responses = [.success(.reply(text: "我只能帮你记账"))]
         await fixture.session.send("你好")
         #expect(fixture.session.isActive)
 
         fixture.clock.date = fixture.clock.date.addingTimeInterval(60)
-        fixture.session.endIfIdle()
+        fixture.session.hideCardIfIdle()
         #expect(fixture.session.isActive)
 
-        fixture.clock.date = fixture.clock.date.addingTimeInterval(VoiceSession.idleTimeout)
+        fixture.clock.date = fixture.clock.date.addingTimeInterval(VoiceSession.cardIdleTimeout)
+        fixture.session.hideCardIfIdle()
         fixture.session.endIfIdle()
         #expect(!fixture.session.isActive)
+        #expect(!fixture.session.events.isEmpty)
+        #expect(fixture.session.turns.count == 1)
+
+        fixture.clock.date = fixture.clock.date.addingTimeInterval(VoiceSession.contextIdleTimeout)
+        fixture.session.endIfIdle()
         #expect(fixture.session.events.isEmpty)
+        #expect(fixture.session.turns.isEmpty)
+    }
+
+    @Test("关闭卡片后接着说，卡片只显示新的一轮，模型仍能看到之前的内容")
+    func closingCardKeepsContext() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.reply(text: "第一句")),
+            .success(.reply(text: "第二句")),
+        ]
+        await fixture.session.send("一")
+        fixture.session.closeCard()
+        #expect(!fixture.session.isActive)
+
+        await fixture.session.send("二")
+
+        #expect(fixture.session.cardTurns.map(\.userText) == ["二"])
+        #expect(fixture.session.turns.count == 2)
+        let lastRequest = try #require(fixture.api.requests.last)
+        #expect(lastRequest.events.contains(.user(text: "一", selectedOptionId: nil)))
+    }
+
+    @Test("事件数达到上限后自动开新段，不提示对话太长")
+    func rollsOverToNewSegment() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = Array(
+            repeating: .success(.reply(text: "好")),
+            count: VoiceSessionLimits.segmentEventLimit / 2 + 1
+        )
+        for index in 0..<(VoiceSessionLimits.segmentEventLimit / 2) {
+            await fixture.session.send("第 \(index) 句")
+        }
+        #expect(fixture.session.events.count == VoiceSessionLimits.segmentEventLimit)
+
+        await fixture.session.send("新的一句")
+
+        #expect(fixture.session.turns.map(\.userText) == ["新的一句"])
+        #expect(fixture.session.latestTurn?.outcome == .reply("好"))
+        #expect(fixture.api.requests.last?.events.count == 1)
+    }
+
+    @Test("等待回答追问时不开新段，回答能接上追问")
+    func keepsSegmentWhileAwaitingAnswer() async throws {
+        let fixture = try Fixture()
+        let replyCount = VoiceSessionLimits.segmentEventLimit / 2 - 1
+        fixture.api.responses = Array(repeating: .success(.reply(text: "好")), count: replyCount) + [
+            .success(.ask(question: "多少钱？", options: [])),
+            .success(.reply(text: "记好了")),
+        ]
+        for index in 0..<replyCount {
+            await fixture.session.send("第 \(index) 句")
+        }
+        await fixture.session.send("打车")
+        #expect(fixture.session.events.count == VoiceSessionLimits.segmentEventLimit)
+
+        await fixture.session.send("35")
+
+        #expect(fixture.session.turns.count == replyCount + 2)
+        #expect(fixture.api.requests.last?.events.count == VoiceSessionLimits.segmentEventLimit + 1)
+    }
+
+    @Test("图片随这一轮发送，结束后从事件里去掉")
+    func removesImagesAfterTurn() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.reply(text: "没有找到可以记账的内容")),
+            .success(.reply(text: "好")),
+        ]
+        let image = VoiceImageUpload(fileName: "a.jpg", data: Data([1, 2, 3]))
+
+        await fixture.session.send("", images: [image])
+
+        #expect(fixture.session.latestTurn?.userText == "")
+        #expect(fixture.session.latestTurn?.imageFileNames == ["a.jpg"])
+        let firstRequest = try #require(fixture.api.requests.first)
+        let expected = VoiceSessionImage(data: Data([1, 2, 3]).base64EncodedString(), mediaType: "image/jpeg")
+        guard case let .userWithImages(text, images) = firstRequest.events.first else {
+            Issue.record("第一条事件应该带图片")
+            return
+        }
+        #expect(!text.isEmpty)
+        #expect(images == [expected])
+
+        await fixture.session.send("好的")
+
+        let lastRequest = try #require(fixture.api.requests.last)
+        #expect(!lastRequest.events.contains { event in
+            if case .userWithImages = event { return true }
+            return false
+        })
+    }
+
+    @Test("以追问结束时保留图片，回答之后才去掉")
+    func keepsImagesWhileAwaitingAnswer() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [
+            .success(.ask(question: "第二笔多少钱？", options: [])),
+            .success(.reply(text: "记好了")),
+        ]
+        let image = VoiceImageUpload(fileName: "a.jpg", data: Data([1]))
+
+        await fixture.session.send("记一下", images: [image])
+        await fixture.session.send("35")
+
+        let answerRequest = try #require(fixture.api.requests.last)
+        #expect(answerRequest.events.contains { event in
+            if case .userWithImages = event { return true }
+            return false
+        })
+        #expect(!fixture.session.events.contains { event in
+            if case .userWithImages = event { return true }
+            return false
+        })
+    }
+
+    @Test("每轮结束和撤销都写入对话记录，结束对话段后记录还在")
+    func savesTurnsToHistory() async throws {
+        let fixture = try Fixture()
+        let history = AIChatHistoryStore(
+            container: fixture.container,
+            images: AIChatImageStore(directory: URL.temporaryDirectory.appending(path: UUID().uuidString))
+        )
+        let session = VoiceSession(
+            container: fixture.container,
+            api: fixture.api,
+            locale: Locale(identifier: "zh-Hans"),
+            timingStore: fixture.timingStore,
+            history: history,
+            now: { fixture.clock.date }
+        )
+        fixture.api.responses = [.success(.toolCalls(
+            [fixture.createCall("c1", amount: "28", note: "午饭")], canFinishLocally: true
+        ))]
+
+        await session.send("午饭 28")
+
+        history.loadLatest()
+        let saved = try #require(history.turns.first)
+        #expect(saved.userText == "午饭 28")
+        #expect(saved.changes.count == 1)
+        #expect(!saved.isUndone)
+
+        session.undoLatestTurn()
+        history.loadLatest()
+        #expect(history.turns.first?.isUndone == true)
+
+        session.end()
+        history.loadLatest()
+        #expect(history.turns.count == 1)
+        #expect(session.turns.isEmpty)
     }
 
     @Test("空白输入不发送")

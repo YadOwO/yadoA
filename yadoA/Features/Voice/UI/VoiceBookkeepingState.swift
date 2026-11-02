@@ -37,8 +37,8 @@ final class VoiceBookkeepingState {
     /// 是否打开模型选择：点数不够所用档位但够更便宜的档位时，从卡片上打开；由根导航以弹层展示，切换后关掉可以接着说。
     var isModelTierPresented = false
 
-    /// 是否打开打字输入；由根导航以弹层展示，发送后关闭，结果出现在会话卡片里。
-    var isTextInputPresented = false
+    /// 是否打开聊天页；由根导航全屏展示，关闭后回到原来的一级页面。
+    var isChatPresented = false
 
     /// 会话是否正在处理上一句。
     var isProcessing: Bool {
@@ -72,17 +72,17 @@ final class VoiceBookkeepingState {
         )
     }
 
-    /// 打开打字输入：未登录时和按住说话一样询问是否去登录；正在说话或处理上一句时不响应。
+    /// 打开聊天页：未登录时和按住说话一样询问是否去登录；正在说话时不响应。上一句还在处理时可以打开，结果会出现在聊天页里。
     ///
     /// - Parameter isSignedIn: 当前是否已登录。
-    func beginTextInput(isSignedIn: Bool) {
-        guard !isProcessing, !input.isPressing, !input.isFinishing else { return }
+    func openChat(isSignedIn: Bool) {
+        guard !input.isPressing, !input.isFinishing else { return }
         guard isSignedIn else {
             input.alert = .signInRequired
             return
         }
         input.transientHint = nil
-        isTextInputPresented = true
+        isChatPresented = true
     }
 
     /// 发送一句话或点选的候选项。
@@ -90,14 +90,38 @@ final class VoiceBookkeepingState {
     /// - Parameters:
     ///   - text: 识别出或打出来的文字，或候选项文案。
     ///   - option: 点选的候选项；直接说话或打字时为空。
-    func send(_ text: String, option: VoiceAskOption? = nil) {
+    ///   - images: 随这句话发送的图片。
+    func send(_ text: String, option: VoiceAskOption? = nil, images: [VoiceImageUpload] = []) {
         guard let session else { return }
         // 说话发出的一句带上识别收尾耗时；点选候选项没有识别
         let speechFinalizeDuration = option == nil ? input.takeSpeechFinalizeDuration() : nil
-        Task { await session.send(text, selectedOption: option, speechFinalizeDuration: speechFinalizeDuration) }
+        Task {
+            await session.send(
+                text, selectedOption: option, speechFinalizeDuration: speechFinalizeDuration, images: images
+            )
+        }
     }
 
-    /// 结束会话，同时作废还在收尾的语音输入，避免它在会话结束后识别完成、又发起新的一轮。
+    /// 重新发送没能完成的一轮：文字和图片都和原来一样，图片从本机文件读回。
+    ///
+    /// - Parameters:
+    ///   - turn: 没能完成的一轮。
+    ///   - images: 图片文件存储。
+    func resend(_ turn: VoiceSession.Turn, images: AIChatImageStore = .production) {
+        let uploads = turn.imageFileNames.compactMap { fileName in
+            images.data(for: fileName).map { VoiceImageUpload(fileName: fileName, data: $0) }
+        }
+        guard !turn.userText.isEmpty || !uploads.isEmpty else { return }
+        send(turn.userText, images: uploads)
+    }
+
+    /// 关闭会话卡片，同时作废还在收尾的语音输入，避免它在卡片收起后识别完成、又弹出新的一轮。
+    func closeCard() {
+        input.cancel()
+        session?.closeCard()
+    }
+
+    /// 结束当前对话段；用于账本被替换、记录被清空或换账号，之后不能再引用之前的内容。
     func endSession() {
         input.cancel()
         session?.end()

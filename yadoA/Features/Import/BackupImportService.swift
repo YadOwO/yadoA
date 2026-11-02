@@ -184,6 +184,8 @@ final class BackupImportService {
             context.rollback()
             throw BackupImportError.restoreFailed
         }
+        // 账本已被替换：对话记录保留，但当前对话段不能再撤销或引用替换前的数据
+        NotificationCenter.default.post(name: .aiChatContextInvalidated, object: nil)
     }
 
     /// 让 canonical 偏好与备份一致，并清理非 canonical 的残留偏好记录。

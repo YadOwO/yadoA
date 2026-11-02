@@ -207,6 +207,26 @@ struct VoiceSessionContractTests {
         #expect(created["id"] as? String == "T2")
     }
 
+    @Test("带图片的一句话编码为 user 事件和 images")
+    func encodesUserEventWithImages() throws {
+        let request = VoiceSessionTurnRequest(
+            locale: "zh-Hans",
+            capabilities: [],
+            now: "2026-10-20T12:30:00-07:00",
+            defaultAccountId: nil,
+            accounts: [],
+            categories: [],
+            events: [.userWithImages(text: "记一下", images: [VoiceSessionImage(data: "AAEC", mediaType: "image/jpeg")])]
+        )
+        let object = try jsonObject(request)
+        let event = try #require((object["events"] as? [[String: Any]])?.first)
+        #expect(event["kind"] as? String == "user")
+        #expect(event["text"] as? String == "记一下")
+        let image = try #require((event["images"] as? [[String: Any]])?.first)
+        #expect(image["data"] as? String == "AAEC")
+        #expect(image["mediaType"] as? String == "image/jpeg")
+    }
+
     @Test("查询结果中没有备注的流水编码为 null")
     func encodesSearchItemWithNullNote() throws {
         let output = VoiceToolOutput.searchResult(total: 1, items: [VoiceTransactionItem(

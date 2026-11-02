@@ -56,8 +56,14 @@ final class VoiceSession {
         /// 稳定标识。
         let id = UUID()
 
-        /// 用户说的话（或点选的候选项文字）。
+        /// 用户说的话（或点选的候选项文字）；只发图片时为空。
         let userText: String
+
+        /// 这一轮附带的图片文件名，文件保存在 `AIChatImageStore`。
+        var imageFileNames: [String] = []
+
+        /// 用户发出这一轮的时刻。
+        var createdAt: Date = .now
 
         /// 处理结果。
         var outcome: Outcome = .processing
@@ -87,14 +93,20 @@ final class VoiceSession {
         }
     }
 
-    /// 超过该时长没有新的一轮，会话自动结束。
-    static let idleTimeout: TimeInterval = 120
+    /// 超过该时长没有新的一轮，首页的会话卡片收起；对话段不结束，接着说还能引用刚才的内容。
+    static let cardIdleTimeout: TimeInterval = 120
+
+    /// 超过该时长没有新的一轮，当前对话段结束，模型上下文和撤销都清掉；对话记录保留在聊天页。
+    static let contextIdleTimeout: TimeInterval = 30 * 60
 
     /// 一轮最多发送的请求数，防止服务端异常时无限循环。
     static let maxRequestsPerTurn = 10
 
-    /// 本次会话的全部轮次，包括已撤销和失败的，按时间顺序排列。
+    /// 当前对话段的全部轮次，包括已撤销和失败的，按时间顺序排列。
     private(set) var turns: [Turn] = []
+
+    /// 首页卡片从第几轮开始显示；卡片收起时推到末尾，之前的轮次只在聊天页显示。
+    private var cardStartIndex = 0
 
     /// 发给 AI 服务的事件记录。
     private(set) var events: [VoiceSessionEvent] = []
@@ -126,6 +138,9 @@ final class VoiceSession {
     /// 写入「语音耗时」的记录；未启用语音耗时（`VoiceTimingFeature.isEnabled`）时为空，不保存耗时。
     private let timingStore: VoiceTimingStore?
 
+    /// 对话记录；每轮结束和撤销时写入。测试和预览可以不提供。
+    let history: AIChatHistoryStore?
+
     /// 界面语言，决定分类名称、结果提示和 AI 回复的语言。
     var locale: Locale
 
@@ -142,6 +157,7 @@ final class VoiceSession {
     ///   - calendar: 记账日使用的日历。
     ///   - highlight: 首页变更提示通道。
     ///   - timingStore: 耗时记录；为空时启用了语音耗时则使用 App 共用的记录，否则不保存。
+    ///   - history: 对话记录；为空时不保存。
     ///   - now: 时间源。
     init(
         container: ModelContainer,
@@ -151,6 +167,7 @@ final class VoiceSession {
         calendar: Calendar = .current,
         highlight: HomeRecentEntryHighlight = .shared,
         timingStore: VoiceTimingStore? = nil,
+        history: AIChatHistoryStore? = nil,
         now: @escaping () -> Date = { .now }
     ) {
         self.container = container
@@ -161,11 +178,15 @@ final class VoiceSession {
         self.highlight = highlight
         // 默认参数在非隔离上下文中求值，碰不到主线程隔离的共用记录，所以在初始化体内取默认值
         self.timingStore = timingStore ?? (VoiceTimingFeature.isEnabled ? .shared : nil)
+        self.history = history
         self.now = now
     }
 
-    /// 会话是否有内容（会话卡片需要展示）。
-    var isActive: Bool { !turns.isEmpty }
+    /// 首页卡片要显示的轮次。
+    var cardTurns: ArraySlice<Turn> { turns[min(cardStartIndex, turns.count)...] }
+
+    /// 会话卡片是否有内容需要展示。
+    var isActive: Bool { !cardTurns.isEmpty }
 
     /// 最近的一轮。
     var latestTurn: Turn? { turns.last }
@@ -192,22 +213,38 @@ final class VoiceSession {
     ///   - rawText: 语音转写或输入的文字；去掉首尾空白后为空时忽略。
     ///   - selectedOption: 回答追问时点选的候选项。
     ///   - speechFinalizeDuration: 松手到拿到最终识别文字的耗时，计入本轮耗时；点选候选项时为空。
+    ///   - images: 随这句话发送的图片；有图片时文字可以为空。
     func send(
         _ rawText: String,
         selectedOption: VoiceAskOption? = nil,
-        speechFinalizeDuration: Duration? = nil
+        speechFinalizeDuration: Duration? = nil,
+        images: [VoiceImageUpload] = []
     ) async {
         let text = String(
             rawText.trimmingCharacters(in: .whitespacesAndNewlines).prefix(VoiceSessionLimits.maxUserTextLength)
         )
-        guard !isProcessing, !text.isEmpty else { return }
+        guard !isProcessing, !text.isEmpty || !images.isEmpty else { return }
         endIfIdle()
+        // 事件多了就悄悄开新段，不让用户看到“对话太长”；正在等回答的追问要接着答完，不能丢上下文
+        if events.count >= VoiceSessionLimits.segmentEventLimit, !isAwaitingAnswer {
+            end()
+        }
+        // 一次请求带的图片有上限，新发图片时不再保留上一轮追问留下的图片
+        if !images.isEmpty {
+            removeImagesFromEvents()
+        }
 
         let turnGeneration = generation
-        let turnID = appendTurn(Turn(userText: text, eventStartIndex: events.count))
+        let turnID = appendTurn(Turn(
+            userText: text,
+            imageFileNames: images.map(\.fileName),
+            createdAt: now(),
+            eventStartIndex: events.count
+        ))
         // 追加用户这句话后，还要给服务端的追问或工具调用留出空间
         guard events.count + 2 <= VoiceSessionLimits.maxEvents else {
             finishTurn(turnID, failure: .sessionTooLong)
+            saveToHistory(turnID)
             return
         }
         isProcessing = true
@@ -215,6 +252,11 @@ final class VoiceSession {
             if turnGeneration == generation {
                 isProcessing = false
                 lastActivityAt = now()
+                // 追问时模型还要看图片才能接着处理，等回答之后再去掉；回答失败、可以重发时也留着
+                if !isAwaitingAnswer, latestTurn?.isInContext == true {
+                    removeImagesFromEvents()
+                }
+                saveToHistory(turnID)
             }
         }
         turnCount += 1
@@ -240,7 +282,7 @@ final class VoiceSession {
                 )
             }
         }
-        events.append(.user(text: text, selectedOptionId: selectedOption?.id))
+        events.append(userEvent(text: text, selectedOption: selectedOption, images: images))
 
         let executor = VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: now)
         do {
@@ -333,28 +375,87 @@ final class VoiceSession {
             $0.isInContext = false
         }
         lastActivityAt = now()
+        saveToHistory(turn.id)
     }
 
-    /// 结束会话：清空记录。等待中的请求返回后会被丢弃，已写入的流水保留。
+    /// 用户关闭卡片（点关闭、点卡片外或进入二级页面）：只收起卡片，对话段不结束；
+    /// 这一轮还在处理时才结束对话段，放弃这一轮的结果。
+    func closeCard() {
+        if isProcessing {
+            end()
+        } else {
+            cardStartIndex = turns.count
+        }
+    }
+
+    /// 让已结束的轮次不再显示在卡片上；还在处理的一轮保留，它的结果仍要出现。
+    ///
+    /// 用于卡片闲置，以及从聊天页回到一级页面：这些轮次都能在聊天页看到。
+    func hideFinishedCardTurns() {
+        cardStartIndex = isProcessing ? max(turns.count - 1, 0) : turns.count
+    }
+
+    /// 结束当前对话段：清空上下文和撤销。等待中的请求返回后会被丢弃，已写入的流水和对话记录保留。
     func end() {
         generation += 1
         sessionID = UUID()
         turnCount = 0
         turns = []
+        cardStartIndex = 0
         events = []
         isProcessing = false
         lastActivityAt = nil
         hasUndoFailure = false
     }
 
-    /// 闲置超过 `idleTimeout` 时结束会话。
+    /// 闲置超过 `cardIdleTimeout` 时收起首页卡片。
+    func hideCardIfIdle() {
+        guard !isProcessing, let lastActivityAt, now().timeIntervalSince(lastActivityAt) >= Self.cardIdleTimeout
+        else { return }
+        cardStartIndex = turns.count
+    }
+
+    /// 闲置超过 `contextIdleTimeout` 时结束当前对话段。
     func endIfIdle() {
-        guard !isProcessing, let lastActivityAt, now().timeIntervalSince(lastActivityAt) >= Self.idleTimeout
+        guard !isProcessing, let lastActivityAt, now().timeIntervalSince(lastActivityAt) >= Self.contextIdleTimeout
         else { return }
         end()
     }
 
     // MARK: - 私有方法
+
+    /// 最近一轮是否是还没回答的追问。
+    private var isAwaitingAnswer: Bool {
+        if case .ask = latestTurn?.outcome { return true }
+        return false
+    }
+
+    /// 生成用户这句话的事件；只发图片时用一句默认说明，服务端要求文字不能为空。
+    private func userEvent(text: String, selectedOption: VoiceAskOption?, images: [VoiceImageUpload]) -> VoiceSessionEvent {
+        guard !images.isEmpty else { return .user(text: text, selectedOptionId: selectedOption?.id) }
+        return .userWithImages(
+            text: text.isEmpty ? AccountLocalization.string("voice.chat.image.prompt", locale: locale) : text,
+            images: images.map {
+                VoiceSessionImage(data: $0.data.base64EncodedString(), mediaType: VoiceImageUpload.mediaType)
+            }
+        )
+    }
+
+    /// 把事件里的图片去掉，只留文字和一句说明：服务端不保存会话，留着的话每一轮都要重发图片。
+    private func removeImagesFromEvents() {
+        let note = AccountLocalization.string("voice.chat.image.contextNote", locale: locale)
+        events = events.map { event in
+            guard case let .userWithImages(text, _) = event else { return event }
+            let maxTextLength = VoiceSessionLimits.maxUserTextLength - note.count
+            return .user(text: String(text.prefix(maxTextLength)) + note, selectedOptionId: nil)
+        }
+    }
+
+    /// 把一轮写入对话记录。
+    private func saveToHistory(_ id: UUID) {
+        guard let turn = turns.first(where: { $0.id == id }) else { return }
+        history?.save(turn, locale: locale)
+    }
 
     /// 生成本步请求。
     private func makeRequest() -> VoiceSessionTurnRequest {
@@ -492,6 +593,18 @@ final class VoiceSession {
         case .serviceUnavailable, .timeout, .invalidContract, nil: .serviceUnavailable
         }
     }
+}
+
+/// 随一句话发送的一张图片：压缩好的内容和它在本机的文件名。
+struct VoiceImageUpload: Equatable {
+    /// 压缩后的图片类型。
+    static let mediaType = "image/jpeg"
+
+    /// 本机文件名，记录里据此显示图片。
+    let fileName: String
+
+    /// 压缩好的 JPEG。
+    let data: Data
 }
 
 /// 在本地生成一轮的结果提示，例如「已记 2 笔：午饭 ¥28.00、打车 ¥35.00」。

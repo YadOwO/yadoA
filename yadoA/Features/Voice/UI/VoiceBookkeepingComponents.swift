@@ -34,7 +34,7 @@ extension View {
 
 // MARK: - 麦克风按钮
 
-/// 语音记账的麦克风按钮：按住说话、松手发送、上滑取消；没有轻点操作，打字走旁边的 `VoiceTextInputButton`。
+/// 语音记账的麦克风按钮：按住说话、松手发送、上滑取消；没有轻点操作，打字和发图片走旁边的聊天入口 `AIChatEntryButton`。
 struct VoiceMicButton: View {
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -113,7 +113,7 @@ struct VoiceMicButton: View {
 /// Tab Bar 附属栏里的麦克风：按住说话，跟随 Tab Bar 滚动收起；按下、上滑取消、松手发送与 `VoiceMicButton` 相同。
 ///
 /// 附属栏的玻璃底和形状由系统绘制，这里只画图标和文字；Tab Bar 收起后附属栏与它并排，文字随之变小。
-/// 右端是打字入口，其余部分都可以按住。
+/// 右端是聊天入口，其余部分都可以按住。
 @available(iOS 26.1, *)
 struct VoiceMicAccessory: View {
     @Environment(\.locale) private var locale
@@ -136,7 +136,7 @@ struct VoiceMicAccessory: View {
     var body: some View {
         HStack(spacing: 0) {
             holdArea
-            VoiceTextInputButton(voice: voice, isFloating: false)
+            AIChatEntryButton(voice: voice, isFloating: false)
         }
     }
 
@@ -163,8 +163,8 @@ struct VoiceMicAccessory: View {
         }
         .font(font)
         .foregroundStyle(tint)
-        // 展开时左边留出打字按钮的宽度，文字仍在整条中间；与 Tab Bar 并排时空间太窄，不留
-        .padding(.leading, placement == .inline ? 0 : VoiceTextInputButton.size)
+        // 展开时左边留出聊天按钮的宽度，文字仍在整条中间；与 Tab Bar 并排时空间太窄，不留
+        .padding(.leading, placement == .inline ? 0 : AIChatEntryButton.size)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // 告诉一级页面附属栏顶边在哪，会话卡片和提示据此避开附属栏
         .onGeometryChange(for: CGFloat.self) { proxy in
@@ -254,8 +254,112 @@ struct VoiceEntryChangeRow: View {
     var isUndone = false
 
     var body: some View {
+        VoiceChangeRowLayout(
+            symbolName: change.row?.symbolName ?? "questionmark",
+            action: VoiceEntryChangeText.action(for: change.kind, locale: locale),
+            actionColor: change.kind == .deleted ? Color(.ledgerRed) : Color.secondary,
+            title: change.label,
+            detail: VoiceEntryChangeText.detail(
+                transactionDay: change.transactionDay,
+                accountName: change.accountName,
+                inferredFields: change.inferredFields.map(\.rawValue),
+                locale: locale,
+                calendar: calendar
+            ),
+            amount: change.formattedAmount,
+            isUndone: isUndone
+        )
+    }
+}
+
+/// 一笔流水改动的文字；结果卡片和聊天页的历史记录共用。
+enum VoiceEntryChangeText {
+    /// 变更类型文字：新增、已修改、已删除。
+    ///
+    /// - Parameters:
+    ///   - kind: 变更类型。
+    ///   - locale: 文案使用的语言环境。
+    static func action(for kind: VoiceEntryChange.Kind, locale: Locale) -> String {
+        switch kind {
+        case .created: AccountLocalization.string("voice.change.created", locale: locale)
+        case .updated: AccountLocalization.string("voice.change.updated", locale: locale)
+        case .deleted: AccountLocalization.string("voice.change.deleted", locale: locale)
+        }
+    }
+
+    /// 日期、账户与待确认字段，例如「9月28日 · 微信钱包 · 待确认：账户」；日期只在不是今天时显示。
+    ///
+    /// - Parameters:
+    ///   - transactionDay: `YYYYMMDD` 记账日。
+    ///   - accountName: 所属账户名称。
+    ///   - inferredFields: 待确认字段的原始值。
+    ///   - locale: 文案使用的语言环境。
+    ///   - calendar: 记账日使用的日历。
+    /// - Returns: 说明文字；没有内容时为 `nil`。
+    static func detail(
+        transactionDay: Int,
+        accountName: String?,
+        inferredFields: [String],
+        locale: Locale,
+        calendar: Calendar
+    ) -> String? {
+        var parts: [String] = []
+        // 改到别的日期、或者改的是旧账时带上日期，用户点之前就知道首页会跳到哪个月
+        let today = TransactionDay.encode(.now, calendar: calendar)
+        if transactionDay != today,
+           let date = TransactionDay.date(from: transactionDay, calendar: calendar, locale: locale) {
+            // 今年的只写月日，其他年份带上年份
+            let template = transactionDay / 10_000 == today / 10_000 ? "MMMd" : "yMMMd"
+            parts.append(
+                BookkeepingDateFormatting.formatter(template: template, locale: locale, calendar: calendar).string(from: date)
+            )
+        }
+        if let accountName {
+            parts.append(accountName)
+        }
+        if !inferredFields.isEmpty {
+            let fields = inferredFields.map { AccountLocalization.string("voice.inferred.\($0)", locale: locale) }
+            let listFormatter = ListFormatter()
+            listFormatter.locale = locale
+            parts.append(AccountLocalization.formatted(
+                "voice.change.inferred",
+                value: listFormatter.string(from: fields) ?? fields.joined(separator: ", "),
+                locale: locale
+            ))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+}
+
+/// 一行改动的布局：图标、动作、名称、说明与金额；流水和账户改动共用。
+struct VoiceChangeRowLayout: View {
+    /// 行图标。
+    let symbolName: String
+
+    /// 动作文字，例如「新增」「调整余额」。
+    let action: String
+
+    /// 动作文字的颜色。
+    var actionColor: Color = .secondary
+
+    /// 流水的名称或账户名称。
+    let title: String
+
+    /// 补充说明。
+    let detail: String?
+
+    /// 行尾金额。
+    let amount: String?
+
+    /// 所在轮次是否已撤销；已撤销时整行划掉、变淡。
+    var isUndone = false
+
+    /// 是否变淡但不划掉：历史记录里对应的流水或账户已不存在。
+    var isDimmed = false
+
+    var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: change.row?.symbolName ?? "questionmark")
+            Image(systemName: symbolName)
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 28, height: 28)
@@ -263,10 +367,10 @@ struct VoiceEntryChangeRow: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(kindText)
+                    Text(action)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(change.kind == .deleted ? Color(.ledgerRed) : Color.secondary)
-                    Text(change.label)
+                        .foregroundStyle(actionColor)
+                    Text(title)
                         .font(.subheadline.weight(.medium))
                         .lineLimit(1)
                 }
@@ -278,55 +382,15 @@ struct VoiceEntryChangeRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Text(change.formattedAmount)
-                .font(.system(.subheadline, design: .serif).monospacedDigit())
-                .lineLimit(1)
+            if let amount {
+                Text(amount)
+                    .font(.system(.subheadline, design: .serif).monospacedDigit())
+                    .lineLimit(1)
+            }
         }
         .strikethrough(isUndone)
-        .opacity(isUndone ? 0.45 : 1)
+        .opacity(isUndone || isDimmed ? 0.45 : 1)
         .accessibilityElement(children: .combine)
-    }
-
-    /// 变更类型文字：新增、已修改、已删除。
-    private var kindText: String {
-        switch change.kind {
-        case .created: text("voice.change.created")
-        case .updated: text("voice.change.updated")
-        case .deleted: text("voice.change.deleted")
-        }
-    }
-
-    /// 日期、账户与待确认字段，例如「9月28日 · 微信钱包 · 待确认：账户」；日期只在不是今天时显示。
-    private var detail: String? {
-        var parts: [String] = []
-        // 改到别的日期、或者改的是旧账时带上日期，用户点之前就知道首页会跳到哪个月
-        let today = TransactionDay.encode(.now, calendar: calendar)
-        if change.transactionDay != today,
-           let date = TransactionDay.date(from: change.transactionDay, calendar: calendar, locale: locale) {
-            // 今年的只写月日，其他年份带上年份
-            let template = change.transactionDay / 10_000 == today / 10_000 ? "MMMd" : "yMMMd"
-            parts.append(
-                BookkeepingDateFormatting.formatter(template: template, locale: locale, calendar: calendar).string(from: date)
-            )
-        }
-        if let accountName = change.accountName {
-            parts.append(accountName)
-        }
-        if !change.inferredFields.isEmpty {
-            let fields = change.inferredFields.map { text("voice.inferred.\($0.rawValue)") }
-            let listFormatter = ListFormatter()
-            listFormatter.locale = locale
-            parts.append(AccountLocalization.formatted(
-                "voice.change.inferred",
-                value: listFormatter.string(from: fields) ?? fields.joined(separator: ", "),
-                locale: locale
-            ))
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
-
-    private func text(_ key: String) -> String {
-        AccountLocalization.string(key, locale: locale)
     }
 }
 
@@ -339,39 +403,14 @@ struct VoiceAccountChangeRow: View {
     var isUndone = false
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: change.symbolName)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 28, height: 28)
-                .background(Color.accentColor.opacity(0.08), in: Circle())
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(change.actionText)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(change.title)
-                        .font(.subheadline.weight(.medium))
-                        .lineLimit(1)
-                }
-                if let detail = change.detail {
-                    Text(detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if let formattedAmount = change.formattedAmount {
-                Text(formattedAmount)
-                    .font(.system(.subheadline, design: .serif).monospacedDigit())
-                    .lineLimit(1)
-            }
-        }
-        .strikethrough(isUndone)
-        .opacity(isUndone ? 0.45 : 1)
-        .accessibilityElement(children: .combine)
+        VoiceChangeRowLayout(
+            symbolName: change.symbolName,
+            action: change.actionText,
+            title: change.title,
+            detail: change.detail,
+            amount: change.formattedAmount,
+            isUndone: isUndone
+        )
     }
 }
 

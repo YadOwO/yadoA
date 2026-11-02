@@ -49,6 +49,24 @@
         }
       }
     },
+    "NSCameraUsageDescription" : {
+      "comment" : "Permission prompt for photographing receipts in the AI chat.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado Asset uses the camera to photograph receipts you want to record."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆资产使用相机拍摄你要记账的小票。"
+          }
+        }
+      }
+    },
     "NSMicrophoneUsageDescription" : {
       "comment" : "Permission prompt for voice bookkeeping.",
       "extractionState" : "manual",

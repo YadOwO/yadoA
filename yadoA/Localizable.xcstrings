@@ -2789,13 +2789,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This backup contains sensitive financial information. Save or share it only with people you trust."
+            "value" : "This backup contains sensitive financial information. Only save it or share it with people you trust. It doesn't include your AI chat history."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这份备份包含敏感财务信息，请仅保存或分享给你信任的人。"
+            "value" : "这份备份包含敏感财务信息，请仅保存或分享给你信任的人。备份不包含 AI 对话记录。"
           }
         }
       }
@@ -8244,60 +8244,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "按住说话"
-          }
-        }
-      }
-    },
-    "voice.text.entry" : {
-      "comment" : "Button next to the mic that opens text input for voice bookkeeping.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Type instead"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打字记账"
-          }
-        }
-      }
-    },
-    "voice.text.placeholder" : {
-      "comment" : "Placeholder of the text input used instead of speaking.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "e.g. Lunch 28, taxi 35"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "比如：午饭 28，打车 35"
-          }
-        }
-      }
-    },
-    "voice.text.send" : {
-      "comment" : "Accessibility label of the send button in the voice text input.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Send"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "发送"
           }
         }
       }
@@ -14137,13 +14083,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "When on, your voice bookkeeping content (transcribed text, the account, category and transaction details sent to the AI, and its replies) is stored with your account ID on a server managed by the developer, used only to fix problems and improve recognition, and deleted after 30 days. Off by default. You can turn it off anytime: nothing more is uploaded, and content already uploaded is deleted when it expires."
+            "value" : "When on, your voice and chat bookkeeping content (the text you say or type, the account, category and transaction details sent to the AI, and its replies) is stored with your account ID on a server managed by the developer, used only to fix problems and improve recognition, and deleted after 30 days. Photos are never uploaded for this. Off by default. You can turn it off anytime: nothing more is uploaded, and content already uploaded is deleted when it expires."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "开启后，你的语音记账内容（转写文字、发给 AI 的账户、分类和记账信息，以及 AI 的回复）会连同账号标识保存在开发者自行管理的服务器上，只用于排查问题和改进识别效果，30 天后删除。默认关闭，可随时关闭：关闭后不再上传，已上传的内容到期删除。"
+            "value" : "开启后，你的语音和对话记账内容（说的或打的文字、发给 AI 的账户、分类和记账信息，以及 AI 的回复）会连同账号标识保存在开发者自行管理的服务器上，只用于排查问题和改进识别效果，30 天后删除。图片不会因此上传。默认关闭，可随时关闭：关闭后不再上传，已上传的内容到期删除。"
           }
         }
       }
@@ -14926,6 +14872,456 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "查看更早的记录"
+          }
+        }
+      }
+    },
+    "voice.chat.title" : {
+      "comment" : "Title of the AI chat page.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado Assistant"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆助手"
+          }
+        }
+      }
+    },
+    "voice.chat.entry" : {
+      "comment" : "Button next to the mic that opens the AI chat.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open chat"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开对话"
+          }
+        }
+      }
+    },
+    "voice.chat.view" : {
+      "comment" : "Button on the voice result card that opens the AI chat.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View chat"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看对话"
+          }
+        }
+      }
+    },
+    "voice.chat.empty.title" : {
+      "comment" : "Empty state title of the AI chat.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type, speak, or send a photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打一句、说一句，或发张图"
+          }
+        }
+      }
+    },
+    "voice.chat.empty.detail" : {
+      "comment" : "Empty state detail of the AI chat; states what it can do.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I can record, change, and look up entries, and manage your accounts."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我可以帮你记账、改账、查账和管理账户。"
+          }
+        }
+      }
+    },
+    "voice.chat.earlier" : {
+      "comment" : "Button that loads older chat history.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show earlier messages"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看更早的对话"
+          }
+        }
+      }
+    },
+    "voice.chat.placeholder" : {
+      "comment" : "Placeholder of the AI chat text field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lunch 28, taxi 35…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "午饭 28，打车 35…"
+          }
+        }
+      }
+    },
+    "voice.chat.send" : {
+      "comment" : "Send button in the AI chat.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送"
+          }
+        }
+      }
+    },
+    "voice.chat.retry" : {
+      "comment" : "Button that resends a failed chat message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新发送"
+          }
+        }
+      }
+    },
+    "voice.chat.attach" : {
+      "comment" : "Button that adds a photo in the AI chat.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加图片"
+          }
+        }
+      }
+    },
+    "voice.chat.attach.library" : {
+      "comment" : "Menu item: pick from photo library.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo Library"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从相册选择"
+          }
+        }
+      }
+    },
+    "voice.chat.attach.camera" : {
+      "comment" : "Menu item: take a photo.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Take Photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍照"
+          }
+        }
+      }
+    },
+    "voice.chat.attach.paste" : {
+      "comment" : "Menu item: paste an image from the clipboard.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste Image"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粘贴图片"
+          }
+        }
+      }
+    },
+    "voice.chat.image.label" : {
+      "comment" : "Stands in for a photo where only text can be shown.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "[Photo]"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "[图片]"
+          }
+        }
+      }
+    },
+    "voice.chat.image.remove" : {
+      "comment" : "Accessibility label for removing a photo before sending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除图片"
+          }
+        }
+      }
+    },
+    "voice.chat.image.notice" : {
+      "comment" : "Shown when a photo is attached; states where it goes and that points may differ.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos are sent to the AI service for recognition and aren't stored there. A message with photos uses the photo rate for AI points."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片会发给 AI 服务识别，服务端不保存；带图片的一句按图片档位扣点。"
+          }
+        }
+      }
+    },
+    "voice.chat.image.failed" : {
+      "comment" : "Shown when a photo cannot be read or compressed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read that photo. Try another one."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这张图片读取失败，请换一张"
+          }
+        }
+      }
+    },
+    "voice.chat.image.noPaste" : {
+      "comment" : "Shown when the clipboard has no image.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No image on the clipboard"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剪贴板里没有图片"
+          }
+        }
+      }
+    },
+    "voice.chat.image.prompt" : {
+      "comment" : "Sent to the AI when the user sends photos without text; the user never sees it.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please record the entries in this image."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请识别图片里的内容并记账。"
+          }
+        }
+      }
+    },
+    "voice.chat.image.contextNote" : {
+      "comment" : "Appended to a past message for the AI after its photos are dropped from context; the user never sees it.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " (A photo was attached and has already been handled.)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "（这句附了图片，已处理）"
+          }
+        }
+      }
+    },
+    "ai.chatHistory.clear" : {
+      "comment" : "Button that clears AI chat history.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Chat History"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清空对话记录"
+          }
+        }
+      }
+    },
+    "ai.chatHistory.clear.confirm" : {
+      "comment" : "Confirmation before clearing AI chat history.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear all chat history on this device? Your accounts and entries stay as they are."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清空这台设备上的全部对话记录？账户和流水不受影响。"
+          }
+        }
+      }
+    },
+    "ai.chatHistory.clear.failed" : {
+      "comment" : "Shown when clearing AI chat history fails.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't clear chat history. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清空失败，请重试"
+          }
+        }
+      }
+    },
+    "ai.chatHistory.footnote" : {
+      "comment" : "Explains where AI chat history is stored.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat history stays on this device for 90 days. It isn't synced or included in backups."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对话记录只保存在这台设备上，保留 90 天，不进云同步和备份。"
+          }
+        }
+      }
+    },
+    "account.management.import.confirm.chat_note" : {
+      "comment" : "Backup restore confirmation: chat history is kept.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your AI chat history is kept, but the results in it may no longer match the restored data."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对话记录不受影响，其中的结果可能与恢复后的账本不一致。"
           }
         }
       }

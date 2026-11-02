@@ -754,6 +754,9 @@ nonisolated enum VoiceSessionEvent: Encodable, Equatable, Sendable {
     /// 用户说的话；点选候选项时为该项的 label，并带上候选项 id。
     case user(text: String, selectedOptionId: String?)
 
+    /// 带图片的一句话；只保留到这一轮结束，或这一轮的追问得到回答为止，之后换成不带图片的 `user`。
+    case userWithImages(text: String, images: [VoiceSessionImage])
+
     /// 之前轮次的回复、追问或 App 本地生成的结果提示。
     case assistant(text: String)
 
@@ -764,7 +767,7 @@ nonisolated enum VoiceSessionEvent: Encodable, Equatable, Sendable {
     case toolResult(VoiceToolResult)
 
     private enum CodingKeys: String, CodingKey {
-        case kind, text, selectedOptionId, toolCall, toolResult
+        case kind, text, selectedOptionId, images, toolCall, toolResult
     }
 
     func encode(to encoder: Encoder) throws {
@@ -774,6 +777,10 @@ nonisolated enum VoiceSessionEvent: Encodable, Equatable, Sendable {
             try container.encode("user", forKey: .kind)
             try container.encode(text, forKey: .text)
             try container.encodeIfPresent(selectedOptionId, forKey: .selectedOptionId)
+        case let .userWithImages(text, images):
+            try container.encode("user", forKey: .kind)
+            try container.encode(text, forKey: .text)
+            try container.encode(images, forKey: .images)
         case let .assistant(text):
             try container.encode("assistant", forKey: .kind)
             try container.encode(text, forKey: .text)
@@ -785,6 +792,15 @@ nonisolated enum VoiceSessionEvent: Encodable, Equatable, Sendable {
             try container.encode(result, forKey: .toolResult)
         }
     }
+}
+
+/// 随一句话发给 AI 服务的一张图片。
+nonisolated struct VoiceSessionImage: Encodable, Equatable, Sendable {
+    /// 图片内容的 base64 编码，不含 `data:` 前缀。
+    var data: String
+
+    /// 图片类型。
+    var mediaType: String
 }
 
 /// 上下文中的一个账户。
@@ -954,8 +970,17 @@ nonisolated enum VoiceSessionLimits {
     /// 一次会话最多的事件数。
     static let maxEvents = 80
 
+    /// 事件数达到这里后，下一轮开始新的对话段；留出余量给一张账单记很多笔的情况。
+    static let segmentEventLimit = 40
+
     /// 用户一句话的最大长度。
     static let maxUserTextLength = 500
+
+    /// 一轮最多发送的图片数。
+    static let maxImages = 3
+
+    /// 单张图片压缩后的最大字节数；base64 后要小于服务端的单张上限（1,300,000）。
+    static let maxImageBytes = 950_000
 
     /// assistant 事件文字的最大长度。
     static let maxAssistantTextLength = 1000

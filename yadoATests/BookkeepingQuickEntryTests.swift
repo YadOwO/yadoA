@@ -216,26 +216,26 @@ struct BookkeepingQuickEntryTests {
         #expect(ids == [editable.id])
     }
 
-    // MARK: - 打字入口
+    // MARK: - 聊天入口
 
-    @Test("未登录点打字入口询问是否去登录，不打开输入框")
-    func textInputRequiresSignIn() {
+    @Test("未登录点聊天入口询问是否去登录，不打开聊天页")
+    func chatRequiresSignIn() {
         let voice = VoiceBookkeepingState()
 
-        voice.beginTextInput(isSignedIn: false)
+        voice.openChat(isSignedIn: false)
 
         #expect(voice.input.alert == .signInRequired)
-        #expect(!voice.isTextInputPresented)
+        #expect(!voice.isChatPresented)
     }
 
-    @Test("已登录点打字入口打开输入框")
-    func textInputOpensWhenSignedIn() {
+    @Test("已登录点聊天入口打开聊天页")
+    func chatOpensWhenSignedIn() {
         let voice = VoiceBookkeepingState()
 
-        voice.beginTextInput(isSignedIn: true)
+        voice.openChat(isSignedIn: true)
 
         #expect(voice.input.alert == nil)
-        #expect(voice.isTextInputPresented)
+        #expect(voice.isChatPresented)
     }
 
     // MARK: - 辅助

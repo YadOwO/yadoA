@@ -75,8 +75,10 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
     /// 读取当前账号是否授权上报本次内容；默认未授权。
     private let isTraceConsented: () -> Bool
 
-    /// 单次请求的超时时长；服务端一步最多调用模型两次，每次超时 20 秒。
-    static let requestTimeout: TimeInterval = 45
+    /// 单次请求的超时时长，与服务端单次模型调用的超时、nginx 的读取超时一致。
+    ///
+    /// 服务端一步最多调用模型两次；第一次的调用不合法、纠正重试又把总时长拖过这里时，这一轮按超时失败，没有写入数据。
+    static let requestTimeout: TimeInterval = 60
 
     /// 计费轮次 ID 的请求头，与 yado_ai `shared/billing/headers.ts` 一致。
     static let turnIDHeader = "X-AI-Turn-Id"
