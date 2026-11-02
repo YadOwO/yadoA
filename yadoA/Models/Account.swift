@@ -176,14 +176,3 @@ extension Account {
         updatedAt = now
     }
 }
-
-/// 账户列表与仓库共享的确定性排序规则。
-enum AccountOrdering {
-    /// 最新更新时间优先；时间相同时按 UUID 字符串升序。
-    nonisolated static func newestFirst(_ lhs: Account, _ rhs: Account) -> Bool {
-        if lhs.updatedAt != rhs.updatedAt {
-            return lhs.updatedAt > rhs.updatedAt
-        }
-        return lhs.id.uuidString < rhs.id.uuidString
-    }
-}

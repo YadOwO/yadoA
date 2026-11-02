@@ -561,7 +561,8 @@ private struct AccountDetailQueryContent: View {
     /// 能否从本账户发起转账：本账户可记账，且至少还有一个可转入的启用账户。
     private func canTransfer(from account: Account) -> Bool {
         account.supportsBookkeeping
-            && TransferView.transferableAccounts(allAccounts).contains { $0.id != account.id }
+            && TransferView.transferableAccounts(allAccounts, order: AccountDisplayOrder(preferences: preferences))
+                .contains { $0.id != account.id }
     }
 
     /// 一张手绘方框里写完账户的身份、余额、操作和资料；停用或不支持记账的账户不显示操作栏。

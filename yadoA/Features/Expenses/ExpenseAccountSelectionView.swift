@@ -7,6 +7,8 @@ struct ExpenseAccountSelectionView: View {
     @Environment(\.locale) private var locale
     @Environment(\.modelContext) private var modelContext
     @Query private var queriedAccounts: [Account]
+    /// 记账偏好，用于读取账户分类顺序。
+    @Query private var preferences: [BookkeepingPreference]
     @State private var isPresentingCreation = false
     @State private var creationResult: ContextualAccountCreationResult?
 
@@ -30,13 +32,14 @@ struct ExpenseAccountSelectionView: View {
     }
 
     var body: some View {
-        let accounts = AccountListPresentation.sorted(queriedAccounts)
+        let order = AccountDisplayOrder(preferences: preferences)
+        let accounts = AccountListPresentation.sorted(queriedAccounts, order: order)
 
         Group {
             if accounts.isEmpty {
                 emptyContent
             } else {
-                accountList(accounts)
+                accountList(order.sections(accounts))
             }
         }
         .navigationTitle(
@@ -87,24 +90,24 @@ struct ExpenseAccountSelectionView: View {
         }
     }
 
-    /// 复用账户列表展示转换和共享行，保持名称、类型、尾号与金额语义一致。
-    private func accountList(_ accounts: [Account]) -> some View {
+    /// 复用账户列表展示转换和共享行，按分类分组，保持名称、类型、尾号与金额语义及顺序一致。
+    ///
+    /// - Parameter sections: 按统一顺序分好组的启用账户。
+    private func accountList(_ sections: [AccountTypeSection]) -> some View {
         LedgerFormPage {
-            LedgerCard(seed: 122) {
-                ForEach(accounts) { account in
-                    Button {
-                        onSelectAccount(account.id)
-                        dismiss()
-                    } label: {
-                        AccountListRow(
-                            presentation: AccountListPresentation.row(for: account, locale: locale)
-                        )
-                        .ledgerCardRow()
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!account.supportsBookkeeping)
-                    .accessibilityIdentifier("expense-account-selection-row-\(account.id.uuidString)")
+            AccountSectionCards(sections: sections) { account in
+                Button {
+                    onSelectAccount(account.id)
+                    dismiss()
+                } label: {
+                    AccountListRow(
+                        presentation: AccountListPresentation.row(for: account, locale: locale)
+                    )
+                    .ledgerCardRow()
                 }
+                .buttonStyle(.plain)
+                .disabled(!account.supportsBookkeeping)
+                .accessibilityIdentifier("expense-account-selection-row-\(account.id.uuidString)")
             }
         }
     }

@@ -5,7 +5,7 @@ import SwiftData
 ///
 /// 每一步都从存储重新读取，会话期间在别处改了账户或分类也能立即生效。
 struct VoiceSessionContext: Equatable {
-    /// 全部账户，启用在前，最多 50 个。
+    /// 全部账户，启用在前，各自按全 App 统一的账户顺序排列，最多 50 个。
     let accounts: [VoiceAccountOption]
 
     /// 未删除的分类，按展示顺序，最多 100 个。
@@ -22,8 +22,10 @@ struct VoiceSessionContext: Equatable {
     /// - Returns: 读取失败的部分按空处理，交由服务端追问或提示。
     static func make(container: ModelContainer, locale: Locale) -> VoiceSessionContext {
         let context = container.makeManualSaveContext()
-        let accounts = (try? context.fetch(FetchDescriptor<Account>(sortBy: [SortDescriptor(\Account.createdAt)]))) ?? []
         let preference = try? context.canonicalBookkeepingPreference()
+        // 与账户页同一顺序，AI 对话里的账户菜单也直接沿用
+        let accounts = AccountDisplayOrder(preference: preference)
+            .sorted((try? context.fetch(FetchDescriptor<Account>())) ?? [])
         let catalog = VoiceToolExecutor.catalog(in: context)
 
         // 停用账户也要发送，用于识别查询结果中的历史流水；超出上限时优先保留启用账户

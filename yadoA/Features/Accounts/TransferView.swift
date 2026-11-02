@@ -10,6 +10,8 @@ struct TransferView: View {
     @FocusState private var focusedField: FocusedField?
     @AccessibilityFocusState private var isSaveErrorFocused: Bool
     @Query private var queriedAccounts: [Account]
+    /// 记账偏好，用于读取账户分类顺序。
+    @Query private var preferences: [BookkeepingPreference]
     @StateObject private var flow: TransferFlow
     /// 正在选择账户的那一行（「转出」或「转入」的本地化键）；为空时不弹出账户列表。
     @State private var pickingTitleKey: String?
@@ -33,7 +35,7 @@ struct TransferView: View {
     }
 
     var body: some View {
-        let accounts = Self.transferableAccounts(queriedAccounts)
+        let accounts = Self.transferableAccounts(queriedAccounts, order: AccountDisplayOrder(preferences: preferences))
 
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -86,8 +88,13 @@ struct TransferView: View {
     }
 
     /// 只有启用中、可记账的账户能参与转账；顺序与账户列表一致。
-    static func transferableAccounts(_ accounts: [Account]) -> [Account] {
-        AccountListPresentation.sorted(accounts).filter(\.supportsBookkeeping)
+    ///
+    /// - Parameters:
+    ///   - accounts: 查询到的全部账户。
+    ///   - order: 当前账户分类顺序。
+    /// - Returns: 可参与转账的账户。
+    static func transferableAccounts(_ accounts: [Account], order: AccountDisplayOrder) -> [Account] {
+        AccountListPresentation.sorted(accounts, order: order).filter(\.supportsBookkeeping)
     }
 
     // MARK: - 账户

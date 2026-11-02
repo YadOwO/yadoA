@@ -1,6 +1,96 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "account.list.more" : {
+      "comment" : "账户页右上角「更多」菜单按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多"
+          }
+        }
+      }
+    },
+    "account.type_order.title" : {
+      "comment" : "账户管理中的账户分类排序入口与页面标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account Category Order"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账户分类排序"
+          }
+        }
+      }
+    },
+    "account.type_order.footer" : {
+      "comment" : "账户分类排序页底部说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag to reorder. The Accounts page and every account picker follow this order."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动调整顺序。账户页和各处选择账户时都按这个顺序排列。"
+          }
+        }
+      }
+    },
+    "account.type_order.reset" : {
+      "comment" : "账户分类排序页恢复默认顺序按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复默认"
+          }
+        }
+      }
+    },
+    "account.type_order.save_error" : {
+      "comment" : "账户分类排序保存失败提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't save the order. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排序保存失败，请重试。"
+          }
+        }
+      }
+    },
     "feedback.title" : {
       "comment" : "「我的」页意见反馈入口与反馈页标题",
       "extractionState" : "manual",

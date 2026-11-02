@@ -211,9 +211,13 @@ final class BackupImportService {
         }
         if let canonical {
             canonical.defaultAccountID = backupPreference.defaultAccountID
+            canonical.accountTypeOrder = backupPreference.accountTypeOrder
         } else {
             context.insert(
-                BookkeepingPreference(defaultAccountID: backupPreference.defaultAccountID)
+                BookkeepingPreference(
+                    defaultAccountID: backupPreference.defaultAccountID,
+                    accountTypeOrder: backupPreference.accountTypeOrder
+                )
             )
         }
     }

@@ -5,11 +5,11 @@ import SwiftUI
 struct DeactivatedAccountListView: View {
     @Environment(\.locale) private var locale
     @Query private var queriedAccounts: [Account]
+    /// 记账偏好，用于读取账户分类顺序。
+    @Query private var preferences: [BookkeepingPreference]
 
     var body: some View {
-        let accounts = queriedAccounts
-            .filter { !$0.isActive }
-            .sorted(by: AccountOrdering.newestFirst)
+        let accounts = queriedAccounts.filter { !$0.isActive }
 
         Group {
             if accounts.isEmpty {
@@ -19,23 +19,24 @@ struct DeactivatedAccountListView: View {
                 )
             } else {
                 LedgerFormPage {
-                    LedgerCard(seed: 121) {
-                        ForEach(accounts) { account in
-                            // 上级通过视图目标进入此列表，详情沿用同一种导航，避免值路由移除上级页面。
-                            NavigationLink {
-                                AccountDetailView(accountID: account.id)
-                            } label: {
-                                AccountListRow(
-                                    presentation: AccountListPresentation.row(
-                                        for: account,
-                                        locale: locale
-                                    )
+                    // 与账户页同样按分类分组排序。
+                    AccountSectionCards(
+                        sections: AccountDisplayOrder(preferences: preferences).sections(accounts)
+                    ) { account in
+                        // 上级通过视图目标进入此列表，详情沿用同一种导航，避免值路由移除上级页面。
+                        NavigationLink {
+                            AccountDetailView(accountID: account.id)
+                        } label: {
+                            AccountListRow(
+                                presentation: AccountListPresentation.row(
+                                    for: account,
+                                    locale: locale
                                 )
-                                .ledgerCardRow()
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("deactivated-account-row-\(account.id.uuidString)")
+                            )
+                            .ledgerCardRow()
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("deactivated-account-row-\(account.id.uuidString)")
                     }
                 }
             }

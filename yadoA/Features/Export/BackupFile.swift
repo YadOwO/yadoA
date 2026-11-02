@@ -578,27 +578,42 @@ nonisolated struct BackupBookkeepingPreference: Codable, Equatable, Sendable {
     /// 默认账户稳定 UUID；为 `nil` 时编码为显式 JSON `null`。
     let defaultAccountID: UUID?
 
+    /// 用户调整过的账户分类顺序（`AccountType.rawValue`）；为 `nil` 表示沿用默认顺序，编码时省略该键。
+    let accountTypeOrder: [String]?
+
     /// 成员逐一初始化，供测试构造精确夹具。
-    init(defaultAccountID: UUID?) {
+    init(defaultAccountID: UUID?, accountTypeOrder: [String]? = nil) {
         self.defaultAccountID = defaultAccountID
+        self.accountTypeOrder = accountTypeOrder
     }
 
-    /// 从备份 JSON 解码偏好；键缺省与显式 `null` 都解析为无默认。
+    /// 由持久化偏好生成快照，备份导出和同步共用。
+    init(_ preference: BookkeepingPreference) {
+        self.init(
+            defaultAccountID: preference.defaultAccountID,
+            accountTypeOrder: preference.accountTypeOrder
+        )
+    }
+
+    /// 从备份 JSON 解码偏好；键缺省与显式 `null` 都解析为无默认，分类顺序缺省时沿用默认顺序。
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         defaultAccountID = try container.decodeIfPresent(UUID.self, forKey: .defaultAccountID)
+        accountTypeOrder = try container.decodeIfPresent([String].self, forKey: .accountTypeOrder)
     }
 
     /// 编码偏好；`defaultAccountID` 为 `nil` 时写出显式 JSON `null`。
     ///
     /// 不能使用合成编码：合成的可选编码会省略键，导致“明确无默认”
     /// 与“键缺失”两种状态在文件中不可区分。
+    /// 分类顺序为空时省略键，未调整过顺序的偏好与旧格式逐字节相同，同步内容哈希不变。
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(
             defaultAccountID?.backupJSONString,
             forKey: .defaultAccountID
         )
+        try container.encodeIfPresent(accountTypeOrder, forKey: .accountTypeOrder)
     }
 }
 
@@ -674,5 +689,6 @@ extension BackupBookkeepingPreference {
     /// 偏好快照的稳定 JSON 键名。
     enum CodingKeys: String, CodingKey {
         case defaultAccountID
+        case accountTypeOrder
     }
 }

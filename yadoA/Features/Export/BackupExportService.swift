@@ -167,9 +167,7 @@ final class BackupExportService {
                 as? String ?? "0",
             accounts: accounts.map(BackupAccount.init),
             transactions: transactions.map(BackupTransaction.init),
-            bookkeepingPreference: preference.map {
-                BackupBookkeepingPreference(defaultAccountID: $0.defaultAccountID)
-            },
+            bookkeepingPreference: preference.map(BackupBookkeepingPreference.init),
             categories: categories.map(BackupCategory.init),
             recurringRules: recurringRules.map(BackupRecurringRule.init)
         )

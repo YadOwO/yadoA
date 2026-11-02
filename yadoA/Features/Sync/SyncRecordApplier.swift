@@ -379,9 +379,13 @@ enum SyncRecordApplier {
         guard recordID == BookkeepingPreference.singletonID else { throw InvalidRecord() }
         if let preference = try context.canonicalBookkeepingPreference() {
             preference.defaultAccountID = dto.defaultAccountID
+            preference.accountTypeOrder = dto.accountTypeOrder
             return preference
         }
-        let preference = BookkeepingPreference(defaultAccountID: dto.defaultAccountID)
+        let preference = BookkeepingPreference(
+            defaultAccountID: dto.defaultAccountID,
+            accountTypeOrder: dto.accountTypeOrder
+        )
         context.insert(preference)
         return preference
     }

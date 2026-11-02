@@ -128,9 +128,14 @@ struct AccountSummaryPresentation: Equatable {
 
 /// 账户列表查询结果的确定性排序与展示转换边界。
 enum AccountListPresentation {
-    /// 最新更新时间优先；时间相同时按 UUID 字符串升序稳定排列。
-    static func sorted(_ accounts: [Account]) -> [Account] {
-        accounts.filter { $0.isActive }.sorted(by: AccountOrdering.newestFirst)
+    /// 只保留启用账户，并按全 App 统一的账户顺序排列。
+    ///
+    /// - Parameters:
+    ///   - accounts: 查询到的全部账户。
+    ///   - order: 当前账户分类顺序，由 `AccountDisplayOrder(preferences:)` 从记账偏好读取。
+    /// - Returns: 排好序的启用账户。
+    static func sorted(_ accounts: [Account], order: AccountDisplayOrder) -> [Account] {
+        order.sorted(accounts.filter { $0.isActive })
     }
 
     /// 将持久模型安全转换为当前语言环境的行展示数据。
@@ -246,7 +251,7 @@ enum AccountListState {
     /// 空状态是否展示内嵌添加入口。
     static func showsInlineAdd(accountCount: Int) -> Bool { accountCount == 0 }
 
-    /// 非空状态是否展示导航栏添加入口。
+    /// 非空状态是否在导航栏「更多」菜单中提供添加入口。
     static func showsToolbarAdd(accountCount: Int) -> Bool { accountCount > 0 }
 
 }
@@ -275,19 +280,20 @@ struct AccountListView: View {
     private static let voiceMarkLifetime: Duration = .milliseconds(4000)
 
     var body: some View {
-        let accounts = AccountListPresentation.sorted(queriedAccounts)
+        let order = AccountDisplayOrder(preferences: preferences)
+        let accounts = AccountListPresentation.sorted(queriedAccounts, order: order)
 
         Group {
             if AccountListState.showsInlineAdd(accountCount: accounts.count) {
                 emptyContent
             } else {
-                accountList(accounts)
+                accountList(accounts, sections: order.sections(accounts))
             }
         }
         .navigationTitle(AccountLocalization.string("account.list.title", locale: locale))
         .toolbar {
             // 至少两个可记账账户才有转账的意义。
-            if TransferView.transferableAccounts(queriedAccounts).count >= 2 {
+            if TransferView.transferableAccounts(queriedAccounts, order: order).count >= 2 {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         transferDraft = TransferDraft(
@@ -303,21 +309,9 @@ struct AccountListView: View {
                     .accessibilityIdentifier("account-list-transfer")
                 }
             }
-            if AccountListState.showsToolbarAdd(accountCount: accounts.count) {
-                ToolbarItem(placement: .primaryAction) {
-                    addButton(identifier: "account-list-toolbar-add")
-                }
-            }
-            ToolbarItem(placement: .secondaryAction) {
-                Button {
-                    isPresentingManagement = true
-                } label: {
-                    Label(
-                        AccountLocalization.string("account.management.title", locale: locale),
-                        systemImage: "gearshape"
-                    )
-                }
-                .accessibilityIdentifier("account-list-management")
+            // 添加账户和账户管理收进同一个「更多」菜单，右上角最多两个按钮。
+            ToolbarItem(placement: .primaryAction) {
+                moreMenu(showsAdd: AccountListState.showsToolbarAdd(accountCount: accounts.count))
             }
         }
         .onAppear { isVisible = true }
@@ -377,9 +371,44 @@ struct AccountListView: View {
     /// 从账户列表发起转账时预选的转出账户：有默认记账账户时用它，否则先不选。
     private var defaultTransferSourceID: UUID? {
         BookkeepingPreference.resolvedAccountID(
-            preference: preferences.first { $0.id == BookkeepingPreference.singletonID },
+            preference: BookkeepingPreference.canonical(in: preferences),
             accounts: queriedAccounts
         )
+    }
+
+    /// 右上角的「更多」菜单：有账户时提供添加账户，始终提供账户管理。
+    ///
+    /// 系统菜单不保留菜单项的 identifier，UI 测试按菜单项标题查找。
+    /// - Parameter showsAdd: 是否提供添加账户；没有账户时添加入口在页面中间。
+    private func moreMenu(showsAdd: Bool) -> some View {
+        Menu {
+            if showsAdd {
+                addButton(identifier: "account-list-toolbar-add")
+            }
+            Button {
+                isPresentingManagement = true
+            } label: {
+                Label(
+                    AccountLocalization.string("account.management.title", locale: locale),
+                    systemImage: "gearshape"
+                )
+            }
+            .accessibilityIdentifier("account-list-management")
+        } label: {
+            Label(
+                AccountLocalization.string("account.list.more", locale: locale),
+                systemImage: moreSymbolName
+            )
+        }
+        .accessibilityIdentifier("account-list-more")
+    }
+
+    /// 「更多」按钮的图标：iOS 26 起导航栏按钮自带圆形玻璃底，用不带圆圈的省略号；更早的系统用带圆圈的样式。
+    private var moreSymbolName: String {
+        if #available(iOS 26, *) {
+            return "ellipsis"
+        }
+        return "ellipsis.circle"
     }
 
     /// 干净存储唯一的主要添加入口。
@@ -411,11 +440,15 @@ struct AccountListView: View {
         }
     }
 
-    /// 非空状态下使用原生 SwiftUI List 展示账户；汇总是手绘方框，账户行直接写在纸面上。
-    private func accountList(_ accounts: [Account]) -> some View {
+    /// 非空状态下使用原生 SwiftUI List 展示账户；汇总是手绘方框，账户按分类分段直接写在纸面上。
+    ///
+    /// - Parameters:
+    ///   - accounts: 按统一顺序排好的启用账户。
+    ///   - sections: 同一批账户按分类分好的组。
+    private func accountList(_ accounts: [Account], sections: [AccountTypeSection]) -> some View {
         let summary = AccountSummaryPresentation.summary(for: accounts, locale: locale)
         let defaultAccountID = BookkeepingPreference.resolvedAccountID(
-            preference: preferences.first { $0.id == BookkeepingPreference.singletonID },
+            preference: BookkeepingPreference.canonical(in: preferences),
             accounts: accounts
         )
 
@@ -428,26 +461,31 @@ struct AccountListView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
 
-                Section {
-                    ForEach(accounts) { account in
-                        let presentation = AccountListPresentation.row(
-                            for: account,
-                            locale: locale,
-                            isDefault: account.id == defaultAccountID
-                        )
-                        NavigationLink(value: AccountsRoute.detail(account.id)) {
-                            AccountListRow(
-                                presentation: presentation,
-                                voiceMarkToken: voiceMark.flatMap { $0.accountIDs.contains(account.id) ? $0.token : nil }
+                ForEach(sections) { section in
+                    Section {
+                        ForEach(section.accounts) { account in
+                            let presentation = AccountListPresentation.row(
+                                for: account,
+                                locale: locale,
+                                isDefault: account.id == defaultAccountID
                             )
+                            NavigationLink(value: AccountsRoute.detail(account.id)) {
+                                AccountListRow(
+                                    presentation: presentation,
+                                    voiceMarkToken: voiceMark.flatMap { $0.accountIDs.contains(account.id) ? $0.token : nil }
+                                )
+                            }
+                            .navigationLinkIndicatorVisibility(.hidden)
+                            .ledgerRow(
+                                seed: account.id.handDrawnSeed,
+                                showsRule: account.id != section.accounts.last?.id
+                            )
+                            .accessibilityIdentifier("account-list-row-\(account.id.uuidString)")
+                            .id(account.id)
                         }
-                        .navigationLinkIndicatorVisibility(.hidden)
-                        .ledgerRow(
-                            seed: account.id.handDrawnSeed,
-                            showsRule: account.id != accounts.last?.id
-                        )
-                        .accessibilityIdentifier("account-list-row-\(account.id.uuidString)")
-                        .id(account.id)
+                    } header: {
+                        AccountSectionHeader(title: section.title(locale: locale), seed: section.id.handDrawnSeed)
+                            .accessibilityIdentifier("account-list-section-\(section.id)")
                     }
                 }
             }

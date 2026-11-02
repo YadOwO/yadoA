@@ -154,6 +154,21 @@ struct SyncChangeTrackerTests {
         }
     }
 
+    @Test("首次调整账户分类顺序时，自动创建的偏好按当前时间登记并带上新顺序")
+    func accountTypeOrderOnAutoCreatedPreferenceUsesCurrentTime() throws {
+        try withSyncState(boundUserID: nil) {
+            let container = try AccountDataContainer.inMemory().modelContainer
+            try LocalAccountRepository(container: container).saveAccountTypeOrder(
+                AccountDisplayOrder(accountTypes: [.creditCard, .cash])
+            )
+
+            let entry = try #require(
+                try ledgerEntry(.preference, BookkeepingPreference.singletonID, in: container)
+            )
+            #expect(entry.modifiedAt > .distantPast)
+        }
+    }
+
     @Test("导入备份里明确的「无默认」按当前时间登记，不当作自动创建")
     func importedEmptyPreferenceUsesCurrentTime() throws {
         try withSyncState(boundUserID: nil) {

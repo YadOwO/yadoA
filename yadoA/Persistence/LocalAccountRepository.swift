@@ -311,6 +311,18 @@ final class LocalAccountRepository {
         }
     }
 
+    /// 保存用户调整后的账户分类顺序；与默认顺序相同时清空存储，之后跟随默认顺序。
+    ///
+    /// - Parameter order: 新的分类顺序。
+    /// - Throws: 保存失败时抛出底层错误并回滚。
+    func saveAccountTypeOrder(_ order: AccountDisplayOrder) throws {
+        let context = makeContext()
+        try persistChanges(in: context) {
+            let preference = try canonicalPreference(in: context)
+            preference.accountTypeOrder = order.storedRawValues
+        }
+    }
+
     /// 读取当前有效默认；失效 UUID 只在读取结果中降级为无默认，不写库。
     func defaultResolution() throws -> BookkeepingDefaultResolution {
         let context = makeContext()
@@ -350,13 +362,13 @@ final class LocalAccountRepository {
             throw AccountRepositoryError.accountNotFound(accountID)
         }
         let accounts = try allAccounts(in: context)
+        let preference = try context.canonicalBookkeepingPreference()
         let defaultAccountID = BookkeepingPreference.resolvedAccountID(
-            preference: try context.canonicalBookkeepingPreference(),
+            preference: preference,
             accounts: accounts
         )
-        let candidates = accounts
-            .filter { $0.id != accountID && $0.isEligibleForDefault }
-            .sorted(by: AccountOrdering.newestFirst)
+        let candidates = AccountDisplayOrder(preference: preference)
+            .sorted(accounts.filter { $0.id != accountID && $0.isEligibleForDefault })
             .map { AccountCandidate(id: $0.id, name: $0.name) }
         return AccountDisposalPlan(
             accountID: accountID,
@@ -559,9 +571,11 @@ final class LocalAccountRepository {
         try makeContext().account(id: id)
     }
 
-    /// 获取确定性排序的全部账户，包含停用账户供管理和历史详情使用。
+    /// 按全 App 统一顺序获取全部账户，包含停用账户供管理和历史详情使用。
     func accounts() throws -> [Account] {
-        try allAccounts(in: makeContext()).sorted(by: AccountOrdering.newestFirst)
+        let context = makeContext()
+        return AccountDisplayOrder(preference: try context.canonicalBookkeepingPreference())
+            .sorted(try allAccounts(in: context))
     }
 
     /// 获取当前有效默认 UUID，不修改失效偏好。

@@ -17,10 +17,11 @@ struct DefaultAccountSelectionView: View {
     @State private var createdCandidateID: UUID?
 
     var body: some View {
-        let accounts = AccountListPresentation.sorted(queriedAccounts)
+        let order = AccountDisplayOrder(preferences: preferences)
+        let accounts = AccountListPresentation.sorted(queriedAccounts, order: order)
             .filter { $0.isEligibleForDefault }
         let defaultAccountID = BookkeepingPreference.resolvedAccountID(
-            preference: preferences.first { $0.id == BookkeepingPreference.singletonID },
+            preference: BookkeepingPreference.canonical(in: preferences),
             accounts: queriedAccounts
         )
 
@@ -29,31 +30,29 @@ struct DefaultAccountSelectionView: View {
                 emptyContent
             } else {
                 LedgerFormPage {
-                    LedgerCard(seed: 120) {
-                        ForEach(accounts) { account in
-                            Button {
-                                do {
-                                    try LocalAccountRepository(container: modelContext.container)
-                                        .setDefaultAccount(id: account.id)
-                                    AppHaptics.play(.selection)
-                                    dismiss()
-                                } catch {
-                                    AppHaptics.play(.error)
-                                    isSaveFailed = true
-                                }
-                            } label: {
-                                AccountListRow(
-                                    presentation: AccountListPresentation.row(
-                                        for: account,
-                                        locale: locale,
-                                        isDefault: account.id == defaultAccountID
-                                    )
-                                )
-                                .ledgerCardRow()
+                    AccountSectionCards(sections: order.sections(accounts)) { account in
+                        Button {
+                            do {
+                                try LocalAccountRepository(container: modelContext.container)
+                                    .setDefaultAccount(id: account.id)
+                                AppHaptics.play(.selection)
+                                dismiss()
+                            } catch {
+                                AppHaptics.play(.error)
+                                isSaveFailed = true
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("default-account-row-\(account.id.uuidString)")
+                        } label: {
+                            AccountListRow(
+                                presentation: AccountListPresentation.row(
+                                    for: account,
+                                    locale: locale,
+                                    isDefault: account.id == defaultAccountID
+                                )
+                            )
+                            .ledgerCardRow()
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("default-account-row-\(account.id.uuidString)")
                     }
                 }
             }
