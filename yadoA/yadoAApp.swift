@@ -61,6 +61,9 @@ struct yadoAApp: App {
                 if ProcessInfo.processInfo.arguments.contains("--ui-testing-bookkeeping-search-fixture") {
                     try HomeUITestFixture.seedBookkeepingSearch(in: container.modelContainer)
                 }
+                if AIChatUITestFixture.isEnabled {
+                    try AIChatUITestFixture.seed(in: container.modelContainer)
+                }
                 uiTestingDataContainer = container
                 if ScreenshotShortcutUITestFixture.isEnabled,
                    ProcessInfo.processInfo.arguments.contains("--ui-testing-screenshot-cold-start") {

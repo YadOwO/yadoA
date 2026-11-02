@@ -75,6 +75,20 @@ extension XCTestCase {
         return app
     }
 
+    /// 使用 AI 对话夹具和固定英文环境启动应用：写入一轮本机对话记录，启动后直接打开聊天页。
+    @MainActor
+    func launchAIChatFixtureInEnglish() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "--ui-testing-in-memory",
+            "--ui-testing-ai-chat-fixture",
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US"
+        ]
+        app.launch()
+        return app
+    }
+
     /// 在可滚动区域上反复轻扫，直到目标元素进入屏幕、可以点击。
     ///
     /// 列表是懒加载的，屏幕外的行可能还不在无障碍树里，所以每次轻扫后都重新判断。

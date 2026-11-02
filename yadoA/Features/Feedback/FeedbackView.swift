@@ -329,7 +329,7 @@ private struct FeedbackBubble: View {
     }
 }
 
-/// 气泡本身：自己的用强调色浅底，团队的用次级背景色；正文可以选中复制。
+/// 气泡本身：自己的用强调色浅底，团队的用纸面卡片色加细描边；正文可以长按选中拷贝。
 private struct FeedbackBubbleText: View {
     @Environment(\.locale) private var locale
 
@@ -342,21 +342,17 @@ private struct FeedbackBubbleText: View {
     var body: some View {
         Text(content)
             .font(.body)
-            .textSelection(.enabled)
+            .conversationTextSelection()
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
-            .background(background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .conversationBubble(
+                sender == .user ? .user : .reply,
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            )
             // 读屏先读发送方再读正文
             .accessibilityLabel(senderName)
             .accessibilityValue(content)
-    }
-
-    /// 气泡底色：两种外观下都使用语义色。
-    private var background: AnyShapeStyle {
-        sender == .user
-            ? AnyShapeStyle(Color.accentColor.opacity(0.12))
-            : AnyShapeStyle(Color(uiColor: .secondarySystemBackground))
     }
 
     /// 读屏时的发送方名称。

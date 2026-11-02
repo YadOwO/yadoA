@@ -194,7 +194,7 @@ struct AIChatThinkingIndicator: View {
 
 // MARK: - 气泡
 
-/// 用户发出的一句话：墨色实心气泡，靠右。
+/// 用户发出的一句话：浅底气泡，靠右；正文可以长按选中拷贝。已撤销时划掉并淡出文字。
 struct AIChatUserBubble: View {
     /// 气泡文字。
     let text: String
@@ -206,11 +206,12 @@ struct AIChatUserBubble: View {
         Text(text)
             .font(.body)
             .strikethrough(isUndone)
-            .foregroundStyle(Color(.onAccent))
+            .foregroundStyle(isUndone ? Color.secondary : Color.primary)
+            .conversationTextSelection()
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
-            .background(
-                Color.accentColor.opacity(isUndone ? 0.45 : 1),
+            .conversationBubble(
+                .user,
                 in: UnevenRoundedRectangle(
                     topLeadingRadius: 20, bottomLeadingRadius: 20, bottomTrailingRadius: 6, topTrailingRadius: 20,
                     style: .continuous

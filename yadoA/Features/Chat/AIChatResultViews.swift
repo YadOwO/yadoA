@@ -15,7 +15,7 @@ struct AIChatResultActions {
     var accountOptions: () -> [VoiceAccountOption] = { [] }
 }
 
-/// 一轮的结果：有改动时是一张纸条，查账时是大数字加分布图，其余是一段文字。
+/// 一轮的结果：有改动时是一张纸条，查账时是大数字加分布图，其余是一段文字；模型说的话可以长按选中拷贝。
 struct AIChatTurnResultView: View {
     /// 这一轮的展示内容。
     let snapshot: AIChatTurnSnapshot
@@ -58,6 +58,7 @@ struct AIChatTurnResultView: View {
                 .font(isQuestion ? Font.system(.title3, design: .serif).weight(.semibold) : Font.body)
                 .foregroundStyle(snapshot.isFailed ? Color(.ledgerRed) : Color.primary)
                 .fixedSize(horizontal: false, vertical: true)
+                .conversationTextSelection()
             }
             if isFinished, let insight = snapshot.insight {
                 AIChatInsightCard(insight: insight, animatesEntrance: animatesEntrance)
@@ -185,6 +186,7 @@ private struct AIChatResultSlip: View {
             Text(resultText)
                 .font(.subheadline.weight(.medium))
                 .fixedSize(horizontal: false, vertical: true)
+                .conversationTextSelection()
                 .padding(.bottom, 6)
         }
     }

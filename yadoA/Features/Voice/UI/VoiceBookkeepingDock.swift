@@ -247,6 +247,12 @@ private struct VoiceBookkeepingHost: ViewModifier {
                     calendar: calendar,
                     history: history
                 )
+                #if DEBUG
+                // UI 自动化没有真实账号，从入口打不开聊天页；夹具启用时直接盖上
+                if AIChatUITestFixture.isEnabled {
+                    voice.isChatPresented = true
+                }
+                #endif
             }
             // 账本被替换、记录被清空时，当前对话段不能再引用之前的内容；聊天页重新读取记录
             .onReceive(

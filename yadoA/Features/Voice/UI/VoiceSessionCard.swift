@@ -231,7 +231,7 @@ struct VoiceSessionCard: View {
     }
 }
 
-/// 卡片中的一轮：用户的话靠右，结果、写入的流水和操作靠左。
+/// 卡片中的一轮：用户的话靠右，结果、写入的流水和操作靠左；用户的话和结果文字可以长按选中拷贝。
 private struct VoiceSessionTurnView: View {
     @Environment(\.locale) private var locale
 
@@ -267,6 +267,7 @@ private struct VoiceSessionTurnView: View {
             // 只发图片的一轮没有文字；卡片上不放图片，图片在聊天页看
             VoiceUserBubble(text: turn.userText.isEmpty ? text("voice.chat.image.label") : turn.userText)
                 .strikethrough(turn.isUndone)
+                .conversationTextSelection()
 
             if turn.outcome == .processing {
                 HStack(spacing: 6) {
@@ -278,6 +279,7 @@ private struct VoiceSessionTurnView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(turn.failure == nil ? Color.primary : Color(.ledgerRed))
                     .fixedSize(horizontal: false, vertical: true)
+                    .conversationTextSelection()
             }
             ForEach(turn.changes) { change in
                 switch change {
@@ -541,7 +543,7 @@ struct VoiceUserBubble: View {
             .foregroundStyle(isPlaceholder ? Color.secondary : Color.primary)
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
-            .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .conversationBubble(.user, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .frame(maxWidth: .infinity, alignment: .trailing)
     }
 }
