@@ -62,6 +62,54 @@ nonisolated enum VoiceToolName: String, Codable, Equatable, Sendable {
 
     /// 删除账户。
     case deleteAccount = "delete_account"
+
+    /// 按条件查询周期记账规则。
+    case searchRecurringRules = "search_recurring_rules"
+
+    /// 新建一条周期记账。
+    case createRecurringRule = "create_recurring_rule"
+
+    /// 修改、暂停或恢复一条周期记账。
+    case updateRecurringRule = "update_recurring_rule"
+
+    /// 删除一条周期记账；已记入的流水保留。
+    case deleteRecurringRule = "delete_recurring_rule"
+}
+
+/// 周期记账的重复频率，与 `RecurringFrequency.rawValue` 一致。
+nonisolated enum VoiceRecurringFrequency: String, Codable, Equatable, Sendable {
+    /// 每天。
+    case daily
+
+    /// 每周同一天。
+    case weekly
+
+    /// 每两周同一天。
+    case biweekly
+
+    /// 每月同一天；当月没有这一天时取月末。
+    case monthly
+
+    /// 每三个月同一天。
+    case quarterly
+
+    /// 每年同月同日。
+    case yearly
+}
+
+/// 周期记账规则的状态，与周期记账列表的状态一致。
+nonisolated enum VoiceRecurringRuleStatus: String, Codable, Equatable, Sendable {
+    /// 正常，到期自动记入。
+    case active
+
+    /// 用户暂停了，期间的日期不补记。
+    case paused
+
+    /// 已过结束日期，不会再记入。
+    case finished
+
+    /// 账户或分类不可用，暂时不会记入；可用后补记。
+    case unavailable
 }
 
 /// 新建账户时由 AI 推断或取了默认值的字段，界面上标「待确认」。
@@ -208,7 +256,7 @@ nonisolated struct VoiceCreateTransactionInput: Codable, Equatable, Sendable {
     }
 }
 
-/// 可清空的文本字段（备注、卡号后四位）的修改方式：`patch` 中不出现表示不改，`null` 表示清空。
+/// 可清空的文本字段（备注、卡号后四位、周期记账的结束日期）的修改方式：`patch` 中不出现表示不改，`null` 表示清空。
 nonisolated enum VoiceTextPatch: Equatable, Sendable {
     /// 改为新值。
     case set(String)
@@ -506,6 +554,233 @@ nonisolated struct VoiceDeleteAccountInput: Codable, Equatable, Sendable {
     var accountId: String
 }
 
+/// 周期记账规则的查询条件；所有条件取交集，`nil` 表示不限制。
+nonisolated struct VoiceRecurringRuleFilter: Codable, Equatable, Sendable {
+    /// 收支类型。
+    var type: VoiceEntryType?
+
+    /// 分类 key 列表。
+    var categoryIds: [String]?
+
+    /// 账户 UUID 字符串列表。
+    var accountIds: [String]?
+
+    /// 规则状态列表。
+    var statuses: [VoiceRecurringRuleStatus]?
+
+    /// 备注或分类名称中包含的关键词。
+    var keyword: String?
+
+    /// 成员逐一初始化，全部默认不限制。
+    init(
+        type: VoiceEntryType? = nil,
+        categoryIds: [String]? = nil,
+        accountIds: [String]? = nil,
+        statuses: [VoiceRecurringRuleStatus]? = nil,
+        keyword: String? = nil
+    ) {
+        self.type = type
+        self.categoryIds = categoryIds
+        self.accountIds = accountIds
+        self.statuses = statuses
+        self.keyword = keyword
+    }
+}
+
+/// `search_recurring_rules` 的入参。
+nonisolated struct VoiceSearchRecurringRulesInput: Codable, Equatable, Sendable {
+    /// 查询条件。
+    var filter: VoiceRecurringRuleFilter
+
+    /// 最多返回的条数，1～20。
+    var limit: Int
+}
+
+/// `create_recurring_rule` 的入参；服务端已补齐默认值并核对账户、分类。
+nonisolated struct VoiceCreateRecurringRuleInput: Codable, Equatable, Sendable {
+    /// 收支类型。
+    var type: VoiceEntryType
+
+    /// 每期金额，大于零的十进制字符串。
+    var amount: String
+
+    /// 启用中的账户 UUID 字符串。
+    var accountId: String
+
+    /// 与 `type` 匹配的分类 key。
+    var categoryId: String
+
+    /// 写入每期流水的备注，最多 30 字；没有时为 `nil`，编码为 `null`。
+    var note: String?
+
+    /// 重复频率。
+    var frequency: VoiceRecurringFrequency
+
+    /// 第一期 `YYYY-MM-DD`，不能早于今天；是今天时当场记入这一期。
+    var nextDueDate: String
+
+    /// 结束日期 `YYYY-MM-DD`，不早于第一期；一直重复时为 `nil`，编码为 `null`。
+    var endDate: String?
+
+    /// 由 AI 推断或取了默认值的字段。
+    var inferredFields: [VoiceInferredField]
+
+    private enum CodingKeys: String, CodingKey {
+        case type, amount, accountId, categoryId, note, frequency, nextDueDate, endDate, inferredFields
+    }
+
+    /// 成员逐一初始化。
+    init(
+        type: VoiceEntryType,
+        amount: String,
+        accountId: String,
+        categoryId: String,
+        note: String?,
+        frequency: VoiceRecurringFrequency,
+        nextDueDate: String,
+        endDate: String?,
+        inferredFields: [VoiceInferredField]
+    ) {
+        self.type = type
+        self.amount = amount
+        self.accountId = accountId
+        self.categoryId = categoryId
+        self.note = note
+        self.frequency = frequency
+        self.nextDueDate = nextDueDate
+        self.endDate = endDate
+        self.inferredFields = inferredFields
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decode(VoiceEntryType.self, forKey: .type)
+        amount = try container.decode(String.self, forKey: .amount)
+        accountId = try container.decode(String.self, forKey: .accountId)
+        categoryId = try container.decode(String.self, forKey: .categoryId)
+        note = try container.decodeIfPresent(String.self, forKey: .note)
+        frequency = try container.decode(VoiceRecurringFrequency.self, forKey: .frequency)
+        nextDueDate = try container.decode(String.self, forKey: .nextDueDate)
+        endDate = try container.decodeIfPresent(String.self, forKey: .endDate)
+        inferredFields = try container.decodeIfPresent([VoiceInferredField].self, forKey: .inferredFields) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(type, forKey: .type)
+        try container.encode(amount, forKey: .amount)
+        try container.encode(accountId, forKey: .accountId)
+        try container.encode(categoryId, forKey: .categoryId)
+        // 契约要求可空字段必须出现，没有值时为 null
+        try container.encode(note, forKey: .note)
+        try container.encode(frequency, forKey: .frequency)
+        try container.encode(nextDueDate, forKey: .nextDueDate)
+        try container.encode(endDate, forKey: .endDate)
+        try container.encode(inferredFields, forKey: .inferredFields)
+    }
+}
+
+/// `update_recurring_rule` 中要修改的字段；`nil` 表示不改。
+///
+/// App 按「恢复 → 改内容 → 暂停」的顺序在一次保存里执行；恢复时暂停期间的日期不补记，下一期推到今天或之后。
+/// 改了下一期或频率时，下一期成为新的排期起始日；改后的下一期是今天时当场记入这一期。
+nonisolated struct VoiceRecurringRulePatch: Codable, Equatable, Sendable {
+    /// 新的收支类型；修改时服务端保证同时给出匹配的分类。
+    var type: VoiceEntryType?
+
+    /// 新的每期金额。
+    var amount: String?
+
+    /// 新账户 UUID 字符串。
+    var accountId: String?
+
+    /// 新分类 key。
+    var categoryId: String?
+
+    /// 备注的修改方式。
+    var note: VoiceTextPatch?
+
+    /// 新的重复频率。
+    var frequency: VoiceRecurringFrequency?
+
+    /// 新的下一期 `YYYY-MM-DD`，不能早于今天。
+    var nextDueDate: String?
+
+    /// 结束日期的修改方式；清空表示一直重复。
+    var endDate: VoiceTextPatch?
+
+    /// `true` 暂停，`false` 恢复。
+    var isPaused: Bool?
+
+    private enum CodingKeys: String, CodingKey {
+        case type, amount, accountId, categoryId, note, frequency, nextDueDate, endDate, isPaused
+    }
+
+    /// 成员逐一初始化，全部默认不改。
+    init(
+        type: VoiceEntryType? = nil,
+        amount: String? = nil,
+        accountId: String? = nil,
+        categoryId: String? = nil,
+        note: VoiceTextPatch? = nil,
+        frequency: VoiceRecurringFrequency? = nil,
+        nextDueDate: String? = nil,
+        endDate: VoiceTextPatch? = nil,
+        isPaused: Bool? = nil
+    ) {
+        self.type = type
+        self.amount = amount
+        self.accountId = accountId
+        self.categoryId = categoryId
+        self.note = note
+        self.frequency = frequency
+        self.nextDueDate = nextDueDate
+        self.endDate = endDate
+        self.isPaused = isPaused
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decodeIfPresent(VoiceEntryType.self, forKey: .type)
+        amount = try container.decodeIfPresent(String.self, forKey: .amount)
+        accountId = try container.decodeIfPresent(String.self, forKey: .accountId)
+        categoryId = try container.decodeIfPresent(String.self, forKey: .categoryId)
+        note = try VoiceTextPatch.decode(from: container, forKey: .note)
+        frequency = try container.decodeIfPresent(VoiceRecurringFrequency.self, forKey: .frequency)
+        nextDueDate = try container.decodeIfPresent(String.self, forKey: .nextDueDate)
+        endDate = try VoiceTextPatch.decode(from: container, forKey: .endDate)
+        isPaused = try container.decodeIfPresent(Bool.self, forKey: .isPaused)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(type, forKey: .type)
+        try container.encodeIfPresent(amount, forKey: .amount)
+        try container.encodeIfPresent(accountId, forKey: .accountId)
+        try container.encodeIfPresent(categoryId, forKey: .categoryId)
+        try VoiceTextPatch.encode(note, to: &container, forKey: .note)
+        try container.encodeIfPresent(frequency, forKey: .frequency)
+        try container.encodeIfPresent(nextDueDate, forKey: .nextDueDate)
+        try VoiceTextPatch.encode(endDate, to: &container, forKey: .endDate)
+        try container.encodeIfPresent(isPaused, forKey: .isPaused)
+    }
+}
+
+/// `update_recurring_rule` 的入参。
+nonisolated struct VoiceUpdateRecurringRuleInput: Codable, Equatable, Sendable {
+    /// 要修改的规则 UUID 字符串。
+    var ruleId: String
+
+    /// 要修改的字段。
+    var patch: VoiceRecurringRulePatch
+}
+
+/// `delete_recurring_rule` 的入参。
+nonisolated struct VoiceDeleteRecurringRuleInput: Codable, Equatable, Sendable {
+    /// 要删除的规则 UUID 字符串。
+    var ruleId: String
+}
+
 /// 服务端下发的一次工具调用；App 执行后要把它原样放回事件中回传。
 nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
     /// 查询流水。
@@ -538,13 +813,27 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
     /// 删除账户。
     case deleteAccount(id: String, input: VoiceDeleteAccountInput)
 
+    /// 查询周期记账。
+    case searchRecurringRules(id: String, input: VoiceSearchRecurringRulesInput)
+
+    /// 新建周期记账。
+    case createRecurringRule(id: String, input: VoiceCreateRecurringRuleInput)
+
+    /// 修改、暂停或恢复周期记账。
+    case updateRecurringRule(id: String, input: VoiceUpdateRecurringRuleInput)
+
+    /// 删除周期记账。
+    case deleteRecurringRule(id: String, input: VoiceDeleteRecurringRuleInput)
+
     /// 调用 id，在整个会话内唯一。
     var id: String {
         switch self {
         case let .searchTransactions(id, _), let .summarizeTransactions(id, _),
              let .createTransaction(id, _), let .updateTransaction(id, _), let .deleteTransaction(id, _),
              let .adjustBalance(id, _), let .transfer(id, _),
-             let .createAccount(id, _), let .updateAccount(id, _), let .deleteAccount(id, _):
+             let .createAccount(id, _), let .updateAccount(id, _), let .deleteAccount(id, _),
+             let .searchRecurringRules(id, _), let .createRecurringRule(id, _),
+             let .updateRecurringRule(id, _), let .deleteRecurringRule(id, _):
             id
         }
     }
@@ -562,6 +851,10 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
         case .createAccount: .createAccount
         case .updateAccount: .updateAccount
         case .deleteAccount: .deleteAccount
+        case .searchRecurringRules: .searchRecurringRules
+        case .createRecurringRule: .createRecurringRule
+        case .updateRecurringRule: .updateRecurringRule
+        case .deleteRecurringRule: .deleteRecurringRule
         }
     }
 
@@ -593,6 +886,14 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
             self = try .updateAccount(id: id, input: container.decode(VoiceUpdateAccountInput.self, forKey: .input))
         case .deleteAccount:
             self = try .deleteAccount(id: id, input: container.decode(VoiceDeleteAccountInput.self, forKey: .input))
+        case .searchRecurringRules:
+            self = try .searchRecurringRules(id: id, input: container.decode(VoiceSearchRecurringRulesInput.self, forKey: .input))
+        case .createRecurringRule:
+            self = try .createRecurringRule(id: id, input: container.decode(VoiceCreateRecurringRuleInput.self, forKey: .input))
+        case .updateRecurringRule:
+            self = try .updateRecurringRule(id: id, input: container.decode(VoiceUpdateRecurringRuleInput.self, forKey: .input))
+        case .deleteRecurringRule:
+            self = try .deleteRecurringRule(id: id, input: container.decode(VoiceDeleteRecurringRuleInput.self, forKey: .input))
         }
     }
 
@@ -611,6 +912,10 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
         case let .createAccount(_, input): try container.encode(input, forKey: .input)
         case let .updateAccount(_, input): try container.encode(input, forKey: .input)
         case let .deleteAccount(_, input): try container.encode(input, forKey: .input)
+        case let .searchRecurringRules(_, input): try container.encode(input, forKey: .input)
+        case let .createRecurringRule(_, input): try container.encode(input, forKey: .input)
+        case let .updateRecurringRule(_, input): try container.encode(input, forKey: .input)
+        case let .deleteRecurringRule(_, input): try container.encode(input, forKey: .input)
         }
     }
 }
@@ -619,13 +924,14 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
 
 /// 工具执行失败的原因。
 nonisolated enum VoiceToolErrorCode: String, Codable, Equatable, Sendable {
-    /// 流水或账户不存在。
+    /// 流水、账户或周期记账不存在。
     case notFound = "not_found"
 
     /// 余额调整，或已停用账户下的流水，不能修改、删除；或要操作的账户已停用。
     case notEditable = "not_editable"
 
-    /// 参数不合法，例如账户已停用、分类已删除、日期无效、调整后余额与当前相同。
+    /// 参数不合法，例如账户已停用、分类已删除、日期无效、调整后余额与当前相同，
+    /// 或周期记账的下一期早于今天、结束日期早于下一期。
     case invalidInput = "invalid_input"
 
     /// 停用账户时余额不为 0。
@@ -664,8 +970,36 @@ nonisolated struct VoiceTransactionItem: Encodable, Equatable, Sendable {
     /// 是否可以修改、删除；已停用账户下的流水为 `false`。
     var isEditable: Bool
 
+    /// 由周期记账自动记入时为规则 UUID 字符串，手动记的为 `nil`，编码为 `null`。
+    ///
+    /// 模型据此区分「改这一笔」和「改以后每期」：改单笔用 `update_transaction`，改规则用 `update_recurring_rule`。
+    var recurringRuleId: String?
+
     private enum CodingKeys: String, CodingKey {
-        case id, date, type, amount, categoryId, accountId, note, isEditable
+        case id, date, type, amount, categoryId, accountId, note, isEditable, recurringRuleId
+    }
+
+    /// 成员逐一初始化。
+    init(
+        id: String,
+        date: String,
+        type: VoiceEntryType,
+        amount: String,
+        categoryId: String,
+        accountId: String,
+        note: String?,
+        isEditable: Bool,
+        recurringRuleId: String? = nil
+    ) {
+        self.id = id
+        self.date = date
+        self.type = type
+        self.amount = amount
+        self.categoryId = categoryId
+        self.accountId = accountId
+        self.note = note
+        self.isEditable = isEditable
+        self.recurringRuleId = recurringRuleId
     }
 
     func encode(to encoder: Encoder) throws {
@@ -678,6 +1012,58 @@ nonisolated struct VoiceTransactionItem: Encodable, Equatable, Sendable {
         try container.encode(accountId, forKey: .accountId)
         try container.encode(note, forKey: .note)
         try container.encode(isEditable, forKey: .isEditable)
+        try container.encode(recurringRuleId, forKey: .recurringRuleId)
+    }
+}
+
+/// 查询结果中的一条周期记账规则。
+nonisolated struct VoiceRecurringRuleItem: Encodable, Equatable, Sendable {
+    /// 规则 UUID 字符串。
+    var id: String
+
+    /// 收支类型。
+    var type: VoiceEntryType
+
+    /// 每期金额，十进制字符串。
+    var amount: String
+
+    /// 分类 key。
+    var categoryId: String
+
+    /// 账户 UUID 字符串。
+    var accountId: String
+
+    /// 备注，最多 200 字；没有时编码为 `null`。
+    var note: String?
+
+    /// 重复频率。
+    var frequency: VoiceRecurringFrequency
+
+    /// 下一期 `YYYY-MM-DD`；已结束的规则晚于结束日期。
+    var nextDueDate: String
+
+    /// 结束日期 `YYYY-MM-DD`；一直重复时编码为 `null`。
+    var endDate: String?
+
+    /// 规则状态。
+    var status: VoiceRecurringRuleStatus
+
+    private enum CodingKeys: String, CodingKey {
+        case id, type, amount, categoryId, accountId, note, frequency, nextDueDate, endDate, status
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(type, forKey: .type)
+        try container.encode(amount, forKey: .amount)
+        try container.encode(categoryId, forKey: .categoryId)
+        try container.encode(accountId, forKey: .accountId)
+        try container.encode(note, forKey: .note)
+        try container.encode(frequency, forKey: .frequency)
+        try container.encode(nextDueDate, forKey: .nextDueDate)
+        try container.encode(endDate, forKey: .endDate)
+        try container.encode(status, forKey: .status)
     }
 }
 
@@ -701,6 +1087,17 @@ nonisolated enum VoiceToolOutput: Encodable, Equatable, Sendable {
     /// 修改或删除成功。
     case succeeded
 
+    /// 周期记账查询成功：符合条件的总条数与按列表顺序排列的前若干条。
+    case recurringRuleSearchResult(total: Int, items: [VoiceRecurringRuleItem])
+
+    /// 周期记账新建或修改成功：规则 UUID、保存后的状态与下一期，以及当场记入的流水 UUID（下一期是今天时才有）。
+    case recurringRuleSaved(
+        id: String,
+        status: VoiceRecurringRuleStatus,
+        nextDueDate: String,
+        recordedTransactionIds: [String]
+    )
+
     /// 是否执行成功。
     var isSuccess: Bool {
         if case .failure = self { return false }
@@ -709,6 +1106,7 @@ nonisolated enum VoiceToolOutput: Encodable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case ok, code, total, items, count, expenseTotal, incomeTotal, id, balanceBefore, balanceAfter
+        case status, nextDueDate, recordedTransactionIds
     }
 
     func encode(to encoder: Encoder) throws {
@@ -731,6 +1129,14 @@ nonisolated enum VoiceToolOutput: Encodable, Equatable, Sendable {
             try container.encode(after, forKey: .balanceAfter)
         case .succeeded:
             break
+        case let .recurringRuleSearchResult(total, items):
+            try container.encode(total, forKey: .total)
+            try container.encode(items, forKey: .items)
+        case let .recurringRuleSaved(id, status, nextDueDate, recordedTransactionIds):
+            try container.encode(id, forKey: .id)
+            try container.encode(status, forKey: .status)
+            try container.encode(nextDueDate, forKey: .nextDueDate)
+            try container.encode(recordedTransactionIds, forKey: .recordedTransactionIds)
         }
     }
 }
@@ -840,8 +1246,11 @@ nonisolated enum VoiceSessionCapability: String, Encodable, Equatable, Sendable 
     /// 账户工具：调整余额、转账、新建、修改、删除账户。声明后每个账户都必须带类型和余额。
     case accountTools = "account_tools"
 
+    /// 周期记账工具：查询、新建、修改（含暂停、恢复）、删除周期记账。规则不放进上下文，由模型按需查询。
+    case recurringTools = "recurring_tools"
+
     /// 当前版本声明的能力；声明某项能力前，它对应的工具必须都能解码和执行。
-    static let declared: [VoiceSessionCapability] = [.accountTools]
+    static let declared: [VoiceSessionCapability] = [.accountTools, .recurringTools]
 }
 
 /// 一次请求：会话上下文与截至目前的全部事件。

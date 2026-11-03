@@ -240,7 +240,109 @@ struct VoiceSessionContractTests {
         let item = try #require((object["items"] as? [[String: Any]])?.first)
         #expect(item["note"] is NSNull)
         #expect(item["isEditable"] as? Bool == false)
+        #expect(item["recurringRuleId"] is NSNull)
         #expect(object["total"] as? Int == 1)
+    }
+
+    @Test("周期记账自动记入的流水在查询结果里带规则 id")
+    func encodesSearchItemWithRecurringRule() throws {
+        let item = try jsonObject(VoiceTransactionItem(
+            id: "T1", date: "2026-10-20", type: .expense, amount: "3000", categoryId: "housing",
+            accountId: "A1", note: "房租", isEditable: true, recurringRuleId: "R1"
+        ))
+        #expect(item["recurringRuleId"] as? String == "R1")
+    }
+
+    @Test("周期记账工具调用解码，原样回传时可空字段编码为 null")
+    func decodesAndEncodesRecurringToolCalls() throws {
+        let json = """
+        {"status":"tool_calls","toolCalls":[
+          {"id":"c1","name":"search_recurring_rules","input":{"filter":{"statuses":["active","paused"],"keyword":"房租"},"limit":5}},
+          {"id":"c2","name":"create_recurring_rule","input":{"type":"expense","amount":"3000","accountId":"A1",
+            "categoryId":"housing","note":null,"frequency":"monthly","nextDueDate":"2026-11-01","endDate":null,
+            "inferredFields":["account"]}},
+          {"id":"c3","name":"update_recurring_rule","input":{"ruleId":"R1",
+            "patch":{"amount":"3200","endDate":null,"isPaused":false}}},
+          {"id":"c4","name":"delete_recurring_rule","input":{"ruleId":"R2"}}
+        ],"canFinishLocally":true}
+        """
+        let response = try JSONDecoder().decode(VoiceSessionTurnResponse.self, from: Data(json.utf8))
+        guard case let .toolCalls(calls, _, _) = response else {
+            Issue.record("应为 tool_calls")
+            return
+        }
+        #expect(calls.map(\.name) == [.searchRecurringRules, .createRecurringRule, .updateRecurringRule, .deleteRecurringRule])
+        guard case let .searchRecurringRules(_, search) = calls[0],
+              case let .createRecurringRule(_, create) = calls[1],
+              case let .updateRecurringRule(_, update) = calls[2],
+              case let .deleteRecurringRule(_, delete) = calls[3]
+        else {
+            Issue.record("调用类型不符")
+            return
+        }
+        #expect(search.filter == VoiceRecurringRuleFilter(statuses: [.active, .paused], keyword: "房租"))
+        #expect(search.limit == 5)
+        #expect(create.frequency == .monthly)
+        #expect(create.note == nil)
+        #expect(create.endDate == nil)
+        #expect(create.inferredFields == [.account])
+        // endDate 为 null 表示改为一直重复，不出现表示不改
+        #expect(update.patch == VoiceRecurringRulePatch(amount: "3200", endDate: .clear, isPaused: false))
+        #expect(delete.ruleId == "R2")
+
+        let createInput = try #require(try jsonObject(calls[1])["input"] as? [String: Any])
+        #expect(createInput["note"] is NSNull)
+        #expect(createInput["endDate"] is NSNull)
+        let patch = try #require((try jsonObject(calls[2])["input"] as? [String: Any])?["patch"] as? [String: Any])
+        #expect(patch.keys.sorted() == ["amount", "endDate", "isPaused"])
+        #expect(patch["endDate"] is NSNull)
+        let filter = try #require((try jsonObject(calls[0])["input"] as? [String: Any])?["filter"] as? [String: Any])
+        #expect(filter.keys.sorted() == ["keyword", "statuses"])
+        for call in calls {
+            #expect(try JSONDecoder().decode(VoiceToolCall.self, from: JSONEncoder().encode(call)) == call)
+        }
+    }
+
+    @Test("周期记账修改只写要改的字段")
+    func encodesRecurringPatchSparsely() throws {
+        let pause = try jsonObject(VoiceRecurringRulePatch(isPaused: true))
+        #expect(pause.keys.sorted() == ["isPaused"])
+        let schedule = try jsonObject(VoiceRecurringRulePatch(frequency: .weekly, nextDueDate: "2026-11-02", endDate: .set("2027-11-02")))
+        #expect(schedule.keys.sorted() == ["endDate", "frequency", "nextDueDate"])
+        #expect(schedule["frequency"] as? String == "weekly")
+        #expect(schedule["endDate"] as? String == "2027-11-02")
+    }
+
+    @Test("周期记账工具的执行结果按契约编码")
+    func encodesRecurringToolOutputs() throws {
+        let saved = try jsonObject(VoiceToolOutput.recurringRuleSaved(
+            id: "R1", status: .active, nextDueDate: "2026-12-01", recordedTransactionIds: ["T1"]
+        ))
+        #expect(saved["ok"] as? Bool == true)
+        #expect(saved["id"] as? String == "R1")
+        #expect(saved["status"] as? String == "active")
+        #expect(saved["nextDueDate"] as? String == "2026-12-01")
+        #expect(saved["recordedTransactionIds"] as? [String] == ["T1"])
+
+        let search = try jsonObject(VoiceToolOutput.recurringRuleSearchResult(total: 3, items: [VoiceRecurringRuleItem(
+            id: "R1", type: .expense, amount: "3000", categoryId: "housing", accountId: "A1", note: nil,
+            frequency: .monthly, nextDueDate: "2026-12-01", endDate: nil, status: .unavailable
+        )]))
+        #expect(search["total"] as? Int == 3)
+        let item = try #require((search["items"] as? [[String: Any]])?.first)
+        #expect(item["note"] is NSNull)
+        #expect(item["endDate"] is NSNull)
+        #expect(item["frequency"] as? String == "monthly")
+        #expect(item["status"] as? String == "unavailable")
+    }
+
+    @Test("当前版本声明账户工具和周期记账工具")
+    func declaresCapabilities() throws {
+        let request = VoiceSessionTurnRequest(
+            locale: "zh-Hans", capabilities: VoiceSessionCapability.declared, now: "2026-10-20T12:30:00+08:00",
+            defaultAccountId: nil, accounts: [], categories: [], events: []
+        )
+        #expect(try jsonObject(request)["capabilities"] as? [String] == ["account_tools", "recurring_tools"])
     }
 
     @Test("获取凭证失败时也记下凭证耗时，且没有发出请求")

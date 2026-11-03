@@ -31,6 +31,9 @@ final class VoiceBookkeepingState {
     /// 从卡片打开详情的账户；由根导航以弹层展示，不离开当前页面，会话卡片保留在下面。
     var presentedAccount: VoicePresentedAccount?
 
+    /// 是否从卡片打开了周期记账列表；由根导航以弹层展示，不离开当前页面，会话卡片保留在下面。
+    var isRecurringRulesPresented = false
+
     /// 带着这句话去手动记账时预填的备注；由根导航以弹层展示。
     var manualEntryNote: VoiceManualEntryNote?
 

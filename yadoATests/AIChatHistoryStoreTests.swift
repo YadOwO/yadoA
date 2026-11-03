@@ -74,6 +74,40 @@ struct AIChatHistoryStoreTests {
         #expect(fixture.store.turns.first?.insight == insight)
     }
 
+    @Test("周期记账改动随记录保存，不算流水改动；规则还在时才能点开")
+    func persistsRecurringChange() throws {
+        let fixture = try Fixture()
+        let ruleID = UUID()
+        let change = VoiceRecurringChange(
+            ruleID: ruleID, actionText: "新建周期记账", title: "房租", symbolName: "house.fill", formattedAmount: "¥800.00",
+            detail: "每月 · 下次 11月1日", summary: "已新建周期记账：房租，每月 ¥800.00", inverse: .remove(ruleID: ruleID)
+        )
+        var turn = VoiceSession.Turn(userText: "每月 1 号交房租 800", eventStartIndex: 0)
+        turn.changes = [.recurring(change)]
+        turn.outcome = .reply(change.summary)
+        fixture.store.save(turn, locale: Locale(identifier: "zh-Hans"))
+        fixture.store.loadLatest()
+
+        let saved = try #require(fixture.store.turns.first?.changes.first)
+        #expect(saved.kind == .recurring)
+        #expect(!saved.isEntry)
+        #expect(saved.targetID == ruleID)
+        #expect(saved.title == "房租")
+        #expect(saved.accountAction == "新建周期记账")
+        #expect(saved.accountDetail == "每月 · 下次 11月1日")
+        #expect(fixture.store.existingTargetIDs(in: fixture.store.turns).isEmpty)
+
+        let context = ModelContext(fixture.container)
+        context.insert(RecurringRule(
+            id: ruleID, entryTypeRawValue: BookkeepingEntryType.expense.rawValue, accountID: UUID(),
+            categoryKey: ExpenseCategory.housing.rawValue, amount: 800, note: "房租",
+            frequencyRawValue: RecurringFrequency.monthly.rawValue, anchorDay: 20261101, nextDueDay: 20261101,
+            endDay: nil, pausedAt: nil, createdAt: .now, updatedAt: .now
+        ))
+        try context.save()
+        #expect(fixture.store.existingTargetIDs(in: fixture.store.turns) == [ruleID])
+    }
+
     @Test("分页读取：先读最近一页，再往前读，始终按时间正序")
     func loadsPages() throws {
         let fixture = try Fixture()

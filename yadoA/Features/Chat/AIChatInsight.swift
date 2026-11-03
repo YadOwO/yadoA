@@ -275,6 +275,12 @@ enum AIChatSuggestions {
                 title: AccountLocalization.string("voice.turn.undo", locale: locale), action: .undo
             ))
         }
+        // 改了周期记账时，同一轮新增的流水是当场记入的一期；再给「改金额」分不清是改这一笔还是改规则，只引导去看全部规则
+        if latest.changes.contains(where: { $0.kind == .recurring }) {
+            result.append(AIChatSuggestion(title: string("recurringList"), action: .send(string("recurringList"))))
+            result.append(AIChatSuggestion(title: string("recordAnother"), action: .fill("")))
+            return result
+        }
         let remaining = latest.changes.filter { $0.kind == .created || $0.kind == .updated }
         if remaining.count == 1, let change = remaining.first {
             result.append(AIChatSuggestion(
@@ -385,7 +391,7 @@ enum AIChatCopy {
             case .created: kind = .created
             case .updated: kind = .updated
             case .deleted: kind = .deleted
-            case .account: return nil
+            case .account, .recurring: return nil
             }
             return VoiceSessionSummary.Item(kind: kind, label: change.title, formattedAmount: change.formattedAmount ?? "")
         }

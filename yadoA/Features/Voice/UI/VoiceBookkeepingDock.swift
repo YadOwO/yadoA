@@ -44,7 +44,8 @@ struct VoiceBookkeepingDock: View {
                     onSwitchModelTier: { voice.isModelTierPresented = true },
                     onEnd: { voice.closeCard() },
                     onOpenChat: { voice.openChat(isSignedIn: authStore.isAuthenticated) },
-                    onCreateAccount: { voice.accountCreationTurn = $0 }
+                    onCreateAccount: { voice.accountCreationTurn = $0 },
+                    onOpenRecurringRules: { voice.isRecurringRulesPresented = true }
                 )
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
@@ -320,6 +321,17 @@ private struct VoiceBookkeepingHost: ViewModifier {
                             // 账户详情右侧已有编辑和更多菜单，完成放在左侧
                             ToolbarItem(placement: .topBarLeading) {
                                 Button(text("common.done")) { voice.presentedAccount = nil }
+                            }
+                        }
+                }
+            }
+            .sheet(isPresented: $voice.isRecurringRulesPresented) {
+                NavigationStack {
+                    RecurringRuleListView()
+                        .toolbar {
+                            // 列表右侧已有新建按钮，完成放在左侧
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button(text("common.done")) { voice.isRecurringRulesPresented = false }
                             }
                         }
                 }
