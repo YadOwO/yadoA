@@ -30,7 +30,7 @@ struct AIChatStatusPill: View {
         .padding(.leading, 14)
         .padding(.trailing, 16)
         .frame(height: 40)
-        .voiceFloatingSurface(in: Capsule())
+        .floatingGlassSurface(in: Capsule())
         .animation(reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.25), value: text)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.updatesFrequently)

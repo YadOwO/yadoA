@@ -121,7 +121,7 @@ struct SyncSettingsView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .syncStatusSurface(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .glassSurface(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     /// 状态图标；同步中显示转圈。
@@ -438,27 +438,6 @@ private struct SyncSettingsRowLabelStyle: LabelStyle {
             .padding(.horizontal, 20)
             .padding(.vertical, 18)
             .contentShape(Rectangle())
-    }
-}
-
-/// 状态卡片底色：iOS 26 用 Liquid Glass，iOS 18 用常规材质。
-private struct SyncStatusSurface<SurfaceShape: Shape>: ViewModifier {
-    /// 底色形状。
-    let shape: SurfaceShape
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content.glassEffect(.regular, in: shape)
-        } else {
-            content.background(.regularMaterial, in: shape)
-        }
-    }
-}
-
-private extension View {
-    /// 给同步状态卡片加上玻璃或材质底色。
-    func syncStatusSurface<SurfaceShape: Shape>(in shape: SurfaceShape) -> some View {
-        modifier(SyncStatusSurface(shape: shape))
     }
 }
 

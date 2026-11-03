@@ -390,7 +390,7 @@ private struct FeedbackInputBar: View {
                     .lineLimit(1...5)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .feedbackInputSurface(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .glassSurface(in: RoundedRectangle(cornerRadius: 20, style: .continuous), isInteractive: true)
                     .accessibilityIdentifier("feedback-input")
                 Button(action: onSend) {
                     Image(systemName: "arrow.up.circle.fill")
@@ -413,20 +413,6 @@ private struct FeedbackInputBar: View {
     }
 }
 
-/// 输入框底色：iOS 26 用 Liquid Glass，iOS 18 用常规材质。
-private struct FeedbackInputSurface<SurfaceShape: Shape>: ViewModifier {
-    /// 底色形状。
-    let shape: SurfaceShape
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content.glassEffect(.regular.interactive(), in: shape)
-        } else {
-            content.background(.regularMaterial, in: shape)
-        }
-    }
-}
-
 /// 输入栏背景：iOS 26 由系统的滚动边缘效果衬底，不再加底色；iOS 18 用工具栏材质，避免消息透到输入框后面。
 private struct FeedbackInputBarBackground: ViewModifier {
     func body(content: Content) -> some View {
@@ -439,11 +425,6 @@ private struct FeedbackInputBarBackground: ViewModifier {
 }
 
 private extension View {
-    /// 给输入框加上玻璃或材质底色。
-    func feedbackInputSurface<SurfaceShape: Shape>(in shape: SurfaceShape) -> some View {
-        modifier(FeedbackInputSurface(shape: shape))
-    }
-
     /// 给输入栏加上与系统版本匹配的背景。
     func feedbackInputBarBackground() -> some View {
         modifier(FeedbackInputBarBackground())

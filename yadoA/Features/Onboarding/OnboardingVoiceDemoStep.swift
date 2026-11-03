@@ -177,7 +177,7 @@ struct OnboardingVoiceDemoStep: View {
             }
         }
         .padding(14)
-        .voiceFloatingSurface(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .floatingGlassSurface(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     /// 用户说的那句话：识别时逐字出现，执行时正在处理的那一段标成账本红。
@@ -317,7 +317,7 @@ enum OnboardingSamples {
 
     /// 人民币金额。
     static func currency(_ amount: Decimal, locale: Locale) -> String {
-        amount.formatted(.currency(code: "CNY").locale(locale))
+        amount.formattedCurrency(locale: locale)
     }
 
     /// 生成一行首页流水：与真实首页一致，主行是备注、副行是分类，支出金额带负号。

@@ -122,7 +122,7 @@ struct VoiceSessionCard: View {
             }
         }
         .padding(.top, 6)
-        .voiceFloatingSurface(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .floatingGlassSurface(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     /// 布局完成后滚到真正的内容末尾；已经贴底就不再发出请求，避免滚动反馈循环。

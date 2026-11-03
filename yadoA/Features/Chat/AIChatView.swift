@@ -47,7 +47,7 @@ private struct AIChatEntryButtonSurface: ViewModifier {
 
     func body(content: Content) -> some View {
         if isFloating {
-            content.voiceFloatingSurface(in: Circle())
+            content.floatingGlassSurface(in: Circle())
         } else {
             content
         }
@@ -217,7 +217,7 @@ struct AIChatView: View {
                         .font(.body.weight(.medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 44, height: 44)
-                        .voiceFloatingSurface(in: Circle(), isInteractive: true)
+                        .floatingGlassSurface(in: Circle(), isInteractive: true)
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)

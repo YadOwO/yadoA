@@ -132,7 +132,7 @@ struct VoiceBookkeepingDock: View {
                 .fixedSize()
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .voiceFloatingSurface(in: Capsule())
+                .floatingGlassSurface(in: Capsule())
                 .allowsHitTesting(false)
                 .transition(.opacity)
                 .accessibilityHidden(true)
@@ -157,7 +157,7 @@ struct VoiceBookkeepingDock: View {
             .lineLimit(1)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .voiceFloatingSurface(in: Capsule())
+            .floatingGlassSurface(in: Capsule())
             .opacity(isShown ? 1 : 0)
             .allowsHitTesting(false)
             // 麦克风自身的无障碍提示已说明操作方式，示例只做视觉引导

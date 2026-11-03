@@ -203,7 +203,7 @@ struct AIChatComposer: View {
         }
         .padding(6)
         .background(recordingFill, in: shape)
-        .voiceFloatingSurface(in: shape)
+        .floatingGlassSurface(in: shape)
         .scaleEffect(isRecording && !reduceMotion ? 1.02 : 1)
     }
 
@@ -243,7 +243,7 @@ struct AIChatComposer: View {
                     .buttonStyle(.plain)
                     .padding(.horizontal, 13)
                     .frame(minHeight: 36)
-                    .voiceFloatingSurface(in: Capsule(), isInteractive: true)
+                    .floatingGlassSurface(in: Capsule(), isInteractive: true)
                     .contentShape(Capsule())
                     .accessibilityIdentifier("voice-chat-suggestion")
                 }
@@ -288,7 +288,7 @@ struct AIChatComposer: View {
                 .lineLimit(1)
                 .padding(.horizontal, 14)
                 .frame(minHeight: 42)
-                .voiceFloatingSurface(in: Capsule(), isInteractive: true)
+                .floatingGlassSurface(in: Capsule(), isInteractive: true)
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)

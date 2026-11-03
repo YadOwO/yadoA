@@ -103,7 +103,7 @@ struct AIPointsView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity)
-        .aiPointsSurface(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .glassSurface(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     /// 余额数字；还没取到时显示加载中，取不到时显示占位横线。用完时用账本红。
@@ -395,27 +395,6 @@ struct AIPointsView: View {
     /// 按应用当前语言解析 String Catalog 文案。
     private func text(_ key: String) -> String {
         AccountLocalization.string(key, locale: locale)
-    }
-}
-
-/// 余额卡片底色：iOS 26 用 Liquid Glass，iOS 18 用常规材质。
-private struct AIPointsSurface<SurfaceShape: Shape>: ViewModifier {
-    /// 底色形状。
-    let shape: SurfaceShape
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content.glassEffect(.regular, in: shape)
-        } else {
-            content.background(.regularMaterial, in: shape)
-        }
-    }
-}
-
-private extension View {
-    /// 给余额卡片加上玻璃或材质底色。
-    func aiPointsSurface<SurfaceShape: Shape>(in shape: SurfaceShape) -> some View {
-        modifier(AIPointsSurface(shape: shape))
     }
 }
 
