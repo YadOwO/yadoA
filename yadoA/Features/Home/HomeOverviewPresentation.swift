@@ -56,6 +56,26 @@ struct HomeMonth: Comparable, Hashable, Sendable {
         return HomeMonth(year: year, month: month)
     }
 
+    /// 日期取不到年月时使用的兜底月份（1970 年 1 月）；公历下实际不会发生，只为让调用方拿到非可选值。
+    static let fallback = HomeMonth(year: 1970, month: 1)!
+
+    /// 从注入的日期和日历提取自然年月，取不到时退回 `fallback`。
+    ///
+    /// 供月份选择器、账单和图表等只接受非可选年月的地方使用，避免各处重复写兜底和强制解包。
+    ///
+    /// - Parameters:
+    ///   - date: 需要转换的日期。
+    ///   - calendar: 提供时区的日历。
+    ///   - locale: 仅用于保持日期转换的本地化语义。
+    /// - Returns: 日期所在的自然年月。
+    static func containing(
+        _ date: Date,
+        calendar: Calendar,
+        locale: Locale = .current
+    ) -> HomeMonth {
+        from(date: date, calendar: calendar, locale: locale) ?? fallback
+    }
+
     /// 返回该月份在注入日历中的第一天。
     ///
     /// - Parameter calendar: 提供时区和公历规则的日历。
@@ -266,11 +286,11 @@ struct HomeOverviewPresentation {
         accounts: [Account]
     ) -> Set<UUID> {
         let editableAccountIDs = Set(
-            accounts.filter { $0.supportsBookkeeping && $0.currencyCode == "CNY" }.map(\.id)
+            accounts.filter { $0.acceptsBookkeepingEntries }.map(\.id)
         )
         return Set(
             transactions
-                .filter { $0.currencyCode == "CNY" && editableAccountIDs.contains($0.accountID) }
+                .filter { $0.currencyCode == BookkeepingCurrency.code && editableAccountIDs.contains($0.accountID) }
                 .map(\.id)
         )
     }
@@ -553,8 +573,7 @@ struct HomeOverviewPresentation {
         availableMonths: some Sequence<HomeMonth>
     ) -> HomeMonth {
         let calendar = TransactionDay.gregorianCalendar(basedOn: sourceCalendar)
-        let currentMonth = HomeMonth.from(date: now, calendar: calendar)
-            ?? HomeMonth(year: 1970, month: 1)!
+        let currentMonth = HomeMonth.containing(now, calendar: calendar)
         let months = HomeMonthNavigator(availableMonths: availableMonths).availableMonths
         guard !months.contains(currentMonth) else { return currentMonth }
         if let previousMonth = months.last(where: { $0 < currentMonth }) {
