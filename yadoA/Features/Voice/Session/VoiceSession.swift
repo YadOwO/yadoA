@@ -344,9 +344,10 @@ final class VoiceSession {
                         if let insight = execution.insight {
                             updateTurn(turnID) { $0.insights.append(insight) }
                         }
-                        if let change = execution.change {
+                        // 新建或修改周期记账时，规则后面跟着当场记入的流水，一并记入本轮
+                        for change in execution.changes {
                             updateTurn(turnID) { $0.changes.append(change) }
-                            // 余额调整、转账与账户改动不在首页明细中展示，只有收支流水需要提示
+                            // 余额调整、转账、账户与周期记账的改动不在首页明细中展示，只有收支流水需要提示
                             if let entryHighlight = change.entryChange?.highlight {
                                 highlight.mark(entryHighlight)
                             }
@@ -732,7 +733,9 @@ struct VoiceImageUpload: Equatable {
 
 /// 在本地生成一轮的结果提示，例如「已记 2 笔：午饭 ¥28.00、打车 ¥35.00」。
 enum VoiceSessionSummary {
-    /// 生成结果提示：先按新增、修改、删除分段说明收支流水，再逐句说明账户相关的改动。
+    /// 生成结果提示：先逐句说明周期记账的改动，再按新增、修改、删除分段说明收支流水，最后逐句说明账户相关的改动。
+    ///
+    /// 周期记账放在最前面：当场记入的流水紧跟在规则后面，读起来是「已新建周期记账：房租…；已记 1 笔：房租…」。
     ///
     /// - Parameters:
     ///   - changes: 本轮的改动，按执行顺序排列。
@@ -740,15 +743,19 @@ enum VoiceSessionSummary {
     /// - Returns: 本地化提示；没有改动时为「这句话我没能处理」一类的兜底文案。
     static func text(for changes: [VoiceChange], locale: Locale) -> String {
         let entries = changes.compactMap(\.entryChange)
+        let recurringSentences = changes.compactMap { change -> String? in
+            guard case let .recurring(recurringChange) = change else { return nil }
+            return recurringChange.summary
+        }
         let accountSentences = changes.compactMap { change -> String? in
             guard case let .account(accountChange) = change else { return nil }
             return accountChange.summary
         }
-        guard !accountSentences.isEmpty else {
+        guard !recurringSentences.isEmpty || !accountSentences.isEmpty else {
             return text(forItems: entries.map { Item($0) }, locale: locale)
         }
         let entryText = entries.isEmpty ? [] : [text(forItems: entries.map { Item($0) }, locale: locale)]
-        return (entryText + accountSentences)
+        return (recurringSentences + entryText + accountSentences)
             .joined(separator: AccountLocalization.string("voice.summary.separator", locale: locale))
     }
 
@@ -810,10 +817,10 @@ extension VoiceSessionSummary.Item {
 }
 
 extension VoiceToolCall {
-    /// 是否只读账本：查询或汇总。
+    /// 是否只读账本：查询流水、汇总或查询周期记账。
     fileprivate var isQuery: Bool {
         switch self {
-        case .searchTransactions, .summarizeTransactions: true
+        case .searchTransactions, .summarizeTransactions, .searchRecurringRules: true
         default: false
         }
     }

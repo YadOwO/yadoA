@@ -39,6 +39,9 @@ struct VoiceSessionCard: View {
     /// 这句话因为没有账户没能记上，去新建账户。
     var onCreateAccount: (VoiceSession.Turn) -> Void = { _ in }
 
+    /// 打开周期记账列表，查看语音改过的规则。
+    var onOpenRecurringRules: () -> Void = {}
+
     /// 滚动区域的最大高度，超出部分在卡片里滚动查看；一般一句话就能记完，不会用满。
     private static let maxScrollHeight: CGFloat = 300
 
@@ -206,7 +209,8 @@ struct VoiceSessionCard: View {
                         onManualEntry: onManualEntry,
                         onSignIn: onSignIn,
                         onSwitchModelTier: onSwitchModelTier,
-                        onCreateAccount: onCreateAccount
+                        onCreateAccount: onCreateAccount,
+                        onOpenRecurringRules: onOpenRecurringRules
                     )
                     .id(turn.id)
                 }
@@ -262,6 +266,9 @@ private struct VoiceSessionTurnView: View {
     /// 这句话因为没有账户没能记上，去新建账户。
     let onCreateAccount: (VoiceSession.Turn) -> Void
 
+    /// 打开周期记账列表。
+    let onOpenRecurringRules: () -> Void
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // 只发图片的一轮没有文字；卡片上不放图片，图片在聊天页看
@@ -287,6 +294,8 @@ private struct VoiceSessionTurnView: View {
                     entryRow(entryChange)
                 case let .account(accountChange):
                     accountRow(accountChange)
+                case let .recurring(recurringChange):
+                    recurringRow(recurringChange)
                 }
             }
             // DEBUG 包与 TestFlight 包显示这句话的耗时，点开看每一步
@@ -376,6 +385,39 @@ private struct VoiceSessionTurnView: View {
         .buttonStyle(.plain)
         .disabled(accountID == nil)
         .accessibilityHint(accountID == nil ? Text(verbatim: "") : Text(text("voice.change.account.hint")))
+    }
+
+    /// 一次周期记账的改动：规则不在记账页明细里，点整行以弹层打开周期记账列表，在那里查看和编辑。
+    private func recurringRow(_ change: VoiceRecurringChange) -> some View {
+        // 删除或撤销后规则可能已不存在，不再打开
+        let isAvailable = change.ruleID != nil && !turn.isUndone
+        return Button {
+            if isAvailable {
+                onOpenRecurringRules()
+            }
+        } label: {
+            HStack(spacing: 2) {
+                VoiceChangeRowLayout(
+                    symbolName: change.symbolName,
+                    action: change.actionText,
+                    title: change.title,
+                    detail: change.detail,
+                    amount: change.formattedAmount,
+                    isUndone: turn.isUndone
+                )
+                // 与其他行尾的详情按钮同宽同样式；不可用时保留占位，各行金额仍然对齐
+                Image(systemName: "info.circle")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 32, height: 32)
+                    .opacity(isAvailable ? 1 : 0)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isAvailable)
+        .accessibilityHint(isAvailable ? Text(text("voice.change.recurring.hint")) : Text(verbatim: ""))
     }
 
     private func text(_ key: String) -> String {

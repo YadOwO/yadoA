@@ -61,6 +61,9 @@ private enum AIChatRoute: Hashable {
 
     /// 账户详情。
     case account(UUID)
+
+    /// 周期记账列表；规则在列表里查看和编辑。
+    case recurringRules
 }
 
 /// 和 AI 的对话页：只有一条连续的记录，上下文按时间自动分段。
@@ -133,6 +136,8 @@ struct AIChatView: View {
                         BookkeepingTransactionDetailView(transactionID: id)
                     case let .account(id):
                         AccountDetailView(accountID: id)
+                    case .recurringRules:
+                        RecurringRuleListView()
                     }
                 }
         }
@@ -424,7 +429,12 @@ struct AIChatView: View {
     /// 打开一行改动的详情。
     private func open(_ change: AIChatChangeSnapshot) {
         guard let targetID = change.targetID else { return }
-        path.append(change.isEntry ? .transaction(targetID) : .account(targetID))
+        let route: AIChatRoute = switch change.kind {
+        case .created, .updated, .deleted: .transaction(targetID)
+        case .account: .account(targetID)
+        case .recurring: .recurringRules
+        }
+        path.append(route)
     }
 
     /// 入场动效播完：不再重播；有改动时红豆泛开一圈，表示这一轮结束。

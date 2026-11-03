@@ -55,15 +55,29 @@ enum RecurringRuleListPresentation {
         locale: Locale,
         calendar: Calendar
     ) -> [RecurringRuleRowPresentation] {
-        rules
-            .sorted { lhs, rhs in
-                let lhsRank = rank(status(of: lhs, accounts: accounts, catalog: catalog))
-                let rhsRank = rank(status(of: rhs, accounts: accounts, catalog: catalog))
-                if lhsRank != rhsRank { return lhsRank < rhsRank }
-                if lhs.nextDueDay != rhs.nextDueDay { return lhs.nextDueDay < rhs.nextDueDay }
-                return lhs.id.uuidString < rhs.id.uuidString
-            }
+        sorted(rules, accounts: accounts, catalog: catalog)
             .compactMap { row(for: $0, accounts: accounts, catalog: catalog, locale: locale, calendar: calendar) }
+    }
+
+    /// 按列表顺序排列规则：正常和不可用的按下一期从近到远，其次是暂停的，已结束的放最后；语音查询也按这个顺序返回。
+    ///
+    /// - Parameters:
+    ///   - rules: 要排序的规则。
+    ///   - accounts: 当前账户快照。
+    ///   - catalog: 分类目录。
+    /// - Returns: 排好序的规则。
+    static func sorted(
+        _ rules: [RecurringRule],
+        accounts: [Account],
+        catalog: BookkeepingCategoryCatalog
+    ) -> [RecurringRule] {
+        rules.sorted { lhs, rhs in
+            let lhsRank = rank(status(of: lhs, accounts: accounts, catalog: catalog))
+            let rhsRank = rank(status(of: rhs, accounts: accounts, catalog: catalog))
+            if lhsRank != rhsRank { return lhsRank < rhsRank }
+            if lhs.nextDueDay != rhs.nextDueDay { return lhs.nextDueDay < rhs.nextDueDay }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
     }
 
     /// 判断规则当前的状态；暂停和结束优先于不可用，因为这时本来就不会记入。

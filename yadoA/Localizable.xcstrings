@@ -9391,6 +9391,24 @@
         }
       }
     },
+    "voice.change.recurring.hint" : {
+      "comment" : "VoiceOver hint on a recurring-rule result row; opens the recurring list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the recurring list."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开周期记账列表。"
+          }
+        }
+      }
+    },
     "voice.change.inferred" : {
       "comment" : "Fields the AI guessed or filled with defaults. %@ is a list such as Account and Category.",
       "extractionState" : "manual",
@@ -9975,6 +9993,168 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已删除账户：%@"
+          }
+        }
+      }
+    },
+    "voice.recurring.action.create" : {
+      "comment" : "Leading action on a result row for a recurring rule created by voice.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New recurring"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新建周期记账"
+          }
+        }
+      }
+    },
+    "voice.recurring.action.pause" : {
+      "comment" : "Leading action on a result row for a recurring rule paused by voice.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已暂停"
+          }
+        }
+      }
+    },
+    "voice.recurring.action.resume" : {
+      "comment" : "Leading action on a result row for a recurring rule resumed by voice.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resumed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已恢复"
+          }
+        }
+      }
+    },
+    "voice.recurring.entriesKept" : {
+      "comment" : "Detail on a deleted recurring rule row: entries it already recorded stay in the ledger.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded entries kept"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已记入的流水保留"
+          }
+        }
+      }
+    },
+    "voice.summary.recurringCreated" : {
+      "comment" : "%1$@ is the rule's note or category, %2$@ the frequency such as Monthly, %3$@ the amount per period.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added recurring %1$@, %2$@ %3$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已新建周期记账：%1$@，%2$@ %3$@"
+          }
+        }
+      }
+    },
+    "voice.summary.recurringUpdated" : {
+      "comment" : "%@ is the edited recurring rule's note or category.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated recurring %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已修改周期记账：%@"
+          }
+        }
+      }
+    },
+    "voice.summary.recurringPaused" : {
+      "comment" : "%@ is the paused recurring rule's note or category.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused recurring %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已暂停周期记账：%@"
+          }
+        }
+      }
+    },
+    "voice.summary.recurringResumed" : {
+      "comment" : "%@ is the resumed recurring rule's note or category.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resumed recurring %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已恢复周期记账：%@"
+          }
+        }
+      }
+    },
+    "voice.summary.recurringDeleted" : {
+      "comment" : "%@ is the deleted recurring rule's note or category; recorded entries are kept.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted recurring %@; recorded entries kept"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已删除周期记账：%@，已记入的流水保留"
           }
         }
       }
@@ -15686,6 +15866,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最大的一笔是哪笔"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.recurringList" : {
+      "comment" : "Suggestion chip after a recurring rule change; sent as the user's next message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What recurring entries do I have?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我有哪些周期记账"
           }
         }
       }

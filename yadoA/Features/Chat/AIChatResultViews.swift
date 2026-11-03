@@ -410,11 +410,11 @@ private struct AIChatChangeRow: View {
         case .created: nil
         case .updated: VoiceEntryChangeText.action(for: .updated, locale: locale)
         case .deleted: VoiceEntryChangeText.action(for: .deleted, locale: locale)
-        case .account: change.accountAction
+        case .account, .recurring: change.accountAction
         }
     }
 
-    /// 日期和账户，或账户改动的说明。
+    /// 日期和账户，或账户、周期记账改动的说明。
     private var detail: String? {
         guard let transactionDay = change.transactionDay else { return change.accountDetail }
         return VoiceEntryChangeText.detail(

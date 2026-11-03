@@ -84,6 +84,19 @@ struct AIChatPresentationTests {
         })
     }
 
+    @Test("改了周期记账：先给撤销，再引导看全部规则，不给改金额")
+    func suggestsAfterRecurringChange() {
+        let list = suggestions(
+            latest: snapshot(changes: [change(.recurring, title: "房租", amount: "¥800.00"), change(.created, title: "房租", amount: "¥800.00")]),
+            canUndo: true
+        )
+        #expect(list.first?.isUndo == true)
+        let recurringList = AccountLocalization.string("voice.chat.suggestion.recurringList", locale: locale)
+        #expect(list.contains { $0.action == .send(recurringList) })
+        #expect(!list.contains { $0.title == AccountLocalization.string("voice.chat.suggestion.editAmount", locale: locale) })
+        #expect(list.count == 3)
+    }
+
     @Test("不能撤销时不给撤销")
     func omitsUndoWhenNotUndoable() {
         #expect(!suggestions(latest: snapshot(changes: [change(.created)]), canUndo: false).contains(where: \.isUndo))
@@ -152,6 +165,7 @@ struct AIChatPresentationTests {
     func keepsModelReply() {
         #expect(AIChatCopy.slipHeadline(for: snapshot(resultText: "记好了，顺便提醒你预算快用完了", changes: [change(.created)]), locale: locale) == nil)
         #expect(AIChatCopy.slipHeadline(for: snapshot(resultText: "已把微信的余额调整为 ¥500", changes: [change(.account)]), locale: locale) == nil)
+        #expect(AIChatCopy.slipHeadline(for: snapshot(resultText: "已新建周期记账：房租，每月 ¥800.00", changes: [change(.recurring)]), locale: locale) == nil)
     }
 
     @Test("已撤销的纸条标题是已撤销")
