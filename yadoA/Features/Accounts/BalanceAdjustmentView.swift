@@ -380,7 +380,7 @@ struct BalanceAdjustmentView: View {
 
     /// 使用当前语言环境展示精确 CNY 总余额。
     private func formattedCurrency(_ amount: Decimal) -> String {
-        amount.formatted(.currency(code: "CNY").locale(locale))
+        amount.formattedCurrency(locale: locale)
     }
 
     /// 保存成功后提供系统触觉和 VoiceOver 公告。

@@ -197,7 +197,7 @@ enum AccountTransactionHistoryPresentation {
             )
             title = lines.title
             subtitle = lines.subtitle
-            formattedAmount = formattedCurrency(-amount, code: transaction.currencyCode, locale: locale)
+            formattedAmount = (-amount).formattedCurrency(locale: locale, currencyCode: transaction.currencyCode)
             balanceTransition = nil
             spokenBalanceTransition = nil
 
@@ -229,15 +229,13 @@ enum AccountTransactionHistoryPresentation {
                 code: transaction.currencyCode,
                 locale: locale
             )
-            let formattedBalanceBefore = formattedCurrency(
-                balanceBefore,
-                code: transaction.currencyCode,
-                locale: locale
+            let formattedBalanceBefore = balanceBefore.formattedCurrency(
+                locale: locale,
+                currencyCode: transaction.currencyCode
             )
-            let formattedBalanceAfter = formattedCurrency(
-                balanceAfter,
-                code: transaction.currencyCode,
-                locale: locale
+            let formattedBalanceAfter = balanceAfter.formattedCurrency(
+                locale: locale,
+                currencyCode: transaction.currencyCode
             )
             balanceTransition = String(
                 format: AccountLocalization.string(
@@ -275,7 +273,7 @@ enum AccountTransactionHistoryPresentation {
             subtitle = transaction.note
             formattedAmount = isIncoming
                 ? formattedSignedCurrency(amount, code: transaction.currencyCode, locale: locale)
-                : formattedCurrency(-amount, code: transaction.currencyCode, locale: locale)
+                : (-amount).formattedCurrency(locale: locale, currencyCode: transaction.currencyCode)
             balanceTransition = nil
             spokenBalanceTransition = nil
         }
@@ -308,22 +306,13 @@ enum AccountTransactionHistoryPresentation {
         )
     }
 
-    /// 使用当前语言环境格式化精确货币值。
-    private static func formattedCurrency(
-        _ amount: Decimal,
-        code: String,
-        locale: Locale
-    ) -> String {
-        amount.formatted(.currency(code: code).locale(locale))
-    }
-
     /// 正数差额显式增加加号，负数沿用货币格式自身的负号。
     private static func formattedSignedCurrency(
         _ amount: Decimal,
         code: String,
         locale: Locale
     ) -> String {
-        let formatted = formattedCurrency(amount, code: code, locale: locale)
+        let formatted = amount.formattedCurrency(locale: locale, currencyCode: code)
         return amount > 0 ? "+\(formatted)" : formatted
     }
 
