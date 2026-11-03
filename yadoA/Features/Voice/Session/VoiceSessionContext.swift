@@ -39,7 +39,7 @@ struct VoiceSessionContext: Equatable {
                 id: account.id.uuidString,
                 name: name,
                 // 只有可记账的 CNY 账户才能新增或改入流水
-                isActive: account.supportsBookkeeping && account.currencyCode == "CNY",
+                isActive: account.acceptsBookkeepingEntries,
                 type: type,
                 balance: balanceString(account.balance)
             )
