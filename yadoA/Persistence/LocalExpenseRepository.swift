@@ -248,7 +248,7 @@ final class LocalExpenseRepository {
     ) throws -> (Decimal, BookkeepingEntryType) {
         guard let (entryType, amount) = try? transaction.validatedPayload().bookkeepingAmount
         else { throw ExpenseRepositoryError.transactionNotEditable(transaction.id) }
-        guard transaction.currencyCode == "CNY" else {
+        guard transaction.currencyCode == BookkeepingCurrency.code else {
             throw ExpenseRepositoryError.unsupportedCurrency(transaction.currencyCode)
         }
         return (amount, entryType)
@@ -271,7 +271,7 @@ final class LocalExpenseRepository {
             throw ExpenseRepositoryError.accountNotFound(id)
         }
         guard account.isActive else { throw ExpenseRepositoryError.accountDeactivated(id) }
-        guard account.currencyCode == "CNY" else {
+        guard account.currencyCode == BookkeepingCurrency.code else {
             throw ExpenseRepositoryError.unsupportedCurrency(account.currencyCode)
         }
         guard account.supportsBookkeeping, let type = account.accountType else {

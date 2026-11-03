@@ -259,6 +259,49 @@ struct SyncEngineTests {
         }
     }
 
+    @Test("拉取到本地已有账户的新版本：覆盖账户资料，余额不取同步内容，按新期初余额和本机流水重算")
+    func pullOverwritesExistingAccountFields() async throws {
+        try await withEnvironment { environment in
+            let device = try environment.makeDevice()
+            let accountID = UUID()
+            try saveAccount(id: accountID, in: device.container)
+            try LocalExpenseRepository(container: device.container).save(
+                DiningExpenseDraft(accountID: accountID, amountText: "30", transactionDay: 20261020)
+            )
+            await device.engine.synchronize()
+
+            // 另一台设备改了账户资料和期初余额；同步内容里的 balance 不应被采用
+            let updatedAt = Date(timeIntervalSince1970: 1_800_000_000)
+            let newer = try payload(
+                BackupAccount(
+                    id: accountID,
+                    type: AccountType.cash.rawValue,
+                    templateID: nil,
+                    name: "钱包",
+                    note: "日常零钱",
+                    lastFourDigits: "1234",
+                    balance: "999",
+                    openingBalance: "200",
+                    currencyCode: "CNY",
+                    createdAt: .now,
+                    updatedAt: updatedAt,
+                    deactivatedAt: nil
+                )
+            )
+            await environment.server.store(entityType: .account, recordID: accountID, payload: newer)
+
+            await device.engine.synchronize()
+
+            let account = try #require(try ModelContext(device.container).account(id: accountID))
+            #expect(account.name == "钱包")
+            #expect(account.note == "日常零钱")
+            #expect(account.lastFourDigits == "1234")
+            #expect(account.updatedAt == updatedAt)
+            #expect(account.openingBalance == 200)
+            #expect(account.balance == 170)
+        }
+    }
+
     @Test("推送进行中本地又被修改：只确认已推送的版本，新修改保持待上传")
     func localChangeDuringPushStaysPending() async throws {
         try await withEnvironment { environment in

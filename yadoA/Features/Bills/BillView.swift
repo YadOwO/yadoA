@@ -113,7 +113,7 @@ private struct BillSummaryCard<Accessory: View>: View {
                 }
                 // 无论右侧是否有年份选择，标题行都保持同一高度。
                 .frame(minHeight: 44)
-                Text(totals.balance.formatted(.currency(code: "CNY").locale(locale)))
+                Text(totals.balance.formattedCurrency(locale: locale))
                     .font(.system(.largeTitle, design: .serif, weight: .medium).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
@@ -153,7 +153,7 @@ private struct BillSummaryCard<Accessory: View>: View {
             Label(AccountLocalization.string(titleKey, locale: locale), systemImage: symbol)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text(value.formatted(.currency(code: "CNY").locale(locale)))
+            Text(value.formattedCurrency(locale: locale))
                 .font(.system(.title3, design: .serif, weight: .medium).monospacedDigit())
                 .foregroundStyle(Color.primary)
                 .lineLimit(1)

@@ -238,9 +238,7 @@ struct ChartOverviewPresentation: Equatable {
                 ),
                 formattedLabel: pointFormatter.string(from: bucketDate),
                 amount: amount,
-                formattedAmount: amount.formatted(
-                    .currency(code: "CNY").locale(locale)
-                )
+                formattedAmount: amount.formattedCurrency(locale: locale)
             )
         }
     }

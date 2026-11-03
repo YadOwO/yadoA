@@ -503,7 +503,7 @@ final class AccountTransaction {
             balanceAfter: balanceAfter,
             balanceDelta: balanceDelta,
             counterpartAccountID: counterpartAccountID,
-            currencyCode: "CNY",
+            currencyCode: BookkeepingCurrency.code,
             transactionDay: transactionDay,
             note: sanitizedOptionalText(note),
             savedAt: savedAt

@@ -87,11 +87,6 @@ final class DiningExpenseEntryFlow: ObservableObject {
         hasConfirmedCategory && draft.amount != nil && draft.accountID != nil && !isSaving
     }
 
-    /// 金额区域展示的字符；空草稿使用零作为视觉占位。
-    var displayedAmount: String {
-        draft.amountText.isEmpty ? "0" : draft.amountText
-    }
-
     /// 当前 `YYYYMMDD` 草稿值对应的公历日期。
     var transactionDate: Date {
         TransactionDay.date(from: draft.transactionDay, calendar: calendar)

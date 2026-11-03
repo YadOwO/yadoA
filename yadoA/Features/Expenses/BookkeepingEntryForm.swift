@@ -68,6 +68,7 @@ struct BookkeepingEntryFormConfiguration {
 /// `Accessory` 是接在日期后面的额外几行，周期记账用它放重复频率和结束日期。
 struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow, Accessory: View>: View {
     @Environment(\.locale) private var locale
+    @Environment(\.calendar) private var calendar
     @Query private var accounts: [Account]
     @Query private var categories: [BookkeepingCategory]
     @FocusState private var focusedField: FocusedField?
@@ -302,7 +303,7 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow, Accessory: View>: Vi
                 .accessibilityHidden(true)
 
             if let amountExpression, let result = AmountExpression.result(of: amountExpression) {
-                Text(verbatim: "= \(result.formatted(.currency(code: "CNY").locale(locale)))")
+                Text(verbatim: "= \(result.formattedCurrency(locale: locale))")
                     .font(.system(.callout, design: .serif).monospacedDigit())
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("\(configuration.identifierPrefix)-amount-result")
@@ -394,7 +395,7 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow, Accessory: View>: Vi
                 get: { flow.formTransactionDate },
                 set: flow.updateTransactionDate
             ),
-            in: (configuration.startsFromToday ? Calendar.current.startOfDay(for: .now) : .distantPast)...,
+            in: (configuration.startsFromToday ? calendar.startOfDay(for: .now) : .distantPast)...,
             displayedComponents: .date
         ) {
             Text(text(configuration.dateLabelKey))
@@ -666,7 +667,7 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow, Accessory: View>: Vi
     private var selectedAccount: Account? {
         guard let accountID = flow.formAccountID else { return nil }
         return accounts.first {
-            $0.id == accountID && $0.supportsBookkeeping && $0.currencyCode == "CNY"
+            $0.id == accountID && $0.acceptsBookkeepingEntries
         }
     }
 

@@ -257,41 +257,24 @@ enum SyncRecordApplier {
     /// 写入账户；余额不在同步内容里，新账户先取期初余额，之后由调用方统一重算。
     private static func upsertAccount(_ dto: BackupAccount, recordID: UUID, in context: ModelContext) throws -> Account {
         guard dto.id == recordID,
-              !dto.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !dto.type.isEmpty,
-              !dto.currencyCode.isEmpty,
               let openingBalance = BackupImportService.decimal(from: dto.openingBalance ?? "0")
         else { throw InvalidRecord() }
+        let validated: Account
+        do {
+            validated = try dto.validatedAccount(balance: openingBalance, openingBalance: openingBalance)
+        } catch is BackupImportError {
+            throw InvalidRecord()
+        }
 
         if let account = try context.account(id: recordID) {
-            account.typeRawValue = dto.type
-            account.templateID = dto.templateID
-            account.name = dto.name
-            account.note = dto.note
-            account.lastFourDigits = dto.lastFourDigits
-            account.openingBalance = openingBalance
-            account.currencyCode = dto.currencyCode
-            account.createdAt = dto.createdAt
-            account.updatedAt = dto.updatedAt
-            account.deactivatedAt = dto.deactivatedAt
+            // 余额是本机按流水推导的缓存，不随同步内容覆盖
+            let balance = account.balance
+            account.overwrite(with: validated)
+            account.balance = balance
             return account
         }
-        let account = Account(
-            id: dto.id,
-            typeRawValue: dto.type,
-            templateID: dto.templateID,
-            name: dto.name,
-            note: dto.note,
-            lastFourDigits: dto.lastFourDigits,
-            balance: openingBalance,
-            openingBalance: openingBalance,
-            currencyCode: dto.currencyCode,
-            createdAt: dto.createdAt,
-            updatedAt: dto.updatedAt,
-            deactivatedAt: dto.deactivatedAt
-        )
-        context.insert(account)
-        return account
+        context.insert(validated)
+        return validated
     }
 
     /// 写入流水；字段组合按与备份导入相同的规则校验，不要求所属账户已在本地（可能在同批稍后写入）。
@@ -300,28 +283,13 @@ enum SyncRecordApplier {
         recordID: UUID,
         in context: ModelContext
     ) throws -> AccountTransaction {
-        // 流水工厂固定写入 CNY；其他币种若放行会被静默改写
-        guard dto.id == recordID, dto.currencyCode == "CNY" else { throw InvalidRecord() }
+        guard dto.id == recordID else { throw InvalidRecord() }
         let validated: AccountTransaction
         do {
-            validated = try AccountTransaction.validatingPersistedFields(
-                id: dto.id,
-                accountID: dto.accountID,
-                typeRawValue: dto.type,
-                categoryRawValue: dto.category,
-                amount: BackupImportService.optionalDecimal(from: dto.amount),
-                balanceBefore: BackupImportService.optionalDecimal(from: dto.balanceBefore),
-                balanceAfter: BackupImportService.optionalDecimal(from: dto.balanceAfter),
-                balanceDelta: BackupImportService.optionalDecimal(from: dto.balanceDelta),
-                counterpartAccountID: dto.counterpartAccountID,
-                transactionDay: dto.transactionDay,
-                note: dto.note ?? "",
-                savedAt: dto.savedAt
-            )
+            validated = try dto.validatedTransaction()
         } catch is BackupImportError {
             throw InvalidRecord()
         }
-        validated.recurringRuleID = dto.recurringRuleID
         if let transaction = try context.transaction(id: recordID) {
             transaction.overwrite(with: validated)
             return transaction
@@ -336,32 +304,13 @@ enum SyncRecordApplier {
         recordID: UUID,
         in context: ModelContext
     ) throws -> BookkeepingCategory {
-        guard dto.id == recordID,
-              let direction = BookkeepingEntryType(rawValue: dto.direction),
-              BookkeepingCategoryKey.isValid(dto.key, direction: direction),
-              !dto.symbolName.isEmpty
-        else { throw InvalidRecord() }
-        let preset = BookkeepingCategoryKey.preset(direction: direction, key: dto.key)
-        if let preset {
-            // 「其他」是删除迁移的兜底目标，必须始终可用
-            guard dto.id == preset.id,
-                  dto.deletedAt == nil || dto.key != BookkeepingCategoryKey.other
-            else { throw InvalidRecord() }
-        } else if LocalCategoryRepository.cleanedName(dto.customName ?? "").isEmpty {
+        guard dto.id == recordID else { throw InvalidRecord() }
+        let validated: BookkeepingCategory
+        do {
+            validated = try dto.validatedCategory()
+        } catch is BackupImportError {
             throw InvalidRecord()
         }
-
-        let validated = BookkeepingCategory(
-            id: dto.id,
-            direction: direction,
-            key: dto.key,
-            customName: preset == nil ? dto.customName : nil,
-            symbolName: preset?.symbolName ?? dto.symbolName,
-            sortIndex: dto.sortIndex,
-            updatedAt: dto.updatedAt,
-            deletedAt: dto.deletedAt,
-            replacementKey: dto.replacementKey
-        )
         if let existing = try category(id: recordID, in: context) {
             existing.overwrite(with: validated)
             return existing

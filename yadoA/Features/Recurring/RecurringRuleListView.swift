@@ -89,7 +89,7 @@ enum RecurringRuleListPresentation {
         if rule.isFinished { return .finished }
         if rule.pausedAt != nil { return .paused }
         let hasAccount = accounts.contains {
-            $0.id == rule.accountID && $0.supportsBookkeeping && $0.currencyCode == "CNY"
+            $0.id == rule.accountID && $0.acceptsBookkeepingEntries
         }
         let hasCategory = rule.entryType.map { direction in
             catalog.items(for: direction).contains { $0.key == rule.categoryKey }
@@ -122,7 +122,7 @@ enum RecurringRuleListPresentation {
             id: rule.id,
             title: rule.note ?? item.title(locale: locale),
             symbolName: item.symbolName,
-            formattedAmount: signedAmount.formatted(.currency(code: "CNY").locale(locale)),
+            formattedAmount: signedAmount.formattedCurrency(locale: locale),
             subtitle: subtitle(
                 for: rule,
                 status: ruleStatus,

@@ -214,7 +214,7 @@ nonisolated struct BackupAccount: Codable, Equatable, Sendable {
         lastFourDigits = try container.decodeIfPresent(String.self, forKey: .lastFourDigits)
         balance = try container.decodeIfPresent(String.self, forKey: .balance) ?? "0"
         openingBalance = try container.decodeIfPresent(String.self, forKey: .openingBalance)
-        currencyCode = try container.decodeIfPresent(String.self, forKey: .currencyCode) ?? "CNY"
+        currencyCode = try container.decodeIfPresent(String.self, forKey: .currencyCode) ?? BookkeepingCurrency.code
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? .distantPast
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
         deactivatedAt = try container.decodeIfPresent(Date.self, forKey: .deactivatedAt)
@@ -355,7 +355,7 @@ nonisolated struct BackupTransaction: Codable, Equatable, Sendable {
         balanceAfter = try container.decodeIfPresent(String.self, forKey: .balanceAfter)
         balanceDelta = try container.decodeIfPresent(String.self, forKey: .balanceDelta)
         counterpartAccountID = try container.decodeIfPresent(UUID.self, forKey: .counterpartAccountID)
-        currencyCode = try container.decodeIfPresent(String.self, forKey: .currencyCode) ?? "CNY"
+        currencyCode = try container.decodeIfPresent(String.self, forKey: .currencyCode) ?? BookkeepingCurrency.code
         transactionDay = try container.decodeIfPresent(Int.self, forKey: .transactionDay) ?? 0
         note = try container.decodeIfPresent(String.self, forKey: .note)
         savedAt = try container.decodeIfPresent(Date.self, forKey: .savedAt) ?? .distantPast

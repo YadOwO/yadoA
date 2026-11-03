@@ -70,6 +70,14 @@ final class Account {
         isActive && accountType?.supportsBookkeeping == true
     }
 
+    /// 账户当前能否接收收支、周期记账等写入：在 `supportsBookkeeping` 的基础上，还要求币种是当前唯一支持的币种。
+    ///
+    /// 记账表单、首页、搜索、周期记账和语音判断「这个账户能不能记进去 / 改进去」时统一使用该属性，
+    /// 与 `LocalExpenseRepository` 写入前的账户校验保持一致。
+    var acceptsBookkeepingEntries: Bool {
+        supportsBookkeeping && currencyCode == BookkeepingCurrency.code
+    }
+
     /// 直接构造已完成校验的持久化账户。
     ///
     /// `openingBalance` 为空时取 `balance`，即新建账户的期初余额等于当前余额。
@@ -136,7 +144,7 @@ final class Account {
             note: sanitizedOptionalText(draft.note),
             lastFourDigits: sanitizedLastFourDigits(draft.lastFourDigits),
             balance: balance,
-            currencyCode: "CNY",
+            currencyCode: BookkeepingCurrency.code,
             createdAt: now,
             updatedAt: now,
             deactivatedAt: nil

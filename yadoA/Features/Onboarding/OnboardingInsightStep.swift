@@ -384,7 +384,7 @@ enum OnboardingInsightSamples {
                     ?? account.type.title(locale: locale),
                 lastFourDigits: nil,
                 balance: account.balance,
-                currencyCode: "CNY",
+                currencyCode: BookkeepingCurrency.code,
                 locale: locale
             )
         }

@@ -257,28 +257,10 @@ extension BackupImportService {
         var accountIDs = Set<UUID>()
         let accounts = try backup.accounts.map { account in
             guard accountIDs.insert(account.id).inserted,
-                  !account.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                  !account.type.isEmpty,
-                  !account.currencyCode.isEmpty,
                   let balance = decimal(from: account.balance)
             else { throw BackupImportError.invalidContent }
             let openingBalance = try optionalDecimal(from: account.openingBalance)
-
-            // 未知账户类型原样保留：模型允许未来类型，由展示层安全降级。
-            return Account(
-                id: account.id,
-                typeRawValue: account.type,
-                templateID: account.templateID,
-                name: account.name,
-                note: account.note,
-                lastFourDigits: account.lastFourDigits,
-                balance: balance,
-                openingBalance: openingBalance,
-                currencyCode: account.currencyCode,
-                createdAt: account.createdAt,
-                updatedAt: account.updatedAt,
-                deactivatedAt: account.deactivatedAt
-            )
+            return try account.validatedAccount(balance: balance, openingBalance: openingBalance)
         }
 
         let categories = try validatedCategories(from: backup.categories)
@@ -291,29 +273,14 @@ extension BackupImportService {
 
         var transactionIDs = Set<UUID>()
         let transactions = try backup.transactions.map { transaction in
-            // 流水工厂固定写入 CNY；其他币种若放行会被静默改写，必须拒绝。
             guard transactionIDs.insert(transaction.id).inserted,
                   accountIDs.contains(transaction.accountID),
-                  transaction.counterpartAccountID.map(accountIDs.contains) ?? true,
-                  transaction.currencyCode == "CNY"
+                  transaction.counterpartAccountID.map(accountIDs.contains) ?? true
             else { throw BackupImportError.invalidContent }
 
             let record: AccountTransaction
             do {
-                record = try AccountTransaction.validatingPersistedFields(
-                    id: transaction.id,
-                    accountID: transaction.accountID,
-                    typeRawValue: transaction.type,
-                    categoryRawValue: transaction.category,
-                    amount: try optionalDecimal(from: transaction.amount),
-                    balanceBefore: try optionalDecimal(from: transaction.balanceBefore),
-                    balanceAfter: try optionalDecimal(from: transaction.balanceAfter),
-                    balanceDelta: try optionalDecimal(from: transaction.balanceDelta),
-                    counterpartAccountID: transaction.counterpartAccountID,
-                    transactionDay: transaction.transactionDay,
-                    note: transaction.note ?? "",
-                    savedAt: transaction.savedAt
-                )
+                record = try transaction.validatedTransaction()
             } catch {
                 throw BackupImportError.invalidContent
             }
@@ -321,7 +288,6 @@ extension BackupImportService {
                !availableKeys.contains("\(reference.direction.rawValue).\(reference.key)") {
                 throw BackupImportError.invalidContent
             }
-            record.recurringRuleID = transaction.recurringRuleID
             return record
         }
         var recurringRuleIDs = Set<UUID>()
@@ -396,34 +362,12 @@ extension BackupImportService {
         var ids = Set<UUID>()
         var keys = Set<String>()
         var categories = try backupCategories.map { category in
-            guard ids.insert(category.id).inserted,
-                  let direction = BookkeepingEntryType(rawValue: category.direction),
-                  BookkeepingCategoryKey.isValid(category.key, direction: direction),
-                  keys.insert("\(direction.rawValue).\(category.key)").inserted,
-                  !category.symbolName.isEmpty
-            else { throw BackupImportError.invalidContent }
-
-            let preset = BookkeepingCategoryKey.preset(direction: direction, key: category.key)
-            if let preset {
-                // 「其他」是删除迁移的兜底目标，必须始终可用。
-                guard category.id == preset.id,
-                      category.deletedAt == nil || category.key != BookkeepingCategoryKey.other
-                else { throw BackupImportError.invalidContent }
-            } else {
-                let name = LocalCategoryRepository.cleanedName(category.customName ?? "")
-                guard !name.isEmpty else { throw BackupImportError.invalidContent }
+            guard ids.insert(category.id).inserted else { throw BackupImportError.invalidContent }
+            let validated = try category.validatedCategory()
+            guard keys.insert("\(validated.directionRawValue).\(validated.key)").inserted else {
+                throw BackupImportError.invalidContent
             }
-            return BookkeepingCategory(
-                id: category.id,
-                direction: direction,
-                key: category.key,
-                customName: preset == nil ? category.customName : nil,
-                symbolName: preset?.symbolName ?? category.symbolName,
-                sortIndex: category.sortIndex,
-                updatedAt: category.updatedAt,
-                deletedAt: category.deletedAt,
-                replacementKey: category.replacementKey
-            )
+            return validated
         }
         for preset in BookkeepingCategoryKey.allPresets where !ids.contains(preset.id) {
             categories.append(
@@ -504,6 +448,114 @@ extension AccountTransaction {
         note = other.note
         savedAt = other.savedAt
         recurringRuleID = other.recurringRuleID
+    }
+}
+
+// MARK: - 记录校验（恢复备份和应用同步记录共用）
+//
+// 每类记录只在这里把 DTO 转成模型，恢复备份与 `SyncRecordApplier` 都走这一份，新增字段时不会漏掉其中一边。
+// 批次级约束（标识重复、账户或分类是否存在）由调用方按各自场景判断。
+
+extension BackupAccount {
+    /// 校验名称、类型和币种，并转换为尚未插入 context 的账户。
+    ///
+    /// 余额口径由调用方决定：恢复备份取备份里的当前余额；同步记录不带余额，取期初余额，之后由调用方统一重算。
+    /// 未知账户类型原样保留：模型允许未来类型，由展示层安全降级。
+    ///
+    /// - Parameters:
+    ///   - balance: 写入的当前余额。
+    ///   - openingBalance: 写入的期初余额；为空时等于 `balance`。
+    /// - Returns: 已校验的账户。
+    /// - Throws: 名称清理后为空、类型或币种缺失时抛出 `BackupImportError.invalidContent`。
+    @MainActor
+    func validatedAccount(balance: Decimal, openingBalance: Decimal?) throws -> Account {
+        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !type.isEmpty,
+              !currencyCode.isEmpty
+        else { throw BackupImportError.invalidContent }
+        return Account(
+            id: id,
+            typeRawValue: type,
+            templateID: templateID,
+            name: name,
+            note: note,
+            lastFourDigits: lastFourDigits,
+            balance: balance,
+            openingBalance: openingBalance,
+            currencyCode: currencyCode,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deactivatedAt: deactivatedAt
+        )
+    }
+}
+
+extension BackupTransaction {
+    /// 按持久化字段规则校验，并转换为尚未插入 context 的流水。
+    ///
+    /// 只校验流水自身的字段组合；所属账户和分类是否存在由调用方判断。
+    ///
+    /// - Returns: 已校验的流水，包含所属周期规则。
+    /// - Throws: 币种不是当前支持的币种或金额格式不合法时抛出 `BackupImportError.invalidContent`；
+    ///   字段组合不合法时抛出 `AccountTransactionValidationError`。
+    @MainActor
+    func validatedTransaction() throws -> AccountTransaction {
+        // 流水工厂固定写入 CNY；其他币种若放行会被静默改写，必须拒绝。
+        guard currencyCode == BookkeepingCurrency.code else { throw BackupImportError.invalidContent }
+        let record = try AccountTransaction.validatingPersistedFields(
+            id: id,
+            accountID: accountID,
+            typeRawValue: type,
+            categoryRawValue: category,
+            amount: try BackupImportService.optionalDecimal(from: amount),
+            balanceBefore: try BackupImportService.optionalDecimal(from: balanceBefore),
+            balanceAfter: try BackupImportService.optionalDecimal(from: balanceAfter),
+            balanceDelta: try BackupImportService.optionalDecimal(from: balanceDelta),
+            counterpartAccountID: counterpartAccountID,
+            transactionDay: transactionDay,
+            note: note ?? "",
+            savedAt: savedAt
+        )
+        record.recurringRuleID = recurringRuleID
+        return record
+    }
+}
+
+extension BackupCategory {
+    /// 校验方向、key、图标和预置分类约束，并转换为尚未插入 context 的分类。
+    ///
+    /// 预置分类的名称和图标固定，统一写回默认图标，不采用记录里的值。
+    ///
+    /// - Returns: 已校验的分类。
+    /// - Throws: 方向或 key 不合法、图标为空、预置分类标识不匹配、「其他」被标记删除、
+    ///   自定义分类缺少名称时抛出 `BackupImportError.invalidContent`。
+    @MainActor
+    func validatedCategory() throws -> BookkeepingCategory {
+        guard let entryDirection = BookkeepingEntryType(rawValue: direction),
+              BookkeepingCategoryKey.isValid(key, direction: entryDirection),
+              !symbolName.isEmpty
+        else { throw BackupImportError.invalidContent }
+
+        let preset = BookkeepingCategoryKey.preset(direction: entryDirection, key: key)
+        if let preset {
+            // 「其他」是删除迁移的兜底目标，必须始终可用。
+            guard id == preset.id,
+                  deletedAt == nil || key != BookkeepingCategoryKey.other
+            else { throw BackupImportError.invalidContent }
+        } else if LocalCategoryRepository.cleanedName(customName ?? "").isEmpty {
+            throw BackupImportError.invalidContent
+        }
+        return BookkeepingCategory(
+            id: id,
+            direction: entryDirection,
+            key: key,
+            customName: preset == nil ? customName : nil,
+            symbolName: preset?.symbolName ?? symbolName,
+            sortIndex: sortIndex,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
+            replacementKey: replacementKey
+        )
     }
 }
 
