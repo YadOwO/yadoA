@@ -118,6 +118,21 @@ struct AIChatHistoryStoreTests {
         #expect(fixture.images.data(for: orphanFile) == nil)
     }
 
+    @Test("一次保存多张图片，文件名与输入顺序一致；按名删除只删指定的文件")
+    func savesAllAndRemovesNamedFiles() throws {
+        let fixture = try Fixture()
+        let fileNames = try fixture.images.saveAll([Data([1]), Data([2])])
+
+        #expect(fileNames.count == 2)
+        #expect(fixture.images.data(for: fileNames[0]) == Data([1]))
+        #expect(fixture.images.data(for: fileNames[1]) == Data([2]))
+
+        fixture.images.removeFiles(named: [fileNames[0], "missing.jpg"])
+
+        #expect(fixture.images.data(for: fileNames[0]) == nil)
+        #expect(fixture.images.data(for: fileNames[1]) == Data([2]))
+    }
+
     @Test("清空后记录和图片都没有了")
     func clearsEverything() throws {
         let fixture = try Fixture()

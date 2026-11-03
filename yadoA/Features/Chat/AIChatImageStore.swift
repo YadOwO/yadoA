@@ -38,6 +38,24 @@ nonisolated struct AIChatImageStore: Sendable {
         return fileName
     }
 
+    /// 一次保存一轮发送的全部图片；中途有一张失败时删掉本次已写入的文件，不留下没有记录引用的图片。
+    ///
+    /// - Parameter images: 依次保存的 JPEG 数据。
+    /// - Returns: 与输入顺序一致的文件名。
+    /// - Throws: 任一张写入失败时抛出，此时本次没有文件留在磁盘上。
+    func saveAll(_ images: [Data]) throws -> [String] {
+        var fileNames: [String] = []
+        do {
+            for data in images {
+                fileNames.append(try save(data))
+            }
+        } catch {
+            removeFiles(named: fileNames)
+            throw error
+        }
+        return fileNames
+    }
+
     /// 读取图片内容。
     ///
     /// - Parameter fileName: 记录里保存的文件名。
@@ -49,6 +67,15 @@ nonisolated struct AIChatImageStore: Sendable {
     /// 删除全部图片。
     func removeAll() {
         try? FileManager.default.removeItem(at: directory)
+    }
+
+    /// 删除指定的图片；文件不存在时忽略。
+    ///
+    /// - Parameter fileNames: 要删除的文件名。
+    func removeFiles(named fileNames: [String]) {
+        for fileName in fileNames {
+            try? FileManager.default.removeItem(at: url(for: fileName))
+        }
     }
 
     /// 删除没有被引用的图片。

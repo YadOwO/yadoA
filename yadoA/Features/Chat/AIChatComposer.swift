@@ -388,12 +388,11 @@ struct AIChatComposer: View {
     /// 发送文字和图片，清空输入栏；图片存到本机，聊天记录据此显示。
     private func send() {
         guard hasContent, !voice.isProcessing else { return }
-        let store = AIChatImageStore.production
-        var uploads: [VoiceImageUpload] = []
+        let uploads: [VoiceImageUpload]
         do {
-            for image in pendingImages {
-                uploads.append(VoiceImageUpload(fileName: try store.save(image.data), data: image.data))
-            }
+            // 部分图片保存失败时 saveAll 会删掉已写入的，输入栏保持原样，用户可以直接重发
+            let fileNames = try AIChatImageStore.production.saveAll(pendingImages.map(\.data))
+            uploads = zip(fileNames, pendingImages).map { VoiceImageUpload(fileName: $0, data: $1.data) }
         } catch {
             voice.input.transientHint = localized("voice.chat.image.failed")
             return
