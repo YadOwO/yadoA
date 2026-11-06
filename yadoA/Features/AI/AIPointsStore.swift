@@ -8,6 +8,7 @@ import Observation
 ///
 /// 余额以服务端为准，只保存在内存里：进入“我的”或 AI 点数页时刷新，语音记账得到响应后用服务端带回的余额就地更新。
 /// 余额记着所属账号；刷新和语音回报都核对账号，换账号或退出登录后不会把旧账号的余额记到当前账号上。
+/// 每日签到的状态也在这里：进入“我的”时刷新，签到成功后直接用服务端返回的余额和批次更新，不再多发请求。
 /// 余额写入都编号：刷新在发起时取号，语音回报在响应回来时取号，晚到的旧刷新结果不再覆盖更新的余额。
 @Observable
 final class AIPointsStore {
@@ -34,6 +35,12 @@ final class AIPointsStore {
 
     /// 在本机授权过“帮助改进 AI”的账号。按账号保存：同一台设备换账号时，新账号不能继承别人的授权。
     private var traceConsentedUserIDs: Set<String>
+
+    /// 今天的签到状态；未登录、还没拿到或拿失败时为 nil。
+    private(set) var checkInStatus: AICheckInStatus?
+
+    /// 是否正在签到；用来拦住重复点击。
+    private(set) var isCheckingIn = false
 
     /// 最近一次刷新余额失败的原因；刷新成功后清空。
     private(set) var failure: AIBillingAPIError?
@@ -182,6 +189,11 @@ final class AIPointsStore {
         return max(balance, 0) / pointsPerTurn
     }
 
+    /// 是否该向用户提供签到：已拿到状态且今天还没签。
+    var shouldOfferCheckIn: Bool {
+        checkInStatus.map { !$0.checkedIn } ?? false
+    }
+
     /// 是否正在刷新余额。
     var isRefreshing: Bool {
         refreshRequest != nil
@@ -225,6 +237,69 @@ final class AIPointsStore {
         // 等待期间可能已为另一个账号另起刷新，只清掉自己这一次
         if refreshRequest?.task == task {
             refreshRequest = nil
+        }
+    }
+
+    /// 刷新今天的签到状态；未登录时清空。失败时状态置空，不影响余额和 `failure`。
+    func refreshCheckInStatus() async {
+        guard let userID = currentUserID() else {
+            checkInStatus = nil
+            return
+        }
+        adopt(userID)
+        do {
+            let status = try await api.fetchCheckInStatus()
+            if isCurrentOwner(userID) {
+                checkInStatus = status
+            }
+        } catch {
+            if isCurrentOwner(userID) {
+                checkInStatus = nil
+            }
+        }
+    }
+
+    /// 每日签到。成功时用服务端返回的余额更新，并把新一批点数按过期时间插入批次；今天已签过时不追加批次，改为重新拉一次钱包。
+    ///
+    /// - Returns: 签到结果；失败时为对应错误，余额不变。
+    func checkIn() async -> Result<AICheckInResult, AIBillingAPIError> {
+        guard let userID = currentUserID() else { return .failure(.notSignedIn) }
+        guard !isCheckingIn else { return .failure(.invalidContract) }
+        adopt(userID)
+        isCheckingIn = true
+        defer { isCheckingIn = false }
+        do {
+            let result = try await api.checkIn()
+            guard isCurrentOwner(userID) else { return .success(result) }
+            noteAppliedWrite(beginWrite())
+            balance = result.balance
+            failure = nil
+            if !result.isDuplicate {
+                let lot = AICreditLot(
+                    points: result.points,
+                    expiresAt: result.expiresAt,
+                    originalPoints: result.points,
+                    kind: .grant,
+                    reason: AICreditEntry.dailyCheckInReason,
+                    product: AIBillingAPI.product,
+                    createdAt: result.createdAt
+                )
+                let index = lots.firstIndex { $0.expiresAt > lot.expiresAt } ?? lots.endIndex
+                lots.insert(lot, at: index)
+            }
+            checkInStatus = AICheckInStatus(
+                date: result.date,
+                checkedIn: true,
+                checkIn: AICheckInRecord(points: result.points, createdAt: result.createdAt, expiresAt: result.expiresAt),
+                minPoints: checkInStatus?.minPoints ?? result.points,
+                maxPoints: checkInStatus?.maxPoints ?? result.points
+            )
+            if result.isDuplicate {
+                await refresh()
+            }
+            return .success(result)
+        } catch {
+            return .failure(error as? AIBillingAPIError ?? .network)
         }
     }
 
@@ -347,6 +422,8 @@ final class AIPointsStore {
         balance = nil
         lots = []
         failure = nil
+        checkInStatus = nil
+        isCheckingIn = false
         ownerUserID = nil
     }
 }

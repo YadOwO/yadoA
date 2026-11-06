@@ -127,6 +127,168 @@
         }
       }
     },
+    "ai.entry.grant.dailyCheckIn" : {
+      "comment" : "明细中每日签到赠送的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily check-in"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日签到"
+          }
+        }
+      }
+    },
+    "profile.checkIn.label" : {
+      "comment" : "“我的”页签到气泡上的文字",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check in"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到"
+          }
+        }
+      }
+    },
+    "profile.checkIn.accessibilityLabel" : {
+      "comment" : "签到气泡的 VoiceOver 标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily check-in, get AI points"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日签到，领取 AI 点数"
+          }
+        }
+      }
+    },
+    "profile.checkIn.gained" : {
+      "comment" : "签到成功后气泡里滚动的点数，%@ 为点数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%@ pts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%@ 点"
+          }
+        }
+      }
+    },
+    "profile.checkIn.announcement" : {
+      "comment" : "签到成功的 VoiceOver 播报，%1$@ 为点数，%2$@ 为有效小时数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Got %1$@ points, valid for %2$@ hours"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "获得 %1$@ 点，%2$@ 小时内有效"
+          }
+        }
+      }
+    },
+    "profile.checkIn.failure.network" : {
+      "comment" : "签到失败：网络不可用",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network unavailable. Tap to try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网络不可用，点一下重试"
+          }
+        }
+      }
+    },
+    "profile.checkIn.failure.unavailable" : {
+      "comment" : "签到失败：服务暂时不可用",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check-in is unavailable right now. Try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到暂时不可用，请稍后再试"
+          }
+        }
+      }
+    },
+    "profile.checkIn.failure.signIn" : {
+      "comment" : "签到失败：登录失效",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please sign in again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请重新登录后再签到"
+          }
+        }
+      }
+    },
+    "checkIn.signIn.message" : {
+      "comment" : "未登录点“我的”页签到时登录页上的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to check in daily and get free AI points. Points stay with your account."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录后每天签到就能领 AI 点数，点数跟着账号走。"
+          }
+        }
+      }
+    },
     "feedback.signIn.message" : {
       "comment" : "未登录点意见反馈时登录页与反馈页上的说明",
       "extractionState" : "manual",

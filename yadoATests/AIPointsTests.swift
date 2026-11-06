@@ -152,6 +152,76 @@ struct AIPointsTests {
         }
     }
 
+    @Test("签到状态与结果解码：状态分已签和未签，结果时间带毫秒，时间格式错误时解码失败")
+    func decodesCheckInContract() throws {
+        let pending = try JSONDecoder().decode(
+            AICheckInStatus.self,
+            from: Data(#"{"date":"2026-11-05","checkedIn":false,"checkIn":null,"minPoints":10,"maxPoints":50}"#.utf8)
+        )
+        #expect(pending.date == "2026-11-05")
+        #expect(!pending.checkedIn)
+        #expect(pending.checkIn == nil)
+        #expect(pending.minPoints == 10)
+        #expect(pending.maxPoints == 50)
+
+        let doneJSON = """
+        {"date":"2026-11-05","checkedIn":true,
+         "checkIn":{"points":42,"createdAt":"2026-10-28T02:32:00.000Z","expiresAt":"2026-10-29T02:32:00.000Z"},
+         "minPoints":10,"maxPoints":50}
+        """
+        let done = try JSONDecoder().decode(AICheckInStatus.self, from: Data(doneJSON.utf8))
+        #expect(done.checkedIn)
+        #expect(done.checkIn?.points == 42)
+        #expect(done.checkIn?.createdAt == Date(timeIntervalSince1970: 1_793_154_720))
+
+        let resultJSON = """
+        {"date":"2026-11-05","points":42,"isBonus":true,"isDuplicate":false,"balance":142,
+         "createdAt":"2026-10-28T02:32:00.000Z","expiresAt":"2026-10-29T02:32:00.000Z"}
+        """
+        let result = try JSONDecoder().decode(AICheckInResult.self, from: Data(resultJSON.utf8))
+        #expect(result.points == 42)
+        #expect(result.isBonus)
+        #expect(!result.isDuplicate)
+        #expect(result.balance == 142)
+        #expect(result.createdAt == Date(timeIntervalSince1970: 1_793_154_720))
+        #expect(result.expiresAt == Date(timeIntervalSince1970: 1_793_241_120))
+
+        let badTime = """
+        {"date":"2026-11-05","points":42,"isBonus":false,"isDuplicate":false,"balance":142,
+         "createdAt":"yesterday","expiresAt":"2026-10-29T02:32:00.000Z"}
+        """
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(AICheckInResult.self, from: Data(badTime.utf8))
+        }
+    }
+
+    @Test("每日签到的明细与批次：标题、图标、中文标题，签到批次的到期时间显示到时分")
+    func mapsDailyCheckInPresentation() {
+        let entry = Self.entry(kind: .grant, points: 30, reason: AICreditEntry.dailyCheckInReason, product: "yadoa")
+        #expect(entry.titleKey == "ai.entry.grant.dailyCheckIn")
+        #expect(entry.symbol == "calendar.badge.checkmark")
+        #expect(entry.title(locale: Locale(identifier: "zh-Hans")) == "每日签到")
+
+        let expiresAt = Date(timeIntervalSince1970: 1_793_241_120)
+        let checkInLot = AICreditLot(
+            points: 30,
+            expiresAt: expiresAt,
+            kind: .grant,
+            reason: AICreditEntry.dailyCheckInReason,
+            product: "yadoa"
+        )
+        let plainLot = AICreditLot(points: 30, expiresAt: expiresAt, kind: .grant, reason: "compensation")
+        #expect(checkInLot.isDailyCheckIn)
+        #expect(!plainLot.isDailyCheckIn)
+        #expect(checkInLot.titleKey == "ai.entry.grant.dailyCheckIn")
+        #expect(checkInLot.symbol == "calendar.badge.checkmark")
+        #expect(plainLot.symbol == "gift")
+
+        let english = Locale(identifier: "en_US")
+        #expect(checkInLot.expiryText(locale: english).contains(":"))
+        #expect(!plainLot.expiryText(locale: english).contains(":"))
+    }
+
     @Test("批次标题与图标和生成它的入账流水一致，存量批次显示早期点数")
     func mapsLotPresentation() {
         let expiresAt = Date(timeIntervalSince1970: 1_800_930_720)
@@ -203,6 +273,23 @@ struct AIPointsTests {
         #expect(AccountLocalization.string("ai.tier.chat.title", locale: simplifiedChinese) == "对话模型")
         #expect(AccountLocalization.string("ai.entries.title", locale: simplifiedChinese) == "点数明细")
         #expect(AccountLocalization.string("ai.chatHistory.cleared", locale: simplifiedChinese) == "对话记录已清空")
+        #expect(AccountLocalization.string("ai.entry.grant.dailyCheckIn", locale: simplifiedChinese) == "每日签到")
+        #expect(AccountLocalization.string("ai.entry.grant.dailyCheckIn", locale: english) == "Daily check-in")
+        #expect(AccountLocalization.string("profile.checkIn.label", locale: simplifiedChinese) == "签到")
+        #expect(AccountLocalization.string("profile.checkIn.accessibilityLabel", locale: simplifiedChinese) == "每日签到，领取 AI 点数")
+        let announcement = AccountLocalization.string("profile.checkIn.announcement", locale: simplifiedChinese)
+        #expect(String(format: announcement, locale: simplifiedChinese, "30", "24") == "获得 30 点，24 小时内有效")
+        let checkInKeys = [
+            "ai.entry.grant.dailyCheckIn", "profile.checkIn.label", "profile.checkIn.accessibilityLabel",
+            "profile.checkIn.gained", "profile.checkIn.announcement", "profile.checkIn.failure.network",
+            "profile.checkIn.failure.unavailable", "profile.checkIn.failure.signIn", "checkIn.signIn.message",
+        ]
+        for key in checkInKeys {
+            for locale in [english, simplifiedChinese] {
+                #expect(AccountLocalization.string(key, locale: locale) != key, "\(key) 缺少 \(locale.identifier) 文案")
+            }
+        }
+        #expect(SignInReason.checkIn.messageLocalizationKey == "checkIn.signIn.message")
         // AI 点数页的分组标题和行尾状态
         let pageKeys = [
             "ai.points.section.model", "ai.points.section.privacy",
@@ -270,6 +357,23 @@ struct AIPointsTests {
 
         let models = api.makeURLRequest(.models, token: "abc")
         #expect(models.url?.absoluteString == "https://example.invalid/v1/models")
+
+        let checkInStatus = api.makeURLRequest(.checkInStatus, token: "abc")
+        #expect(checkInStatus.httpMethod == "GET")
+        #expect(checkInStatus.url?.absoluteString == "https://example.invalid/v1/billing/check-in?product=yadoa")
+        #expect(checkInStatus.httpBody == nil)
+
+        let checkIn = api.makeURLRequest(.checkIn, token: "abc")
+        #expect(checkIn.httpMethod == "POST")
+        #expect(checkIn.url?.absoluteString == "https://example.invalid/v1/billing/check-in")
+        #expect(checkIn.url?.query() == nil)
+        #expect(checkIn.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        #expect(checkIn.value(forHTTPHeaderField: "Authorization") == "Bearer abc")
+        let body = try #require(checkIn.httpBody)
+        #expect(try JSONDecoder().decode([String: String].self, from: body) == ["product": "yadoa"])
+        // 钱包仍是 GET，也不带请求体
+        #expect(wallet.httpMethod == "GET")
+        #expect(wallet.httpBody == nil)
     }
 
     @Test("查询接口错误状态码映射")
@@ -817,7 +921,122 @@ struct AIPointsTests {
         #expect(!feed.hasMore)
     }
 
+    // MARK: - 每日签到
+
+    @Test("签到成功：余额用返回值，签到批次按过期时间插入，状态变为已签")
+    func checkInSucceeds() async {
+        let api = FakeAIBillingAPI()
+        let later = Date(timeIntervalSince1970: 1_900_000_000)
+        api.walletResults = [.success(AIWallet(balance: 100, lots: [AICreditLot(points: 100, expiresAt: later)]))]
+        api.checkInStatusResults = [.success(Self.pendingCheckInStatus)]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        await store.refreshCheckInStatus()
+        #expect(store.shouldOfferCheckIn)
+
+        let result = Self.checkInResult(points: 42, balance: 142, isDuplicate: false)
+        api.checkInResult = .success(result)
+        let outcome = await store.checkIn()
+
+        #expect(outcome == .success(result))
+        #expect(store.balance == 142)
+        #expect(store.lots.count == 2)
+        #expect(store.lots.first?.reason == AICreditEntry.dailyCheckInReason)
+        #expect(store.lots.map(\.expiresAt) == store.lots.map(\.expiresAt).sorted())
+        #expect(store.checkInStatus?.checkedIn == true)
+        #expect(store.checkInStatus?.checkIn?.points == 42)
+        #expect(store.checkInStatus?.minPoints == 10)
+        #expect(!store.shouldOfferCheckIn)
+        #expect(!store.isCheckingIn)
+        #expect(api.checkInCalls == 1)
+        #expect(api.walletCalls == 1)
+    }
+
+    @Test("重复签到：不追加批次，重新拉一次钱包，状态为已签")
+    func checkInDuplicateRefreshesWallet() async {
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(AIWallet(balance: 142))]
+        api.checkInStatusResults = [.success(Self.pendingCheckInStatus)]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        await store.refreshCheckInStatus()
+        #expect(api.walletCalls == 1)
+
+        api.checkInResult = .success(Self.checkInResult(points: 42, balance: 142, isDuplicate: true))
+        _ = await store.checkIn()
+
+        #expect(store.lots.isEmpty)
+        #expect(api.walletCalls == 2)
+        #expect(store.balance == 142)
+        #expect(store.checkInStatus?.checkedIn == true)
+        #expect(!store.shouldOfferCheckIn)
+    }
+
+    @Test("签到失败：余额和批次不变，返回对应错误，仍可签到")
+    func checkInFailureKeepsState() async {
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(AIWallet(balance: 100, lots: [AICreditLot(points: 100, expiresAt: .distantFuture)]))]
+        api.checkInStatusResults = [.success(Self.pendingCheckInStatus)]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        await store.refreshCheckInStatus()
+
+        api.checkInResult = .failure(.network)
+        let outcome = await store.checkIn()
+
+        #expect(outcome == .failure(.network))
+        #expect(store.balance == 100)
+        #expect(store.lots.count == 1)
+        #expect(store.shouldOfferCheckIn)
+        #expect(!store.isCheckingIn)
+    }
+
+    @Test("签到状态：刷新失败为 nil，未登录为 nil，换账号后清空")
+    func checkInStatusLifecycle() async {
+        let api = FakeAIBillingAPI()
+        var userID: String? = "user-1"
+        let store = AIPointsStore(api: api, defaults: .isolated()) { userID }
+
+        api.checkInStatusResults = [.failure(.network)]
+        await store.refreshCheckInStatus()
+        #expect(store.checkInStatus == nil)
+        #expect(!store.shouldOfferCheckIn)
+
+        api.checkInStatusResults = [.success(Self.pendingCheckInStatus)]
+        await store.refreshCheckInStatus()
+        #expect(store.shouldOfferCheckIn)
+
+        // 换账号：刷新余额时发现账号变了，先清空旧账号的状态
+        userID = "user-2"
+        await store.refresh()
+        #expect(store.checkInStatus == nil)
+
+        userID = nil
+        await store.refreshCheckInStatus()
+        #expect(store.checkInStatus == nil)
+        #expect(await store.checkIn() == .failure(.notSignedIn))
+    }
+
     // MARK: - 辅助
+
+    /// 今天还没签到的状态。
+    private static let pendingCheckInStatus = AICheckInStatus(
+        date: "2026-11-05", checkedIn: false, checkIn: nil, minPoints: 10, maxPoints: 50
+    )
+
+    /// 构造一次签到结果，24 小时后过期。
+    private static func checkInResult(points: Int, balance: Int, isDuplicate: Bool) -> AICheckInResult {
+        let createdAt = Date(timeIntervalSince1970: 1_793_154_720)
+        return AICheckInResult(
+            date: "2026-11-05",
+            points: points,
+            isBonus: points >= 40,
+            isDuplicate: isDuplicate,
+            balance: balance,
+            createdAt: createdAt,
+            expiresAt: createdAt.addingTimeInterval(24 * 3600)
+        )
+    }
 
     /// 构造一条流水。
     private static func entry(
@@ -856,6 +1075,12 @@ private final class FakeAIBillingAPI: AIBillingFetching {
         .init(id: "precise", pointsPerTurn: 2, isAvailable: true),
     ]))
 
+    /// 依次返回的签到状态结果；用完后重复最后一个。
+    var checkInStatusResults: [Result<AICheckInStatus, AIBillingAPIError>] = [.failure(.invalidContract)]
+
+    /// 签到结果。
+    var checkInResult: Result<AICheckInResult, AIBillingAPIError> = .failure(.invalidContract)
+
     /// 设置后查询余额时先挂起，直到用例恢复。
     var walletGate: AsyncSaveGate?
 
@@ -864,6 +1089,12 @@ private final class FakeAIBillingAPI: AIBillingFetching {
 
     /// 查询档位列表的次数。
     private(set) var tierCalls = 0
+
+    /// 查询签到状态的次数。
+    private(set) var checkInStatusCalls = 0
+
+    /// 签到的次数。
+    private(set) var checkInCalls = 0
 
     /// 依次请求过的流水游标。
     private(set) var requestedCursors: [String?] = []
@@ -886,6 +1117,17 @@ private final class FakeAIBillingAPI: AIBillingFetching {
     func fetchModelTiers() async throws -> AIModelTierList {
         tierCalls += 1
         return try tiersResult.get()
+    }
+
+    func fetchCheckInStatus() async throws -> AICheckInStatus {
+        let index = min(checkInStatusCalls, checkInStatusResults.count - 1)
+        checkInStatusCalls += 1
+        return try checkInStatusResults[index].get()
+    }
+
+    func checkIn() async throws -> AICheckInResult {
+        checkInCalls += 1
+        return try checkInResult.get()
     }
 }
 

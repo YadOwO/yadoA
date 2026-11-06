@@ -161,7 +161,7 @@ struct AIPointsView: View {
             format: text("ai.points.expiry"),
             locale: locale,
             lot.points.formatted(.number.locale(locale)),
-            lot.expiresAt.formatted(.dateTime.year().month().day().locale(locale))
+            lot.expiryText(locale: locale)
         )
     }
 

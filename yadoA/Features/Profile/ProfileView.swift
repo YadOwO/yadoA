@@ -17,9 +17,16 @@ struct ProfileView: View {
     @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
     /// 意见反馈的未读回复数；预览中没有注入时为 nil。
     @Environment(FeedbackStore.self) private var feedback: FeedbackStore?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// 修改个人资料弹层，打开时携带当时的资料快照。
     @State private var editingProfile: AccountProfile?
+
+    /// 签到气泡的随机位置，每次进入页面重新随机。
+    @State private var checkInPlacement: ProfileCheckInPlacement = .random()
+
+    /// 签到庆祝或淡出动画进行中；store 已把状态改为已签，靠它让气泡留到动画结束。
+    @State private var isCheckInBadgeActive = false
 
     var body: some View {
         ScrollView {
@@ -56,9 +63,11 @@ struct ProfileView: View {
                             value: aiPointsValue,
                             // 余额不够快捷语音说一句时用账本红提醒，其余保持灰色；与 AI 点数页的余额颜色一致
                             valueTint: authStore.isAuthenticated && aiPoints?.isExhausted(for: .quickVoice) == true
-                                ? Color(.ledgerRed) : nil
+                                ? Color(.ledgerRed) : nil,
+                            valueContentTransition: .numericText()
                         )
                     }
+                    .animation(reduceMotion ? nil : .snappy, value: aiPoints?.balance)
                     .accessibilityIdentifier("profile-ai-points")
                 }
 
@@ -102,9 +111,12 @@ struct ProfileView: View {
             // 进入页面或登录状态变化时拉一次最新资料，其他端改过昵称也能及时同步
             await authStore.refreshProfile()
         }
+        .onAppear { checkInPlacement = .random() }
         .task(id: authStore.isAuthenticated) {
             // 每次回到“我的”都刷新一次余额，其他芽豆 App 用掉的点数也能及时反映
             await aiPoints?.refresh()
+            // 再刷新今天的签到状态；登录成功后也走这里，只刷新状态，不自动签到
+            await aiPoints?.refreshCheckInStatus()
         }
         .task(id: authStore.isAuthenticated) {
             // 每次回到“我的”都刷新一次反馈未读数；从反馈页返回时已在标记已读后更新过，这里再对一次
@@ -214,6 +226,51 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity)
         .padding(.top, 24)
         .padding(.bottom, 8)
+        .overlay(alignment: .topLeading) { checkInOverlay }
+    }
+
+    /// 是否显示签到气泡：未登录时总是显示；已登录时今天还没签才显示，状态没拿到或拿失败时不显示；动画进行中保持显示。
+    private var showsCheckInBadge: Bool {
+        !authStore.isAuthenticated || aiPoints?.shouldOfferCheckIn == true || isCheckInBadgeActive
+    }
+
+    /// 浮在页头头像左侧或右侧空白里的签到气泡；位置只在头像所在的竖向带内取值，不压住头像、角标、名称和登录按钮。
+    private var checkInOverlay: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            // 24 是给铅笔角标和开发入口向外凸出的 4+16pt 再留的余量
+            let sideGap = (width - Self.avatarSize) / 2 - 24
+            if showsCheckInBadge, sideGap >= 72 {
+                let centerX = checkInPlacement.isLeading ? sideGap / 2 : width - sideGap / 2
+                let centerY = 24 + 36 + checkInPlacement.verticalFraction * max(0, Self.avatarSize - 72)
+                ProfileCheckInBadge(
+                    placement: checkInPlacement,
+                    messageWidth: sideGap,
+                    onTap: handleCheckInTap,
+                    onFinished: { isCheckInBadgeActive = false }
+                )
+                .frame(width: 72, height: 72)
+                .position(x: centerX, y: centerY)
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: showsCheckInBadge)
+    }
+
+    /// 点击签到气泡：未登录只打开登录页；已登录发起签到，动画结束前保持气泡显示。
+    private func handleCheckInTap() async -> CheckInTapOutcome {
+        guard authStore.isAuthenticated, let aiPoints else {
+            signInPresentation.present(reason: .checkIn)
+            return .signInRequired
+        }
+        isCheckInBadgeActive = true
+        switch await aiPoints.checkIn() {
+        case let .success(result):
+            return .success(result)
+        case let .failure(error):
+            isCheckInBadgeActive = false
+            return .failure(error)
+        }
     }
 
     /// 头像与名称；已登录时头像带铅笔角标。

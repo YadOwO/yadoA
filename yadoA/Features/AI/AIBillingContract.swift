@@ -1,6 +1,6 @@
 import Foundation
 
-// 与 yado_ai `GET /v1/billing/wallet`、`GET /v1/billing/entries`、`GET /v1/models`（模型档位）对应的数据契约，结构以服务端 openapi.json 为准。
+// 与 yado_ai `GET /v1/billing/wallet`、`GET /v1/billing/entries`、`GET /v1/models`（模型档位）、`GET`/`POST /v1/billing/check-in`（每日签到）对应的数据契约，结构以服务端 openapi.json 为准。
 //
 // 点数跨芽豆系列 App 共用，同一账号只有一个余额；点数是整数，不是金额。这里只解码客户端用得到的字段。
 // 新用户赠送按产品各发一次：查询时带上本产品代号，服务端据此发放本产品的赠送，流水里记着赠送来自哪个产品。
@@ -136,6 +136,144 @@ nonisolated struct AICreditLot: Decodable, Equatable, Sendable {
         forKey key: CodingKeys,
         in container: KeyedDecodingContainer<CodingKeys>
     ) throws -> Date {
+        guard let date = AIBillingTimestamp.parse(text) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: key,
+                in: container,
+                debugDescription: "\(key.stringValue) 不是 ISO 8601 时间：\(text)"
+            )
+        }
+        return date
+    }
+}
+
+// MARK: - 每日签到
+
+/// 一次签到的记录。
+nonisolated struct AICheckInRecord: Decodable, Equatable, Sendable {
+    /// 签到获得的点数。
+    let points: Int
+
+    /// 签到时间。
+    let createdAt: Date
+
+    /// 这批点数的过期时刻。
+    let expiresAt: Date
+
+    private enum CodingKeys: String, CodingKey {
+        case points, createdAt, expiresAt
+    }
+
+    /// 逐字段创建，供测试使用。
+    init(points: Int, createdAt: Date, expiresAt: Date) {
+        self.points = points
+        self.createdAt = createdAt
+        self.expiresAt = expiresAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        points = try container.decode(Int.self, forKey: .points)
+        createdAt = try AICheckInTime.decode(.createdAt, in: container)
+        expiresAt = try AICheckInTime.decode(.expiresAt, in: container)
+    }
+}
+
+/// 今天的签到状态，`GET /v1/billing/check-in` 的响应。
+nonisolated struct AICheckInStatus: Decodable, Equatable, Sendable {
+    /// 服务端按配置时区算出的日期，`YYYY-MM-DD`。
+    let date: String
+
+    /// 今天是否已签到。
+    let checkedIn: Bool
+
+    /// 今天的签到记录；没签到时为 nil。
+    let checkIn: AICheckInRecord?
+
+    /// 每次签到可得点数的下限。
+    let minPoints: Int
+
+    /// 每次签到可得点数的上限。
+    let maxPoints: Int
+
+    /// 逐字段创建，供测试使用。
+    init(date: String, checkedIn: Bool, checkIn: AICheckInRecord?, minPoints: Int, maxPoints: Int) {
+        self.date = date
+        self.checkedIn = checkedIn
+        self.checkIn = checkIn
+        self.minPoints = minPoints
+        self.maxPoints = maxPoints
+    }
+}
+
+/// 一次签到的结果，`POST /v1/billing/check-in` 的响应。
+nonisolated struct AICheckInResult: Decodable, Equatable, Sendable {
+    /// 服务端按配置时区算出的日期，`YYYY-MM-DD`。
+    let date: String
+
+    /// 获得的点数。
+    let points: Int
+
+    /// 是否抽到了高档点数（庆祝动画更隆重）。
+    let isBonus: Bool
+
+    /// 今天是否早已签过；为 true 时其余字段是当天那次签到的值，没有重复入账。
+    let isDuplicate: Bool
+
+    /// 签到后的当前余额。
+    let balance: Int
+
+    /// 签到时间。
+    let createdAt: Date
+
+    /// 这批点数的过期时刻。
+    let expiresAt: Date
+
+    private enum CodingKeys: String, CodingKey {
+        case date, points, isBonus, isDuplicate, balance, createdAt, expiresAt
+    }
+
+    /// 逐字段创建，供测试使用。
+    init(
+        date: String,
+        points: Int,
+        isBonus: Bool,
+        isDuplicate: Bool,
+        balance: Int,
+        createdAt: Date,
+        expiresAt: Date
+    ) {
+        self.date = date
+        self.points = points
+        self.isBonus = isBonus
+        self.isDuplicate = isDuplicate
+        self.balance = balance
+        self.createdAt = createdAt
+        self.expiresAt = expiresAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        date = try container.decode(String.self, forKey: .date)
+        points = try container.decode(Int.self, forKey: .points)
+        isBonus = try container.decode(Bool.self, forKey: .isBonus)
+        isDuplicate = try container.decode(Bool.self, forKey: .isDuplicate)
+        balance = try container.decode(Int.self, forKey: .balance)
+        createdAt = try AICheckInTime.decode(.createdAt, in: container)
+        expiresAt = try AICheckInTime.decode(.expiresAt, in: container)
+    }
+}
+
+/// 签到模型共用的时间解码。
+private nonisolated enum AICheckInTime {
+    /// 解码并解析 ISO 8601 时间字段；格式不对时抛 `DecodingError.dataCorrupted`。
+    ///
+    /// - Parameters:
+    ///   - key: 字段名。
+    ///   - container: 解码容器。
+    /// - Returns: 解析出的时间。
+    static func decode<Key: CodingKey>(_ key: Key, in container: KeyedDecodingContainer<Key>) throws -> Date {
+        let text = try container.decode(String.self, forKey: key)
         guard let date = AIBillingTimestamp.parse(text) else {
             throw DecodingError.dataCorruptedError(
                 forKey: key,
@@ -411,6 +549,9 @@ extension AICreditEntry {
     /// 新用户赠送的原因标签，与 yado_ai `shared/billing/wallet.ts` 一致。
     static let initialGrantReason = "initial_grant"
 
+    /// 每日签到赠送的原因标签，与 yado_ai 签到发放写入的流水 reason 一致。
+    static let dailyCheckInReason = "daily_check_in"
+
     /// 各产品名称的本地化 key，按 yado_ai `config/billing.ts` 的 `PRODUCT_CODES`；不在这里的产品显示不带产品名的标题。
     static let productNameKeys: [String: String] = [
         "yadoa": "ai.product.yadoa"
@@ -429,7 +570,7 @@ extension AICreditEntry {
 
     /// 明细行图标。
     var symbol: String {
-        Self.symbol(kind: kind, feature: feature)
+        Self.symbol(kind: kind, feature: feature, reason: reason)
     }
 
     /// 明细标题，例如“语音记账”“芽豆资产新用户赠送”。
@@ -469,6 +610,8 @@ extension AICreditEntry {
                 "ai.entry.grant.initial.product"
             } else if reason == initialGrantReason {
                 "ai.entry.grant.initial"
+            } else if reason == dailyCheckInReason {
+                "ai.entry.grant.dailyCheckIn"
             } else {
                 "ai.entry.grant"
             }
@@ -488,12 +631,13 @@ extension AICreditEntry {
     /// - Parameters:
     ///   - kind: 流水类型。
     ///   - feature: 扣点所属的能力。
-    static func symbol(kind: AICreditEntryKind, feature: String?) -> String {
+    ///   - reason: 原因标签；每日签到的赠送用签到图标。
+    static func symbol(kind: AICreditEntryKind, feature: String?, reason: String?) -> String {
         switch kind {
         case .charge:
             feature == voiceSessionFeature ? "mic" : "sparkles"
         case .grant:
-            "gift"
+            reason == dailyCheckInReason ? "calendar.badge.checkmark" : "gift"
         case .refund:
             "arrow.uturn.backward"
         case .adjust:
@@ -553,7 +697,23 @@ extension AICreditLot {
     /// 图标，与生成本批的入账流水一致；没有来源时用托盘。
     var symbol: String {
         guard let kind else { return "tray" }
-        return AICreditEntry.symbol(kind: kind, feature: nil)
+        return AICreditEntry.symbol(kind: kind, feature: nil, reason: reason)
+    }
+
+    /// 是否是每日签到赠送的一批。
+    var isDailyCheckIn: Bool {
+        kind == .grant && reason == AICreditEntry.dailyCheckInReason
+    }
+
+    /// 到期时间文本：签到点数 24 小时后过期，显示到时分，其余只显示日期。
+    ///
+    /// - Parameter locale: 文案使用的语言环境。
+    /// - Returns: 本地化后的到期时间。
+    func expiryText(locale: Locale) -> String {
+        if isDailyCheckIn {
+            return expiresAt.formatted(.dateTime.year().month().day().hour().minute().locale(locale))
+        }
+        return expiresAt.formatted(.dateTime.year().month().day().locale(locale))
     }
 
     /// 本地化后的标题，例如“芽豆资产新用户赠送”“退点”。
