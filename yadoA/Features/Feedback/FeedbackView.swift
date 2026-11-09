@@ -122,6 +122,12 @@ private struct FeedbackChatView: View {
     /// 点了发送失败的消息后，等待选择重发或删除的那一条。
     @State private var failedMessage: FeedbackConversation.OutgoingMessage?
 
+    /// 下一条消息是否附带诊断；默认关闭，发出后自动关回。
+    @State private var attachDiagnostics = false
+
+    /// 本机最近的诊断，进入页面时在后台读取。
+    @State private var availableDiagnostics: [DiagnosticReport] = []
+
     /// 列表底部的锚点，有新消息时滚到这里。
     private static let bottomAnchorID = "feedback-bottom"
 
@@ -149,13 +155,21 @@ private struct FeedbackChatView: View {
             .scrollDismissesKeyboard(.interactively)
             .overlay { stateOverlay }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                FeedbackInputBar(draft: $draft) { send() }
+                FeedbackInputBar(
+                    draft: $draft,
+                    attachDiagnostics: $attachDiagnostics,
+                    hasDiagnostics: !availableDiagnostics.isEmpty
+                ) { send() }
             }
             .onChange(of: conversation.lastItemID) { _, _ in
                 withAnimation {
                     proxy.scrollTo(Self.bottomAnchorID, anchor: .bottom)
                 }
             }
+        }
+        .task {
+            let limit = FeedbackDiagnostic.maxAttachedCount
+            availableDiagnostics = await Task.detached { DiagnosticStore.shared.recent(limit: limit) }.value
         }
         .confirmationDialog(
             text("feedback.message.failed"),
@@ -276,7 +290,9 @@ private struct FeedbackChatView: View {
         guard FeedbackComposer.canSend(text) else { return }
         draft = ""
         let clientInfo = FeedbackClientInfo.current(locale: locale)
-        Task { await conversation.send(text, clientInfo: clientInfo) }
+        let diagnostics = attachDiagnostics ? availableDiagnostics.map(FeedbackDiagnostic.init(report:)) : []
+        attachDiagnostics = false
+        Task { await conversation.send(text, clientInfo: clientInfo, diagnostics: diagnostics) }
     }
 
     /// 加载失败原因对应的提示文案键。
@@ -368,6 +384,12 @@ private struct FeedbackInputBar: View {
     /// 输入框里的文字。
     @Binding var draft: String
 
+    /// 下一条消息是否附带诊断。
+    @Binding var attachDiagnostics: Bool
+
+    /// 本机是否有诊断；没有时不显示开关。
+    let hasDiagnostics: Bool
+
     /// 点发送。
     let onSend: () -> Void
 
@@ -384,6 +406,17 @@ private struct FeedbackInputBar: View {
                 )
                 .font(.caption)
                 .foregroundStyle(Color(.ledgerRed))
+            }
+            if hasDiagnostics {
+                VStack(alignment: .leading, spacing: 2) {
+                    Toggle(text("feedback.diagnostics.attach"), isOn: $attachDiagnostics)
+                        .font(.subheadline)
+                        .accessibilityIdentifier("feedback-attach-diagnostics")
+                    Text(text("feedback.diagnostics.footnote"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             HStack(alignment: .bottom, spacing: 10) {
                 TextField(text("feedback.input.placeholder"), text: $draft, axis: .vertical)

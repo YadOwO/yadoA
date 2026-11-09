@@ -59,6 +59,64 @@ struct FeedbackTests {
         #expect(clientInfo?["locale"] as? String == "zh-Hans")
     }
 
+    /// 测试用的诊断。
+    private static func sampleReport(tree: String = "{\"callStacks\":[]}") -> DiagnosticReport {
+        DiagnosticReport(
+            id: UUID(),
+            kind: .crash,
+            timestamp: Date(timeIntervalSince1970: 1_793_759_520),
+            osVersion: "iOS 27.1",
+            appVersion: "1.0",
+            buildVersion: "12",
+            callStackTree: tree
+        )
+    }
+
+    @Test("不带诊断时请求体没有 diagnostics 键")
+    func omitsDiagnosticsWhenEmpty() throws {
+        let request = FeedbackSendRequest(id: UUID(), content: "你好", clientInfo: Self.clientInfo)
+        let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any]
+        #expect(object?["diagnostics"] == nil)
+    }
+
+    @Test("带诊断时字段正确，时间是以 Z 结尾的 ISO 字符串")
+    func encodesDiagnostics() throws {
+        let diagnostic = FeedbackDiagnostic(report: Self.sampleReport())
+        let request = FeedbackSendRequest(id: UUID(), content: "你好", clientInfo: Self.clientInfo, diagnostics: [diagnostic])
+        let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any]
+        let item = try #require((object?["diagnostics"] as? [[String: Any]])?.first)
+        #expect(item["kind"] as? String == "crash")
+        #expect((item["timestamp"] as? String)?.hasSuffix("Z") == true)
+        #expect(item["osVersion"] as? String == "iOS 27.1")
+        #expect(item["appVersion"] as? String == "1.0")
+        #expect(item["buildVersion"] as? String == "12")
+        #expect(item["callStackTree"] as? String == "{\"callStacks\":[]}")
+        #expect(item["id"] == nil)
+    }
+
+    @Test("调用栈超过 128000 时截断")
+    func truncatesCallStackTree() {
+        let long = String(repeating: "a", count: FeedbackDiagnostic.maxCallStackTreeLength + 10)
+        let diagnostic = FeedbackDiagnostic(report: Self.sampleReport(tree: long))
+        #expect(diagnostic.callStackTree.utf16.count == FeedbackDiagnostic.maxCallStackTreeLength)
+    }
+
+    @Test("发送失败后重发，带的诊断和第一次相同")
+    func retryKeepsDiagnostics() async throws {
+        let api = FakeFeedbackAPI()
+        api.pages[nil] = .success(FeedbackMessagePage(messages: [], nextBefore: nil))
+        let conversation = FeedbackConversation(api: api, userID: "user-1", store: nil)
+        await conversation.refresh()
+        let diagnostics = [FeedbackDiagnostic(report: Self.sampleReport())]
+        api.sendResults = [.failure(.network)]
+        await conversation.send("崩了", clientInfo: Self.clientInfo, diagnostics: diagnostics)
+        let failed = try #require(conversation.outgoing.first)
+        await conversation.retry(failed.id, clientInfo: Self.clientInfo)
+        #expect(api.sentRequests.count == 2)
+        #expect(api.sentRequests[0].diagnostics == diagnostics)
+        #expect(api.sentRequests[1].diagnostics == diagnostics)
+    }
+
     @Test("请求的方法、路径、产品代号、分页参数、请求体与鉴权头")
     func buildsFeedbackRequests() throws {
         let endpoint = try #require(URL(string: "https://example.invalid"))

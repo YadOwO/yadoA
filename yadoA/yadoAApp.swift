@@ -24,6 +24,8 @@ struct yadoAApp: App {
         _authStore = State(initialValue: authStore)
         _aiPoints = State(initialValue: AIPointsStore(authStore: authStore))
         _feedback = State(initialValue: FeedbackStore(authStore: authStore))
+        // Release 同样启用；诊断只存本机，只有用户在意见反馈里勾选后才上传
+        MetricKitCollector.shared.start()
         #if DEBUG
         // yadoA-local / yadoA Scheme 通过启动环境变量指定是否为本地开发包，以及 AI 服务、同步服务和公共服务的本地地址
         AIServiceEnvironment.applyLaunchEnvironment(ProcessInfo.processInfo.environment)

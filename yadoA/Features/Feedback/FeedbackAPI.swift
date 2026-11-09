@@ -111,6 +111,9 @@ final class FeedbackAPI: FeedbackServing {
     /// 单次请求的超时时长；接口只读写数据库。
     static let requestTimeout: TimeInterval = 15
 
+    /// 请求体较大（带诊断）时的超时时间。
+    static let uploadTimeout: TimeInterval = 60
+
     /// 每页消息条数；服务端上限 100。
     static let pageSize = 30
 
@@ -184,7 +187,7 @@ final class FeedbackAPI: FeedbackServing {
         }
         var request = URLRequest(url: url)
         request.httpMethod = route.method
-        request.timeoutInterval = Self.requestTimeout
+        request.timeoutInterval = (body?.count ?? 0) > 64 * 1024 ? Self.uploadTimeout : Self.requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         if let body {

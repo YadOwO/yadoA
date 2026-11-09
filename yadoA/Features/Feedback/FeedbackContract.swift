@@ -94,8 +94,18 @@ nonisolated struct FeedbackSendRequest: Encodable, Equatable {
     /// 发送时的设备信息，方便排查问题。
     let clientInfo: FeedbackClientInfo
 
+    /// 随这条消息附带的诊断；为空时请求体里不出现该字段。
+    let diagnostics: [FeedbackDiagnostic]
+
+    init(id: UUID, content: String, clientInfo: FeedbackClientInfo, diagnostics: [FeedbackDiagnostic] = []) {
+        self.id = id
+        self.content = content
+        self.clientInfo = clientInfo
+        self.diagnostics = diagnostics
+    }
+
     private enum CodingKeys: String, CodingKey {
-        case id, content, clientInfo
+        case id, content, clientInfo, diagnostics
     }
 
     func encode(to encoder: Encoder) throws {
@@ -104,6 +114,80 @@ nonisolated struct FeedbackSendRequest: Encodable, Equatable {
         try container.encode(id.uuidString.lowercased(), forKey: .id)
         try container.encode(content, forKey: .content)
         try container.encode(clientInfo, forKey: .clientInfo)
+        if !diagnostics.isEmpty {
+            try container.encode(diagnostics, forKey: .diagnostics)
+        }
+    }
+}
+
+/// 随反馈上传的一份诊断，字段与服务端 `FeedbackDiagnostic` 一致。
+nonisolated struct FeedbackDiagnostic: Encodable, Equatable {
+    /// 最多附带的份数。
+    static let maxAttachedCount = 5
+
+    /// 调用栈文本的长度上限，按 UTF-16 长度计算。
+    static let maxCallStackTreeLength = 128_000
+
+    /// 诊断类型：crash、hang、diskWrite。
+    let kind: String
+
+    /// 诊断时间。
+    let timestamp: Date
+
+    /// 系统版本。
+    let osVersion: String
+
+    /// App 版本。
+    let appVersion: String
+
+    /// 构建号。
+    let buildVersion: String
+
+    /// 调用栈树 JSON 文本，超长时已截断。
+    let callStackTree: String
+
+    /// 由本地诊断创建；调用栈超长时截断且不切坏代理对，版本字段截到 64 字。
+    init(report: DiagnosticReport) {
+        kind = report.kind.rawValue
+        timestamp = report.timestamp
+        osVersion = DiagnosticReport.normalized(report.osVersion)
+        appVersion = DiagnosticReport.normalized(report.appVersion)
+        buildVersion = DiagnosticReport.normalized(report.buildVersion)
+        callStackTree = Self.truncated(report.callStackTree)
+    }
+
+    private static func truncated(_ text: String) -> String {
+        guard text.utf16.count > maxCallStackTreeLength else { return text }
+        if let cut = String(text.utf16.prefix(maxCallStackTreeLength)) {
+            return cut
+        }
+        // 上限正好落在代理对中间：按字符累计，不超过上限
+        var result = ""
+        var length = 0
+        for character in text {
+            let count = character.utf16.count
+            if length + count > maxCallStackTreeLength { break }
+            result.append(character)
+            length += count
+        }
+        return result
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case kind, timestamp, osVersion, appVersion, buildVersion, callStackTree
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(kind, forKey: .kind)
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        try container.encode(formatter.string(from: timestamp), forKey: .timestamp)
+        try container.encode(osVersion, forKey: .osVersion)
+        try container.encode(appVersion, forKey: .appVersion)
+        try container.encode(buildVersion, forKey: .buildVersion)
+        try container.encode(callStackTree, forKey: .callStackTree)
     }
 }
 

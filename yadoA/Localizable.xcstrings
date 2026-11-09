@@ -91,6 +91,42 @@
         }
       }
     },
+    "feedback.diagnostics.attach" : {
+      "comment" : "反馈页附带诊断开关",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attach recent diagnostics"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "附带最近的诊断信息"
+          }
+        }
+      }
+    },
+    "feedback.diagnostics.footnote" : {
+      "comment" : "附带诊断开关下方的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Includes up to 5 recent crash, hang, or disk-write reports from this device: call stacks, iOS version, and app version. No ledger data. Sent only with this message when turned on."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "包含本机最近最多 5 份崩溃、卡顿或磁盘写入异常报告：调用栈、系统版本和 App 版本，不含任何账本数据。只在打开后随这条反馈发送。"
+          }
+        }
+      }
+    },
     "feedback.title" : {
       "comment" : "「我的」页意见反馈入口与反馈页标题",
       "extractionState" : "manual",
