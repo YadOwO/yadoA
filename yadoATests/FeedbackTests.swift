@@ -359,6 +359,7 @@ struct FeedbackTests {
             id: UUID(),
             content: "还在吗",
             createdAt: start.addingTimeInterval(60 + 301 + 10),
+            diagnostics: [],
             isFailed: false
         )
 
