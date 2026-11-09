@@ -12,7 +12,8 @@ topic: auth-profile
 
 ## 上架前必须完成
 
-- [ ] **App 内注销账号**
+- [x] **App 内注销账号**（2026-11-09 已完成）
+  - 实现：yadoA_be `DELETE /v1/me` 用 Logto Management API 删除用户并清云端同步数据，yado_ai `DELETE /v1/account` 清空点数账本；App 设置页两步确认后依次调用，再按选择保留或清除本机账本并退出登录。
   - App 支持注册，App Store 审核条款 5.1.1(v) 要求 App 内可发起删除账号。
   - Logto Account API 未见用户自助删除接口（未核实），大概率需要后端用 Management API 删除；删除前二次确认，并说明本地账本数据不受影响。
 - [ ] **头像上传改为服务端签发 STS**

@@ -13,6 +13,8 @@ struct SettingsView: View {
     @Environment(AuthStore.self) private var authStore
     /// 云端同步的绑定状态，退出登录时据此决定是否询问保留本机数据；预览中没有注入时为 nil。
     @Environment(SyncLifecycle.self) private var syncLifecycle: SyncLifecycle?
+    /// AI 点数状态，注销时关闭当前账号的“帮助改进 AI”授权；预览中没有注入时为 nil。
+    @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
     @Query private var accounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
 
@@ -44,6 +46,16 @@ struct SettingsView: View {
     @State private var isSignOutFailurePresented = false
     /// 正在退出登录（含退出前的最后一次同步）。
     @State private var isSigningOut = false
+    /// 注销账号第一步：说明会发生什么的警告。
+    @State private var isDeleteAccountWarningPresented = false
+    /// 注销账号第二步：选择本机账本保留还是清除。
+    @State private var isDeleteAccountChoicePresented = false
+    /// 正在注销账号。
+    @State private var isDeletingAccount = false
+    /// 注销没有完成（服务端调用失败），本机数据和登录状态不变，可以重试。
+    @State private var isDeleteAccountFailurePresented = false
+    /// 服务端已注销，但本机数据没清掉。
+    @State private var isDeleteAccountLocalCleanupFailurePresented = false
     /// 正在重看的首次引导，每次打开时新建、从开场重新走；不写入数据，也不触发登录和同步。
     @State private var onboardingReplay: OnboardingStore?
 
@@ -158,6 +170,24 @@ struct SettingsView: View {
                         .labelStyle(ProfileExportLabelStyle(color: .red))
                         .disabled(authStore.isBusy || isSigningOut)
                         .accessibilityIdentifier("profile-sign-out")
+
+                        ProfileSettingsRowDivider()
+
+                        HStack {
+                            Button {
+                                isDeleteAccountWarningPresented = true
+                            } label: {
+                                Label(text("account.delete.action"), systemImage: "person.crop.circle.badge.xmark")
+                            }
+                            .labelStyle(ProfileExportLabelStyle(color: .red))
+                            .disabled(authStore.isBusy || isSigningOut || isDeletingAccount)
+                            .accessibilityIdentifier("settings-delete-account")
+
+                            if isDeletingAccount {
+                                ProgressView()
+                                    .padding(.trailing, 20)
+                            }
+                        }
                     }
                 }
             }
@@ -216,6 +246,41 @@ struct SettingsView: View {
             Text(text("auth.sign_out.choice.message"))
         }
         .alert(text("auth.sign_out.failed"), isPresented: $isSignOutFailurePresented) {
+            Button(text("common.close"), role: .cancel) {}
+        }
+        .alert(text("account.delete.warning.title"), isPresented: $isDeleteAccountWarningPresented) {
+            Button(text("account.delete.warning.continue"), role: .destructive) {
+                isDeleteAccountChoicePresented = true
+            }
+            .accessibilityIdentifier("settings-delete-account-continue")
+
+            Button(text("common.cancel"), role: .cancel) {}
+        } message: {
+            Text(text("account.delete.warning.message"))
+        }
+        .confirmationDialog(
+            text("account.delete.choice.title"),
+            isPresented: $isDeleteAccountChoicePresented,
+            titleVisibility: .visible
+        ) {
+            Button(text("account.delete.choice.keep"), role: .destructive) {
+                Task { await deleteAccount(.keepOnDevice) }
+            }
+            .accessibilityIdentifier("settings-delete-account-keep")
+
+            Button(text("account.delete.choice.erase"), role: .destructive) {
+                Task { await deleteAccount(.eraseFromDevice) }
+            }
+            .accessibilityIdentifier("settings-delete-account-erase")
+
+            Button(text("common.cancel"), role: .cancel) {}
+        } message: {
+            Text(text("account.delete.choice.message"))
+        }
+        .alert(text("account.delete.failed"), isPresented: $isDeleteAccountFailurePresented) {
+            Button(text("common.close"), role: .cancel) {}
+        }
+        .alert(text("account.delete.local_cleanup_failed"), isPresented: $isDeleteAccountLocalCleanupFailurePresented) {
             Button(text("common.close"), role: .cancel) {}
         }
         .alert(text("reminder.denied.title"), isPresented: $isReminderDeniedPresented) {
@@ -376,6 +441,44 @@ struct SettingsView: View {
             UserDefaults.standard.removeObject(forKey: BookkeepingSearchHistory.storageKey)
         }
         await authStore.signOut()
+    }
+
+    /// 注销账号：先让两个服务端删除账号和云端数据，成功后处理本机数据并退出登录。
+    ///
+    /// 服务端调用失败时中止，本机数据和登录状态不变，提示重试；只有“服务端已注销、本机清理失败”
+    /// 仍会退出登录，因为账号已经不存在，并提示用户可以在设置里重置数据。
+    ///
+    /// - Parameter choice: 本机账本保留，或一并清除。
+    private func deleteAccount(_ choice: SyncSignOutChoice) async {
+        guard let syncLifecycle else { return }
+        isDeletingAccount = true
+        defer { isDeletingAccount = false }
+        let api = AccountDeletionAPI(
+            aiAccessToken: { try await authStore.accessTokenForAIService() },
+            syncAccessToken: { try await authStore.accessTokenForSyncService() }
+        )
+        var isLocalCleanupFailed = false
+        do {
+            try await syncLifecycle.deleteAccount(choice) {
+                try await api.deleteAIData()
+                try await api.deleteAccount()
+            }
+        } catch SyncLifecycleError.storage {
+            isLocalCleanupFailed = true
+        } catch {
+            isDeleteAccountFailurePresented = true
+            return
+        }
+        // 必须在 signOut 之前、userID 还在时关闭授权
+        aiPoints?.setTraceConsented(false)
+        if choice == .eraseFromDevice, !isLocalCleanupFailed {
+            DataUndoService(container: modelContext.container).discardSnapshot()
+            UserDefaults.standard.removeObject(forKey: BookkeepingSearchHistory.storageKey)
+        }
+        await authStore.signOut()
+        if isLocalCleanupFailed {
+            isDeleteAccountLocalCleanupFailurePresented = true
+        }
     }
 
     /// 显示当前生效的默认账户，保持与记账入口相同的解析规则。

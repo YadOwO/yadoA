@@ -169,6 +169,35 @@ final class SyncLifecycle {
         }
     }
 
+    /// 注销账号：先让服务端删除账号和云端数据，成功后解除绑定并按选择处理本机数据；调用方随后执行 `AuthStore.signOut()`。
+    ///
+    /// 顺序：暂停同步引擎 → 执行 `deleteRemote` → 解除绑定并保存 → 清台账或清空本机数据。
+    /// 先解除绑定再清空，清空就不会被当成要上传的删除。和 `prepareForSignOut` 不同，这里不先同步一次，
+    /// 因为账号即将删除，上传没有意义。
+    ///
+    /// - Parameters:
+    ///   - choice: 保留在本机（只清台账），或从本机清除。
+    ///   - deleteRemote: 删除服务端账号和数据的动作；抛出的错误原样向上抛，不包装。
+    /// - Throws: `deleteRemote` 的错误（此时什么都不改）；远端已删除但本机处理失败时抛出 `SyncLifecycleError.storage`，
+    ///   此时绑定已经解除。
+    func deleteAccount(
+        _ choice: SyncSignOutChoice,
+        deleteRemote: () async throws -> Void
+    ) async throws {
+        try await withEngineSuspended {
+            try await deleteRemote()
+            var state = loadState()
+            state.unbind()
+            state.save(to: defaults)
+            switch choice {
+            case .keepOnDevice:
+                try storage { try store.clearLedger() }
+            case .eraseFromDevice:
+                try storage { try LocalDataResetService(container: container).eraseAll() }
+            }
+        }
+    }
+
     /// 已开启同步时清空数据。
     ///
     /// - Parameters:
