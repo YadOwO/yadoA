@@ -14509,6 +14509,78 @@
         }
       }
     },
+    "auth.sign_in.agreement" : {
+      "comment" : "登录页最底部的同意说明；两个 Markdown 链接地址不要翻译，可调整语序",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By signing in, you agree to the [Terms of Use](yadoa-legal://terms) and [Privacy Policy](yadoa-legal://privacy)."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录即表示你已阅读并同意[《用户协议》](yadoa-legal://terms)和[《隐私政策》](yadoa-legal://privacy)"
+          }
+        }
+      }
+    },
+    "legal.privacy.title" : {
+      "comment" : "设置页“关于”分组里的隐私政策入口",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy Policy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私政策"
+          }
+        }
+      }
+    },
+    "legal.sharing.title" : {
+      "comment" : "设置页“关于”分组里的第三方信息共享清单入口",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Third-Party Sharing List"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第三方信息共享清单"
+          }
+        }
+      }
+    },
+    "legal.terms.title" : {
+      "comment" : "设置页“关于”分组里的用户协议入口",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terms of Use"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用户协议"
+          }
+        }
+      }
+    },
     "settings.onboarding.replay" : {
       "comment" : "设置页重看首次引导的入口",
       "extractionState" : "manual",

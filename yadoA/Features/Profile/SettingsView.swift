@@ -58,6 +58,8 @@ struct SettingsView: View {
     @State private var isDeleteAccountLocalCleanupFailurePresented = false
     /// 正在重看的首次引导，每次打开时新建、从开场重新走；不写入数据，也不触发登录和同步。
     @State private var onboardingReplay: OnboardingStore?
+    /// 从“关于”分组打开的协议，在 App 内用 Safari 视图显示。
+    @State private var presentedLegalDocument: LegalDocument?
 
     var body: some View {
         ScrollView {
@@ -152,6 +154,17 @@ struct SettingsView: View {
                         ProfileSettingsRow(titleKey: "settings.onboarding.replay", symbol: "leaf")
                     }
                     .accessibilityIdentifier("settings-onboarding-replay")
+
+                    ForEach(LegalDocument.allCases) { document in
+                        ProfileSettingsRowDivider()
+
+                        Button {
+                            presentedLegalDocument = document
+                        } label: {
+                            ProfileSettingsRow(titleKey: document.titleLocalizationKey, symbol: document.systemImage)
+                        }
+                        .accessibilityIdentifier("settings-legal-\(document.rawValue)")
+                    }
                 }
 
                 // 重置会清空本机全部记账数据，单独成卡与常规数据操作拉开距离
@@ -202,6 +215,7 @@ struct SettingsView: View {
         .sheet(isPresented: $isDefaultSelectionPresented) {
             NavigationStack { DefaultAccountSelectionView() }
         }
+        .legalDocumentSheet($presentedLegalDocument)
         // 用 item 呈现：同一次点击里先建状态再置 isPresented 时，封面内容会读到旧的空值而白屏
         .fullScreenCover(item: $onboardingReplay) { replay in
             OnboardingView(store: replay) {

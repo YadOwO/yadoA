@@ -6,6 +6,7 @@ import SwiftUI
 /// 左上角关闭回到原来的页面。版式只留品牌、插画、标语、权益、按钮五样，
 /// 大面积留白，让手绘插画成为视觉中心；权益列表告诉用户登录后能得到什么。第三方按钮由 `AuthSocialProvider.displayed` 决定，
 /// 未接通的方式只作占位，点击提示即将上线；账号密码按钮打开 Logto 托管页，App 不接触用户密码。
+/// 最底部一行小字说明登录即同意《用户协议》和《隐私政策》，点书名在 App 内打开网页。
 struct SignInView: View {
     @Environment(\.locale) private var locale
     @Environment(SignInPresentation.self) private var presentation
@@ -30,6 +31,8 @@ struct SignInView: View {
     @State private var isSucceeded = false
     /// 成功态对勾的书写进度。
     @State private var successTickProgress: CGFloat = 0
+    /// 从底部同意文案里点开的协议。
+    @State private var presentedLegalDocument: LegalDocument?
 
     /// 正在进行的登录方式。
     private enum PendingMethod: Equatable {
@@ -91,6 +94,7 @@ struct SignInView: View {
                     .reveal(hasAppeared, delay: 0, reduceMotion: reduceMotion)
             }
         }
+        .legalDocumentSheet($presentedLegalDocument)
         .appHaptic(.error, trigger: failureCount)
         .appHaptic(.success, trigger: isSucceeded) { _, succeeded in succeeded }
         .onAppear {
@@ -148,11 +152,32 @@ struct SignInView: View {
                 .padding(.top, 18)
                 .padding(.horizontal, 8)
                 .reveal(hasAppeared, delay: 1.0, reduceMotion: reduceMotion)
+
+            agreement
+                .padding(.top, 10)
+                .padding(.horizontal, 8)
+                .reveal(hasAppeared, delay: 1.05, reduceMotion: reduceMotion)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
         .frame(maxWidth: 480)
         .frame(maxWidth: .infinity)
+    }
+
+    /// 页面最底部的同意说明：登录即同意《用户协议》和《隐私政策》，两个书名可点，在 App 内打开对应语言的网页。
+    private var agreement: some View {
+        Text(SignInAgreement.attributedText(locale: locale))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .tint(Color.primary)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .environment(\.openURL, OpenURLAction { url in
+                guard let document = LegalDocument(linkURL: url) else { return .systemAction }
+                presentedLegalDocument = document
+                return .handled
+            })
+            .accessibilityIdentifier("sign-in-agreement")
     }
 
     /// 导航栏标题位的品牌：产品标记加衬线产品名，横向排开，高度不超出导航栏。
@@ -391,6 +416,44 @@ enum SignInBenefit: String, CaseIterable {
         switch self {
         case .voice: .voiceBookkeeping
         case .sync, .account: nil
+        }
+    }
+}
+
+// MARK: - 同意说明
+
+/// 登录页底部同意说明的文案。
+///
+/// 文案键 `auth.sign_in.agreement` 是带 Markdown 链接的整句，链接地址用 `LegalDocument.linkURL`
+/// （如 `yadoa-legal://terms`），翻译时可以自由调整语序；点击由登录页拦下，换成对应语言的网页在 App 内打开。
+enum SignInAgreement {
+    /// 文案键。
+    static let localizationKey = "auth.sign_in.agreement"
+
+    /// 解析成带链接的富文本，链接加下划线以便和正文区分；Markdown 解析失败时退回纯文本。
+    ///
+    /// - Parameter locale: App 当前的语言环境。
+    /// - Returns: 可直接交给 `Text` 显示的富文本。
+    static func attributedText(locale: Locale) -> AttributedString {
+        let source = AccountLocalization.string(localizationKey, locale: locale)
+        guard var text = try? AttributedString(
+            markdown: source,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        ) else {
+            return AttributedString(source)
+        }
+        for run in text.runs where run.link != nil {
+            text[run.range].underlineStyle = .single
+        }
+        return text
+    }
+
+    /// 文案中链接到的文档，按出现顺序排列；测试用来确认每种语言都链到了用户协议和隐私政策。
+    ///
+    /// - Parameter locale: App 当前的语言环境。
+    static func linkedDocuments(locale: Locale) -> [LegalDocument] {
+        attributedText(locale: locale).runs.compactMap { run in
+            run.link.flatMap(LegalDocument.init(linkURL:))
         }
     }
 }
