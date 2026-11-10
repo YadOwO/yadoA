@@ -193,6 +193,8 @@ struct AIChatView: View {
             }
         }
         .voiceInputAlerts(input) { signIn() }
+        // 聊天页是全屏盖住的，根导航的说明弹层盖不上来，由这里弹
+        .aiProcessingConsentSheet(voice, isEnabled: true)
         .alert(text("voice.undo.failed"), isPresented: undoFailureBinding) {
             Button(text("common.close"), role: .cancel) {}
         }

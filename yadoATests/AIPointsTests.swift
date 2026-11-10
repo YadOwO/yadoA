@@ -502,6 +502,48 @@ struct AIPointsTests {
         #expect(!reloaded.isTraceConsented)
     }
 
+    @Test("AI 记账同意：默认未同意，按账号保存，换账号不继承，未登录不生效，可以撤回，和帮助改进 AI 互不影响")
+    func keepsAIProcessingConsentPerAccount() {
+        let defaults = UserDefaults.isolated()
+        var userID: String? = "user-1"
+        let store = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults) { userID }
+        #expect(!store.isAIProcessingConsented)
+
+        store.setAIProcessingConsented(true)
+        #expect(store.isAIProcessingConsented)
+        // 和“帮助改进 AI”互不影响
+        #expect(!store.isTraceConsented)
+
+        userID = "user-2"
+        #expect(!store.isAIProcessingConsented)
+
+        // 另一个账号打开“帮助改进 AI”，不会让它变成已同意
+        store.setTraceConsented(true)
+        #expect(!store.isAIProcessingConsented)
+
+        userID = nil
+        #expect(!store.isAIProcessingConsented)
+        store.setAIProcessingConsented(true)
+
+        userID = "user-2"
+        #expect(!store.isAIProcessingConsented)
+
+        // 新建一个 store 模拟重启，状态还在
+        userID = "user-1"
+        let reloaded = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults) { userID }
+        #expect(reloaded.isAIProcessingConsented)
+        userID = "user-2"
+        #expect(!reloaded.isAIProcessingConsented)
+
+        userID = "user-1"
+        reloaded.setAIProcessingConsented(false)
+        #expect(!reloaded.isAIProcessingConsented)
+        // 撤回不动“帮助改进 AI”：user-1 没打开过
+        #expect(!reloaded.isTraceConsented)
+        let afterWithdraw = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults) { userID }
+        #expect(!afterWithdraw.isAIProcessingConsented)
+    }
+
     @Test("按余额各档位还能说几句：不够一句为 0，余额未知或档位不扣点时不显示")
     func countsTurnsLeftPerTier() async {
         let api = FakeAIBillingAPI()

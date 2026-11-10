@@ -226,19 +226,124 @@ struct BookkeepingQuickEntryTests {
 
         #expect(voice.input.alert == .signInRequired)
         #expect(!voice.isChatPresented)
+        #expect(!voice.isAIConsentPresented)
     }
 
     @Test("已登录点聊天入口打开聊天页")
     func chatOpensWhenSignedIn() {
         let voice = VoiceBookkeepingState()
+        voice.isAIProcessingConsented = { true }
 
         voice.openChat(isSignedIn: true)
 
         #expect(voice.input.alert == nil)
+        #expect(!voice.isAIConsentPresented)
         #expect(voice.isChatPresented)
     }
 
+    // MARK: - AI 记账说明
+
+    @Test("已登录没同意时点聊天入口只弹说明；同意并等弹层关掉后才打开聊天页")
+    func chatWaitsForAIConsent() {
+        let voice = VoiceBookkeepingState()
+
+        voice.openChat(isSignedIn: true)
+
+        #expect(voice.isAIConsentPresented)
+        #expect(!voice.isChatPresented)
+
+        voice.acceptAIConsent()
+        #expect(!voice.isAIConsentPresented)
+        // 弹层完全关掉前不盖全屏页
+        #expect(!voice.isChatPresented)
+
+        voice.finishAIConsent()
+        #expect(voice.isChatPresented)
+    }
+
+    @Test("点暂不使用或滑掉弹层后不打开聊天页，弹层关闭")
+    func declineKeepsChatClosed() {
+        let voice = VoiceBookkeepingState()
+        voice.openChat(isSignedIn: true)
+
+        voice.declineAIConsent()
+        voice.finishAIConsent()
+
+        #expect(!voice.isAIConsentPresented)
+        #expect(!voice.isChatPresented)
+    }
+
+    @Test("已登录没同意时按住麦克风只弹说明，不开始收音；同意后显示一次性提示")
+    func pressWaitsForAIConsent() {
+        let voice = VoiceBookkeepingState()
+        let locale = Locale(identifier: "zh-Hans")
+
+        voice.beginPress(isSignedIn: true, locale: locale)
+
+        #expect(voice.isAIConsentPresented)
+        #expect(!voice.input.isPressing)
+
+        voice.acceptAIConsent()
+        voice.finishAIConsent()
+        #expect(voice.input.transientHint == AccountLocalization.string("ai.consent.granted", locale: locale))
+    }
+
+    @Test("暂不使用后按住说话不显示已同意提示")
+    func declineSkipsGrantedHint() {
+        let voice = VoiceBookkeepingState()
+
+        voice.beginPress(isSignedIn: true, locale: Locale(identifier: "zh-Hans"))
+        voice.declineAIConsent()
+        voice.finishAIConsent()
+
+        #expect(!voice.isAIConsentPresented)
+        #expect(voice.input.transientHint == nil)
+    }
+
+    @Test("未登录按住麦克风不弹 AI 说明，照旧走登录提示")
+    func pressSignedOutSkipsAIConsent() {
+        let voice = VoiceBookkeepingState()
+
+        voice.beginPress(isSignedIn: false, locale: Locale(identifier: "zh-Hans"))
+
+        #expect(!voice.isAIConsentPresented)
+    }
+
+    @Test("没同意时发送只弹说明，不发请求")
+    func sendWaitsForAIConsent() throws {
+        let voice = VoiceBookkeepingState()
+        let api = ConsentFakeVoiceAPI()
+        voice.session = VoiceSession(
+            container: try AccountDataContainer.inMemory().modelContainer,
+            api: api,
+            locale: Locale(identifier: "zh-Hans"),
+            timingStore: VoiceTimingStore(fileURL: nil)
+        )
+
+        voice.send("午饭 30")
+
+        #expect(voice.isAIConsentPresented)
+        #expect(api.requestCount == 0)
+    }
+
     // MARK: - 辅助
+
+    /// 只统计收到几次请求的假接口；没同意时不应有任何请求。
+    @MainActor
+    private final class ConsentFakeVoiceAPI: VoiceSessionTurnSending {
+        /// 收到的请求数。
+        private(set) var requestCount = 0
+
+        func send(
+            _ request: VoiceSessionTurnRequest,
+            turnID: UUID,
+            tier: AIModelTier?,
+            trace: VoiceRequestTrace
+        ) async throws -> VoiceSessionTurnResponse {
+            requestCount += 1
+            throw VoiceSessionAPIError.serviceUnavailable
+        }
+    }
 
     private func makeFlow() -> DiningExpenseEntryFlow {
         DiningExpenseEntryFlow(

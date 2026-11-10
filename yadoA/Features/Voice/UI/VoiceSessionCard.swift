@@ -30,6 +30,9 @@ struct VoiceSessionCard: View {
     /// 打开模型选择，换用扣点更少的档位。
     let onSwitchModelTier: () -> Void
 
+    /// 点选的追问候选项交给语音状态发送，好经过 AI 记账说明的同意检查。
+    let onSelectOption: (VoiceAskOption) -> Void
+
     /// 关闭卡片。
     let onEnd: () -> Void
 
@@ -209,6 +212,7 @@ struct VoiceSessionCard: View {
                         onManualEntry: onManualEntry,
                         onSignIn: onSignIn,
                         onSwitchModelTier: onSwitchModelTier,
+                        onSelectOption: onSelectOption,
                         onCreateAccount: onCreateAccount,
                         onOpenRecurringRules: onOpenRecurringRules
                     )
@@ -263,6 +267,9 @@ private struct VoiceSessionTurnView: View {
     /// 打开模型选择，换用扣点更少的档位。
     let onSwitchModelTier: () -> Void
 
+    /// 点选的追问候选项交给语音状态发送，好经过 AI 记账说明的同意检查。
+    let onSelectOption: (VoiceAskOption) -> Void
+
     /// 这句话因为没有账户没能记上，去新建账户。
     let onCreateAccount: (VoiceSession.Turn) -> Void
 
@@ -304,8 +311,8 @@ private struct VoiceSessionTurnView: View {
             }
             if isLatest, case let .ask(_, options) = turn.outcome, !options.isEmpty {
                 VoiceAskOptionsView(options: options, isEnabled: !session.isProcessing) { option in
-                    // 会话卡片只在一级页面上，点选的回答按快捷语音的模型处理
-                    Task { await session.send(option.label, selectedOption: option, scope: .quickVoice) }
+                    // 会话卡片只在一级页面上，这时语音状态的入口就是快捷语音，点选的回答按快捷语音的模型处理
+                    onSelectOption(option)
                 }
             }
             VoiceTurnActions(

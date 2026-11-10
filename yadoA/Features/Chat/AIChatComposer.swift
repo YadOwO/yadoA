@@ -388,6 +388,8 @@ struct AIChatComposer: View {
     /// 发送文字和图片，清空输入栏；图片存到本机，聊天记录据此显示。
     private func send() {
         guard hasContent, !voice.isProcessing else { return }
+        // 没同意时只弹说明：放在存图片之前，输入栏里的文字和图片保持原样，同意后由用户再点发送
+        guard !voice.presentAIConsentIfNeeded() else { return }
         let uploads: [VoiceImageUpload]
         do {
             // 部分图片保存失败时 saveAll 会删掉已写入的，输入栏保持原样，用户可以直接重发

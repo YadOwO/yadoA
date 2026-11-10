@@ -5,7 +5,7 @@ import UIKit
 /// “我的 › AI 点数”：当前余额，点数明细、模型和隐私设置的入口，以及扣点规则。
 ///
 /// 内容按用途分组：余额卡片下先是点数明细（`AICreditEntriesView`），再是快捷语音的模型（`AIModelTierView`），
-/// 然后是隐私与数据（“帮助改进 AI”的说明较长，单独一页 `AITraceConsentView`；清空本机对话记录就地完成），最后是扣点规则。
+/// 然后是隐私与数据（“AI 记账说明”和“帮助改进 AI”的说明较长，各自单独一页 `AIProcessingConsentView`、`AITraceConsentView`；清空本机对话记录就地完成），最后是扣点规则。
 /// 点数分好几批、到期时间不同时，余额下的到期提示可以点开，进入到期明细（`AIPointLotsView`）。
 /// AI 对话的模型在聊天页的输入栏里单独选，本页不显示；余额是否够用、切换档位的提示都按快捷语音所用的档位算。
 ///
@@ -264,14 +264,27 @@ struct AIPointsView: View {
 
     // MARK: - 隐私与数据
 
-    /// 隐私与数据：“帮助改进 AI”的入口和清空本机对话记录。
+    /// 隐私与数据：“AI 记账说明”和“帮助改进 AI”的入口，以及清空本机对话记录。
     ///
+    /// “AI 记账说明”的说明和撤回开关在单独一页（`AIProcessingConsentView`），这里行尾显示是否已同意。
     /// “帮助改进 AI”默认关闭，开关和上报说明在单独一页（`AITraceConsentView`），这里行尾显示是否开启。
     /// 对话记录只在本机，下方说明不进云同步和备份。
     private var privacySection: some View {
         VStack(alignment: .leading, spacing: 8) {
             ProfileSettingsSection("ai.points.section.privacy") {
                 if let points {
+                    NavigationLink(value: ProfileRoute.aiProcessingConsent) {
+                        ProfileSettingsRow(
+                            titleKey: "ai.consent.title",
+                            symbol: "checkmark.shield",
+                            value: text(points.isAIProcessingConsented ? "ai.processingConsent.on" : "ai.processingConsent.off"),
+                            valueTint: points.isAIProcessingConsented ? Color(.ledgerGreen) : nil
+                        )
+                    }
+                    .accessibilityIdentifier("ai-points-processing-consent")
+
+                    ProfileSettingsRowDivider()
+
                     NavigationLink(value: ProfileRoute.aiTraceConsent) {
                         ProfileSettingsRow(
                             titleKey: "ai.traceConsent.title",

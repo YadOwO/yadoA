@@ -10,6 +10,9 @@ import Observation
 /// 余额记着所属账号；刷新和语音回报都核对账号，换账号或退出登录后不会把旧账号的余额记到当前账号上。
 /// 每日签到的状态也在这里：进入“我的”时刷新，签到成功后直接用服务端返回的余额和批次更新，不再多发请求。
 /// 余额写入都编号：刷新在发起时取号，语音回报在响应回来时取号，晚到的旧刷新结果不再覆盖更新的余额。
+///
+/// “AI 记账说明”的同意状态也按账号保存在本机（见 `isAIProcessingConsented`），没同意的账号不能把内容发给 AI；
+/// 它与“帮助改进 AI”互不影响，换账号和退出登录时都保留。
 @Observable
 final class AIPointsStore {
     /// 进行中的一次刷新及其所属账号。
@@ -35,6 +38,9 @@ final class AIPointsStore {
 
     /// 在本机授权过“帮助改进 AI”的账号。按账号保存：同一台设备换账号时，新账号不能继承别人的授权。
     private var traceConsentedUserIDs: Set<String>
+
+    /// 在本机同意过“AI 记账说明”的账号。按账号保存：同一台设备换账号时，新账号要重新同意。
+    private var aiProcessingConsentedUserIDs: Set<String>
 
     /// 今天的签到状态；未登录、还没拿到或拿失败时为 nil。
     private(set) var checkInStatus: AICheckInStatus?
@@ -80,6 +86,7 @@ final class AIPointsStore {
             result[scope] = defaults.string(forKey: scope.storageKey).flatMap(AIModelTier.init(rawValue:))
         }
         traceConsentedUserIDs = Set(defaults.stringArray(forKey: Self.traceConsentStorageKey) ?? [])
+        aiProcessingConsentedUserIDs = Set(defaults.stringArray(forKey: Self.aiProcessingConsentStorageKey) ?? [])
     }
 
     /// 用登录状态创建：凭证取自 AI 服务的 access token，账号取 Logto 用户 ID。
@@ -158,6 +165,28 @@ final class AIPointsStore {
             traceConsentedUserIDs.remove(userID)
         }
         defaults.set(traceConsentedUserIDs.sorted(), forKey: Self.traceConsentStorageKey)
+    }
+
+    /// 保存已同意“AI 记账说明”的账号的本机偏好键。
+    private static let aiProcessingConsentStorageKey = "ai.processingConsentUserIDs"
+
+    /// 当前账号是否同意了“AI 记账说明”；未登录时为 false。
+    var isAIProcessingConsented: Bool {
+        guard let userID = currentUserID() else { return false }
+        return aiProcessingConsentedUserIDs.contains(userID)
+    }
+
+    /// 同意或撤回当前账号的“AI 记账说明”，从下一次使用 AI 开始生效；未登录时不做任何事。
+    ///
+    /// - Parameter isConsented: 用户是否同意。
+    func setAIProcessingConsented(_ isConsented: Bool) {
+        guard let userID = currentUserID() else { return }
+        if isConsented {
+            aiProcessingConsentedUserIDs.insert(userID)
+        } else {
+            aiProcessingConsentedUserIDs.remove(userID)
+        }
+        defaults.set(aiProcessingConsentedUserIDs.sorted(), forKey: Self.aiProcessingConsentStorageKey)
     }
 
     /// 余额是否已经不够这个入口说一句；还不知道每轮点数时按 1 点判断，余额未知时不算用完。

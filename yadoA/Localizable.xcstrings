@@ -16670,6 +16670,330 @@
         }
       }
     },
+    "ai.consent.title" : {
+      "comment" : "“AI 记账说明”页和弹层的标题；AI 点数页隐私分组里该入口的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About AI Bookkeeping"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 记账说明"
+          }
+        }
+      }
+    },
+    "ai.consent.intro" : {
+      "comment" : "“AI 记账说明”弹层的引言",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Before you use AI bookkeeping, here is what gets sent and where it goes."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 AI 记账前，请先了解哪些内容会发出去。"
+          }
+        }
+      }
+    },
+    "ai.consent.data.title" : {
+      "comment" : "“AI 记账说明”第一段小标题：发送哪些内容",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What Gets Sent"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "会发送哪些内容"
+          }
+        }
+      }
+    },
+    "ai.consent.data.body" : {
+      "comment" : "“AI 记账说明”第一段正文：发送的内容",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The text from what you say, anything you type, and any images you send, plus the account names, categories, and related transactions that help AI pick the right account and category."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你说的话转成的文字、打的字、发的图片，以及为了让 AI 选对账户和分类而附带的账户名、分类和相关收支明细。"
+          }
+        }
+      }
+    },
+    "ai.consent.recipient.title" : {
+      "comment" : "“AI 记账说明”第二段小标题：发给谁",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Who Receives It"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发给谁"
+          }
+        }
+      }
+    },
+    "ai.consent.recipient.body" : {
+      "comment" : "“AI 记账说明”第二段正文：接收方，不写具体供应商",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This content goes to the Yado Asset servers first, which then pass it to a third-party model provider for processing. Your account identifier is not sent to the model provider."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些内容先发到芽豆的服务器，再由服务器转给第三方模型供应商处理。不会把你的账号标识发给模型供应商。"
+          }
+        }
+      }
+    },
+    "ai.consent.speech.title" : {
+      "comment" : "“AI 记账说明”第三段小标题：语音",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voice"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语音"
+          }
+        }
+      }
+    },
+    "ai.consent.speech.body" : {
+      "comment" : "“AI 记账说明”第三段正文：语音转文字和录音去向",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your iPhone converts speech to text. The recording itself is never sent to Yado Asset or the model provider."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语音由 iPhone 系统转成文字，录音本身不会发给芽豆或模型供应商。"
+          }
+        }
+      }
+    },
+    "ai.consent.purpose.title" : {
+      "comment" : "“AI 记账说明”第四段小标题：用途和保存时间",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purpose and Retention"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用途和保存时间"
+          }
+        }
+      }
+    },
+    "ai.consent.purpose.body" : {
+      "comment" : "“AI 记账说明”第四段正文：用途、服务端和本机保存时间，与隐私政策一致",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This content is used only to complete this one bookkeeping request or lookup. After processing, the Yado Asset servers do not keep your text, images, or AI replies; only the points deduction record is kept. Your chat history stays on this device and is deleted automatically after 90 days. If you turn on “Help Improve AI”, data is kept as described for that switch."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些内容只用于完成这一次记账或查询。芽豆的服务器处理完不保存你的文字、图片和 AI 的回复，只保存扣点记录；对话记录只保存在本机，90 天后自动删除。打开“帮助改进 AI”时另按该开关的说明保存。"
+          }
+        }
+      }
+    },
+    "ai.consent.footnote" : {
+      "comment" : "“AI 记账说明”弹层的脚注",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can review or withdraw this anytime in Profile › AI Points. Not agreeing does not affect manual bookkeeping or other features."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可以随时在“我的 › AI 点数”里查看或撤回。不同意不影响手动记账等其他功能。"
+          }
+        }
+      }
+    },
+    "ai.consent.agree" : {
+      "comment" : "“AI 记账说明”弹层的同意按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agree and Continue"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同意并继续"
+          }
+        }
+      }
+    },
+    "ai.consent.decline" : {
+      "comment" : "“AI 记账说明”弹层的不同意按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂不使用"
+          }
+        }
+      }
+    },
+    "ai.consent.granted" : {
+      "comment" : "同意“AI 记账说明”后在按住说话处显示的一次性提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All set. Hold the mic to speak."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已同意，按住麦克风说话。"
+          }
+        }
+      }
+    },
+    "ai.processingConsent.toggle" : {
+      "comment" : "“AI 记账说明”页的开关标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow Sending to AI"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许发送给 AI 处理"
+          }
+        }
+      }
+    },
+    "ai.processingConsent.on" : {
+      "comment" : "AI 点数页“AI 记账说明”那一行：已同意",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agreed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已同意"
+          }
+        }
+      }
+    },
+    "ai.processingConsent.off" : {
+      "comment" : "AI 点数页“AI 记账说明”那一行：未同意",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not agreed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未同意"
+          }
+        }
+      }
+    },
+    "ai.processingConsent.footnote" : {
+      "comment" : "“AI 记账说明”页开关下的脚注",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turning this off withdraws your consent, and you will be asked again the next time you use AI bookkeeping. Content already sent is not affected."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭即撤回同意，之后再使用 AI 记账时会重新询问；已经发出的内容不受影响。"
+          }
+        }
+      }
+    },
     "ai.traceConsent.on" : {
       "comment" : "AI 点数页“帮助改进 AI”那一行：已开启",
       "extractionState" : "manual",

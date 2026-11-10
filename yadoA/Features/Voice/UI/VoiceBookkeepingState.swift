@@ -46,6 +46,18 @@ final class VoiceBookkeepingState {
     /// 是否打开聊天页；由根导航全屏展示，关闭后回到原来的一级页面。
     var isChatPresented = false
 
+    /// 当前账号是否已同意“AI 记账说明”；由根导航注入真实判断，默认按未同意处理，保守拦截。
+    var isAIProcessingConsented: () -> Bool = { false }
+
+    /// 是否正在弹出“AI 记账说明”；由根导航和聊天页的弹层修饰符展示。
+    var isAIConsentPresented = false
+
+    /// 用户同意后要接着做的事；弹层完全关掉后才执行。
+    private var aiConsentContinuation: VoiceAIConsentContinuation?
+
+    /// 用户是否点了“同意并继续”；向下滑关掉弹层等同于“暂不使用”，此时为 false。
+    private var didAcceptAIConsent = false
+
     /// 现在发出的话算哪个入口：聊天页全屏盖住了一级页面，打开时发出的每一句（说话、打字、点选、重发、
     /// 建好账户后接着处理）都用 AI 对话的模型，否则用快捷语音的模型。
     var modelScope: AIModelScope {
@@ -57,12 +69,59 @@ final class VoiceBookkeepingState {
         session?.isProcessing == true
     }
 
-    /// 按下麦克风：未登录时松手后提示登录，已登录时开始收音。
+    /// 没同意“AI 记账说明”时先弹出说明，所有发往 AI 的入口共用这一道检查。
+    ///
+    /// - Parameter continuation: 用户同意后，弹层完全关掉再接着做的事；没有要接着做的事时为 nil。
+    /// - Returns: 已同意时为 false，调用方照常继续；没同意时弹出说明并返回 true，调用方应当直接返回。
+    @discardableResult
+    func presentAIConsentIfNeeded(then continuation: VoiceAIConsentContinuation? = nil) -> Bool {
+        guard !isAIProcessingConsented() else { return false }
+        input.transientHint = nil
+        aiConsentContinuation = continuation
+        didAcceptAIConsent = false
+        isAIConsentPresented = true
+        return true
+    }
+
+    /// 用户点了“同意并继续”：记下同意并关掉弹层，接着做的事等弹层完全关掉后在 `finishAIConsent()` 里执行。
+    ///
+    /// 同意状态本身由弹层写入 `AIPointsStore`。
+    func acceptAIConsent() {
+        didAcceptAIConsent = true
+        isAIConsentPresented = false
+    }
+
+    /// 用户点了“暂不使用”，或向下滑关掉了弹层：只关掉弹层，不发请求，也不接着做任何事。
+    func declineAIConsent() {
+        isAIConsentPresented = false
+    }
+
+    /// 弹层完全关掉后调用（弹层的 `onDismiss`）：同意过才执行接着要做的事，然后清空记录。
+    ///
+    /// 不在点按钮时直接打开聊天页，因为关弹层的同时盖上全屏页会失败。
+    func finishAIConsent() {
+        if didAcceptAIConsent, let continuation = aiConsentContinuation {
+            switch continuation {
+            case .openChat:
+                isChatPresented = true
+            case .hint(let text):
+                input.transientHint = text
+            }
+        }
+        aiConsentContinuation = nil
+        didAcceptAIConsent = false
+    }
+
+    /// 按下麦克风：未登录时松手后提示登录，已登录没同意时弹出说明，都不开始收音；已同意时开始收音。
     ///
     /// - Parameters:
     ///   - isSignedIn: 当前是否已登录。
     ///   - locale: 识别使用的语言。
     func beginPress(isSignedIn: Bool, locale: Locale) {
+        if isSignedIn,
+           presentAIConsentIfNeeded(then: .hint(AccountLocalization.string("ai.consent.granted", locale: locale))) {
+            return
+        }
         input.pressBegan(
             isSignedIn: isSignedIn,
             locale: locale,
@@ -76,6 +135,10 @@ final class VoiceBookkeepingState {
     ///   - isSignedIn: 当前是否已登录。
     ///   - locale: 识别使用的语言。
     func toggleRecording(isSignedIn: Bool, locale: Locale) {
+        if isSignedIn,
+           presentAIConsentIfNeeded(then: .hint(AccountLocalization.string("ai.consent.granted", locale: locale))) {
+            return
+        }
         input.toggleRecording(
             isSignedIn: isSignedIn,
             locale: locale,
@@ -93,6 +156,7 @@ final class VoiceBookkeepingState {
             input.alert = .signInRequired
             return
         }
+        guard !presentAIConsentIfNeeded(then: .openChat) else { return }
         input.transientHint = nil
         isChatPresented = true
     }
@@ -105,6 +169,7 @@ final class VoiceBookkeepingState {
     ///   - images: 随这句话发送的图片。
     func send(_ text: String, option: VoiceAskOption? = nil, images: [VoiceImageUpload] = []) {
         guard let session else { return }
+        guard !presentAIConsentIfNeeded() else { return }
         // 说话发出的一句带上识别收尾耗时；点选候选项没有识别
         let speechFinalizeDuration = option == nil ? input.takeSpeechFinalizeDuration() : nil
         let scope = modelScope
@@ -143,6 +208,15 @@ final class VoiceBookkeepingState {
         input.cancel()
         session?.end()
     }
+}
+
+/// 用户同意“AI 记账说明”后要接着做的事。
+enum VoiceAIConsentContinuation: Equatable {
+    /// 接着打开聊天页。
+    case openChat
+
+    /// 接着显示一次性提示，例如“已同意，按住麦克风说话”。
+    case hint(String)
 }
 
 /// 麦克风放在哪里。

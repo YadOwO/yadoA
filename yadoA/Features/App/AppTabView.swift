@@ -132,6 +132,9 @@ enum ProfileRoute: Hashable {
     /// “帮助改进 AI”：从 AI 点数页进入，开关和上报说明在同一页。
     case aiTraceConsent
 
+    /// AI 记账说明：从 AI 点数页进入，查看发给 AI 的内容、撤回或重新同意。
+    case aiProcessingConsent
+
     /// 设置页面。
     case settings
 
@@ -163,6 +166,8 @@ enum ProfileRoute: Hashable {
             AIModelTierView(scope: .quickVoice)
         case .aiTraceConsent:
             AITraceConsentView()
+        case .aiProcessingConsent:
+            AIProcessingConsentView()
         case .settings:
             SettingsView()
         case .feedback:

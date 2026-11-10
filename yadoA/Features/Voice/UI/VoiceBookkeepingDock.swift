@@ -42,6 +42,7 @@ struct VoiceBookkeepingDock: View {
                     onManualEntry: { voice.manualEntryNote = VoiceManualEntryNote(text: $0) },
                     onSignIn: { signInPresentation.present(reason: .voiceBookkeeping) },
                     onSwitchModelTier: { voice.isModelTierPresented = true },
+                    onSelectOption: { voice.send($0.label, option: $0) },
                     onEnd: { voice.closeCard() },
                     onOpenChat: { voice.openChat(isSignedIn: authStore.isAuthenticated) },
                     onCreateAccount: { voice.accountCreationTurn = $0 },
@@ -231,6 +232,8 @@ private struct VoiceBookkeepingHost: ViewModifier {
     func body(content: Content) -> some View {
         content
             .task {
+                // 同意状态在 AI 点数里；放在创建会话之前，重复进入时也保证注入
+                voice.isAIProcessingConsented = { [aiPoints] in aiPoints?.isAIProcessingConsented ?? false }
                 guard voice.session == nil else { return }
                 // 启动时清理一次；放在创建会话之前，这时还没有新一轮的图片，不会误删
                 let history = AIChatHistoryStore(container: modelContext.container)
@@ -253,6 +256,10 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 if AIChatUITestFixture.isEnabled {
                     voice.isChatPresented = true
                 }
+                // UI 自动化没有真实账号，从入口走不到说明弹层；夹具启用时直接弹出，不发请求
+                if AIProcessingConsentUITestFixture.isEnabled {
+                    voice.isAIConsentPresented = true
+                }
                 #endif
             }
             // 账本被替换、记录被清空时，当前对话段不能再引用之前的内容；聊天页重新读取记录
@@ -266,6 +273,8 @@ private struct VoiceBookkeepingHost: ViewModifier {
             .onChange(of: authStore.userID) { _, _ in
                 voice.endSession()
                 voice.isChatPresented = false
+                // 换账号要重新同意：弹层还开着就关掉，不接着执行
+                voice.declineAIConsent()
             }
             .onChange(of: locale) { _, newValue in
                 voice.session?.locale = newValue
@@ -376,6 +385,8 @@ private struct VoiceBookkeepingHost: ViewModifier {
             .voiceInputAlerts(voice.input, isEnabled: !voice.isChatPresented) {
                 signInPresentation.present(reason: .voiceBookkeeping)
             }
+            // 同上：聊天页盖在上面时由聊天页弹说明
+            .aiProcessingConsentSheet(voice, isEnabled: !voice.isChatPresented)
             .alert(text("voice.undo.failed"), isPresented: undoFailureBinding) {
                 Button(text("common.close"), role: .cancel) {}
             }
