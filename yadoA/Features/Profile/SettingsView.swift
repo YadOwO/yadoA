@@ -181,7 +181,7 @@ struct SettingsView: View {
                             Label(text("auth.sign_out.action"), systemImage: "rectangle.portrait.and.arrow.right")
                         }
                         .labelStyle(ProfileExportLabelStyle(color: .red))
-                        .disabled(authStore.isBusy || isSigningOut)
+                        .disabled(authStore.isBusy || isSigningOut || isDeletingAccount)
                         .accessibilityIdentifier("profile-sign-out")
 
                         ProfileSettingsRowDivider()
@@ -428,6 +428,7 @@ struct SettingsView: View {
 
     /// 点击退出登录：本机数据已同步到当前账号时让用户选择保留还是清除，否则只做二次确认。
     private func beginSignOut() {
+        guard !isDeletingAccount else { return }
         syncLifecycle?.refreshState()
         if let boundUserID = syncLifecycle?.state.boundUserID, boundUserID == authStore.userID {
             isSignOutChoicePresented = true
