@@ -12567,13 +12567,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete Account"
+            "value" : "Delete Yado Account"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "注销账号"
+            "value" : "注销芽豆账号"
           }
         }
       }
@@ -12584,13 +12584,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete your account?"
+            "value" : "Delete your Yado account?"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "注销账号？"
+            "value" : "注销芽豆账号？"
           }
         }
       }
@@ -12601,13 +12601,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This can't be undone. Your account will be permanently deleted and you won't be able to sign in again. Ledger data synced to the cloud will be permanently deleted. Any remaining AI points are forfeited immediately and can't be restored or reversed."
+            "value" : "All Yado apps share this one Yado account, so deleting it affects every Yado app and can't be undone. The account will be permanently deleted, and you won't be able to sign in with it in any Yado app. Data synced to the cloud from every Yado app will be permanently deleted. Any remaining AI points are forfeited immediately and can't be restored or reversed."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "注销后无法撤销：账号会被永久删除且无法再登录；云端同步的账本数据会被永久删除；剩余的 AI 点数立即作废，不能恢复也不能撤回。"
+            "value" : "芽豆系列的所有 App 共用这一个芽豆账号，注销会影响全部芽豆 App，且无法撤销：账号会被永久删除，在所有芽豆 App 里都无法再用它登录；各芽豆 App 同步到云端的数据都会被永久删除；剩余的 AI 点数立即作废，不能恢复也不能撤回。"
           }
         }
       }
@@ -12652,13 +12652,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your account and cloud data will be deleted. You can keep the ledger on this device and keep using it (it will no longer sync), or erase it too."
+            "value" : "Your Yado account and the cloud data of every Yado app will be deleted. You can keep the ledger on this device and keep using it (it will no longer sync), or erase it too."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "账号和云端数据都会删除。本机账本可以保留在这台设备上继续使用（不再同步），也可以一并清除。"
+            "value" : "芽豆账号和所有芽豆 App 的云端数据都会删除。本机账本可以保留在这台设备上继续使用（不再同步），也可以一并清除。"
           }
         }
       }
@@ -12720,13 +12720,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your account was deleted, but data on this device couldn't be erased. You can reset it in Settings."
+            "value" : "Your Yado account was deleted, but data on this device couldn't be erased. You can reset it in Settings."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "账号已注销，但本机数据没能清除，可以在设置里重置数据。"
+            "value" : "芽豆账号已注销，但本机数据没能清除，可以在设置里重置数据。"
           }
         }
       }

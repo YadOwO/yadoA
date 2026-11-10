@@ -46,7 +46,7 @@ struct SettingsView: View {
     @State private var isSignOutFailurePresented = false
     /// 正在退出登录（含退出前的最后一次同步）。
     @State private var isSigningOut = false
-    /// 注销账号第一步：说明会发生什么的警告。
+    /// 注销账号第一步：提醒芽豆系列所有 App 共用这一个芽豆账号、注销会影响全部 App，并说明会发生什么。
     @State private var isDeleteAccountWarningPresented = false
     /// 注销账号第二步：选择本机账本保留还是清除。
     @State private var isDeleteAccountChoicePresented = false
@@ -458,6 +458,9 @@ struct SettingsView: View {
     }
 
     /// 注销账号：先让两个服务端删除账号和云端数据，成功后处理本机数据并退出登录。
+    ///
+    /// 删除的是芽豆系列所有 App 共用的芽豆账号（Logto 用户），注销后其他芽豆 App 也无法再用它登录，
+    /// 所以第一步警告必须讲明影响全部 App。
     ///
     /// 服务端调用失败时中止，本机数据和登录状态不变，提示重试；只有“服务端已注销、本机清理失败”
     /// 仍会退出登录，因为账号已经不存在，并提示用户可以在设置里重置数据。
