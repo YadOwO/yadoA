@@ -12703,13 +12703,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't delete your account. Check your connection and try again."
+            "value" : "Your account deletion didn't finish. Some data may already be deleted, and AI features may be unavailable for now. Please try again later to finish."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "注销没有完成，请检查网络后重试"
+            "value" : "注销没有完成，部分数据可能已经删除，AI 功能可能暂时无法使用。请稍后重试，完成注销。"
           }
         }
       }
