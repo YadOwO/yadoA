@@ -14,7 +14,7 @@
 
 ## 环境与构建配置
 
-- 环境只有两套：dev（Mac mini 上的整套服务，独立的 Logto、数据库和各后端，经 Tailscale 访问）和线上。由构建配置在编译时决定，见 `Features/Auth/AppEnvironment.swift`。
+- 环境只有两套：dev（Mac mini 上的整套服务，独立的 Logto、数据库和各后端，经 `dev-*.yado1225.top` 这组公网域名访问）和线上。由构建配置在编译时决定，见 `Features/Auth/AppEnvironment.swift`。
 
   | 配置 | 环境 | Bundle ID | Scheme | 用途 |
   | --- | --- | --- | --- | --- |

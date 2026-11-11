@@ -31,15 +31,15 @@ nonisolated enum AuthConfig {
 
     // 两套取值对模块内可见（而非 private），测试可以同时断言两套环境；业务代码只读下面的当前值。
 
-    /// dev 环境：Mac mini 上的整套服务，经 Tailscale 提供 HTTPS，一个主机名、各服务按端口区分。
-    /// 设备要连上 Tailscale 并打开 Tailscale DNS 才能访问。
+    /// dev 环境：Mac mini 上的整套服务，对外是公网域名（`dev-` 开头），由云服务器的 nginx 转发到 mini。
+    /// 设备不需要装 Tailscale，能上网就能访问。
     static let dev = Values(
-        endpoint: "https://yados-mac-mini.taild535e6.ts.net:3001",
+        endpoint: "https://dev-accounts.yado1225.top",
         appId: "7snnjg90shlsuamug4zez",
         redirectUri: "com.yado.yadoa.dev://callback",
-        aiServiceEndpoint: "https://yados-mac-mini.taild535e6.ts.net:7790",
-        syncServiceEndpoint: "https://yados-mac-mini.taild535e6.ts.net:7789",
-        hubServiceEndpoint: "https://yados-mac-mini.taild535e6.ts.net:7791"
+        aiServiceEndpoint: "https://dev-ai-api.yado1225.top",
+        syncServiceEndpoint: "https://dev-yadoa-api.yado1225.top",
+        hubServiceEndpoint: "https://dev-hub-api.yado1225.top"
     )
 
     /// 线上环境。
