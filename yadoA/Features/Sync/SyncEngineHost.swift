@@ -51,7 +51,7 @@ private struct SyncEngineHostModifier: ViewModifier {
                 self.engine = engine
                 self.lifecycle = lifecycle
                 do {
-                    // 本地开发包在线上与本地服务之间切换后，旧绑定和进度对新服务无效，先解除绑定
+                    // 同步服务地址变了时，旧绑定和进度对新服务无效，先解除绑定
                     try lifecycle.resetIfEndpointChanged(to: endpoint)
                 } catch {
                     // 台账没清掉时不能按旧进度请求新服务，本次启动不同步
