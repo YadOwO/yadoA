@@ -18,13 +18,13 @@
 
   | 配置 | 环境 | Bundle ID | Scheme | 用途 |
   | --- | --- | --- | --- | --- |
-  | Debug | dev | `com.yado.yadoA.dev` | `yadoA`、`yadoA-local` | 日常开发、测试 |
+  | Debug | dev | `com.yado.yadoA.dev` | `yadoA` | 日常开发、测试 |
   | DebugProd | 线上 | `com.yado.yadoA` | `yadoA-prod` | 断点排查线上问题 |
   | Release | 线上 | `com.yado.yadoA` | 各 Scheme 的 Archive | 出包 |
 
 - 登录、各后端地址、本机数据整套跟着环境走：dev 包和线上包是两个 App，数据各一份，不要做"同一个包里切环境"。
 - 随环境变化的值只放在 `AuthConfig` 的 `dev` / `prod` 两套取值里，业务代码读 `AuthConfig.xxx`，不要在别处写死地址或自己按环境分支。
-- `yadoA-local` 是 dev 包改连开发机本机的后端（地址在 Scheme 的启动环境变量里），线上包不能改连本机。
+- 开发机上不跑后端：dev 的服务都在 Mac mini 上，App 里没有"改连本机服务"的开关，不要再加。
 - 新增构建配置必须带 `ENV_DEV` 或 `ENV_PROD` 标志，否则编译失败。
 
 ## 系统版本兼容

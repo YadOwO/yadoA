@@ -1,17 +1,11 @@
 #if DEBUG
 import SwiftUI
 
-/// 「我的 → 开发 → AI 服务」（开发入口在头像右上角）：dev 环境的包可以选择连当前环境部署的 yado_ai 还是开发机本机的，
-/// 填写本机地址并测试连接；线上包（DebugProd）只显示当前地址和连接测试。只在 DEBUG 包存在。
+/// 「我的 → 开发 → AI 服务」（开发入口在头像右上角）：显示当前环境的 yado_ai 地址并测试连接。只在 DEBUG 包存在。
+///
+/// 连哪一套由构建配置决定（见 `AppEnvironment`），这里不能切换。
 struct AIServiceSettingsView: View {
     @Environment(\.locale) private var locale
-
-    /// 当前选择，与 `AIServiceEnvironment.current` 共用存储。
-    @AppStorage(AIServiceEnvironment.storageKey) private var environment: AIServiceEnvironment = .remote
-
-    /// 本地服务地址。
-    @AppStorage(AIServiceEnvironment.localEndpointStorageKey)
-    private var localEndpoint = AIServiceEnvironment.defaultLocalEndpoint
 
     /// 连接测试的状态。
     private enum TestState: Equatable {
@@ -25,37 +19,8 @@ struct AIServiceSettingsView: View {
 
     var body: some View {
         Form {
-            // 只有 dev 环境可以改连本机，见 `AIServiceEnvironment`
-            if AppEnvironment.current == .dev {
-                Section {
-                    Picker(text("debug.aiService.title"), selection: $environment) {
-                        ForEach(AIServiceEnvironment.allCases) { option in
-                            Text(text(option.titleLocalizationKey)).tag(option)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .accessibilityIdentifier("debug-ai-service-environment")
-
-                    if environment == .local {
-                        TextField(text("debug.aiService.localEndpoint"), text: $localEndpoint)
-                            .keyboardType(.URL)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .font(.body.monospaced())
-                            .accessibilityIdentifier("debug-ai-service-local-endpoint")
-                        if AIServiceEnvironment.localEndpoint(from: localEndpoint) == nil {
-                            Text(text("debug.aiService.invalidEndpoint"))
-                                .font(.footnote)
-                                .foregroundStyle(Color(.ledgerRed))
-                        }
-                    }
-                } footer: {
-                    Text(text("debug.aiService.footer"))
-                }
-            }
-
             Section {
-                LabeledContent(text("debug.aiService.current"), value: AIServiceEnvironment.currentEndpoint.absoluteString)
+                LabeledContent(text("debug.aiService.current"), value: AuthConfig.aiServiceURL.absoluteString)
                     .font(.footnote.monospaced())
                 Button(text("debug.aiService.test")) {
                     Task { await testConnection() }
@@ -76,14 +41,12 @@ struct AIServiceSettingsView: View {
         .navigationTitle(text("debug.aiService.title"))
         .navigationBarTitleDisplayMode(.inline)
         .paperPage()
-        .onChange(of: environment) { _, _ in testState = .idle }
-        .onChange(of: localEndpoint) { _, _ in testState = .idle }
     }
 
     /// 请求当前地址的 `/health`，显示耗时与模型是否已配置。
     private func testConnection() async {
         testState = .testing
-        let url = AIServiceEnvironment.currentEndpoint.appending(path: "health")
+        let url = AuthConfig.aiServiceURL.appending(path: "health")
         var request = URLRequest(url: url)
         request.timeoutInterval = 5
         let startedAt = VoiceTimingClock.now

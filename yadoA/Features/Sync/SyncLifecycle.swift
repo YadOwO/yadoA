@@ -289,7 +289,7 @@ final class SyncLifecycle {
     @discardableResult
     func resetIfEndpointChanged(to endpoint: URL) throws -> Bool {
         var state = loadState()
-        let previous = state.serverEndpoint ?? SyncAPI.defaultEndpoint.absoluteString
+        let previous = state.serverEndpoint ?? AuthConfig.syncServiceURL.absoluteString
         guard previous != endpoint.absoluteString else {
             if state.serverEndpoint == nil {
                 state.serverEndpoint = endpoint.absoluteString

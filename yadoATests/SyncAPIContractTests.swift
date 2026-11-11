@@ -241,7 +241,7 @@ struct SyncAPIContractTests {
     func syncResourceMatchesBackendAudience() {
         #expect(AuthConfig.syncServiceResource == "https://api.yado1225.top/yadoa")
         #expect(AuthConfig.prod.syncServiceEndpoint == "https://yadoa-api.yado1225.top")
-        #expect(SyncAPI.defaultEndpoint.absoluteString == AuthConfig.syncServiceEndpoint)
+        #expect(AuthConfig.syncServiceURL.absoluteString == AuthConfig.syncServiceEndpoint)
     }
 
     private func jsonObject(_ data: Data) throws -> [String: Any] {

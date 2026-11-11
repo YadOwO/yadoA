@@ -249,21 +249,21 @@ struct SyncLifecycleTests {
             let lifecycle = lifecycle(for: device, in: environment)
 
             // 旧状态没有记录地址时按当前环境部署的服务处理
-            #expect(try lifecycle.resetIfEndpointChanged(to: SyncAPI.defaultEndpoint) == false)
+            #expect(try lifecycle.resetIfEndpointChanged(to: AuthConfig.syncServiceURL) == false)
             #expect(device.state.isBound)
-            #expect(device.state.serverEndpoint == SyncAPI.defaultEndpoint.absoluteString)
+            #expect(device.state.serverEndpoint == AuthConfig.syncServiceURL.absoluteString)
 
-            let localEndpoint = try #require(URL(string: "http://my-mac.local:7789"))
-            #expect(try lifecycle.resetIfEndpointChanged(to: localEndpoint))
+            let otherEndpoint = try #require(URL(string: "https://other.example.com"))
+            #expect(try lifecycle.resetIfEndpointChanged(to: otherEndpoint))
             #expect(!device.state.isBound)
             #expect(!device.state.isEnabled)
             #expect(device.state.since == 0)
-            #expect(device.state.serverEndpoint == localEndpoint.absoluteString)
+            #expect(device.state.serverEndpoint == otherEndpoint.absoluteString)
             #expect(lifecycle.state == device.state)
             #expect(try allEntries(in: device.container).isEmpty)
             #expect(try ModelContext(device.container).account(id: accountID) != nil)
 
-            #expect(try lifecycle.resetIfEndpointChanged(to: localEndpoint) == false)
+            #expect(try lifecycle.resetIfEndpointChanged(to: otherEndpoint) == false)
         }
     }
 

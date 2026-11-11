@@ -132,7 +132,7 @@ final class AIBillingAPI: AIBillingFetching {
     /// 每页流水条数；服务端上限 50。
     static let pageSize = 20
 
-    /// 指定的 AI 服务地址（不含路径）；为空时每次请求按 `AIServiceEnvironment` 取当前地址。
+    /// 指定的 AI 服务地址（不含路径）；为空时用当前环境的 `AuthConfig.aiServiceURL`。
     private let endpointOverride: URL?
 
     /// 网络会话；测试可注入。
@@ -144,7 +144,7 @@ final class AIBillingAPI: AIBillingFetching {
     /// 创建客户端。
     ///
     /// - Parameters:
-    ///   - endpoint: AI 服务地址；为空时每次请求取 `AIServiceEnvironment.currentEndpoint`，开发者设置里切换后立即生效。
+    ///   - endpoint: AI 服务地址；为空时用当前环境的 `AuthConfig.aiServiceURL`。
     ///   - session: 网络会话。
     ///   - accessToken: 获取 access token 的动作，抛出 `ServiceAuthError`。
     init(
@@ -159,7 +159,7 @@ final class AIBillingAPI: AIBillingFetching {
 
     /// 本次请求要连的地址。
     private var endpoint: URL {
-        endpointOverride ?? AIServiceEnvironment.currentEndpoint
+        endpointOverride ?? AuthConfig.aiServiceURL
     }
 
     func fetchWallet() async throws -> AIWallet {

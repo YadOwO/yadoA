@@ -76,16 +76,22 @@ nonisolated enum AuthConfig {
     /// 新增 resource 前已登录的设备需要重新登录一次。
     static let aiServiceResource = "https://api.yado1225.top/ai"
 
-    /// AI 交互服务在当前环境的地址（不含路径）；dev 包可改连开发机本机的服务，见 `AIServiceEnvironment`。
+    /// AI 交互服务在当前环境的地址（不含路径）。
     static var aiServiceEndpoint: String { current.aiServiceEndpoint }
+
+    /// AI 交互服务在当前环境的地址，供发请求用。
+    static var aiServiceURL: URL { url(aiServiceEndpoint, name: "aiServiceEndpoint") }
 
     /// yadoA 后端（yadoA_be，云端同步）在 Logto 中注册的 API resource 标识；调用同步接口时请求它的 access token。
     ///
     /// 与后端的 `LOGTO_AUDIENCE` 逐字一致，两套环境用同一个值；登录时同样必须一并申请，新增前已登录的设备需要重新登录一次。
     static let syncServiceResource = "https://api.yado1225.top/yadoa"
 
-    /// yadoA 后端在当前环境的地址（不含路径）；dev 包可改连开发机本机的服务，见 `SyncServiceEnvironment`。
+    /// yadoA 后端在当前环境的地址（不含路径）。
     static var syncServiceEndpoint: String { current.syncServiceEndpoint }
+
+    /// yadoA 后端在当前环境的地址，供发请求用。
+    static var syncServiceURL: URL { url(syncServiceEndpoint, name: "syncServiceEndpoint") }
 
     /// 芽豆公共服务（yado_hub：意见反馈等各产品共用的功能）在 Logto 中注册的 API resource 标识；调用公共服务接口时请求它的 access token。
     ///
@@ -93,6 +99,17 @@ nonisolated enum AuthConfig {
     /// Logto 后台必须先建好这个 resource：登录时申请了不存在的 resource，整个登录都会失败。
     static let hubServiceResource = "https://api.yado1225.top/hub"
 
-    /// 芽豆公共服务在当前环境的地址（不含路径）；dev 包可改连开发机本机的服务，见 `HubServiceEnvironment`。
+    /// 芽豆公共服务在当前环境的地址（不含路径）。
     static var hubServiceEndpoint: String { current.hubServiceEndpoint }
+
+    /// 芽豆公共服务在当前环境的地址，供发请求用。
+    static var hubServiceURL: URL { url(hubServiceEndpoint, name: "hubServiceEndpoint") }
+
+    /// 把写死的地址转成 URL；地址是常量，非法即为配置写错，应尽早暴露。
+    private static func url(_ text: String, name: String) -> URL {
+        guard let url = URL(string: text) else {
+            preconditionFailure("AuthConfig.\(name) 不是合法 URL：\(text)")
+        }
+        return url
+    }
 }

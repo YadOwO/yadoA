@@ -40,7 +40,7 @@ private struct SyncEngineHostModifier: ViewModifier {
             .task {
                 guard engine == nil else { return }
                 let authStore = authStore
-                let endpoint = SyncServiceEnvironment.currentEndpoint
+                let endpoint = AuthConfig.syncServiceURL
                 let api = SyncAPI(endpoint: endpoint) { try await authStore.accessTokenForSyncService() }
                 let engine = SyncEngine(
                     container: modelContext.container,

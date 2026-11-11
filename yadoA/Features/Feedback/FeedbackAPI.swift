@@ -117,7 +117,7 @@ final class FeedbackAPI: FeedbackServing {
     /// 每页消息条数；服务端上限 100。
     static let pageSize = 30
 
-    /// 指定的服务地址（不含路径）；为空时每次请求按 `HubServiceEnvironment` 取当前地址。
+    /// 指定的服务地址（不含路径）；为空时用当前环境的 `AuthConfig.hubServiceURL`。
     private let endpointOverride: URL?
 
     /// 网络会话；测试可注入。
@@ -129,7 +129,7 @@ final class FeedbackAPI: FeedbackServing {
     /// 创建客户端。
     ///
     /// - Parameters:
-    ///   - endpoint: 服务地址；为空时每次请求取 `HubServiceEnvironment.currentEndpoint`。
+    ///   - endpoint: 服务地址；为空时用当前环境的 `AuthConfig.hubServiceURL`。
     ///   - session: 网络会话。
     ///   - accessToken: 获取 access token 的动作，抛出 `ServiceAuthError`。
     init(
@@ -151,7 +151,7 @@ final class FeedbackAPI: FeedbackServing {
 
     /// 本次请求要连的地址。
     private var endpoint: URL {
-        endpointOverride ?? HubServiceEnvironment.currentEndpoint
+        endpointOverride ?? AuthConfig.hubServiceURL
     }
 
     func fetchMessages(before: Int64?) async throws -> FeedbackMessagePage {
