@@ -77,7 +77,7 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "YADO_AI_SERVICE"
-            value = "production"
+            value = "remote"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable

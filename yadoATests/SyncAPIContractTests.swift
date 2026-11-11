@@ -240,7 +240,8 @@ struct SyncAPIContractTests {
     @Test("同步服务的 Logto resource 与后端 audience 一致")
     func syncResourceMatchesBackendAudience() {
         #expect(AuthConfig.syncServiceResource == "https://api.yado1225.top/yadoa")
-        #expect(SyncAPI.productionEndpoint.absoluteString == "https://yadoa-api.yado1225.top")
+        #expect(AuthConfig.prod.syncServiceEndpoint == "https://yadoa-api.yado1225.top")
+        #expect(SyncAPI.defaultEndpoint.absoluteString == AuthConfig.syncServiceEndpoint)
     }
 
     private func jsonObject(_ data: Data) throws -> [String: Any] {

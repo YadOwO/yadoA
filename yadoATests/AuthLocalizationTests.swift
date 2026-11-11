@@ -4,11 +4,33 @@ import Testing
 
 @Suite("登录入口")
 struct AuthLocalizationTests {
-    @Test("回调地址 scheme 全小写，与 Logto 应用配置一致")
+    @Test("回调地址 scheme 全小写，与两套 Logto 的应用配置一致")
     func redirectUriSchemeIsLowercased() {
-        let scheme = URL(string: AuthConfig.redirectUri)?.scheme
-        #expect(scheme == "com.yado.yadoa")
-        #expect(scheme == scheme?.lowercased())
+        let prodScheme = URL(string: AuthConfig.prod.redirectUri)?.scheme
+        #expect(prodScheme == "com.yado.yadoa")
+        let devScheme = URL(string: AuthConfig.dev.redirectUri)?.scheme
+        #expect(devScheme == "com.yado.yadoa.dev")
+        let currentScheme = URL(string: AuthConfig.redirectUri)?.scheme
+        #expect(currentScheme == currentScheme?.lowercased())
+    }
+
+    @Test("dev 与线上是两套互不相干的登录和后端地址")
+    func environmentsDoNotShareEndpoints() {
+        let dev = AuthConfig.dev
+        let prod = AuthConfig.prod
+        #expect(dev.endpoint != prod.endpoint)
+        #expect(dev.appId != prod.appId)
+        #expect(dev.redirectUri != prod.redirectUri)
+        #expect(dev.aiServiceEndpoint != prod.aiServiceEndpoint)
+        #expect(dev.syncServiceEndpoint != prod.syncServiceEndpoint)
+        #expect(dev.hubServiceEndpoint != prod.hubServiceEndpoint)
+        // 所有地址都必须是合法的 https 地址，写错会在启动时触发 preconditionFailure
+        for values in [dev, prod] {
+            for text in [values.endpoint, values.aiServiceEndpoint, values.syncServiceEndpoint, values.hubServiceEndpoint] {
+                #expect(URL(string: text)?.scheme == "https")
+                #expect(URL(string: text)?.host() != nil)
+            }
+        }
     }
 
     @Test("登录与退出文案支持中英文")

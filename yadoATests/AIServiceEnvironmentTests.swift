@@ -39,8 +39,8 @@ struct AIServiceEnvironmentTests {
         #expect(defaults.string(forKey: AIServiceEnvironment.storageKey) == "local")
         #expect(defaults.string(forKey: AIServiceEnvironment.localEndpointStorageKey) == "http://my-mac.local:7790")
 
-        AIServiceEnvironment.applyLaunchEnvironment([AIServiceEnvironment.launchEnvironmentKey: "production"], defaults: defaults)
-        #expect(defaults.string(forKey: AIServiceEnvironment.storageKey) == "production")
+        AIServiceEnvironment.applyLaunchEnvironment([AIServiceEnvironment.launchEnvironmentKey: "remote"], defaults: defaults)
+        #expect(defaults.string(forKey: AIServiceEnvironment.storageKey) == "remote")
     }
 
     @Test("开发入口开关：yadoA-local 写入 1、yadoA 写入 0，没有变量或非法取值时保持原样")

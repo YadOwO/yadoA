@@ -1,12 +1,13 @@
 #if DEBUG
 import SwiftUI
 
-/// 「我的 → 开发 → AI 服务」（开发入口在头像右上角）：选择连线上还是本地 yado_ai，填写本地地址并测试连接。只在 DEBUG 包存在。
+/// 「我的 → 开发 → AI 服务」（开发入口在头像右上角）：dev 环境的包可以选择连当前环境部署的 yado_ai 还是开发机本机的，
+/// 填写本机地址并测试连接；线上包（DebugProd）只显示当前地址和连接测试。只在 DEBUG 包存在。
 struct AIServiceSettingsView: View {
     @Environment(\.locale) private var locale
 
     /// 当前选择，与 `AIServiceEnvironment.current` 共用存储。
-    @AppStorage(AIServiceEnvironment.storageKey) private var environment: AIServiceEnvironment = .production
+    @AppStorage(AIServiceEnvironment.storageKey) private var environment: AIServiceEnvironment = .remote
 
     /// 本地服务地址。
     @AppStorage(AIServiceEnvironment.localEndpointStorageKey)
@@ -24,30 +25,33 @@ struct AIServiceSettingsView: View {
 
     var body: some View {
         Form {
-            Section {
-                Picker(text("debug.aiService.title"), selection: $environment) {
-                    ForEach(AIServiceEnvironment.allCases) { option in
-                        Text(text(option.titleLocalizationKey)).tag(option)
+            // 只有 dev 环境可以改连本机，见 `AIServiceEnvironment`
+            if AppEnvironment.current == .dev {
+                Section {
+                    Picker(text("debug.aiService.title"), selection: $environment) {
+                        ForEach(AIServiceEnvironment.allCases) { option in
+                            Text(text(option.titleLocalizationKey)).tag(option)
+                        }
                     }
-                }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("debug-ai-service-environment")
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("debug-ai-service-environment")
 
-                if environment == .local {
-                    TextField(text("debug.aiService.localEndpoint"), text: $localEndpoint)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .font(.body.monospaced())
-                        .accessibilityIdentifier("debug-ai-service-local-endpoint")
-                    if AIServiceEnvironment.localEndpoint(from: localEndpoint) == nil {
-                        Text(text("debug.aiService.invalidEndpoint"))
-                            .font(.footnote)
-                            .foregroundStyle(Color(.ledgerRed))
+                    if environment == .local {
+                        TextField(text("debug.aiService.localEndpoint"), text: $localEndpoint)
+                            .keyboardType(.URL)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .font(.body.monospaced())
+                            .accessibilityIdentifier("debug-ai-service-local-endpoint")
+                        if AIServiceEnvironment.localEndpoint(from: localEndpoint) == nil {
+                            Text(text("debug.aiService.invalidEndpoint"))
+                                .font(.footnote)
+                                .foregroundStyle(Color(.ledgerRed))
+                        }
                     }
+                } footer: {
+                    Text(text("debug.aiService.footer"))
                 }
-            } footer: {
-                Text(text("debug.aiService.footer"))
             }
 
             Section {

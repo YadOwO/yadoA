@@ -1,10 +1,12 @@
 import Foundation
 
-/// 芽豆公共服务（yado_hub）连哪一套：线上，或开发机上用 `pnpm dev` 跑起来的本地服务。
+/// 芽豆公共服务（yado_hub）连哪一个：当前环境部署的那个（`AuthConfig.hubServiceEndpoint`，见 `AppEnvironment`），
+/// 或开发机上用 `pnpm dev` 跑起来的本机服务。
 ///
-/// 与 `SyncServiceEnvironment` 一致：只有 `yadoA-local` 构建（`DeveloperTools.isLocalBuild`）会连本地，其他包始终连线上。
-/// 本地地址由 `yadoA-local` Scheme 的启动环境变量指定，见 `applyLaunchEnvironment(_:defaults:)`；之后从桌面直接打开 App
-/// 也保持上次的地址。登录仍走线上 Logto，本地服务开启免鉴权时忽略 token。
+/// 与 `SyncServiceEnvironment` 一致：只有 dev 环境的 `yadoA-local` 构建（`DeveloperTools.isLocalBuild`）会连本机，
+/// 其他包始终连当前环境部署的服务。本机地址由 `yadoA-local` Scheme 的启动环境变量指定，
+/// 见 `applyLaunchEnvironment(_:defaults:)`；之后从桌面直接打开 App 也保持上次的地址。
+/// 登录走 dev Logto，本机服务的 `LOGTO_ISSUER` 要指向 dev Logto，或开启免鉴权忽略 token。
 enum HubServiceEnvironment {
     /// 本地服务地址的存储键。
     static let localEndpointStorageKey = "debug.hubService.localEndpoint"
@@ -12,24 +14,24 @@ enum HubServiceEnvironment {
     /// Scheme 中指定本地服务地址的启动环境变量。
     static let launchLocalEndpointKey = "YADO_HUB_LOCAL_ENDPOINT"
 
-    /// 线上服务地址；`AuthConfig.hubServiceEndpoint` 是写死的常量，非法即为配置错误。
-    static var productionEndpoint: URL {
+    /// 当前环境部署的服务地址；`AuthConfig.hubServiceEndpoint` 是写死的常量，非法即为配置错误。
+    static var defaultEndpoint: URL {
         guard let url = URL(string: AuthConfig.hubServiceEndpoint) else {
             preconditionFailure("AuthConfig.hubServiceEndpoint 不是合法 URL：\(AuthConfig.hubServiceEndpoint)")
         }
         return url
     }
 
-    /// 本次请求要连的地址：`yadoA-local` 构建且配置了合法的本地地址时为本地，否则为线上。
+    /// 本次请求要连的地址：`yadoA-local` 构建且配置了合法的本机地址时为本机，否则为当前环境部署的服务。
     static var currentEndpoint: URL {
         #if DEBUG
         guard DeveloperTools.isLocalBuild,
               let text = UserDefaults.standard.string(forKey: localEndpointStorageKey),
               let url = AIServiceEnvironment.localEndpoint(from: text)
-        else { return productionEndpoint }
+        else { return defaultEndpoint }
         return url
         #else
-        return productionEndpoint
+        return defaultEndpoint
         #endif
     }
 

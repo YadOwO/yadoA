@@ -248,10 +248,10 @@ struct SyncLifecycleTests {
             await device.engine.synchronize()
             let lifecycle = lifecycle(for: device, in: environment)
 
-            // 旧状态没有记录地址时按线上处理
-            #expect(try lifecycle.resetIfEndpointChanged(to: SyncAPI.productionEndpoint) == false)
+            // 旧状态没有记录地址时按当前环境部署的服务处理
+            #expect(try lifecycle.resetIfEndpointChanged(to: SyncAPI.defaultEndpoint) == false)
             #expect(device.state.isBound)
-            #expect(device.state.serverEndpoint == SyncAPI.productionEndpoint.absoluteString)
+            #expect(device.state.serverEndpoint == SyncAPI.defaultEndpoint.absoluteString)
 
             let localEndpoint = try #require(URL(string: "http://my-mac.local:7789"))
             #expect(try lifecycle.resetIfEndpointChanged(to: localEndpoint))

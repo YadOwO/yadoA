@@ -13,8 +13,8 @@ struct DeveloperView: View {
     /// 同步生命周期，提供本机同步状态快照；预览中没有注入时为 nil。
     @Environment(SyncLifecycle.self) private var syncLifecycle: SyncLifecycle?
 
-    /// 当前选择的 AI 服务，与 `AIServiceEnvironment.current` 共用存储。
-    @AppStorage(AIServiceEnvironment.storageKey) private var aiServiceEnvironment: AIServiceEnvironment = .production
+    /// 当前选择的 AI 服务，与 `AIServiceEnvironment.current` 共用存储；只在 dev 环境生效。
+    @AppStorage(AIServiceEnvironment.storageKey) private var aiServiceEnvironment: AIServiceEnvironment = .remote
 
     /// 是否正在打开线条头像选择页（原型，尚未接入修改资料）。
     @State private var isPickingLineAvatar = false
@@ -39,7 +39,8 @@ struct DeveloperView: View {
                 } label: {
                     LabeledContent(
                         text("debug.aiService.title"),
-                        value: text(aiServiceEnvironment.titleLocalizationKey)
+                        // 线上包不能改连本机，存储里留着旧选择也按当前环境显示
+                        value: text((AppEnvironment.current == .dev ? aiServiceEnvironment : .remote).titleLocalizationKey)
                     )
                 }
                 .accessibilityIdentifier("developer-ai-service")
@@ -83,6 +84,7 @@ struct DeveloperView: View {
             Section(text("developer.section.app")) {
                 infoRow("developer.app.version", value: Self.appVersion)
                 infoRow("developer.app.bundleID", value: Bundle.main.bundleIdentifier ?? "—")
+                infoRow("developer.app.environment", value: AppEnvironment.current.rawValue)
             }
         }
         .navigationTitle(text("developer.title"))

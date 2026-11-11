@@ -11675,19 +11675,19 @@
         }
       }
     },
-    "debug.aiService.production" : {
+    "debug.aiService.remote" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Production"
+            "value" : "Environment"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "线上"
+            "value" : "当前环境"
           }
         }
       }
@@ -11732,13 +11732,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Invalid address. Production will be used."
+            "value" : "Invalid address. The environment's service will be used."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "地址无效，将连线上服务。"
+            "value" : "地址无效，将连当前环境的服务。"
           }
         }
       }
@@ -13512,6 +13512,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bundle ID"
+          }
+        }
+      }
+    },
+    "developer.app.environment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Environment"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "环境"
           }
         }
       }
