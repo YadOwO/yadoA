@@ -458,7 +458,7 @@ struct SettingsView: View {
         await authStore.signOut()
     }
 
-    /// 注销账号：先让两个服务端删除账号和云端数据，成功后处理本机数据并退出登录。
+    /// 注销账号：先让 yado_ai、yado_hub、yadoA_be 三个服务端删除账号和云端数据，成功后处理本机数据并退出登录。
     ///
     /// 删除的是芽豆系列所有 App 共用的芽豆账号（Logto 用户），注销后其他芽豆 App 也无法再用它登录，
     /// 所以第一步警告必须讲明影响全部 App。
@@ -473,13 +473,13 @@ struct SettingsView: View {
         defer { isDeletingAccount = false }
         let api = AccountDeletionAPI(
             aiAccessToken: { try await authStore.accessTokenForAIService() },
-            syncAccessToken: { try await authStore.accessTokenForSyncService() }
+            syncAccessToken: { try await authStore.accessTokenForSyncService() },
+            hubAccessToken: { try await authStore.accessTokenForHubService() }
         )
         var isLocalCleanupFailed = false
         do {
             try await syncLifecycle.deleteAccount(choice) {
-                try await api.deleteAIData()
-                try await api.deleteAccount()
+                try await api.deleteRemoteData()
             }
         } catch SyncLifecycleError.storage {
             isLocalCleanupFailed = true

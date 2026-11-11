@@ -24,12 +24,19 @@ enum AccountDeletionAPIError: Error, Equatable {
     case invalidContract
 }
 
-/// 注销账号所需的两个服务端动作；测试注入假实现。
+/// 注销账号所需的三个服务端动作；测试注入假实现。
 protocol AccountDeleting {
     /// 删除 yado_ai 里这个账号的点数账本等数据（`DELETE /v1/account`）；可重复调用。
     ///
     /// - Throws: `AccountDeletionAPIError`。
     func deleteAIData() async throws
+
+    /// 删除 yado_hub 里这个账号在所有芽豆 App 的意见反馈对话、消息和诊断（`DELETE /v1/account`）；可重复调用。
+    ///
+    /// 必须在 `deleteAccount()` 之前调用，因为之后拿不到 hub 的 token。
+    ///
+    /// - Throws: `AccountDeletionAPIError`。
+    func deleteFeedbackData() async throws
 
     /// 删除账号：yadoA_be 先删 Logto 用户，再清云端同步数据（`DELETE /v1/me`）；可重复调用。
     ///
@@ -37,14 +44,31 @@ protocol AccountDeleting {
     func deleteAccount() async throws
 }
 
-/// 调用 yado_ai 与 yadoA_be 注销接口的网络客户端。
+extension AccountDeleting {
+    /// 按固定顺序删除服务端数据：`deleteAIData()` → `deleteFeedbackData()` → `deleteAccount()`。
+    ///
+    /// 顺序不能变：`deleteAccount()` 会删除 Logto 用户，之后拿不到 yado_ai、yado_hub 的 token，所以必须最后调用。
+    /// 任何一步抛错就立即中止，后面的步骤不再执行，错误原样抛出。
+    ///
+    /// - Throws: `AccountDeletionAPIError`。
+    func deleteRemoteData() async throws {
+        try await deleteAIData()
+        try await deleteFeedbackData()
+        try await deleteAccount()
+    }
+}
+
+/// 调用 yado_ai、yado_hub 与 yadoA_be 注销接口的网络客户端。
 ///
-/// 调用顺序固定：先 `deleteAIData()`，再 `deleteAccount()`，因为后者会删除 Logto 用户，之后就拿不到新 token 了。
+/// 调用顺序固定：`deleteAIData()` → `deleteFeedbackData()` → `deleteAccount()`，因为最后一步会删除 Logto 用户，之后就拿不到新 token 了。
 final class AccountDeletionAPI: AccountDeleting {
     /// 客户端用到的接口。
     enum Route: Equatable {
         /// `DELETE /v1/account`：yado_ai 删除点数账本等数据。
         case aiData
+
+        /// `DELETE /v1/account`：yado_hub 删除意见反馈数据。
+        case feedbackData
 
         /// `DELETE /v1/me`：yadoA_be 删除 Logto 用户与云端同步数据。
         case account
@@ -53,6 +77,7 @@ final class AccountDeletionAPI: AccountDeleting {
         var path: String {
             switch self {
             case .aiData: "v1/account"
+            case .feedbackData: "v1/account"
             case .account: "v1/me"
             }
         }
@@ -72,6 +97,9 @@ final class AccountDeletionAPI: AccountDeleting {
     /// 指定的同步服务地址；为空时每次请求按 `SyncServiceEnvironment` 取当前地址。
     private let syncEndpointOverride: URL?
 
+    /// 指定的 hub 服务地址；为空时每次请求按 `HubServiceEnvironment` 取当前地址。
+    private let hubEndpointOverride: URL?
+
     /// 网络会话；测试可注入。
     private let session: URLSession
 
@@ -81,30 +109,43 @@ final class AccountDeletionAPI: AccountDeleting {
     /// 获取同步服务 access token 的动作。
     private let syncAccessToken: () async throws -> String
 
+    /// 获取 hub 服务 access token 的动作。
+    private let hubAccessToken: () async throws -> String
+
     /// 创建客户端。
     ///
     /// - Parameters:
     ///   - session: 网络会话。
     ///   - aiAccessToken: 获取 AI 服务 access token 的动作，抛出 `ServiceAuthError`。
     ///   - syncAccessToken: 获取同步服务 access token 的动作，抛出 `ServiceAuthError`。
+    ///   - hubAccessToken: 获取 hub 服务 access token 的动作，抛出 `ServiceAuthError`。
     ///   - aiEndpoint: AI 服务地址；为空时每次请求取 `AIServiceEnvironment.currentEndpoint`。
     ///   - syncEndpoint: 同步服务地址；为空时每次请求取 `SyncServiceEnvironment.currentEndpoint`。
+    ///   - hubEndpoint: hub 服务地址；为空时每次请求取 `HubServiceEnvironment.currentEndpoint`。
     init(
         session: URLSession = .shared,
         aiAccessToken: @escaping () async throws -> String,
         syncAccessToken: @escaping () async throws -> String,
+        hubAccessToken: @escaping () async throws -> String,
         aiEndpoint: URL? = nil,
-        syncEndpoint: URL? = nil
+        syncEndpoint: URL? = nil,
+        hubEndpoint: URL? = nil
     ) {
         self.session = session
         self.aiAccessToken = aiAccessToken
         self.syncAccessToken = syncAccessToken
+        self.hubAccessToken = hubAccessToken
         self.aiEndpointOverride = aiEndpoint
         self.syncEndpointOverride = syncEndpoint
+        self.hubEndpointOverride = hubEndpoint
     }
 
     func deleteAIData() async throws {
         try await send(.aiData)
+    }
+
+    func deleteFeedbackData() async throws {
+        try await send(.feedbackData)
     }
 
     func deleteAccount() async throws {
@@ -120,6 +161,7 @@ final class AccountDeletionAPI: AccountDeleting {
     func makeURLRequest(_ route: Route, token: String) -> URLRequest {
         let endpoint = switch route {
         case .aiData: aiEndpointOverride ?? AIServiceEnvironment.currentEndpoint
+        case .feedbackData: hubEndpointOverride ?? HubServiceEnvironment.currentEndpoint
         case .account: syncEndpointOverride ?? SyncServiceEnvironment.currentEndpoint
         }
         var request = URLRequest(url: endpoint.appending(path: route.path))
@@ -152,6 +194,7 @@ final class AccountDeletionAPI: AccountDeleting {
     private func send(_ route: Route) async throws {
         let tokenProvider = switch route {
         case .aiData: aiAccessToken
+        case .feedbackData: hubAccessToken
         case .account: syncAccessToken
         }
         let token: String

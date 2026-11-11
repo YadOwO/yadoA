@@ -13,9 +13,10 @@ topic: auth-profile
 ## 上架前必须完成
 
 - [x] **App 内注销账号**（2026-11-09 已完成）
-  - 实现：yadoA_be `DELETE /v1/me` 用 Logto Management API 删除用户并清云端同步数据，yado_ai `DELETE /v1/account` 清空点数账本；App 设置页两步确认后依次调用，再按选择保留或清除本机账本并退出登录。
+  - 实现：yadoA_be `DELETE /v1/me` 用 Logto Management API 删除用户并清云端同步数据，yado_ai `DELETE /v1/account` 清空点数账本；App 在 yado_ai 之后、yadoA_be 之前调 yado_hub 的 `DELETE /v1/account`，删除意见反馈对话、消息和诊断，反馈单只留不含用户和内容的匿名统计；App 设置页两步确认后依次调用，再按选择保留或清除本机账本并退出登录。
   - 2026-11-09：芽豆系列所有 App 共用一个芽豆账号，注销删的是整个 Logto 用户。入口和弹窗改叫「注销芽豆账号」，第一步警告先讲明会影响全部芽豆 App、各 App 的云端数据都会删除。
-  - 待办（其他仓库）：文案已承诺删除所有芽豆 App 的云端数据，但 yadoI_be（`yadoi` 物品、分类）和 yado_hub（意见反馈）目前还不会随注销清理。芽豆有物上线前必须补上，计划由各后端订阅 Logto 的用户删除事件，或由一处统一调用各服务清理。
+  - 2026-11-11：yado_hub 注销清理已接入。App 注销时依次调 yado_ai、yado_hub、yadoA_be；hub 在事务里删掉该用户所有产品下的反馈会话、消息（含设备信息和诊断），反馈单只留匿名统计。
+  - 待办（其他仓库）：文案已承诺删除所有芽豆 App 的云端数据，但 yadoI_be（`yadoi` 物品、分类）目前还不会随注销清理。芽豆有物上线前必须补上，计划由各后端订阅 Logto 的用户删除事件，或由一处统一调用各服务清理。
   - App 支持注册，App Store 审核条款 5.1.1(v) 要求 App 内可发起删除账号。
   - Logto Account API 未见用户自助删除接口（未核实），大概率需要后端用 Management API 删除；删除前二次确认，并说明本地账本数据不受影响。
 - [ ] **头像上传改为服务端签发 STS**

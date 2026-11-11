@@ -28,6 +28,27 @@ struct SyncLifecycleAccountDeletionTests {
         }
     }
 
+    @Test("意见反馈删除失败：注销中止，绑定和本机数据不变，不会删除账号")
+    func feedbackFailureChangesNothingAndSkipsAccountDeletion() async throws {
+        try await SyncTestEnvironment.run { environment in
+            let device = try environment.makeDevice()
+            try saveAccount(in: device.container)
+            let before = device.state
+            let deleter = FakeAccountDeleter(failing: .feedback, error: .serviceUnavailable)
+
+            await #expect(throws: AccountDeletionAPIError.serviceUnavailable) {
+                try await lifecycle(for: device, in: environment).deleteAccount(.eraseFromDevice) {
+                    try await deleter.deleteRemoteData()
+                }
+            }
+            #expect(device.state == before)
+            #expect(device.state.isBound)
+            #expect(try accountCount(in: device.container) == 1)
+            #expect(deleter.calls == [.ai, .feedback])
+            #expect(!deleter.calls.contains(.account))
+        }
+    }
+
     @Test("保留在本机：成功后解除绑定，本机数据还在")
     func keepOnDeviceUnbindsAndKeepsData() async throws {
         try await SyncTestEnvironment.run { environment in
