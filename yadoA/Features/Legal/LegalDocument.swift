@@ -1,4 +1,3 @@
-import SafariServices
 import SwiftUI
 
 /// 芽豆资产的法律文档：用户协议、隐私政策、第三方信息共享清单。
@@ -78,24 +77,8 @@ private struct LegalDocumentSheetModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content.sheet(item: $document) { document in
-            LegalSafariView(url: document.url(locale: locale))
+            InAppSafariView(url: document.url(locale: locale))
                 .ignoresSafeArea()
         }
     }
-}
-
-/// 包装 `SFSafariViewController`：App 内打开网页，自带关闭按钮，页面跟随系统浅色和深色外观。
-private struct LegalSafariView: UIViewControllerRepresentable {
-    /// 要打开的网页地址。
-    let url: URL
-
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        let configuration = SFSafariViewController.Configuration()
-        configuration.barCollapsingEnabled = true
-        let controller = SFSafariViewController(url: url, configuration: configuration)
-        controller.dismissButtonStyle = .close
-        return controller
-    }
-
-    func updateUIViewController(_ controller: SFSafariViewController, context: Context) {}
 }

@@ -18,6 +18,8 @@ struct yadoAApp: App {
     @State private var aiPoints: AIPointsStore
     /// 意见反馈的未读回复数，“我的”入口和 Tab 角标共用；凭证与账号取自 `authStore`。
     @State private var feedback: FeedbackStore
+    /// 芽豆系列的产品目录，“我的”入口和「更多芽豆产品」页共用；公开数据，与登录状态无关。
+    @State private var seriesCatalog = SeriesCatalogStore()
 
     init() {
         let authStore = AuthStore()
@@ -99,6 +101,7 @@ struct yadoAApp: App {
             .environment(authStore)
             .environment(aiPoints)
             .environment(feedback)
+            .environment(seriesCatalog)
             .modifier(AppDisplayPreferencesModifier())
         }
     }

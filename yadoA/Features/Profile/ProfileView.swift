@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、周期记账、分类）、AI 点数、云端同步、“设置”二级页和意见反馈。
+/// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、周期记账、分类）、AI 点数、云端同步、“设置”二级页、意见反馈和更多芽豆产品。
 ///
 /// 语言、外观、默认账户、导入导出、退出登录等低频项统一收进 `SettingsView`，已停用账户由“账户”Tab 承载。
 /// 进入二级页面都走路径导航（见 `ProfileRoute`），根导航据此判断是否显示语音入口。
@@ -17,6 +17,8 @@ struct ProfileView: View {
     @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
     /// 意见反馈的未读回复数；预览中没有注入时为 nil。
     @Environment(FeedbackStore.self) private var feedback: FeedbackStore?
+    /// 芽豆系列的产品目录；预览中没有注入时为 nil。
+    @Environment(SeriesCatalogStore.self) private var seriesCatalog: SeriesCatalogStore?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// 修改个人资料弹层，打开时携带当时的资料快照。
@@ -93,6 +95,16 @@ struct ProfileView: View {
 
                 ProfileSettingsSection(nil, seed: "profile.section.feedback") {
                     feedbackEntry
+
+                    // 目录里除了本 App 没有别的产品时不显示入口，避免点进去是空页面
+                    if seriesCatalog?.products.isEmpty == false {
+                        ProfileSettingsRowDivider()
+
+                        NavigationLink(value: ProfileRoute.moreProducts) {
+                            ProfileSettingsRow(titleKey: "series.title", symbol: "square.stack.3d.up")
+                        }
+                        .accessibilityIdentifier("profile-more-products")
+                    }
                 }
 
                 brandFooter
@@ -121,6 +133,10 @@ struct ProfileView: View {
         .task(id: authStore.isAuthenticated) {
             // 每次回到“我的”都刷新一次反馈未读数；从反馈页返回时已在标记已读后更新过，这里再对一次
             await feedback?.refreshUnread()
+        }
+        .task {
+            // 每次回到“我的”都刷新一次产品目录；新产品上架后入口自己出现，不用发版
+            await seriesCatalog?.refresh()
         }
     }
 

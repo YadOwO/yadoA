@@ -127,6 +127,150 @@
         }
       }
     },
+    "series.title" : {
+      "comment" : "「我的」页更多芽豆产品入口与页面标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More from yado"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多芽豆产品"
+          }
+        }
+      }
+    },
+    "series.intro" : {
+      "comment" : "更多芽豆产品页顶部说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apps in the yado series share one yado account."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆系列的 App 共用一个芽豆账号。"
+          }
+        }
+      }
+    },
+    "series.empty" : {
+      "comment" : "更多芽豆产品页没有可展示产品时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More yado apps are on the way."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多芽豆产品正在路上。"
+          }
+        }
+      }
+    },
+    "series.status.comingSoon" : {
+      "comment" : "产品卡片上的即将上线状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coming Soon"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即将上线"
+          }
+        }
+      }
+    },
+    "series.action.get" : {
+      "comment" : "产品卡片上跳到 App Store 的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "获取"
+          }
+        }
+      }
+    },
+    "series.action.get.accessibility" : {
+      "comment" : "「获取」按钮的无障碍标签，%@ 是产品名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get %@ on the App Store"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 App Store 获取%@"
+          }
+        }
+      }
+    },
+    "series.action.learnMore" : {
+      "comment" : "产品卡片上打开产品介绍页的入口",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Learn More"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "了解更多"
+          }
+        }
+      }
+    },
+    "series.action.learnMore.accessibility" : {
+      "comment" : "「了解更多」的无障碍标签，%@ 是产品名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Learn more about %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "了解更多关于%@的介绍"
+          }
+        }
+      }
+    },
     "feedback.title" : {
       "comment" : "「我的」页意见反馈入口与反馈页标题",
       "extractionState" : "manual",

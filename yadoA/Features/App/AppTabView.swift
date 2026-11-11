@@ -141,6 +141,9 @@ enum ProfileRoute: Hashable {
     /// 意见反馈：与芽豆团队的对话，登录后才有入口。
     case feedback
 
+    /// 更多芽豆产品：芽豆系列其他 App 的列表；目录里有其他产品时才有入口。
+    case moreProducts
+
     /// 开发调试页面；只在 DEBUG 包有入口和页面。
     case developer
 
@@ -172,6 +175,8 @@ enum ProfileRoute: Hashable {
             SettingsView()
         case .feedback:
             FeedbackView()
+        case .moreProducts:
+            SeriesProductsView()
         case .developer:
             #if DEBUG
             DeveloperView()
