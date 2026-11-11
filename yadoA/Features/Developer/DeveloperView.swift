@@ -1,7 +1,8 @@
 #if DEBUG
 import SwiftUI
 
-/// 「我的 → 头像右上角 → 开发」：集中查看开发调试信息（AI 耗时、AI 服务、云端同步状态、构建信息）。
+/// 「我的 → 头像右上角 → 开发」：集中查看开发调试信息（AI 耗时、AI 服务、云端同步状态、构建信息），
+/// 以及尚未接入正式流程的线条头像选择原型。
 ///
 /// 只在 DEBUG 包存在，入口由 `DeveloperTools.isEnabled` 控制。数值是给开发者看的原始值，不做本地化。
 struct DeveloperView: View {
@@ -14,6 +15,11 @@ struct DeveloperView: View {
 
     /// 当前选择的 AI 服务，与 `AIServiceEnvironment.current` 共用存储。
     @AppStorage(AIServiceEnvironment.storageKey) private var aiServiceEnvironment: AIServiceEnvironment = .production
+
+    /// 是否正在打开线条头像选择页（原型，尚未接入修改资料）。
+    @State private var isPickingLineAvatar = false
+    /// 线条头像选择页最近一次选中的头像 ID，只在本页显示，不保存。
+    @State private var pickedLineAvatarID: String?
 
     var body: some View {
         Form {
@@ -57,6 +63,23 @@ struct DeveloperView: View {
                 infoRow("developer.account.userID", value: authStore.userID ?? "—")
             }
 
+            Section(text("developer.section.lineAvatar")) {
+                Button(text("developer.lineAvatar.open")) {
+                    isPickingLineAvatar = true
+                }
+                .accessibilityIdentifier("developer-line-avatar")
+
+                infoRow("developer.lineAvatar.selected", value: pickedLineAvatarID ?? "—")
+
+                // 全部预制头像的静态效果，方便对照浅色、深色外观检查设计
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 60), spacing: 12)], spacing: 12) {
+                    ForEach(LineAvatarCatalog.presets) { preset in
+                        LineAvatarView(preset: preset, size: 60)
+                    }
+                }
+                .padding(.vertical, 8)
+            }
+
             Section(text("developer.section.app")) {
                 infoRow("developer.app.version", value: Self.appVersion)
                 infoRow("developer.app.bundleID", value: Bundle.main.bundleIdentifier ?? "—")
@@ -66,6 +89,12 @@ struct DeveloperView: View {
         .navigationBarTitleDisplayMode(.inline)
         .paperPage()
         .onAppear { syncLifecycle?.refreshState() }
+        .sheet(isPresented: $isPickingLineAvatar) {
+            LineAvatarPickerView { preset in
+                pickedLineAvatarID = preset.id
+                isPickingLineAvatar = false
+            }
+        }
     }
 
     /// 一行只读信息；值用等宽字体，长按可复制。

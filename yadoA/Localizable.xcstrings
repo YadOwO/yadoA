@@ -91,6 +91,57 @@
         }
       }
     },
+    "developer.lineAvatar.open" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Avatar Picker"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开头像选择"
+          }
+        }
+      }
+    },
+    "developer.lineAvatar.selected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last Picked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近选中"
+          }
+        }
+      }
+    },
+    "developer.section.lineAvatar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Line Avatars"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "线条头像"
+          }
+        }
+      }
+    },
     "feedback.diagnostics.attach" : {
       "comment" : "反馈页附带诊断开关",
       "extractionState" : "manual",
@@ -321,6 +372,222 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "每日签到"
+          }
+        }
+      }
+    },
+    "lineAvatar.picker.confirm" : {
+      "comment" : "线条头像选择页：选定当前头像的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This One"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "就这个"
+          }
+        }
+      }
+    },
+    "lineAvatar.picker.drawing" : {
+      "comment" : "线条头像选择页：开场书写 logo 时画布的无障碍标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado logo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "yado 标志"
+          }
+        }
+      }
+    },
+    "lineAvatar.picker.shuffle" : {
+      "comment" : "线条头像选择页：换成另一个头像的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shuffle"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "换一换"
+          }
+        }
+      }
+    },
+    "lineAvatar.picker.title" : {
+      "comment" : "线条头像选择页：标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick an Avatar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选一个头像"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.bean" : {
+      "comment" : "预制线条头像名：顶着一棵芽的圆豆子",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprout"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.bear" : {
+      "comment" : "预制线条头像名：熊",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bear"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小熊"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.cat" : {
+      "comment" : "预制线条头像名：猫",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kitty"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小猫"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.chick" : {
+      "comment" : "预制线条头像名：小鸟",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chick"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小鸟"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.dog" : {
+      "comment" : "预制线条头像名：狗",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puppy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小狗"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.frog" : {
+      "comment" : "预制线条头像名：青蛙",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frog"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "青蛙"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.panda" : {
+      "comment" : "预制线条头像名：熊猫",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Panda"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "熊猫"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.rabbit" : {
+      "comment" : "预制线条头像名：兔子",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bunny"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "兔子"
           }
         }
       }
