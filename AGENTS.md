@@ -12,6 +12,21 @@
 - 仍需同步维护受影响的测试代码（新增或更新断言），只是不运行；交付时说明哪些内容未经验证、建议重点测试什么。
 - 只有在开发者明确要求时才运行测试。
 
+## 环境与构建配置
+
+- 环境只有两套：dev（Mac mini 上的整套服务，独立的 Logto、数据库和各后端，经 `dev-*.yado1225.top` 这组公网域名访问）和线上。由构建配置在编译时决定，见 `Features/Auth/AppEnvironment.swift`。
+
+  | 配置 | 环境 | Bundle ID | Scheme | 用途 |
+  | --- | --- | --- | --- | --- |
+  | Debug | dev | `com.yado.yadoA.dev` | `yadoA` | 日常开发、测试 |
+  | DebugProd | 线上 | `com.yado.yadoA` | `yadoA-prod` | 断点排查线上问题 |
+  | Release | 线上 | `com.yado.yadoA` | 各 Scheme 的 Archive | 出包 |
+
+- 登录、各后端地址、本机数据整套跟着环境走：dev 包和线上包是两个 App，数据各一份，不要做"同一个包里切环境"。
+- 随环境变化的值只放在 `AuthConfig` 的 `dev` / `prod` 两套取值里，业务代码读 `AuthConfig.xxx`，不要在别处写死地址或自己按环境分支。
+- 开发机上不跑后端：dev 的服务都在 Mac mini 上，App 里没有"改连本机服务"的开关，不要再加。
+- 新增构建配置必须带 `ENV_DEV` 或 `ENV_PROD` 标志，否则编译失败。
+
 ## 系统版本兼容
 
 - 截至 **2026-09-30**，当前最新系统版本为 **iOS 27**；开发与适配时应同时考虑 iOS 27、iOS 26 和最低支持版本 iOS 18。

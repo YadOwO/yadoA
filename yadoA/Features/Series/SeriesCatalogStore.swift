@@ -54,9 +54,11 @@ final class SeriesCatalogStore {
     init(fetcher: SeriesCatalogFetching = SeriesCatalogAPI(), defaults: UserDefaults = .standard) {
         self.fetcher = fetcher
         self.defaults = defaults
-        products = defaults.data(forKey: Self.cacheStorageKey)
-            .flatMap(Self.decode)?
-            .otherProducts ?? []
+        if let data = defaults.data(forKey: Self.cacheStorageKey), let catalog = Self.decode(data) {
+            products = catalog.otherProducts
+        } else {
+            products = []
+        }
     }
 
     /// 从网站刷新目录；成功后更新列表并覆盖本机缓存，失败或解码不出来时保持原样。

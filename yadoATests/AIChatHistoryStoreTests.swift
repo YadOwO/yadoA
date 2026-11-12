@@ -8,6 +8,8 @@ import UIKit
 @MainActor
 struct AIChatHistoryStoreTests {
     /// 测试用的存储，图片放在独立的临时目录。
+    /// 嵌套类型不会继承外层的 @MainActor，而存储的初始化和写入都在主 actor 上，所以单独标注。
+    @MainActor
     private struct Fixture {
         let container: ModelContainer
         let images: AIChatImageStore

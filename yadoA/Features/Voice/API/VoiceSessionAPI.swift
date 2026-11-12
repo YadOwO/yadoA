@@ -58,7 +58,7 @@ protocol VoiceSessionTurnSending {
 
 /// 调用 yado_ai `POST /v1/yadoa/voice-session/turn` 的网络客户端。
 final class VoiceSessionAPI: VoiceSessionTurnSending {
-    /// 指定的 AI 服务地址（不含路径）；为空时每次请求按 `AIServiceEnvironment` 取当前地址。
+    /// 指定的 AI 服务地址（不含路径）；为空时用当前环境的 `AuthConfig.aiServiceURL`。
     private let endpointOverride: URL?
 
     /// 网络会话；测试可注入。
@@ -95,7 +95,7 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
     /// 创建客户端。
     ///
     /// - Parameters:
-    ///   - endpoint: AI 服务地址；为空时每次请求取 `AIServiceEnvironment.currentEndpoint`，开发者设置里切换后立即生效。
+    ///   - endpoint: AI 服务地址；为空时用当前环境的 `AuthConfig.aiServiceURL`。
     ///   - session: 网络会话。
     ///   - pointsReporter: 每次请求开始时取余额回报动作，用于就地刷新点数显示；通常是 `AIPointsStore.balanceReporter()`。
     ///   - isTraceConsented: 读取当前账号是否打开了“帮助改进 AI”；通常是 `AIPointsStore.isTraceConsented`。
@@ -116,7 +116,7 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
 
     /// 本次请求要连的地址。
     private var endpoint: URL {
-        endpointOverride ?? AIServiceEnvironment.currentEndpoint
+        endpointOverride ?? AuthConfig.aiServiceURL
     }
 
     func send(

@@ -99,7 +99,7 @@ struct AIChatPresentationTests {
 
     @Test("不能撤销时不给撤销")
     func omitsUndoWhenNotUndoable() {
-        #expect(!suggestions(latest: snapshot(changes: [change(.created)]), canUndo: false).contains(where: \.isUndo))
+        #expect(!suggestions(latest: snapshot(changes: [change(.created)]), canUndo: false).contains { $0.isUndo })
     }
 
     @Test("追问和失败时不打岔；已撤销、对话段结束时回到开场建议")
@@ -117,7 +117,7 @@ struct AIChatPresentationTests {
         let insight = AIChatInsight(title: "", formattedTotal: "¥0", formattedIncome: nil, comparison: nil, buckets: [])
         let list = suggestions(latest: snapshot(resultText: "花了 ¥0", insight: insight))
         #expect(!list.isEmpty)
-        #expect(!list.contains(where: \.isUndo))
+        #expect(!list.contains { $0.isUndo })
     }
 
     // MARK: - 状态

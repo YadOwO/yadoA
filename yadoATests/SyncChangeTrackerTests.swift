@@ -270,6 +270,7 @@ struct SyncChangeTrackerTests {
             "ModelContext+Finance.swift",
             "HomeUITestFixture.swift",
             "HomeDesignPreview.swift",
+            "AIChatUITestFixture.swift",
         ]
         let enumerator = try #require(FileManager.default.enumerator(at: sourceRoot, includingPropertiesForKeys: nil))
         var offenders: [String] = []

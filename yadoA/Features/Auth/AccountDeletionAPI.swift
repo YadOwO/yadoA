@@ -91,13 +91,13 @@ final class AccountDeletionAPI: AccountDeleting {
     /// 单次请求的超时时长。
     static let requestTimeout: TimeInterval = 30
 
-    /// 指定的 AI 服务地址；为空时每次请求按 `AIServiceEnvironment` 取当前地址。
+    /// 指定的 AI 服务地址；为空时用当前环境的 `AuthConfig.aiServiceURL`。
     private let aiEndpointOverride: URL?
 
-    /// 指定的同步服务地址；为空时每次请求按 `SyncServiceEnvironment` 取当前地址。
+    /// 指定的同步服务地址；为空时用当前环境的 `AuthConfig.syncServiceURL`。
     private let syncEndpointOverride: URL?
 
-    /// 指定的 hub 服务地址；为空时每次请求按 `HubServiceEnvironment` 取当前地址。
+    /// 指定的 hub 服务地址；为空时用当前环境的 `AuthConfig.hubServiceURL`。
     private let hubEndpointOverride: URL?
 
     /// 网络会话；测试可注入。
@@ -119,9 +119,9 @@ final class AccountDeletionAPI: AccountDeleting {
     ///   - aiAccessToken: 获取 AI 服务 access token 的动作，抛出 `ServiceAuthError`。
     ///   - syncAccessToken: 获取同步服务 access token 的动作，抛出 `ServiceAuthError`。
     ///   - hubAccessToken: 获取 hub 服务 access token 的动作，抛出 `ServiceAuthError`。
-    ///   - aiEndpoint: AI 服务地址；为空时每次请求取 `AIServiceEnvironment.currentEndpoint`。
-    ///   - syncEndpoint: 同步服务地址；为空时每次请求取 `SyncServiceEnvironment.currentEndpoint`。
-    ///   - hubEndpoint: hub 服务地址；为空时每次请求取 `HubServiceEnvironment.currentEndpoint`。
+    ///   - aiEndpoint: AI 服务地址；为空时用当前环境的 `AuthConfig.aiServiceURL`。
+    ///   - syncEndpoint: 同步服务地址；为空时用当前环境的 `AuthConfig.syncServiceURL`。
+    ///   - hubEndpoint: hub 服务地址；为空时用当前环境的 `AuthConfig.hubServiceURL`。
     init(
         session: URLSession = .shared,
         aiAccessToken: @escaping () async throws -> String,
@@ -160,9 +160,9 @@ final class AccountDeletionAPI: AccountDeleting {
     /// - Returns: DELETE 请求，带鉴权头和超时设置，不带请求体。
     func makeURLRequest(_ route: Route, token: String) -> URLRequest {
         let endpoint = switch route {
-        case .aiData: aiEndpointOverride ?? AIServiceEnvironment.currentEndpoint
-        case .feedbackData: hubEndpointOverride ?? HubServiceEnvironment.currentEndpoint
-        case .account: syncEndpointOverride ?? SyncServiceEnvironment.currentEndpoint
+        case .aiData: aiEndpointOverride ?? AuthConfig.aiServiceURL
+        case .feedbackData: hubEndpointOverride ?? AuthConfig.hubServiceURL
+        case .account: syncEndpointOverride ?? AuthConfig.syncServiceURL
         }
         var request = URLRequest(url: endpoint.appending(path: route.path))
         request.httpMethod = "DELETE"

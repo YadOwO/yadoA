@@ -277,7 +277,7 @@ final class SyncLifecycle {
         }
     }
 
-    /// 同步服务地址与上次不同（本地开发包在线上与本地服务之间切换）时解除绑定、清空台账，本机数据保留。
+    /// 同步服务地址与上次记录的不同（例如服务迁移、地址变更）时解除绑定、清空台账，本机数据保留。
     ///
     /// 绑定、进度和代次只对原来那套服务有效；新服务上的数据可能是空的，直接按旧进度同步会被当成云端重置，
     /// 全量拉取还会用空结果替换本机已同步的数据。解除绑定后，到同步设置页重新开启即可把本机数据上传到新服务。
@@ -289,7 +289,7 @@ final class SyncLifecycle {
     @discardableResult
     func resetIfEndpointChanged(to endpoint: URL) throws -> Bool {
         var state = loadState()
-        let previous = state.serverEndpoint ?? SyncAPI.productionEndpoint.absoluteString
+        let previous = state.serverEndpoint ?? AuthConfig.syncServiceURL.absoluteString
         guard previous != endpoint.absoluteString else {
             if state.serverEndpoint == nil {
                 state.serverEndpoint = endpoint.absoluteString

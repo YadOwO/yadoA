@@ -139,25 +139,17 @@ nonisolated final class SyncAPI: SyncServing {
     /// 创建客户端。
     ///
     /// - Parameters:
-    ///   - endpoint: 服务地址；默认为线上 `AuthConfig.syncServiceEndpoint`。
+    ///   - endpoint: 服务地址；默认为当前环境的 `AuthConfig.syncServiceURL`。
     ///   - session: 网络会话。
     ///   - accessToken: 获取 access token 的动作，通常是 `AuthStore.accessTokenForSyncService()`。
     init(
-        endpoint: URL = SyncAPI.productionEndpoint,
+        endpoint: URL = AuthConfig.syncServiceURL,
         session: URLSession = .shared,
         accessToken: @escaping @Sendable () async throws -> String
     ) {
         self.endpoint = endpoint
         self.session = session
         self.accessToken = accessToken
-    }
-
-    /// 线上服务地址；`AuthConfig.syncServiceEndpoint` 是写死的常量，非法即为配置错误。
-    static var productionEndpoint: URL {
-        guard let url = URL(string: AuthConfig.syncServiceEndpoint) else {
-            preconditionFailure("AuthConfig.syncServiceEndpoint 不是合法 URL：\(AuthConfig.syncServiceEndpoint)")
-        }
-        return url
     }
 
     func fetchState() async throws -> SyncServerState {

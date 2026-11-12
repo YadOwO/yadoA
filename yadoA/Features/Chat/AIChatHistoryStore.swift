@@ -240,6 +240,7 @@ extension AIChatTurnSnapshot {
 /// 对话记录的本机存储：每轮结束时写入，聊天页分页读取。
 ///
 /// 记录写失败不影响记账本身，账本才是真数据，因此这里的写入都不向外抛错。
+/// 对话记录只留在本机、不参与同步：保存一律走 `saveOrRollback(tracksSyncChanges: false)`，不登记同步台账。
 @MainActor
 @Observable
 final class AIChatHistoryStore {
@@ -311,7 +312,7 @@ final class AIChatHistoryStore {
             } else {
                 context.insert(AIChatTurnRecord(snapshot: snapshot, changesData: changesData))
             }
-            try context.save()
+            try context.saveOrRollback(tracksSyncChanges: false)
         } catch {
             context.rollback()
             return
@@ -337,7 +338,7 @@ final class AIChatHistoryStore {
         let context = container.makeManualSaveContext()
         do {
             try context.delete(model: AIChatTurnRecord.self)
-            try context.save()
+            try context.saveOrRollback(tracksSyncChanges: false)
         } catch {
             context.rollback()
             throw error
@@ -360,7 +361,7 @@ final class AIChatHistoryStore {
                 predicate: #Predicate { $0.createdAt < cutoff }
             ))
             expired.forEach(context.delete)
-            try context.save()
+            try context.saveOrRollback(tracksSyncChanges: false)
             let kept = try context.fetch(FetchDescriptor<AIChatTurnRecord>())
             images.removeFiles(notIn: Set(kept.flatMap(\.imageFileNames)))
         } catch {

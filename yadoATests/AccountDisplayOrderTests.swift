@@ -44,14 +44,14 @@ struct AccountDisplayOrderTests {
         )
         let accounts = [unknown, tieSecond, lateCash, credit, earlyCash, tieFirst]
 
-        #expect(
-            AccountDisplayOrder.default.sorted(accounts).map(\.id)
-                == [earlyCash.id, lateCash.id, tieFirst.id, tieSecond.id, credit.id, unknown.id]
-        )
-        #expect(
-            AccountDisplayOrder(accountTypes: [.creditCard]).sorted(accounts).map(\.id)
-                == [credit.id, earlyCash.id, lateCash.id, tieFirst.id, tieSecond.id, unknown.id]
-        )
+        // 先算出两边再比较：整个表达式放进 #expect 时编译器推断类型会超时
+        let defaultIDs: [UUID] = AccountDisplayOrder.default.sorted(accounts).map(\.id)
+        let expectedDefaultIDs: [UUID] = [earlyCash.id, lateCash.id, tieFirst.id, tieSecond.id, credit.id, unknown.id]
+        #expect(defaultIDs == expectedDefaultIDs)
+
+        let creditFirstIDs: [UUID] = AccountDisplayOrder(accountTypes: [.creditCard]).sorted(accounts).map(\.id)
+        let expectedCreditFirstIDs: [UUID] = [credit.id, earlyCash.id, lateCash.id, tieFirst.id, tieSecond.id, unknown.id]
+        #expect(creditFirstIDs == expectedCreditFirstIDs)
     }
 
     @Test("按分类分组时跳过没有账户的分类，未知类型合成一组")
