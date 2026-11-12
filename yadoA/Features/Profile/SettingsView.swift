@@ -52,7 +52,7 @@ struct SettingsView: View {
     @State private var isDeleteAccountChoicePresented = false
     /// 正在注销账号。
     @State private var isDeletingAccount = false
-    /// 注销没有完成（服务端调用失败），本机数据和登录状态不变；AI 数据可能已删除，两个注销接口都可重复调用，重试即可完成。
+    /// 注销没有完成（服务端调用失败），本机数据和登录状态不变；AI 数据、意见反馈数据可能已删除，三个注销接口都可重复调用，重试即可完成。
     @State private var isDeleteAccountFailurePresented = false
     /// 服务端已注销，但本机数据没清掉。
     @State private var isDeleteAccountLocalCleanupFailurePresented = false
