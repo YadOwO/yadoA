@@ -13361,6 +13361,23 @@
         }
       }
     },
+    "profile.reset.scope.offlineMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloud sync is on, but the app is in offline mode, so only this device can be erased. Your cloud data is kept and sync is turned off.\n\nChanged your mind? You can undo this here within %1$lld days."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已开启云端同步，但当前处于离线模式，只能清除本机：云端数据会保留，同步随之关闭。\n\n如果后悔了，%1$lld 天内可以在这里撤销。"
+          }
+        }
+      }
+    },
     "profile.reset.scope.device" : {
       "extractionState" : "manual",
       "localizations" : {
