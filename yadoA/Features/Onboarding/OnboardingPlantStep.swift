@@ -144,10 +144,10 @@ struct OnboardingPlantStep: View {
         }
     }
 
-    /// 清单的各行；重看时没有问账号和同步，不写账本存在哪里和账号这两行，免得和实际情况对不上。
+    /// 清单的各行；重看时和离线模式（没同意隐私政策）下都没有问账号和同步，不写账本存在哪里和账号这两行，免得和实际情况对不上，点了也回不去。
     private var summaryItems: [OnboardingSummaryItem] {
         let items = OnboardingSummary.items(draft: store.draft, displayName: authStore.displayName, locale: locale)
-        return store.mode == .replay ? items.filter { $0.step != .account } : items
+        return store.mode == .replay || store.isOffline ? items.filter { $0.step != .account } : items
     }
 
     /// 一行一行写出清单：每写一行打一个勾、芽长一节；写完后豆子落到芽尖上，再出现按钮。
