@@ -38,7 +38,14 @@ final class AuthStore {
 
     private let client: LogtoClient
 
-    init() {
+    /// 当前是否允许联网：中国大陆地区同意隐私政策之前为 false。
+    ///
+    /// 为 false 时登录、刷新资料和获取服务凭证都不会发出请求；默认恒为 true，预览和测试无需关心。
+    private let isNetworkAllowed: () -> Bool
+
+    /// - Parameter isNetworkAllowed: 查询当前是否允许联网的闭包，由 App 入口接到隐私政策同意状态上。
+    init(isNetworkAllowed: @escaping () -> Bool = { true }) {
+        self.isNetworkAllowed = isNetworkAllowed
         let client = Self.makeClient()
         self.client = client
         isAuthenticated = client.isAuthenticated
@@ -49,6 +56,7 @@ final class AuthStore {
     ///
     /// - Parameter provider: 指定第三方登录方式时跳过 Logto 的方式选择，直接进入该连接器；nil 时走账号密码页。
     func signIn(provider: AuthSocialProvider? = nil) async {
+        guard isNetworkAllowed() else { return }
         guard !isBusy else { return }
         isBusy = true
         errorMessage = nil
@@ -87,6 +95,7 @@ final class AuthStore {
     /// ID token 只记录登录那一刻的资料，在其他端改过昵称后需靠这里刷新；
     /// 网络等临时失败时静默保留现有资料；凭证已失效（被撤销、用户被删除）时清除本地凭证，界面回到未登录。
     func refreshProfile() async {
+        guard isNetworkAllowed() else { return }
         guard client.isAuthenticated else { return }
         let userInfo: LogtoCore.UserInfoResponse
         do {
@@ -193,11 +202,15 @@ final class AuthStore {
 
     /// 获取指定 API resource 的 access token。
     ///
+    /// 同意隐私政策之前（`isNetworkAllowed()` 为 false）所有服务凭证都拿不到，
+    /// 同步、AI、反馈、注销这些都要先取凭证的接口因此不会出网；这是统一的兜底关口。
+    ///
     /// - Parameter resource: 登录时已申请的 API resource 标识。
     /// - Returns: access token。
-    /// - Throws: 未登录时抛出 `ServiceAuthError.notSignedIn`；凭证已失效时清除本地凭证并抛出
+    /// - Throws: 不允许联网时抛出 `ServiceAuthError.unavailable`；未登录时抛出 `ServiceAuthError.notSignedIn`；凭证已失效时清除本地凭证并抛出
     ///   `ServiceAuthError.sessionExpired`；网络等其他失败抛出 `ServiceAuthError.unavailable`。
     private func accessToken(forResource resource: String) async throws -> String {
+        guard isNetworkAllowed() else { throw ServiceAuthError.unavailable }
         guard client.isAuthenticated else { throw ServiceAuthError.notSignedIn }
         do {
             return try await client.getAccessToken(for: resource)

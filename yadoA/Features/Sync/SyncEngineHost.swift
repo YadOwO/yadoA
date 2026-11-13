@@ -4,6 +4,7 @@ import SwiftUI
 /// 在本地数据就绪后创建同步引擎和生命周期服务：启动时同步一次，回到前台时再同步，并把两者注入环境供设置页使用。
 ///
 /// 引擎只在开启了同步、且本机绑定的账号就是当前登录账号时才真正请求服务端，未开启时这里没有任何网络活动。
+/// 中国大陆地区同意隐私政策之前引擎照常创建（只动本地数据），但不 `start`，回前台和登录后也不 `syncNow`；同意后立即启动。
 /// 这里还负责两个全局提示：登录成功、登录页关闭后询问一次是否开启同步；云端被其他设备清空时让用户选择如何处理。
 private struct SyncEngineHostModifier: ViewModifier {
     @Environment(\.modelContext) private var modelContext
@@ -11,6 +12,8 @@ private struct SyncEngineHostModifier: ViewModifier {
     @Environment(AuthStore.self) private var authStore
     @Environment(SignInPresentation.self) private var signInPresentation
     @Environment(\.scenePhase) private var scenePhase
+    /// 隐私政策同意状态；预览中没有注入时为 nil，按允许联网处理。
+    @Environment(PrivacyAgreementStore.self) private var privacyAgreement: PrivacyAgreementStore?
 
     /// App 生命周期内唯一的同步引擎。
     @State private var engine: SyncEngine?
@@ -26,6 +29,9 @@ private struct SyncEngineHostModifier: ViewModifier {
 
     /// 是否正在提示云端已被其他设备清空。
     @State private var isEpochMismatchAlertPresented = false
+
+    /// 同步服务地址已核对完、引擎可以启动；核对失败时保持 false，本次启动不同步。
+    @State private var isEndpointReady = false
 
     /// 生命周期操作失败时的文案键。
     @State private var errorKey: String?
@@ -58,10 +64,17 @@ private struct SyncEngineHostModifier: ViewModifier {
                     errorKey = SyncMessages.localizationKey(forLifecycleError: error)
                     return
                 }
-                engine.start()
+                isEndpointReady = true
+                startIfAllowed()
+            }
+            // 同意隐私政策后立即启动引擎
+            .onChange(of: privacyAgreement?.allowsNetwork ?? true) { _, allowed in
+                if allowed {
+                    startIfAllowed()
+                }
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active {
+                if phase == .active, isNetworkAllowed {
                     engine?.syncNow()
                 }
             }
@@ -70,7 +83,9 @@ private struct SyncEngineHostModifier: ViewModifier {
                     isEnablePromptPending = true
                     presentEnablePromptIfReady()
                     // 之前绑定的就是这个账号（例如登录失效后重新登录）时直接恢复同步
-                    engine?.syncNow()
+                    if isNetworkAllowed {
+                        engine?.syncNow()
+                    }
                 }
             }
             .onChange(of: signInPresentation.isPresented) { _, _ in
@@ -110,6 +125,17 @@ private struct SyncEngineHostModifier: ViewModifier {
             } message: {
                 Text(text(errorKey ?? ""))
             }
+    }
+
+    /// 是否允许联网；没注入同意状态时按允许处理。
+    private var isNetworkAllowed: Bool {
+        privacyAgreement?.allowsNetwork ?? true
+    }
+
+    /// 同步服务地址核对完成且允许联网时启动引擎；两个条件谁后满足都由这里统一把关。
+    private func startIfAllowed() {
+        guard isEndpointReady, isNetworkAllowed else { return }
+        engine?.start()
     }
 
     /// 登录页关闭后，本机数据还没绑定任何账号时询问一次是否开启同步。

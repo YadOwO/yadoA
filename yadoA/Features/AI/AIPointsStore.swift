@@ -72,16 +72,26 @@ final class AIPointsStore {
     /// 保存所选模型档位的本机偏好。
     private let defaults: UserDefaults
 
+    /// 当前是否允许联网：中国大陆地区同意隐私政策之前为 false，此时刷新直接返回，不发请求。
+    private let isNetworkAllowed: () -> Bool
+
     /// 创建点数状态。
     ///
     /// - Parameters:
     ///   - api: 点数查询接口。
     ///   - defaults: 保存所选模型档位的本机偏好；测试传入独立的存储。
     ///   - currentUserID: 读取当前登录账号 ID 的动作。
-    init(api: AIBillingFetching, defaults: UserDefaults = .standard, currentUserID: @escaping () -> String?) {
+    ///   - isNetworkAllowed: 查询当前是否允许联网的动作，默认恒为允许。
+    init(
+        api: AIBillingFetching,
+        defaults: UserDefaults = .standard,
+        currentUserID: @escaping () -> String?,
+        isNetworkAllowed: @escaping () -> Bool = { true }
+    ) {
         self.api = api
         self.defaults = defaults
         self.currentUserID = currentUserID
+        self.isNetworkAllowed = isNetworkAllowed
         selectedTiers = AIModelScope.allCases.reduce(into: [:]) { result, scope in
             result[scope] = defaults.string(forKey: scope.storageKey).flatMap(AIModelTier.init(rawValue:))
         }
@@ -91,11 +101,14 @@ final class AIPointsStore {
 
     /// 用登录状态创建：凭证取自 AI 服务的 access token，账号取 Logto 用户 ID。
     ///
-    /// - Parameter authStore: 全局登录状态。
-    convenience init(authStore: AuthStore) {
+    /// - Parameters:
+    ///   - authStore: 全局登录状态。
+    ///   - isNetworkAllowed: 查询当前是否允许联网的动作，默认恒为允许。
+    convenience init(authStore: AuthStore, isNetworkAllowed: @escaping () -> Bool = { true }) {
         self.init(
             api: AIBillingAPI { try await authStore.accessTokenForAIService() },
-            currentUserID: { authStore.userID }
+            currentUserID: { authStore.userID },
+            isNetworkAllowed: isNetworkAllowed
         )
     }
 
@@ -250,6 +263,7 @@ final class AIPointsStore {
     /// 未登录时立即清空余额。同一账号正在刷新时等这一次结束，不重复请求：从“我的”快速点进 AI 点数页时，
     /// 明细要等钱包建好（含新用户赠送）再查。正在刷新的是别的账号时另起一次，旧账号的结果回来后丢弃。
     func refresh() async {
+        guard isNetworkAllowed() else { return }
         guard let userID = currentUserID() else {
             clearBalance()
             return
@@ -271,6 +285,7 @@ final class AIPointsStore {
 
     /// 刷新今天的签到状态；未登录时清空。失败时状态置空，不影响余额和 `failure`。
     func refreshCheckInStatus() async {
+        guard isNetworkAllowed() else { return }
         guard let userID = currentUserID() else {
             checkInStatus = nil
             return

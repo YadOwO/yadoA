@@ -19,6 +19,8 @@ struct ProfileView: View {
     @Environment(FeedbackStore.self) private var feedback: FeedbackStore?
     /// 芽豆系列的产品目录；预览中没有注入时为 nil。
     @Environment(SeriesCatalogStore.self) private var seriesCatalog: SeriesCatalogStore?
+    /// 隐私政策同意状态；离线模式下隐藏所有联网入口。预览中没有注入时为 nil，按允许联网处理。
+    @Environment(PrivacyAgreementStore.self) private var privacyAgreement: PrivacyAgreementStore?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// 修改个人资料弹层，打开时携带当时的资料快照。
@@ -57,35 +59,40 @@ struct ProfileView: View {
                     .accessibilityIdentifier("profile-category-management")
                 }
 
-                ProfileSettingsSection(nil, seed: "profile.section.ai") {
-                    NavigationLink(value: ProfileRoute.aiPoints) {
-                        ProfileSettingsRow(
-                            titleKey: "ai.points.title",
-                            symbol: "sparkles",
-                            value: aiPointsValue,
-                            // 余额不够快捷语音说一句时用账本红提醒，其余保持灰色；与 AI 点数页的余额颜色一致
-                            valueTint: authStore.isAuthenticated && aiPoints?.isExhausted(for: .quickVoice) == true
-                                ? Color(.ledgerRed) : nil,
-                            valueContentTransition: .numericText()
-                        )
+                // 离线模式（没同意隐私政策）下 AI、云同步和反馈都要联网，入口整体隐藏
+                if isNetworkAllowed {
+                    ProfileSettingsSection(nil, seed: "profile.section.ai") {
+                        NavigationLink(value: ProfileRoute.aiPoints) {
+                            ProfileSettingsRow(
+                                titleKey: "ai.points.title",
+                                symbol: "sparkles",
+                                value: aiPointsValue,
+                                // 余额不够快捷语音说一句时用账本红提醒，其余保持灰色；与 AI 点数页的余额颜色一致
+                                valueTint: authStore.isAuthenticated && aiPoints?.isExhausted(for: .quickVoice) == true
+                                    ? Color(.ledgerRed) : nil,
+                                valueContentTransition: .numericText()
+                            )
+                        }
+                        .animation(reduceMotion ? nil : .snappy, value: aiPoints?.balance)
+                        .accessibilityIdentifier("profile-ai-points")
                     }
-                    .animation(reduceMotion ? nil : .snappy, value: aiPoints?.balance)
-                    .accessibilityIdentifier("profile-ai-points")
                 }
 
                 ProfileSettingsSection(nil, seed: "profile.section.data") {
-                    NavigationLink(value: ProfileRoute.sync) {
-                        ProfileSettingsRow(
-                            titleKey: "sync.title",
-                            symbol: "icloud",
-                            value: text(isSyncOn ? "sync.row.on" : "sync.row.off"),
-                            // 已开启用账本绿表示生效，未开启保持灰色；账本绿已配好浅色与深色两套
-                            valueTint: isSyncOn ? Color(.ledgerGreen) : nil
-                        )
-                    }
-                    .accessibilityIdentifier("profile-sync")
+                    if isNetworkAllowed {
+                        NavigationLink(value: ProfileRoute.sync) {
+                            ProfileSettingsRow(
+                                titleKey: "sync.title",
+                                symbol: "icloud",
+                                value: text(isSyncOn ? "sync.row.on" : "sync.row.off"),
+                                // 已开启用账本绿表示生效，未开启保持灰色；账本绿已配好浅色与深色两套
+                                valueTint: isSyncOn ? Color(.ledgerGreen) : nil
+                            )
+                        }
+                        .accessibilityIdentifier("profile-sync")
 
-                    ProfileSettingsRowDivider()
+                        ProfileSettingsRowDivider()
+                    }
 
                     NavigationLink(value: ProfileRoute.settings) {
                         ProfileSettingsRow(titleKey: "settings.title", symbol: "gearshape")
@@ -93,17 +100,19 @@ struct ProfileView: View {
                     .accessibilityIdentifier("profile-settings")
                 }
 
-                ProfileSettingsSection(nil, seed: "profile.section.feedback") {
-                    feedbackEntry
+                if isNetworkAllowed {
+                    ProfileSettingsSection(nil, seed: "profile.section.feedback") {
+                        feedbackEntry
 
-                    // 目录里除了本 App 没有别的产品时不显示入口，避免点进去是空页面
-                    if seriesCatalog?.products.isEmpty == false {
-                        ProfileSettingsRowDivider()
+                        // 目录里除了本 App 没有别的产品时不显示入口，避免点进去是空页面
+                        if seriesCatalog?.products.isEmpty == false {
+                            ProfileSettingsRowDivider()
 
-                        NavigationLink(value: ProfileRoute.moreProducts) {
-                            ProfileSettingsRow(titleKey: "series.title", symbol: "square.stack.3d.up")
+                            NavigationLink(value: ProfileRoute.moreProducts) {
+                                ProfileSettingsRow(titleKey: "series.title", symbol: "square.stack.3d.up")
+                            }
+                            .accessibilityIdentifier("profile-more-products")
                         }
-                        .accessibilityIdentifier("profile-more-products")
                     }
                 }
 
@@ -119,25 +128,41 @@ struct ProfileView: View {
         .sheet(item: $editingProfile) { profile in
             ProfileEditView(profile: profile)
         }
-        .task(id: authStore.isAuthenticated) {
+        // 登录状态或联网许可变化时重新刷新；同意隐私政策后立即触发，请求本身已在 store 层拦住
+        .task(id: refreshTrigger) {
             // 进入页面或登录状态变化时拉一次最新资料，其他端改过昵称也能及时同步
             await authStore.refreshProfile()
         }
         .onAppear { checkInPlacement = .random() }
-        .task(id: authStore.isAuthenticated) {
+        .task(id: refreshTrigger) {
             // 每次回到“我的”都刷新一次余额，其他芽豆 App 用掉的点数也能及时反映
             await aiPoints?.refresh()
             // 再刷新今天的签到状态；登录成功后也走这里，只刷新状态，不自动签到
             await aiPoints?.refreshCheckInStatus()
         }
-        .task(id: authStore.isAuthenticated) {
+        .task(id: refreshTrigger) {
             // 每次回到“我的”都刷新一次反馈未读数；从反馈页返回时已在标记已读后更新过，这里再对一次
             await feedback?.refreshUnread()
         }
-        .task {
+        .task(id: isNetworkAllowed) {
             // 每次回到“我的”都刷新一次产品目录；新产品上架后入口自己出现，不用发版
             await seriesCatalog?.refresh()
         }
+    }
+
+    /// 是否允许联网；没注入同意状态时按允许处理。离线模式下页面按未登录显示，并隐藏联网入口。
+    private var isNetworkAllowed: Bool {
+        privacyAgreement?.allowsNetwork ?? true
+    }
+
+    /// 已登录且允许联网；离线模式下已登录用户也按未登录显示，但并没有退出登录。
+    private var isSignedInOnline: Bool {
+        authStore.isAuthenticated && isNetworkAllowed
+    }
+
+    /// 触发刷新资料、点数和未读数的条件。
+    private var refreshTrigger: ProfileRefreshTrigger {
+        ProfileRefreshTrigger(isAuthenticated: authStore.isAuthenticated, isNetworkAllowed: isNetworkAllowed)
     }
 
     /// 意见反馈入口：已登录时进入对话页；未登录时直接打开登录页，说明反馈需要登录。
@@ -193,6 +218,7 @@ struct ProfileView: View {
     /// 当前账号是否已开启云端同步；决定「云端同步」行的状态值和页头副标题。
     private var isSyncOn: Bool {
         guard authStore.isAuthenticated,
+              isNetworkAllowed,
               let state = syncLifecycle?.state,
               state.isEnabled,
               let userID = authStore.userID
@@ -207,7 +233,7 @@ struct ProfileView: View {
         VStack(spacing: 14) {
             // 未登录时不包成按钮，避免禁用态把头像和名称压暗
             Group {
-                if authStore.isAuthenticated {
+                if isSignedInOnline {
                     Button {
                         editingProfile = authStore.profile ?? AccountProfile()
                     } label: {
@@ -235,7 +261,9 @@ struct ProfileView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            if !authStore.isAuthenticated {
+            if !isNetworkAllowed {
+                offlineNotice
+            } else if !authStore.isAuthenticated {
                 signInButton
             }
         }
@@ -247,7 +275,8 @@ struct ProfileView: View {
 
     /// 是否显示签到气泡：未登录时总是显示；已登录时今天还没签才显示，状态没拿到或拿失败时不显示；动画进行中保持显示。
     private var showsCheckInBadge: Bool {
-        !authStore.isAuthenticated || aiPoints?.shouldOfferCheckIn == true || isCheckInBadgeActive
+        guard isNetworkAllowed else { return false }
+        return !authStore.isAuthenticated || aiPoints?.shouldOfferCheckIn == true || isCheckInBadgeActive
     }
 
     /// 浮在页头头像左侧或右侧空白里的签到气泡；位置只在头像所在的竖向带内取值，不压住头像、角标、名称和登录按钮。
@@ -292,9 +321,10 @@ struct ProfileView: View {
     /// 头像与名称；已登录时头像带铅笔角标。
     private var profileIdentity: some View {
         VStack(spacing: 14) {
-            ProfileAvatarView(url: authStore.profile?.avatarURL, size: Self.avatarSize)
+            // 离线模式下不加载远程头像
+            ProfileAvatarView(url: isNetworkAllowed ? authStore.profile?.avatarURL : nil, size: Self.avatarSize)
                 .overlay(alignment: .bottomTrailing) {
-                    if authStore.isAuthenticated {
+                    if isSignedInOnline {
                         editBadge
                     }
                 }
@@ -340,10 +370,36 @@ struct ProfileView: View {
 
     /// 页头名称：已登录时显示账号名称，取不到名称时显示“已登录”；未登录时显示占位名称。
     private var headerTitle: String {
-        guard authStore.isAuthenticated else {
+        guard isSignedInOnline else {
             return text("profile.user.placeholder")
         }
         return authStore.displayName ?? text("auth.user.signed_in")
+    }
+
+    /// 离线模式的说明和重新同意入口：点按钮重新弹出隐私政策同意卡，同意后联网功能立即恢复。
+    private var offlineNotice: some View {
+        VStack(spacing: 10) {
+            Text(text("profile.offline.message"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("profile-offline-message")
+
+            Button {
+                privacyAgreement?.reviewAgain()
+            } label: {
+                Text(text("profile.offline.agree"))
+                    .font(.body.weight(.medium))
+                    .padding(.horizontal, 16)
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+            .accessibilityIdentifier("profile-offline-agree")
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 6)
     }
 
     /// 打开登录 / 注册页的入口；登录方式的选择与进度都在登录页内完成。
@@ -399,6 +455,15 @@ struct ProfileView: View {
     private func text(_ key: String) -> String {
         AccountLocalization.string(key, locale: locale)
     }
+}
+
+/// 触发「我的」页刷新资料、点数和未读数的条件：登录状态变化，或同意隐私政策后允许联网。
+private struct ProfileRefreshTrigger: Hashable {
+    /// 本地是否持有有效凭证。
+    let isAuthenticated: Bool
+
+    /// 是否允许联网。
+    let isNetworkAllowed: Bool
 }
 
 #Preview {

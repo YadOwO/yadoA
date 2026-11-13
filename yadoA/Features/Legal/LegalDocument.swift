@@ -59,6 +59,41 @@ enum LegalDocument: String, CaseIterable, Identifiable {
     }
 }
 
+extension LegalDocument {
+    /// 把带 Markdown 链接的同意文案解析成富文本，链接加下划线以便和正文区分；Markdown 解析失败时退回纯文本。
+    ///
+    /// 登录页的同意文案和首次启动的隐私政策同意卡共用。
+    ///
+    /// - Parameters:
+    ///   - localizationKey: 同意文案的本地化键。
+    ///   - locale: App 当前的语言环境。
+    /// - Returns: 可直接交给 `Text` 显示的富文本。
+    static func linkedText(_ localizationKey: String, locale: Locale) -> AttributedString {
+        let source = AccountLocalization.string(localizationKey, locale: locale)
+        guard var text = try? AttributedString(
+            markdown: source,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        ) else {
+            return AttributedString(source)
+        }
+        for run in text.runs where run.link != nil {
+            text[run.range].underlineStyle = .single
+        }
+        return text
+    }
+
+    /// 同意文案中链接到的文档，按出现顺序排列；测试用来确认每种语言都链到了用户协议和隐私政策。
+    ///
+    /// - Parameters:
+    ///   - localizationKey: 同意文案的本地化键。
+    ///   - locale: App 当前的语言环境。
+    static func linkedDocuments(in localizationKey: String, locale: Locale) -> [LegalDocument] {
+        linkedText(localizationKey, locale: locale).runs.compactMap { run in
+            run.link.flatMap(LegalDocument.init(linkURL:))
+        }
+    }
+}
+
 extension View {
     /// 在 App 内用 Safari 视图弹出法律文档，地址按当前语言选中文或英文版。
     ///

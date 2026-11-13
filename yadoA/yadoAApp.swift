@@ -12,6 +12,8 @@ import SwiftUI
 struct yadoAApp: App {
     /// 仅由 UI 自动化参数显式启用的隔离内存容器；生产启动不会创建它。
     private let uiTestingDataContainer: AccountDataContainer?
+    /// 隐私政策同意状态：中国大陆地区同意之前不联网，不同意进入离线模式；其他地区不受限制。
+    @State private var privacyAgreement: PrivacyAgreementStore
     /// 全局登录状态，注入环境后由“我的”页读取；不参与本地账本的读写。
     @State private var authStore: AuthStore
     /// 当前账号的 AI 点数，“我的”入口、AI 点数页和语音记账共用；凭证与账号取自 `authStore`。
@@ -19,13 +21,18 @@ struct yadoAApp: App {
     /// 意见反馈的未读回复数，“我的”入口和 Tab 角标共用；凭证与账号取自 `authStore`。
     @State private var feedback: FeedbackStore
     /// 芽豆系列的产品目录，“我的”入口和「更多芽豆产品」页共用；公开数据，与登录状态无关。
-    @State private var seriesCatalog = SeriesCatalogStore()
+    @State private var seriesCatalog: SeriesCatalogStore
 
     init() {
-        let authStore = AuthStore()
+        // 同意状态最先建好，后面所有会联网的 store 都要靠它判断能不能发请求
+        let privacyAgreement = Self.makePrivacyAgreement()
+        _privacyAgreement = State(initialValue: privacyAgreement)
+        let isNetworkAllowed = { privacyAgreement.allowsNetwork }
+        let authStore = AuthStore(isNetworkAllowed: isNetworkAllowed)
         _authStore = State(initialValue: authStore)
-        _aiPoints = State(initialValue: AIPointsStore(authStore: authStore))
-        _feedback = State(initialValue: FeedbackStore(authStore: authStore))
+        _aiPoints = State(initialValue: AIPointsStore(authStore: authStore, isNetworkAllowed: isNetworkAllowed))
+        _feedback = State(initialValue: FeedbackStore(authStore: authStore, isNetworkAllowed: isNetworkAllowed))
+        _seriesCatalog = State(initialValue: SeriesCatalogStore(isNetworkAllowed: isNetworkAllowed))
         // Release 同样启用；诊断只存本机，只有用户在意见反馈里勾选后才上传
         MetricKitCollector.shared.start()
         #if DEBUG
@@ -81,6 +88,24 @@ struct yadoAApp: App {
         #endif
     }
 
+    /// 创建隐私政策同意状态。
+    ///
+    /// Debug 构建的 UI 自动化（`--ui-testing-in-memory`）下默认不需要同意，现有用例不会出现同意卡；
+    /// 传 `--ui-testing-privacy-agreement` 模拟中国大陆地区，再传 `--ui-testing-privacy-agreement-reset` 清掉上次的选择。
+    /// Release 构建忽略这些参数。
+    private static func makePrivacyAgreement() -> PrivacyAgreementStore {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--ui-testing-in-memory") {
+            if arguments.contains("--ui-testing-privacy-agreement-reset") {
+                PrivacyAgreementStore.reset(in: .standard)
+            }
+            return PrivacyAgreementStore(requiresAgreement: arguments.contains("--ui-testing-privacy-agreement"))
+        }
+        #endif
+        return PrivacyAgreementStore()
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {
@@ -93,6 +118,7 @@ struct yadoAApp: App {
                     }
                 }
             }
+            .environment(privacyAgreement)
             .environment(authStore)
             .environment(aiPoints)
             .environment(feedback)

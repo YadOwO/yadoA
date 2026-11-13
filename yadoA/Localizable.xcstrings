@@ -178,6 +178,276 @@
         }
       }
     },
+    "privacy.agreement.agree" : {
+      "comment" : "隐私政策同意卡底部的主按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agree"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同意"
+          }
+        }
+      }
+    },
+    "privacy.agreement.decline" : {
+      "comment" : "隐私政策同意卡底部的次要按钮；不同意后进入离线模式",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disagree"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不同意"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.ai.body" : {
+      "comment" : "同意卡上 AI 记账一项的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Say a sentence or send a picture, and AI logs it for you"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "说一句话或发张图，由 AI 帮你记"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.ai.title" : {
+      "comment" : "同意卡上 AI 记账一项的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI bookkeeping"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 记账"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.feedback.body" : {
+      "comment" : "同意卡上意见反馈一项的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave us a message and read our replies"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "给我们留言，查看回复"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.feedback.title" : {
+      "comment" : "同意卡上意见反馈一项的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feedback"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "意见反馈"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.signIn.body" : {
+      "comment" : "同意卡上登录一项的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in with your Yado account, and it knows you on a new phone too"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用芽豆账号登录，换手机也认得你"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.signIn.title" : {
+      "comment" : "同意卡上登录一项的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.sync.body" : {
+      "comment" : "同意卡上云同步一项的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When turned on, your ledger is synced to the cloud"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开启后把账本同步到云端"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.sync.title" : {
+      "comment" : "同意卡上云同步一项的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloud sync"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "云同步"
+          }
+        }
+      }
+    },
+    "privacy.agreement.intro" : {
+      "comment" : "同意卡的引言",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bookkeeping, accounts and charts live only on this phone and need no network. The features below go online, and send data only when you use them:"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记账、账户和图表都只存在这台手机上，不用联网。下面这些功能要联网，只在你使用时才发出数据："
+          }
+        }
+      }
+    },
+    "privacy.agreement.links" : {
+      "comment" : "同意卡上的协议说明，两个 Markdown 链接地址不能改（yadoa-legal://terms 和 yadoa-legal://privacy）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please read the [Terms of Service](yadoa-legal://terms) and the [Privacy Policy](yadoa-legal://privacy). The app goes online only after you tap Agree. If you tap Disagree, you can still keep books offline, but sign-in, sync, AI and feedback are unavailable."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请阅读[《用户协议》](yadoa-legal://terms)和[《隐私政策》](yadoa-legal://privacy)。点「同意」后才会联网；点「不同意」也能离线记账，但登录、同步、AI 和反馈都不能用。"
+          }
+        }
+      }
+    },
+    "privacy.agreement.title" : {
+      "comment" : "隐私政策同意卡的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Before you use Yado Assets"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用芽豆资产前"
+          }
+        }
+      }
+    },
+    "profile.offline.agree" : {
+      "comment" : "「我的」页离线说明下的按钮，点后重新弹出同意卡",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review and Agree to Privacy Policy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看并同意隐私政策"
+          }
+        }
+      }
+    },
+    "profile.offline.message" : {
+      "comment" : "「我的」页在离线模式下替代登录按钮的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Offline mode: sign-in, sync, AI and feedback are off, and your ledger stays on this device."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "离线模式：登录、同步、AI 和意见反馈已关闭，账本只在本机。"
+          }
+        }
+      }
+    },
     "series.title" : {
       "comment" : "「我的」页更多芽豆产品入口与页面标题",
       "extractionState" : "manual",

@@ -15,6 +15,33 @@ extension XCTestCase {
         return app
     }
 
+    /// 模拟中国大陆地区启动，需要先同意隐私政策；使用隔离内存存储和固定英文环境。
+    ///
+    /// 地区靠启动参数模拟，不依赖系统地区。
+    ///
+    /// - Parameters:
+    ///   - reset: 是否清掉上次保存的同意或不同意选择；重启验证「以后不再弹出」时传 false。
+    ///   - onboarding: 是否从头演示首次引导；默认视为引导已完成。
+    /// - Returns: 已启动的应用。
+    @MainActor
+    func launchPrivacyAgreementInEnglish(reset: Bool, onboarding: Bool = false) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "--ui-testing-in-memory",
+            "--ui-testing-privacy-agreement",
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US"
+        ]
+        if reset {
+            app.launchArguments.append("--ui-testing-privacy-agreement-reset")
+        }
+        if onboarding {
+            app.launchArguments.append("--ui-testing-onboarding")
+        }
+        app.launch()
+        return app
+    }
+
     /// 使用隔离 Home 夹具和固定英文环境启动应用。
     @MainActor
     func launchHomeFixtureInEnglish() -> XCUIApplication {

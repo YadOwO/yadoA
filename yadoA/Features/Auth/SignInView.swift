@@ -435,26 +435,14 @@ enum SignInAgreement {
     /// - Parameter locale: App 当前的语言环境。
     /// - Returns: 可直接交给 `Text` 显示的富文本。
     static func attributedText(locale: Locale) -> AttributedString {
-        let source = AccountLocalization.string(localizationKey, locale: locale)
-        guard var text = try? AttributedString(
-            markdown: source,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        ) else {
-            return AttributedString(source)
-        }
-        for run in text.runs where run.link != nil {
-            text[run.range].underlineStyle = .single
-        }
-        return text
+        LegalDocument.linkedText(localizationKey, locale: locale)
     }
 
     /// 文案中链接到的文档，按出现顺序排列；测试用来确认每种语言都链到了用户协议和隐私政策。
     ///
     /// - Parameter locale: App 当前的语言环境。
     static func linkedDocuments(locale: Locale) -> [LegalDocument] {
-        attributedText(locale: locale).runs.compactMap { run in
-            run.link.flatMap(LegalDocument.init(linkURL:))
-        }
+        LegalDocument.linkedDocuments(in: localizationKey, locale: locale)
     }
 }
 

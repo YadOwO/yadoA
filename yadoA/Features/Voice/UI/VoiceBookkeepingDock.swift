@@ -14,6 +14,8 @@ struct VoiceBookkeepingDock: View {
     @Environment(AuthStore.self) private var authStore
     @Environment(VoiceBookkeepingState.self) private var voice
     @Environment(\.locale) private var locale
+    /// 隐私政策同意状态；离线模式下整个语音区域不显示。预览中没有注入时为 nil，按允许联网处理。
+    @Environment(PrivacyAgreementStore.self) private var privacyAgreement: PrivacyAgreementStore?
 
     /// 麦克风按钮（含上下留白）占用的高度变化时回调，页面据此给列表末尾留白；麦克风在附属栏里时为 0。
     let onButtonHeightChange: (CGFloat) -> Void
@@ -27,7 +29,27 @@ struct VoiceBookkeepingDock: View {
     private var session: VoiceSession? { voice.session }
     private var input: VoiceInputController { voice.input }
 
+    /// 是否允许联网；没注入同意状态时按允许处理。
+    private var isNetworkAllowed: Bool {
+        privacyAgreement?.allowsNetwork ?? true
+    }
+
+    /// 离线模式（没同意隐私政策）下不显示卡片、悬浮麦克风和聊天入口，并把底部留白归零；同意后立即恢复。
     var body: some View {
+        Group {
+            if isNetworkAllowed {
+                dock
+            }
+        }
+        .task(id: isNetworkAllowed) {
+            if !isNetworkAllowed {
+                onButtonHeightChange(0)
+            }
+        }
+    }
+
+    /// 语音区域本体：一次性提示、会话卡片、悬浮麦克风和聊天入口。
+    private var dock: some View {
         VStack(spacing: 10) {
             // 提示参与布局；短按时没有卡片和悬浮按钮，也要保留完整高度，避免空栈上的 overlay 落入附属栏。
             transientHint

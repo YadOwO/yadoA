@@ -49,4 +49,15 @@ struct LegalDocumentTests {
             #expect(!plain.contains(LegalDocument.linkScheme))
         }
     }
+
+    @Test("隐私政策同意卡文案在中英文下都链到用户协议和隐私政策")
+    func privacyAgreementLinksBothDocuments() {
+        for locale in [english, simplifiedChinese] {
+            let documents = LegalDocument.linkedDocuments(in: "privacy.agreement.links", locale: locale)
+            #expect(documents.contains(.terms))
+            #expect(documents.contains(.privacy))
+            let plain = String(LegalDocument.linkedText("privacy.agreement.links", locale: locale).characters)
+            #expect(!plain.contains("]("))
+        }
+    }
 }

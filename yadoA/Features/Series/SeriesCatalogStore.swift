@@ -32,6 +32,7 @@ struct SeriesCatalogAPI: SeriesCatalogFetching {
 ///
 /// 上次成功拉到的目录原样存在本机：启动时先用它，所以入口不会等网络才出现，断网也能看列表；
 /// 进入「我的」时刷新一次，失败或内容不合契约时保留原来的目录。没有可展示的产品时入口整行不显示。
+/// 中国大陆地区同意隐私政策之前不允许联网：刷新直接返回，继续用本机缓存。
 @Observable
 final class SeriesCatalogStore {
     /// 目录缓存的存储键，存的是接口返回的原始 JSON。
@@ -46,14 +47,23 @@ final class SeriesCatalogStore {
     /// 存放目录缓存的设置。
     private let defaults: UserDefaults
 
+    /// 当前是否允许联网；为 false 时 `refresh()` 不发请求。
+    private let isNetworkAllowed: () -> Bool
+
     /// 创建目录状态，并读出本机缓存的目录。
     ///
     /// - Parameters:
     ///   - fetcher: 目录来源，默认从网站拉取。
     ///   - defaults: 存放目录缓存的设置。
-    init(fetcher: SeriesCatalogFetching = SeriesCatalogAPI(), defaults: UserDefaults = .standard) {
+    ///   - isNetworkAllowed: 查询当前是否允许联网的动作，默认恒为允许。
+    init(
+        fetcher: SeriesCatalogFetching = SeriesCatalogAPI(),
+        defaults: UserDefaults = .standard,
+        isNetworkAllowed: @escaping () -> Bool = { true }
+    ) {
         self.fetcher = fetcher
         self.defaults = defaults
+        self.isNetworkAllowed = isNetworkAllowed
         if let data = defaults.data(forKey: Self.cacheStorageKey), let catalog = Self.decode(data) {
             products = catalog.otherProducts
         } else {
@@ -61,8 +71,9 @@ final class SeriesCatalogStore {
         }
     }
 
-    /// 从网站刷新目录；成功后更新列表并覆盖本机缓存，失败或解码不出来时保持原样。
+    /// 从网站刷新目录；成功后更新列表并覆盖本机缓存，失败或解码不出来时保持原样；不允许联网时直接返回，保留本机缓存。
     func refresh() async {
+        guard isNetworkAllowed() else { return }
         guard let data = try? await fetcher.fetchCatalogData(), let catalog = Self.decode(data) else { return }
         defaults.set(data, forKey: Self.cacheStorageKey)
         products = catalog.otherProducts

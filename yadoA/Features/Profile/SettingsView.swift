@@ -15,6 +15,8 @@ struct SettingsView: View {
     @Environment(SyncLifecycle.self) private var syncLifecycle: SyncLifecycle?
     /// AI 点数状态，注销时关闭当前账号的“帮助改进 AI”授权；预览中没有注入时为 nil。
     @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
+    /// 隐私政策同意状态；离线模式下隐藏账号分组。预览中没有注入时为 nil，按允许联网处理。
+    @Environment(PrivacyAgreementStore.self) private var privacyAgreement: PrivacyAgreementStore?
     @Query private var accounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
 
@@ -173,7 +175,8 @@ struct SettingsView: View {
                         .labelStyle(ProfileExportLabelStyle(color: .red))
                 }
 
-                if authStore.isAuthenticated {
+                // 退出登录要撤销远端凭证、注销要调接口，离线模式（没同意隐私政策）下都不显示；已登录用户不会因此退出
+                if authStore.isAuthenticated, privacyAgreement?.allowsNetwork ?? true {
                     ProfileSettingsSection("auth.section.title") {
                         Button {
                             beginSignOut()
