@@ -335,24 +335,7 @@ final class VoiceSession {
                 case let .toolCalls(calls, canFinishLocally, followUpAsk):
                     let executionStartedAt = VoiceTimingClock.now
                     let executionSignpost = signposter.beginInterval("VoiceExecute", id: signposter.makeSignpostID())
-                    var isAllSucceeded = true
-                    for call in calls {
-                        let execution = executor.execute(call)
-                        events.append(.toolCall(call))
-                        events.append(.toolResult(execution.result))
-                        isAllSucceeded = isAllSucceeded && execution.result.output.isSuccess
-                        if let insight = execution.insight {
-                            updateTurn(turnID) { $0.insights.append(insight) }
-                        }
-                        // 新建或修改周期记账时，规则后面跟着当场记入的流水，一并记入本轮
-                        for change in execution.changes {
-                            updateTurn(turnID) { $0.changes.append(change) }
-                            // 余额调整、转账、账户与周期记账的改动不在首页明细中展示，只有收支流水需要提示
-                            if let entryHighlight = change.entryChange?.highlight {
-                                highlight.mark(entryHighlight)
-                            }
-                        }
-                    }
+                    let isAllSucceeded = executeToolCalls(calls, with: executor, turnID: turnID)
                     signposter.endInterval("VoiceExecute", executionSignpost)
                     requestTimings[requestTimings.count - 1].toolCallCount = calls.count
                     requestTimings[requestTimings.count - 1].executionMs = VoiceTimingClock.milliseconds(since: executionStartedAt)
@@ -384,6 +367,35 @@ final class VoiceSession {
             guard turnGeneration == generation else { return }
             finishTurn(turnID, failure: Self.failure(for: error))
         }
+    }
+
+    /// 依次执行一批工具调用：把调用和结果写进会话记录，把洞察和改动记入本轮，收支改动顺带在首页标出。
+    ///
+    /// - Parameters:
+    ///   - calls: 服务端这次下发的工具调用，按顺序执行。
+    ///   - executor: 本轮共用的工具执行器。
+    ///   - turnID: 改动记入的那一轮。
+    /// - Returns: 是否全部调用都成功。
+    private func executeToolCalls(_ calls: [VoiceToolCall], with executor: VoiceToolExecutor, turnID: UUID) -> Bool {
+        var isAllSucceeded = true
+        for call in calls {
+            let execution = executor.execute(call)
+            events.append(.toolCall(call))
+            events.append(.toolResult(execution.result))
+            isAllSucceeded = isAllSucceeded && execution.result.output.isSuccess
+            if let insight = execution.insight {
+                updateTurn(turnID) { $0.insights.append(insight) }
+            }
+            // 新建或修改周期记账时，规则后面跟着当场记入的流水，一并记入本轮
+            for change in execution.changes {
+                updateTurn(turnID) { $0.changes.append(change) }
+                // 余额调整、转账、账户与周期记账的改动不在首页明细中展示，只有收支流水需要提示
+                if let entryHighlight = change.entryChange?.highlight {
+                    highlight.mark(entryHighlight)
+                }
+            }
+        }
+        return isAllSucceeded
     }
 
     /// 撤销最近一轮的全部写入，并把这一轮移出会话记录，模型不会再引用已撤销的流水。

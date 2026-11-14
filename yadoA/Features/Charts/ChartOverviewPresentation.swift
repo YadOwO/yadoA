@@ -60,13 +60,7 @@ struct ChartPointPresentation: Identifiable, Equatable {
 struct ChartOverviewPresentation: Equatable {
     /// 读取支出和收入；余额调整不参与图表统计，聚合不依赖持久化排序。
     static func descriptor() -> FetchDescriptor<AccountTransaction> {
-        let expenseType = AccountTransactionType.expense.rawValue
-        let incomeType = AccountTransactionType.income.rawValue
-        return FetchDescriptor(
-            predicate: #Predicate<AccountTransaction> { transaction in
-                transaction.typeRawValue == expenseType || transaction.typeRawValue == incomeType
-            }
-        )
+        AccountTransaction.bookkeepingEntriesDescriptor()
     }
 
     /// 当前展示的收支类型。

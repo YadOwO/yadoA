@@ -19,7 +19,7 @@ struct HomeView: View {
     /// - Parameter onRepeatEntry: 选择“再记一笔”后的导航动作。
     init(onRepeatEntry: @escaping (DiningExpenseDraft) -> Void = { _ in }) {
         self.onRepeatEntry = onRepeatEntry
-        var descriptor = ChartOverviewPresentation.descriptor()
+        var descriptor = AccountTransaction.bookkeepingEntriesDescriptor()
         descriptor.fetchLimit = 1
         _anyBookkeepingEntry = Query(descriptor)
     }

@@ -622,3 +622,16 @@ final class AccountTransaction {
         return cleaned.isEmpty ? nil : cleaned
     }
 }
+
+extension AccountTransaction {
+    /// 只读取支出和收入、不含余额调整和转账的查询；首页判断账本是否为空和图表统计共用这一口径。
+    static func bookkeepingEntriesDescriptor() -> FetchDescriptor<AccountTransaction> {
+        let expenseType = AccountTransactionType.expense.rawValue
+        let incomeType = AccountTransactionType.income.rawValue
+        return FetchDescriptor(
+            predicate: #Predicate<AccountTransaction> { transaction in
+                transaction.typeRawValue == expenseType || transaction.typeRawValue == incomeType
+            }
+        )
+    }
+}
