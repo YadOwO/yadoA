@@ -99,6 +99,6 @@
 
 - yado_ai 的模型从魔搭切到阿里云百炼，与共享清单一致；
 - 首次使用 AI 记账前单独征得同意（共享清单里写了「首次使用前会单独征得你的同意」）；
-- Release 版隐藏「帮助改进 AI」入口，Langfuse 上线前政策里没有这一项；
+- ~~Release 版隐藏「帮助改进 AI」入口，Langfuse 上线前政策里没有这一项~~（已完成 2026-11-14：连线上的包（Release、DebugProd）不显示入口和页面，`AIPointsStore.isTraceConsented` 恒为 false，本机留着的旧授权也不会让请求带 `X-AI-Trace-Consent`；开关在 `Features/Auth/AuthConfig.swift` 的 `isAITraceConsentAvailable`，Langfuse 写进隐私政策和共享清单后再把 prod 改为 true）；
 - ~~中国区首次启动的隐私政策同意弹窗~~（已完成 2026-11-12：系统地区为中国大陆时首次启动先出同意卡，同意前不发任何请求，不同意进入离线模式；见 `Features/Legal/PrivacyAgreementStore.swift`）；
 - Logto 托管登录页填上用户协议和隐私政策链接。

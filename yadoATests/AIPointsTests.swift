@@ -502,6 +502,37 @@ struct AIPointsTests {
         #expect(!reloaded.isTraceConsented)
     }
 
+    @Test("帮助改进 AI：只在 dev 环境提供，线上（Release、DebugProd）不提供")
+    func offersTraceConsentOnlyInDev() {
+        #expect(AuthConfig.dev.isAITraceConsentAvailable)
+        #expect(!AuthConfig.prod.isAITraceConsentAvailable)
+    }
+
+    @Test("帮助改进 AI：环境不提供时，就算本机存过授权也视为未授权，请求不带 X-AI-Trace-Consent")
+    func ignoresTraceConsentWhenUnavailable() throws {
+        let defaults = UserDefaults.isolated()
+        let userID = "user-1"
+        let store = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults, isTraceConsentAvailable: true) { userID }
+        store.setTraceConsented(true)
+        #expect(store.isTraceConsented)
+
+        let store2 = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults, isTraceConsentAvailable: false) { userID }
+        #expect(!store2.isTraceConsented)
+        #expect(defaults.stringArray(forKey: "ai.traceConsentUserIDs")?.contains("user-1") == true)
+        store2.setTraceConsented(true)
+        #expect(!store2.isTraceConsented)
+
+        let endpoint = try #require(URL(string: "https://example.invalid"))
+        let api = VoiceSessionAPI(endpoint: endpoint, isTraceConsented: { store2.isTraceConsented }) { "token" }
+        let request = VoiceSessionTurnRequest(
+            locale: "zh-Hans", capabilities: [], now: "2026-10-20T12:30:00-07:00", defaultAccountId: nil,
+            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)]
+        )
+        let trace = VoiceRequestTrace(sessionID: "S", turn: 1, request: 1)
+        let urlRequest = try api.makeURLRequest(request, turnID: UUID(), tier: nil, trace: trace, token: "abc")
+        #expect(urlRequest.value(forHTTPHeaderField: VoiceSessionAPI.traceConsentHeader) == nil)
+    }
+
     @Test("AI 记账同意：默认未同意，按账号保存，换账号不继承，未登录不生效，可以撤回，和帮助改进 AI 互不影响")
     func keepsAIProcessingConsentPerAccount() {
         let defaults = UserDefaults.isolated()

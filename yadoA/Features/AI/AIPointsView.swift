@@ -5,7 +5,7 @@ import UIKit
 /// “我的 › AI 点数”：当前余额，点数明细、模型和隐私设置的入口，以及扣点规则。
 ///
 /// 内容按用途分组：余额卡片下先是点数明细（`AICreditEntriesView`），再是快捷语音的模型（`AIModelTierView`），
-/// 然后是隐私与数据（“AI 记账说明”和“帮助改进 AI”的说明较长，各自单独一页 `AIProcessingConsentView`、`AITraceConsentView`；清空本机对话记录就地完成），最后是扣点规则。
+/// 然后是隐私与数据（“AI 记账说明”和“帮助改进 AI”的说明较长，各自单独一页 `AIProcessingConsentView`、`AITraceConsentView`，后者仅 dev 环境；清空本机对话记录就地完成），最后是扣点规则。
 /// 点数分好几批、到期时间不同时，余额下的到期提示可以点开，进入到期明细（`AIPointLotsView`）。
 /// AI 对话的模型在聊天页的输入栏里单独选，本页不显示；余额是否够用、切换档位的提示都按快捷语音所用的档位算。
 ///
@@ -267,7 +267,8 @@ struct AIPointsView: View {
     /// 隐私与数据：“AI 记账说明”和“帮助改进 AI”的入口，以及清空本机对话记录。
     ///
     /// “AI 记账说明”的说明和撤回开关在单独一页（`AIProcessingConsentView`），这里行尾显示是否已同意。
-    /// “帮助改进 AI”默认关闭，开关和上报说明在单独一页（`AITraceConsentView`），这里行尾显示是否开启。
+    /// “帮助改进 AI”默认关闭，开关和上报说明在单独一页（`AITraceConsentView`），这里行尾显示是否开启；
+    /// 它只在提供它的环境（dev）显示，线上包不显示（见 `AuthConfig.isAITraceConsentAvailable`）。
     /// 对话记录只在本机，下方说明不进云同步和备份。
     private var privacySection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -283,17 +284,19 @@ struct AIPointsView: View {
                     }
                     .accessibilityIdentifier("ai-points-processing-consent")
 
-                    ProfileSettingsRowDivider()
+                    if AuthConfig.isAITraceConsentAvailable {
+                        ProfileSettingsRowDivider()
 
-                    NavigationLink(value: ProfileRoute.aiTraceConsent) {
-                        ProfileSettingsRow(
-                            titleKey: "ai.traceConsent.title",
-                            symbol: "hand.raised",
-                            value: text(points.isTraceConsented ? "ai.traceConsent.on" : "ai.traceConsent.off"),
-                            valueTint: points.isTraceConsented ? Color(.ledgerGreen) : nil
-                        )
+                        NavigationLink(value: ProfileRoute.aiTraceConsent) {
+                            ProfileSettingsRow(
+                                titleKey: "ai.traceConsent.title",
+                                symbol: "hand.raised",
+                                value: text(points.isTraceConsented ? "ai.traceConsent.on" : "ai.traceConsent.off"),
+                                valueTint: points.isTraceConsented ? Color(.ledgerGreen) : nil
+                            )
+                        }
+                        .accessibilityIdentifier("ai-points-trace-consent")
                     }
-                    .accessibilityIdentifier("ai-points-trace-consent")
 
                     ProfileSettingsRowDivider()
                 }

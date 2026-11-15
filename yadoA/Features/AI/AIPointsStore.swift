@@ -72,6 +72,9 @@ final class AIPointsStore {
     /// 保存所选模型档位的本机偏好。
     private let defaults: UserDefaults
 
+    /// 当前环境是否提供“帮助改进 AI”，为 false 时一律视为未授权。
+    private let isTraceConsentAvailable: Bool
+
     /// 当前是否允许联网：中国大陆地区同意隐私政策之前为 false，此时刷新直接返回，不发请求。
     private let isNetworkAllowed: () -> Bool
 
@@ -80,16 +83,19 @@ final class AIPointsStore {
     /// - Parameters:
     ///   - api: 点数查询接口。
     ///   - defaults: 保存所选模型档位的本机偏好；测试传入独立的存储。
+    ///   - isTraceConsentAvailable: 当前环境是否提供“帮助改进 AI”，默认取 `AuthConfig`，测试可以传 false 模拟线上包。
     ///   - currentUserID: 读取当前登录账号 ID 的动作。
     ///   - isNetworkAllowed: 查询当前是否允许联网的动作，默认恒为允许。
     init(
         api: AIBillingFetching,
         defaults: UserDefaults = .standard,
+        isTraceConsentAvailable: Bool = AuthConfig.isAITraceConsentAvailable,
         currentUserID: @escaping () -> String?,
         isNetworkAllowed: @escaping () -> Bool = { true }
     ) {
         self.api = api
         self.defaults = defaults
+        self.isTraceConsentAvailable = isTraceConsentAvailable
         self.currentUserID = currentUserID
         self.isNetworkAllowed = isNetworkAllowed
         selectedTiers = AIModelScope.allCases.reduce(into: [:]) { result, scope in
@@ -161,8 +167,9 @@ final class AIPointsStore {
     /// 保存已授权账号的本机偏好键。
     private static let traceConsentStorageKey = "ai.traceConsentUserIDs"
 
-    /// 当前账号是否打开了“帮助改进 AI”；未登录时为 false。
+    /// 当前账号是否打开了“帮助改进 AI”；未登录或当前环境不提供（线上包）时为 false，本机留着的旧授权也不生效。
     var isTraceConsented: Bool {
+        guard isTraceConsentAvailable else { return false }
         guard let userID = currentUserID() else { return false }
         return traceConsentedUserIDs.contains(userID)
     }

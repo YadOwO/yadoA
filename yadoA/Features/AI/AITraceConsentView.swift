@@ -3,6 +3,7 @@ import SwiftUI
 /// “我的 › AI 点数 › 帮助改进 AI”：开关和完整说明放在同一页，打开前能看清上报什么、存多久。
 ///
 /// 默认关闭，只有用户主动打开才上报；按账号保存在本机，由根部注入的 `AIPointsStore` 读写。
+/// 只在 `AuthConfig.isAITraceConsentAvailable` 为 true 的环境（dev）有入口；线上包不显示本页，`AIPointsStore.isTraceConsented` 恒为 false。
 struct AITraceConsentView: View {
     @Environment(\.locale) private var locale
     /// 当前账号的 AI 点数；预览中没有注入时为 nil。

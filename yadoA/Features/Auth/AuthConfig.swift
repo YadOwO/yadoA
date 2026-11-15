@@ -27,6 +27,11 @@ nonisolated enum AuthConfig {
 
         /// 芽豆公共服务（yado_hub）的地址（不含路径）。
         let hubServiceEndpoint: String
+
+        /// 这套环境是否提供“帮助改进 AI”（向 yado_ai 发送 `X-AI-Trace-Consent`，由服务端把内容上报给 Langfuse）。
+        ///
+        /// Langfuse 写进隐私政策和第三方共享清单之前，线上必须为 false；之后要开，先改政策并部署，再把 prod 改为 true。
+        let isAITraceConsentAvailable: Bool
     }
 
     // 两套取值对模块内可见（而非 private），测试可以同时断言两套环境；业务代码只读下面的当前值。
@@ -39,7 +44,8 @@ nonisolated enum AuthConfig {
         redirectUri: "com.yado.yadoa.dev://callback",
         aiServiceEndpoint: "https://dev-ai-api.yado1225.top",
         syncServiceEndpoint: "https://dev-yadoa-api.yado1225.top",
-        hubServiceEndpoint: "https://dev-hub-api.yado1225.top"
+        hubServiceEndpoint: "https://dev-hub-api.yado1225.top",
+        isAITraceConsentAvailable: true
     )
 
     /// 线上环境。
@@ -49,7 +55,8 @@ nonisolated enum AuthConfig {
         redirectUri: "com.yado.yadoa://callback",
         aiServiceEndpoint: "https://ai-api.yado1225.top",
         syncServiceEndpoint: "https://yadoa-api.yado1225.top",
-        hubServiceEndpoint: "https://hub-api.yado1225.top"
+        hubServiceEndpoint: "https://hub-api.yado1225.top",
+        isAITraceConsentAvailable: false
     )
 
     /// 当前环境的取值。
@@ -104,6 +111,9 @@ nonisolated enum AuthConfig {
 
     /// 芽豆公共服务在当前环境的地址，供发请求用。
     static var hubServiceURL: URL { url(hubServiceEndpoint, name: "hubServiceEndpoint") }
+
+    /// 当前环境是否提供“帮助改进 AI”；为 false 时没有入口和页面，也不会带上报头。
+    static var isAITraceConsentAvailable: Bool { current.isAITraceConsentAvailable }
 
     /// 把写死的地址转成 URL；地址是常量，非法即为配置写错，应尽早暴露。
     private static func url(_ text: String, name: String) -> URL {

@@ -129,7 +129,7 @@ enum ProfileRoute: Hashable {
     /// 快捷语音的模型选择：从 AI 点数页进入，介绍各模型档位的特点与每句扣的点数，点选后保存在本机；AI 对话的模型在聊天页选。
     case aiModelTier
 
-    /// “帮助改进 AI”：从 AI 点数页进入，开关和上报说明在同一页。
+    /// “帮助改进 AI”：从 AI 点数页进入，开关和上报说明在同一页；只在提供它的环境（dev）有入口和页面，见 `AuthConfig.isAITraceConsentAvailable`。
     case aiTraceConsent
 
     /// AI 记账说明：从 AI 点数页进入，查看发给 AI 的内容、撤回或重新同意。
@@ -168,7 +168,11 @@ enum ProfileRoute: Hashable {
         case .aiModelTier:
             AIModelTierView(scope: .quickVoice)
         case .aiTraceConsent:
-            AITraceConsentView()
+            if AuthConfig.isAITraceConsentAvailable {
+                AITraceConsentView()
+            } else {
+                EmptyView()
+            }
         case .aiProcessingConsent:
             AIProcessingConsentView()
         case .settings:
