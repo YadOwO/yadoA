@@ -11,7 +11,12 @@ struct AIProcessingConsentDetails: View {
             section(symbol: "text.bubble", title: "ai.consent.data.title", body: "ai.consent.data.body")
             section(symbol: "server.rack", title: "ai.consent.recipient.title", body: "ai.consent.recipient.body")
             section(symbol: "waveform", title: "ai.consent.speech.title", body: "ai.consent.speech.body")
-            section(symbol: "clock.arrow.circlepath", title: "ai.consent.purpose.title", body: "ai.consent.purpose.body")
+            // 线上包没有“帮助改进 AI”，所以不提这个开关
+            section(
+                symbol: "clock.arrow.circlepath",
+                title: "ai.consent.purpose.title",
+                body: AuthConfig.isAITraceConsentAvailable ? "ai.consent.purpose.body" : "ai.consent.purpose.bodyWithoutTrace"
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

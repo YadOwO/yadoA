@@ -17480,6 +17480,24 @@
         }
       }
     },
+    "ai.consent.purpose.bodyWithoutTrace" : {
+      "comment" : "“AI 记账说明”第四段正文，用于不提供“帮助改进 AI”的环境（线上包）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This content is used only to complete this one bookkeeping request or lookup. After processing, the Yado Asset servers do not keep your text, images, or AI replies; only the points deduction record is kept. Your chat history stays on this device and is deleted automatically after 90 days."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些内容只用于完成这一次记账或查询。芽豆的服务器处理完不保存你的文字、图片和 AI 的回复，只保存扣点记录；对话记录只保存在本机，90 天后自动删除。"
+          }
+        }
+      }
+    },
     "ai.consent.footnote" : {
       "comment" : "“AI 记账说明”弹层的脚注",
       "extractionState" : "manual",
