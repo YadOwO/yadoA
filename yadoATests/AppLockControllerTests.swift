@@ -53,13 +53,17 @@ struct AppLockControllerTests {
     }
 
     /// 创建控制器；除测自动验证的用例外都关闭自动验证，免得后台任务干扰断言。
+    ///
+    /// `authenticator` 不能写成 `FakeAuthenticator()` 默认参数：默认参数在非隔离上下文求值，而它的初始化方法在 MainActor 上，
+    /// 所以默认传 `nil`，到方法体（MainActor）里再创建。
     private func makeController(
         defaults: UserDefaults,
-        authenticator: FakeAuthenticator = FakeAuthenticator(),
+        authenticator: FakeAuthenticator? = nil,
         clock: MutableClock = MutableClock(),
         autoAuthenticates: Bool = false
     ) -> AppLockController {
-        AppLockController(
+        let authenticator = authenticator ?? FakeAuthenticator()
+        return AppLockController(
             defaults: defaults,
             authenticator: authenticator,
             now: { clock.current },
@@ -72,9 +76,10 @@ struct AppLockControllerTests {
     private func makeUnlockedController(
         defaults: UserDefaults,
         timeout: AppLockTimeout,
-        authenticator: FakeAuthenticator = FakeAuthenticator(),
+        authenticator: FakeAuthenticator? = nil,
         clock: MutableClock = MutableClock()
     ) async -> AppLockController {
+        let authenticator = authenticator ?? FakeAuthenticator()
         defaults.set(true, forKey: AppLockController.isEnabledKey)
         defaults.set(timeout.rawValue, forKey: AppLockTimeout.storageKey)
         let controller = makeController(defaults: defaults, authenticator: authenticator, clock: clock)
