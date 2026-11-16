@@ -57,6 +57,17 @@
 - Swift 的声明级文档注释统一使用 `///`，不要用 `/** */` 代替；需要补充参数、返回值或异常时使用 `- Parameter`、`- Returns`、`- Throws` 等 Swift 文档标记。
 - 普通 `//` 只用于流程说明、局部实现细节和 `// MARK:` 分组；局部变量不要求逐个写文档注释，只有在含义不明显时补充说明。
 
+## 本地数据模型改动
+
+- 本地 SwiftData 库从 `FinanceSchemaV1`（`versionIdentifier` 9.0.0）开始版本化，所有版本和迁移步骤都在 `Persistence/FinanceSchema.swift` 的 `FinanceMigrationPlan` 里；`AccountDataContainer` 的文件容器和内存容器都带这个迁移计划打开，`AccountDataContainer.schema` 始终取最新版本。
+- 上线后改任何 `@Model`（加字段、改关系、改类型、删字段），按下面的顺序做：
+  1. 先把当前版本的模型定义原样冻结进旧版本的 VersionedSchema：把要改的模型复制成 `FinanceSchemaV<n>` 的嵌套 `@Model` 类。类名、存储属性、`@Attribute` / `@Relationship` 和初始化方法照抄，计算属性和业务方法不用带。旧版本的 `models` 改为引用这些冻结副本，旧版本里不能再引用这次要改的顶层类。写法参照 yadoI 的 `LocalDataSchemaV1.LocalItemRecord`。没改的模型可以继续引用顶层类。
+  2. 再改顶层模型，新建 `FinanceSchemaV<n+1>`：`versionIdentifier` 必须比上一版大且不重复，例如 V2 用 10.0.0；`models` 引用顶层类。
+  3. 把新版本追加到 `FinanceMigrationPlan.schemas` 末尾，在 `stages` 里追加对应的一步：能轻量迁移的（新增可选字段或带默认值的字段、新增模型等）用 `.lightweight`；不能的写 `.custom`，在 `willMigrate` / `didMigrate` 里搬数据。
+  4. `AccountDataContainer.schema` 改为取 `FinanceSchemaV<n+1>.schema`。`ModelConfiguration` 的名字（`FinanceSchemaV9` / `FinanceSchemaV9Preview`）和默认存储路径不要改，否则用户手机上的库会找不到。
+  5. 同时补一条迁移测试：在临时目录用 `FinanceSchemaV<n>.schema` 建文件库，写入数据后关掉，再用 `AccountDataContainer.fileBacked(storeURL:)` 打开，校验记录数和关键字段，参照 `yadoATests/FinanceSchemaMigrationTests.swift`。
+- 已发布的版本只追加，不修改也不删除。不要直接改模型后指望 SwiftData 自动推断迁移：推断失败时启动会停在「本地数据暂不可用」的阻断页，用户打不开 App。
+
 ## 经验
 
 动手改代码前先读 `docs/agent-lessons/` 下的文件：以前的 agent 犯过的错总结成的规则，由 yado_agents 自动维护。
