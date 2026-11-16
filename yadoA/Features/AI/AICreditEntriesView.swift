@@ -89,12 +89,12 @@ struct AICreditEntriesView: View {
         .accessibilityIdentifier("ai-entries-load-more")
     }
 
-    /// 明细加载失败的一行，带重试按钮。
+    /// 明细加载失败的一行，带重试按钮；App 版本过低（426）时提示需要更新。
     ///
     /// - Parameter feed: 出错的流水分页。
     private func failureRow(_ feed: AICreditEntryFeed) -> some View {
         HStack(spacing: 12) {
-            Text(text("ai.entries.failed"))
+            Text(text(feed.failure == .upgradeRequired ? "appUpdate.inline" : "ai.entries.failed"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 8)

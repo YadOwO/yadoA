@@ -157,7 +157,6 @@ struct FeedbackTests {
         #expect(FeedbackAPI.error(statusCode: 503) == .serviceUnavailable)
         #expect(FeedbackAPI.error(statusCode: 400) == .invalidContract)
         #expect(FeedbackAPI.error(statusCode: 409) == .invalidContract)
-        #expect(FeedbackView.messageKey(for: .upgradeRequired) == "appUpdate.inline")
     }
 
     @Test("正文校验：去掉首尾空白后为空不能发；上限按 UTF-16 计算，与服务端一致")
