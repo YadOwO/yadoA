@@ -5501,6 +5501,114 @@
         }
       }
     },
+    "appUpdate.inline" : {
+      "comment" : "各联网功能页面里的行内提示：App 版本过低、需要更新后才能使用该功能",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update the app to use this feature."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要更新 App 后才能使用"
+          }
+        }
+      }
+    },
+    "appUpdate.later" : {
+      "comment" : "「需要更新」提示里有 App Store 链接时的取消按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Later"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稍后"
+          }
+        }
+      }
+    },
+    "appUpdate.message" : {
+      "comment" : "「需要更新」提示的说明：联网功能暂时不能用，本机记账不受影响",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This version is too old to use sync, AI bookkeeping and other online features. Bookkeeping on this device still works. Please update to the latest version from the App Store."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前版本过旧，同步、AI 记账等联网功能暂时无法使用，本机记账不受影响。请到 App Store 更新到最新版本。"
+          }
+        }
+      }
+    },
+    "appUpdate.ok" : {
+      "comment" : "「需要更新」提示在没有 App Store 链接时的唯一按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "知道了"
+          }
+        }
+      }
+    },
+    "appUpdate.openAppStore" : {
+      "comment" : "「需要更新」提示里跳转到 App Store 的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go to App Store"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前往 App Store"
+          }
+        }
+      }
+    },
+    "appUpdate.title" : {
+      "comment" : "App 版本过低时弹出的系统提示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update Required"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要更新"
+          }
+        }
+      }
+    },
     "chart.axis.expense" : {
       "extractionState" : "manual",
       "localizations" : {

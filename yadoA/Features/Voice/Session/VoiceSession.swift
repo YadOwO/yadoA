@@ -28,6 +28,9 @@ enum VoiceSessionFailure: Equatable {
 
     /// 网络不可用。
     case network
+
+    /// App 版本过低，需要升级后才能使用语音记账。
+    case upgradeRequired
 }
 
 /// 一次语音记账会话：维护发给 AI 服务的事件记录，在本地执行工具调用，并支持逐轮撤销。
@@ -726,6 +729,7 @@ final class VoiceSession {
         case .insufficientPoints: .insufficientPoints
         case .turnInvalid: .turnInvalid
         case .network: .network
+        case .upgradeRequired: .upgradeRequired
         case .serviceUnavailable, .timeout, .invalidContract, nil: .serviceUnavailable
         }
     }

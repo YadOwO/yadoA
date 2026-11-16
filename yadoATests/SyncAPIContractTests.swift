@@ -176,6 +176,7 @@ struct SyncAPIContractTests {
         #expect(pullComponents.queryItems?.first { $0.name == "epoch" }?.value == "1")
         #expect(pullComponents.queryItems?.contains { $0.name == "limit" } == false)
         #expect(pull.value(forHTTPHeaderField: "Authorization") == "Bearer abc")
+        #expect(pull.value(forHTTPHeaderField: AppVersion.headerName) == AppVersion.current)
         #expect(pull.httpBody == nil)
 
         let limited = api.makeURLRequest(.pull(since: 5, deviceID: deviceID, epoch: 1, limit: 100), body: nil, token: "abc")
@@ -204,6 +205,7 @@ struct SyncAPIContractTests {
         #expect(SyncAPI.error(statusCode: 409, body: epochMismatch) == .epochMismatch(currentEpoch: 3))
         #expect(SyncAPI.error(statusCode: 409, body: otherConflict) == .invalidContract)
         #expect(SyncAPI.error(statusCode: 401, body: Data()) == .unauthorized)
+        #expect(SyncAPI.error(statusCode: 426, body: Data()) == .upgradeRequired)
         #expect(SyncAPI.error(statusCode: 400, body: Data()) == .invalidContract)
         #expect(SyncAPI.error(statusCode: 413, body: Data()) == .invalidContract)
         #expect(SyncAPI.error(statusCode: 429, body: Data()) == .serviceUnavailable)
@@ -235,6 +237,7 @@ struct SyncAPIContractTests {
         #expect(!SyncAPIError.epochMismatch(currentEpoch: 1).isRetryable)
         #expect(!SyncAPIError.sessionExpired.isRetryable)
         #expect(!SyncAPIError.invalidContract.isRetryable)
+        #expect(!SyncAPIError.upgradeRequired.isRetryable)
     }
 
     @Test("同步服务的 Logto resource 与后端 audience 一致")

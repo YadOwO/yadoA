@@ -127,9 +127,7 @@ struct DeveloperView: View {
 
     /// 版本号与构建号，如 `1.0 (12)`。
     private static var appVersion: String {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
-        return build.isEmpty ? version : "\(version) (\(build))"
+        AppVersion.string()
     }
 
     private func text(_ key: String) -> String {

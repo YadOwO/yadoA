@@ -126,6 +126,7 @@ struct FeedbackTests {
         #expect(latest.httpMethod == "GET")
         #expect(latest.url?.absoluteString == "https://example.invalid/v1/feedback/yadoa/messages?limit=30")
         #expect(latest.value(forHTTPHeaderField: "Authorization") == "Bearer abc")
+        #expect(latest.value(forHTTPHeaderField: AppVersion.headerName) == AppVersion.current)
         #expect(latest.httpBody == nil)
         #expect(latest.timeoutInterval == FeedbackAPI.requestTimeout)
 
@@ -151,10 +152,12 @@ struct FeedbackTests {
     @Test("错误状态码映射：限流单独区分")
     func mapsFeedbackErrorStatusCodes() {
         #expect(FeedbackAPI.error(statusCode: 401) == .unauthorized)
+        #expect(FeedbackAPI.error(statusCode: 426) == .upgradeRequired)
         #expect(FeedbackAPI.error(statusCode: 429) == .rateLimited)
         #expect(FeedbackAPI.error(statusCode: 503) == .serviceUnavailable)
         #expect(FeedbackAPI.error(statusCode: 400) == .invalidContract)
         #expect(FeedbackAPI.error(statusCode: 409) == .invalidContract)
+        #expect(FeedbackView.messageKey(for: .upgradeRequired) == "appUpdate.inline")
     }
 
     @Test("正文校验：去掉首尾空白后为空不能发；上限按 UTF-16 计算，与服务端一致")

@@ -23,6 +23,7 @@ struct AccountDeletionAPITests {
         #expect(aiRequest.httpMethod == "DELETE")
         #expect(aiRequest.url?.absoluteString == "https://ai.example.invalid/v1/account")
         #expect(aiRequest.value(forHTTPHeaderField: "Authorization") == "Bearer abc")
+        #expect(aiRequest.value(forHTTPHeaderField: AppVersion.headerName) == AppVersion.current)
         #expect(aiRequest.httpBody == nil)
         #expect(aiRequest.timeoutInterval == AccountDeletionAPI.requestTimeout)
 
@@ -30,6 +31,7 @@ struct AccountDeletionAPITests {
         #expect(feedbackRequest.httpMethod == "DELETE")
         #expect(feedbackRequest.url?.absoluteString == "https://hub.example.invalid/v1/account")
         #expect(feedbackRequest.value(forHTTPHeaderField: "Authorization") == "Bearer hub1")
+        #expect(feedbackRequest.value(forHTTPHeaderField: AppVersion.headerName) == AppVersion.current)
         #expect(feedbackRequest.httpBody == nil)
         #expect(feedbackRequest.timeoutInterval == AccountDeletionAPI.requestTimeout)
 
@@ -37,12 +39,14 @@ struct AccountDeletionAPITests {
         #expect(accountRequest.httpMethod == "DELETE")
         #expect(accountRequest.url?.absoluteString == "https://sync.example.invalid/v1/me")
         #expect(accountRequest.value(forHTTPHeaderField: "Authorization") == "Bearer xyz")
+        #expect(accountRequest.value(forHTTPHeaderField: AppVersion.headerName) == AppVersion.current)
         #expect(accountRequest.httpBody == nil)
     }
 
     @Test("状态码映射：401 未授权，429 和 5xx 暂时不可用，其他为契约错误")
     func mapsErrorStatusCodes() {
         #expect(AccountDeletionAPI.error(statusCode: 401) == .unauthorized)
+        #expect(AccountDeletionAPI.error(statusCode: 426) == .upgradeRequired)
         #expect(AccountDeletionAPI.error(statusCode: 503) == .serviceUnavailable)
         #expect(AccountDeletionAPI.error(statusCode: 429) == .serviceUnavailable)
         #expect(AccountDeletionAPI.error(statusCode: 400) == .invalidContract)

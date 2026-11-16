@@ -346,6 +346,7 @@ struct AIPointsTests {
         #expect(wallet.httpMethod == "GET")
         #expect(wallet.url?.absoluteString == "https://example.invalid/v1/billing/wallet?product=yadoa")
         #expect(wallet.value(forHTTPHeaderField: "Authorization") == "Bearer abc")
+        #expect(wallet.value(forHTTPHeaderField: AppVersion.headerName) == AppVersion.current)
         #expect(wallet.timeoutInterval == AIBillingAPI.requestTimeout)
 
         let firstPage = api.makeURLRequest(.entries(cursor: nil, limit: 20), token: "abc")
@@ -369,6 +370,7 @@ struct AIPointsTests {
         #expect(checkIn.url?.query() == nil)
         #expect(checkIn.value(forHTTPHeaderField: "Content-Type") == "application/json")
         #expect(checkIn.value(forHTTPHeaderField: "Authorization") == "Bearer abc")
+        #expect(checkIn.value(forHTTPHeaderField: AppVersion.headerName) == AppVersion.current)
         let body = try #require(checkIn.httpBody)
         #expect(try JSONDecoder().decode([String: String].self, from: body) == ["product": "yadoa"])
         // 钱包仍是 GET，也不带请求体
@@ -379,6 +381,7 @@ struct AIPointsTests {
     @Test("查询接口错误状态码映射")
     func mapsBillingErrorStatusCodes() {
         #expect(AIBillingAPI.error(statusCode: 401) == .unauthorized)
+        #expect(AIBillingAPI.error(statusCode: 426) == .upgradeRequired)
         #expect(AIBillingAPI.error(statusCode: 429) == .serviceUnavailable)
         #expect(AIBillingAPI.error(statusCode: 503) == .serviceUnavailable)
         #expect(AIBillingAPI.error(statusCode: 400) == .invalidContract)
@@ -531,6 +534,7 @@ struct AIPointsTests {
         let trace = VoiceRequestTrace(sessionID: "S", turn: 1, request: 1)
         let urlRequest = try api.makeURLRequest(request, turnID: UUID(), tier: nil, trace: trace, token: "abc")
         #expect(urlRequest.value(forHTTPHeaderField: VoiceSessionAPI.traceConsentHeader) == nil)
+        #expect(urlRequest.value(forHTTPHeaderField: AppVersion.headerName) == AppVersion.current)
     }
 
     @Test("AI 记账同意：默认未同意，按账号保存，换账号不继承，未登录不生效，可以撤回，和帮助改进 AI 互不影响")

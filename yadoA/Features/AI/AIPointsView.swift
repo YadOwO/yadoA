@@ -203,7 +203,7 @@ struct AIPointsView: View {
             return points.canAffordCheaperTier(for: .quickVoice) ? "ai.points.switchTier" : "ai.points.exhausted"
         }
         if points.balance == nil, points.failure != nil {
-            return "ai.points.loadFailed"
+            return points.failure == .upgradeRequired ? "appUpdate.inline" : "ai.points.loadFailed"
         }
         return nil
     }

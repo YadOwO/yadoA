@@ -22,6 +22,9 @@ enum AIBillingAPIError: Error, Equatable {
 
     /// 请求或响应不符合契约，属于程序错误。
     case invalidContract
+
+    /// App 版本低于服务端要求，需要升级后才能查询点数。
+    case upgradeRequired
 }
 
 /// 查询点数余额、流水与模型档位的能力；测试注入假实现。
@@ -199,6 +202,7 @@ final class AIBillingAPI: AIBillingFetching {
         request.timeoutInterval = Self.requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        AppVersion.apply(to: &request)
         if let body = route.httpBody {
             request.httpBody = body
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -214,6 +218,8 @@ final class AIBillingAPI: AIBillingFetching {
         switch statusCode {
         case 401:
             .unauthorized
+        case 426:
+            .upgradeRequired
         case 429, 500...599:
             .serviceUnavailable
         default:
@@ -249,6 +255,9 @@ final class AIBillingAPI: AIBillingFetching {
         }
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AIBillingAPIError.invalidContract
+        }
+        if AppUpdatePrompt.checkUpgradeRequired(httpResponse) {
+            throw AIBillingAPIError.upgradeRequired
         }
         guard httpResponse.statusCode == 200 else {
             throw Self.error(statusCode: httpResponse.statusCode)

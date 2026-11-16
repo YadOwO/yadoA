@@ -69,6 +69,8 @@ struct ContentView: View {
             .signInPageHost()
             .syncEngineHost()
             .environment(signInPresentation)
+            // 联网接口返回 426 时弹出升级提示
+            .modifier(AppUpdatePromptModifier())
     }
 }
 

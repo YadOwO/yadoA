@@ -34,6 +34,9 @@ enum VoiceSessionAPIError: Error, Equatable {
 
     /// 请求或响应不符合契约，属于程序错误。
     case invalidContract
+
+    /// App 版本低于服务端要求，需要升级后才能使用语音记账。
+    case upgradeRequired
 }
 
 /// 发送一步会话请求的能力；测试注入假实现驱动会话循环。
@@ -175,6 +178,9 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
         if let balance = Self.pointsBalance(from: httpResponse, body: data) {
             reportPointsBalance(balance)
         }
+        if AppUpdatePrompt.checkUpgradeRequired(httpResponse) {
+            throw VoiceSessionAPIError.upgradeRequired
+        }
         guard httpResponse.statusCode == 200 else {
             throw Self.error(statusCode: httpResponse.statusCode, body: data)
         }
@@ -207,6 +213,7 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
         urlRequest.timeoutInterval = Self.requestTimeout
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        AppVersion.apply(to: &urlRequest)
         urlRequest.setValue(turnID.uuidString, forHTTPHeaderField: Self.turnIDHeader)
         if let tier {
             urlRequest.setValue(tier.rawValue, forHTTPHeaderField: Self.tierHeader)
@@ -255,6 +262,8 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
             return .turnInvalid
         case 413:
             return .sessionTooLong
+        case 426:
+            return .upgradeRequired
         case 429:
             let errorBody = try? JSONDecoder().decode(VoiceSessionErrorBody.self, from: body)
             return .rateLimited(isDaily: errorBody?.details?.rule == "per_day")

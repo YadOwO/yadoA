@@ -309,6 +309,8 @@ private struct FeedbackChatView: View {
             "feedback.error.rateLimited"
         case .unauthorized, .serviceUnavailable, .invalidContract:
             "feedback.error.unavailable"
+        case .upgradeRequired:
+            "appUpdate.inline"
         }
     }
 

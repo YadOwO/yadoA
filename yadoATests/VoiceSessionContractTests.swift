@@ -398,6 +398,19 @@ struct VoiceSessionContractTests {
         #expect(try consentHeader(of: api) == nil)
     }
 
+    @Test("请求带上 App 版本请求头，和 AppVersion.current 一致")
+    func requestCarriesAppVersionHeader() throws {
+        let endpoint = try #require(URL(string: "https://example.invalid"))
+        let request = VoiceSessionTurnRequest(
+            locale: "zh-Hans", capabilities: [], now: "2026-10-20T12:30:00-07:00", defaultAccountId: nil,
+            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)]
+        )
+        let trace = VoiceRequestTrace(sessionID: "S", turn: 1, request: 1)
+        let api = VoiceSessionAPI(endpoint: endpoint) { "token" }
+        let urlRequest = try api.makeURLRequest(request, turnID: UUID(), tier: nil, trace: trace, token: "abc")
+        #expect(urlRequest.value(forHTTPHeaderField: AppVersion.headerName) == AppVersion.current)
+    }
+
     @Test("错误状态码映射：429 区分每分钟与每天，402 点数不足，409 轮次失效")
     func mapsErrorStatusCodes() {
         let daily = Data(#"{"code":"TOO_MANY_REQUESTS","message":"x","details":{"rule":"per_day"}}"#.utf8)
@@ -409,6 +422,7 @@ struct VoiceSessionContractTests {
         #expect(VoiceSessionAPI.error(statusCode: 401, body: Data()) == .unauthorized)
         #expect(VoiceSessionAPI.error(statusCode: 402, body: Data()) == .insufficientPoints)
         #expect(VoiceSessionAPI.error(statusCode: 409, body: Data()) == .turnInvalid)
+        #expect(VoiceSessionAPI.error(statusCode: 426, body: Data()) == .upgradeRequired)
         #expect(VoiceSessionAPI.error(statusCode: 400, body: Data()) == .invalidContract)
     }
 

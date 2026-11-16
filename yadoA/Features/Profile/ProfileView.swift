@@ -444,11 +444,7 @@ struct ProfileView: View {
 
     /// 营销版本号与构建号，形如 `1.0 (1)`；缺少构建号时只显示版本号。
     private static var appVersion: String {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-        guard let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String, !build.isEmpty else {
-            return version
-        }
-        return "\(version) (\(build))"
+        AppVersion.string()
     }
 
     /// 按应用当前语言解析已有 String Catalog 文案。

@@ -230,10 +230,8 @@ nonisolated struct FeedbackClientInfo: Encodable, Equatable {
     /// - Returns: 本机的设备信息。
     @MainActor
     static func current(locale: Locale, bundle: Bundle = .main) -> FeedbackClientInfo {
-        let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-        let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
-        return FeedbackClientInfo(
-            appVersion: build.isEmpty ? version : "\(version) (\(build))",
+        FeedbackClientInfo(
+            appVersion: AppVersion.string(bundle: bundle),
             osVersion: "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)",
             deviceModel: machineIdentifier,
             locale: locale.identifier

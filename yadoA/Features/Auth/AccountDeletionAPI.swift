@@ -22,6 +22,9 @@ enum AccountDeletionAPIError: Error, Equatable {
 
     /// 请求或响应不符合契约，属于程序错误。
     case invalidContract
+
+    /// App 版本低于服务端要求，需要升级后才能继续。
+    case upgradeRequired
 }
 
 /// 注销账号所需的三个服务端动作；测试注入假实现。
@@ -169,6 +172,7 @@ final class AccountDeletionAPI: AccountDeleting {
         request.timeoutInterval = Self.requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        AppVersion.apply(to: &request)
         return request
     }
 
@@ -180,6 +184,8 @@ final class AccountDeletionAPI: AccountDeleting {
         switch statusCode {
         case 401:
             .unauthorized
+        case 426:
+            .upgradeRequired
         case 429, 500...599:
             .serviceUnavailable
         default:
@@ -219,6 +225,10 @@ final class AccountDeletionAPI: AccountDeleting {
         }
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AccountDeletionAPIError.invalidContract
+        }
+        // 服务端豁免了注销接口，不会因版本过低拦截；这里只是兜底
+        if AppUpdatePrompt.checkUpgradeRequired(httpResponse) {
+            throw AccountDeletionAPIError.upgradeRequired
         }
         guard httpResponse.statusCode == 200 else {
             throw Self.error(statusCode: httpResponse.statusCode)

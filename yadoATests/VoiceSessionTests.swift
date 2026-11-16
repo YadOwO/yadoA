@@ -201,6 +201,21 @@ struct VoiceSessionTests {
         #expect(try fixture.balance() == 100)
     }
 
+    @Test("App 版本过低时本轮失败为需要更新，不改动数据，移出本轮事件")
+    func upgradeRequiredFailsTurnWithoutWriting() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [.failure(.upgradeRequired)]
+
+        await fixture.session.send("午饭 28")
+
+        let turn = try #require(fixture.session.latestTurn)
+        #expect(turn.outcome == .failed(.upgradeRequired))
+        #expect(turn.failure?.message(locale: Locale(identifier: "zh-Hans")) == "需要更新 App 后才能使用")
+        #expect(!turn.isInContext)
+        #expect(fixture.session.events.isEmpty)
+        #expect(try fixture.balance() == 100)
+    }
+
     @Test("已经写入后请求失败时保留写入，按已执行内容提示结果")
     func failureAfterWriteKeepsChanges() async throws {
         let fixture = try Fixture()

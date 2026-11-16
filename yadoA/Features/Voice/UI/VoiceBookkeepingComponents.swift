@@ -408,6 +408,7 @@ extension VoiceSessionFailure {
         case .turnInvalid: "voice.failure.turnInvalid"
         case .serviceUnavailable: "voice.failure.serviceUnavailable"
         case .network: "voice.failure.network"
+        case .upgradeRequired: "appUpdate.inline"
         }
         return AccountLocalization.string(key, locale: locale)
     }

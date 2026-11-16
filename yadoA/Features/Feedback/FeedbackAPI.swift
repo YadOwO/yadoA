@@ -25,6 +25,9 @@ enum FeedbackAPIError: Error, Equatable {
 
     /// 请求或响应不符合契约，属于程序错误。
     case invalidContract
+
+    /// App 版本低于服务端要求，需要升级后才能使用意见反馈。
+    case upgradeRequired
 }
 
 /// 意见反馈用户端接口；对话与未读状态依赖该协议，测试注入假实现。
@@ -190,6 +193,7 @@ final class FeedbackAPI: FeedbackServing {
         request.timeoutInterval = (body?.count ?? 0) > 64 * 1024 ? Self.uploadTimeout : Self.requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        AppVersion.apply(to: &request)
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = body
@@ -205,6 +209,8 @@ final class FeedbackAPI: FeedbackServing {
         switch statusCode {
         case 401:
             .unauthorized
+        case 426:
+            .upgradeRequired
         case 429:
             .rateLimited
         case 500...599:
@@ -270,6 +276,9 @@ final class FeedbackAPI: FeedbackServing {
         }
         guard let httpResponse = response as? HTTPURLResponse else {
             throw FeedbackAPIError.invalidContract
+        }
+        if AppUpdatePrompt.checkUpgradeRequired(httpResponse) {
+            throw FeedbackAPIError.upgradeRequired
         }
         guard httpResponse.statusCode == 200 else {
             throw Self.error(statusCode: httpResponse.statusCode)

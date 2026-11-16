@@ -318,6 +318,8 @@ struct ProfileCheckInBadge: View {
             "profile.checkIn.failure.network"
         case .serviceUnavailable, .invalidContract:
             "profile.checkIn.failure.unavailable"
+        case .upgradeRequired:
+            "appUpdate.inline"
         }
     }
 
