@@ -12,7 +12,7 @@
 
 **什么时候要改：** 新增一种上传到服务器的数据、新接一个 AI 服务商或 SDK、用到新的 required-reason API（文件时间戳、开机时间、磁盘空间、键盘列表、UserDefaults）。
 
-整理日期：2026-11-09，依据当时 `dev` 上的代码（含 App 内注销、意见反馈附带诊断）。
+整理日期：2026-11-15，依据当时 `dev` 上的代码（含 App 内注销、意见反馈附带诊断、应用锁）。
 
 ## 一、数据从哪来、到哪去
 
@@ -28,7 +28,7 @@
 | 意见反馈 | 反馈文字；App 版本、系统版本、设备型号、App 语言；**用户打开开关时**附带最近最多 5 份 MetricKit 崩溃、卡顿、磁盘写入报告 | yado_hub（`hub-api.yado1225.top`） | 用户发送反馈 | `Features/Feedback/`、`Features/Diagnostics/` |
 | 服务器日志 | IP 地址、时间、接口、结果、耗时；部分服务记账号 ID 和设备 ID | 各后端 | 每次请求 | 各后端 |
 
-**不上传的：** 语音音频（只在本机转文字；不支持离线识别的设备由 iOS 直接发给 Apple，我们收不到）、AI 对话记录（本机保存 90 天）、搜索记录、导出的备份文件、提醒设置。
+**不上传的：** 语音音频（只在本机转文字；不支持离线识别的设备由 iOS 直接发给 Apple，我们收不到）、AI 对话记录（本机保存 90 天）、搜索记录、导出的备份文件、提醒设置、应用锁（面容 ID / 密码验证完全由系统 LocalAuthentication 在本机完成，App 拿不到面容或指纹数据，只知道通过与否；开关和上锁时长只存在本机 UserDefaults，不上传任何数据）。
 
 **没有：** 第三方统计、崩溃收集、广告、推送 SDK；IDFA；跨 App 追踪。
 
@@ -86,7 +86,7 @@
 | `NSPrivacyTracking` | false | 不追踪 |
 | `NSPrivacyTrackingDomains` | 空 | 不追踪 |
 | `NSPrivacyCollectedDataTypes` | 第二节表里的 12 项，全部关联用户、不追踪、用途 App 功能 | — |
-| UserDefaults | `CA92.1`：只读写本 App 自己的偏好 | 各处 `@AppStorage` / `UserDefaults.standard`，没有 App Group |
+| UserDefaults | `CA92.1`：只读写本 App 自己的偏好（应用锁的开关和上锁时长也属于这一类，所以 `PrivacyInfo.xcprivacy` 不用改） | 各处 `@AppStorage` / `UserDefaults.standard`，没有 App Group |
 | 文件时间戳 | `C617.1`：读取 App 容器内文件的时间 | `Features/Diagnostics/DiagnosticStore.swift` 读诊断文件的修改时间来排序、清理 |
 
 没有用到开机时间、磁盘空间、键盘列表这几类 API。第三方 SPM 包（Logto Swift SDK、JOSESwift、KeychainAccess）都不在 Apple 要求自带清单的常用 SDK 名单里。

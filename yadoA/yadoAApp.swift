@@ -14,6 +14,8 @@ struct yadoAApp: App {
     private let uiTestingDataContainer: AccountDataContainer?
     /// 隐私政策同意状态：中国大陆地区同意之前不联网，不同意进入离线模式；其他地区不受限制。
     @State private var privacyAgreement: PrivacyAgreementStore
+    /// 面容 ID / 密码应用锁：冷启动和从后台回来超时后先验证才能看账本，并在切换器里遮住界面；只在本机完成，不涉及联网。
+    @State private var appLock: AppLockController
     /// 全局登录状态，注入环境后由“我的”页读取；不参与本地账本的读写。
     @State private var authStore: AuthStore
     /// 当前账号的 AI 点数，“我的”入口、AI 点数页和语音记账共用；凭证与账号取自 `authStore`。
@@ -27,6 +29,7 @@ struct yadoAApp: App {
         // 同意状态最先建好，后面所有会联网的 store 都要靠它判断能不能发请求
         let privacyAgreement = Self.makePrivacyAgreement()
         _privacyAgreement = State(initialValue: privacyAgreement)
+        _appLock = State(initialValue: Self.makeAppLock())
         let isNetworkAllowed = { privacyAgreement.allowsNetwork }
         let authStore = AuthStore(isNetworkAllowed: isNetworkAllowed)
         _authStore = State(initialValue: authStore)
@@ -106,15 +109,46 @@ struct yadoAApp: App {
         return PrivacyAgreementStore()
     }
 
+    /// 创建应用锁状态机。
+    ///
+    /// Debug 构建的 UI 自动化（`--ui-testing-in-memory`）下改用假验证器，并关闭自动验证，
+    /// 靠点「解锁」按钮解锁，锁屏才不会一闪而过；同时清掉上次自动化留下的锁设置，现有 UI 测试不会被锁住。
+    /// 其他情况一律用系统设备主人验证，Release 构建忽略这些参数。
+    private static func makeAppLock() -> AppLockController {
+        // 系统验证界面上的原因说明每次现读语言偏好，用户在 App 内切换语言后立即生效
+        let localizedReason: () -> String = {
+            let language = UserDefaults.standard.string(forKey: AppLanguage.storageKey)
+                .flatMap(AppLanguage.init(rawValue:)) ?? .system
+            return AccountLocalization.string(
+                "app_lock.reason",
+                locale: language.resolvedLocale(systemLocale: .current)
+            )
+        }
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing-in-memory") {
+            AppLockUITestFixture.prepare(.standard)
+            return AppLockController(
+                authenticator: AppLockUITestFixture.Authenticator(),
+                autoAuthenticates: false,
+                localizedReason: localizedReason
+            )
+        }
+        #endif
+        return AppLockController(authenticator: DeviceOwnerAuthenticator(), localizedReason: localizedReason)
+    }
+
     var body: some Scene {
         WindowGroup {
-            Group {
-                if let uiTestingDataContainer {
-                    ContentView()
-                        .modelContainer(uiTestingDataContainer.modelContainer)
-                } else {
-                    LocalDataBootstrapView {
+            // 开了锁的冷启动验证通过前不挂载主界面；首次解锁后主界面一直留在视图树里，重新上锁只在独立窗口里盖住
+            AppLockGate(controller: appLock) {
+                Group {
+                    if let uiTestingDataContainer {
                         ContentView()
+                            .modelContainer(uiTestingDataContainer.modelContainer)
+                    } else {
+                        LocalDataBootstrapView {
+                            ContentView()
+                        }
                     }
                 }
             }
@@ -123,6 +157,7 @@ struct yadoAApp: App {
             .environment(aiPoints)
             .environment(feedback)
             .environment(seriesCatalog)
+            .environment(appLock)
             .modifier(AppDisplayPreferencesModifier())
         }
     }

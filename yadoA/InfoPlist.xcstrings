@@ -67,6 +67,24 @@
         }
       }
     },
+    "NSFaceIDUsageDescription" : {
+      "comment" : "Permission prompt for unlocking the app with Face ID.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado Asset uses Face ID to unlock the app so others can't see your ledger."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆资产使用面容 ID 解锁 App，防止他人查看你的账本。"
+          }
+        }
+      }
+    },
     "NSMicrophoneUsageDescription" : {
       "comment" : "Permission prompt for voice bookkeeping.",
       "extractionState" : "manual",

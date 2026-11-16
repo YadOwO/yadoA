@@ -57,6 +57,34 @@ extension XCTestCase {
         return app
     }
 
+    /// 使用隔离 Home 夹具、已开启的应用锁和固定英文环境启动应用。
+    ///
+    /// 应用锁用假验证器：不弹系统的面容 ID 或密码界面，也不自动验证，靠点「解锁」按钮解锁。
+    ///
+    /// - Parameters:
+    ///   - oneMinute: 上锁时长是否为 1 分钟；默认「立即」。
+    ///   - extraArguments: 额外的启动参数，例如截图记账夹具的参数。
+    /// - Returns: 已启动的应用，停在锁屏。
+    @MainActor
+    func launchAppLockInEnglish(oneMinute: Bool = false, extraArguments: [String] = []) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "--ui-testing-in-memory",
+            "--ui-testing-home-fixture",
+            "--ui-testing-app-lock"
+        ]
+        if oneMinute {
+            app.launchArguments.append("--ui-testing-app-lock-one-minute")
+        }
+        app.launchArguments += extraArguments
+        app.launchArguments += [
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US"
+        ]
+        app.launch()
+        return app
+    }
+
     /// 使用数据导出专用夹具和固定英文环境启动应用。
     @MainActor
     func launchExportFixtureInEnglish() -> XCUIApplication {

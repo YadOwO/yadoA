@@ -4,7 +4,7 @@ import UIKit
 
 /// “我的 › 设置”二级页面：集中放置设一次就很少再动的偏好、数据维护和退出登录。
 ///
-/// 分组顺序为通用、记账、数据、关于、危险操作、账号；重置数据单独成卡，避免与导入导出相邻误触。
+/// 分组顺序为通用、隐私与安全、记账、数据、关于、危险操作、账号；重置数据单独成卡，避免与导入导出相邻误触。
 struct SettingsView: View {
     @Environment(\.locale) private var locale
     @Environment(\.colorScheme) private var colorScheme
@@ -17,6 +17,8 @@ struct SettingsView: View {
     @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
     /// 隐私政策同意状态；离线模式下隐藏账号分组。预览中没有注入时为 nil，按允许联网处理。
     @Environment(PrivacyAgreementStore.self) private var privacyAgreement: PrivacyAgreementStore?
+    /// 应用锁状态机：开关和上锁时长只由它读写。预览中没有注入时为 nil，整个「隐私与安全」分组不显示。
+    @Environment(AppLockController.self) private var appLock: AppLockController?
     @Query private var accounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
 
@@ -38,6 +40,8 @@ struct SettingsView: View {
     @AppStorage(BookkeepingReminder.minutesKey) private var reminderMinutes = BookkeepingReminder.defaultMinutes
     /// 打开提醒时发现通知权限被拒绝。
     @State private var isReminderDeniedPresented = false
+    /// 打开应用锁时发现设备没设置密码，提示先去系统设置里设置。
+    @State private var isAppLockPasscodeRequiredPresented = false
     /// 默认账户选择沿用现有独立弹层流程。
     @State private var isDefaultSelectionPresented = false
     /// 退出登录前的二次确认（本机数据没有同步到当前账号时）。
@@ -103,6 +107,8 @@ struct SettingsView: View {
                     .appHaptic(.selection, trigger: isHapticsEnabled) { _, isOn in isOn }
                     .accessibilityIdentifier("settings-haptics")
                 }
+
+                appLockSection
 
                 ProfileSettingsSection("profile.section.bookkeeping") {
                     Button {
@@ -310,8 +316,48 @@ struct SettingsView: View {
         } message: {
             Text(text("reminder.denied.message"))
         }
+        .alert(text("settings.app_lock.passcode_required.title"), isPresented: $isAppLockPasscodeRequiredPresented) {
+            // 「去设置」文案是通用的，复用提醒权限被拒时的同一个键
+            Button(text("reminder.denied.settings")) {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button(text("common.cancel"), role: .cancel) {}
+        } message: {
+            Text(text("settings.app_lock.passcode_required.message"))
+        }
         .onChange(of: reminderMinutes) { _, _ in
             Task { await rescheduleReminders() }
+        }
+    }
+
+    /// 「隐私与安全」分组：应用锁开关，打开后多一行「离开多久后上锁」；没有注入应用锁时整组不显示。
+    @ViewBuilder
+    private var appLockSection: some View {
+        if let appLock {
+            ProfileSettingsSection("settings.section.security") {
+                Toggle(isOn: Binding(get: { appLock.isEnabled }, set: { setAppLockEnabled($0) })) {
+                    Label(text("settings.app_lock.title"), systemImage: "faceid")
+                        .labelStyle(ProfileSettingsLabelStyle())
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+                .accessibilityIdentifier("settings-app-lock")
+
+                if appLock.isEnabled {
+                    ProfileSettingsRowDivider()
+
+                    pickerRow(
+                        "settings.app_lock.timeout.title",
+                        symbol: "timer",
+                        selection: Binding(get: { appLock.timeout }, set: { appLock.timeout = $0 })
+                    ) {
+                        $0.titleLocalizationKey
+                    }
+                    .accessibilityIdentifier("settings-app-lock-timeout")
+                }
+            }
         }
     }
 
@@ -371,6 +417,28 @@ struct SettingsView: View {
             }
             isReminderEnabled = isEnabled
             await rescheduleReminders()
+        }
+    }
+
+    /// 打开或关闭应用锁。
+    ///
+    /// 关闭时直接关，不再验证一次；打开时先验证一次设备主人，通过才真正打开，
+    /// 取消或失败时开关保持关闭，设备没设置密码时弹窗说明要先去系统设置里设置。
+    ///
+    /// - Parameter isEnabled: 用户想要的开关状态。
+    private func setAppLockEnabled(_ isEnabled: Bool) {
+        guard let appLock else { return }
+        guard isEnabled else {
+            appLock.disable()
+            return
+        }
+        Task {
+            switch await appLock.enable() {
+            case .enabled, .notAuthenticated:
+                break
+            case .passcodeNotSet:
+                isAppLockPasscodeRequiredPresented = true
+            }
         }
     }
 

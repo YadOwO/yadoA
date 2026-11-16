@@ -1330,6 +1330,222 @@
         }
       }
     },
+    "settings.section.security" : {
+      "comment" : "设置页应用锁所在分组标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy & Security"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私与安全"
+          }
+        }
+      }
+    },
+    "settings.app_lock.title" : {
+      "comment" : "设置页应用锁开关标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face ID / Passcode Lock"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "面容 ID / 密码锁"
+          }
+        }
+      }
+    },
+    "settings.app_lock.timeout.title" : {
+      "comment" : "设置页应用锁「离开多久后上锁」选择行标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lock After Leaving"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "离开后上锁"
+          }
+        }
+      }
+    },
+    "settings.app_lock.timeout.immediately" : {
+      "comment" : "应用锁上锁时长选项：立即",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Immediately"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "立即"
+          }
+        }
+      }
+    },
+    "settings.app_lock.timeout.one_minute" : {
+      "comment" : "应用锁上锁时长选项：1 分钟",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After 1 Minute"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 分钟后"
+          }
+        }
+      }
+    },
+    "settings.app_lock.timeout.five_minutes" : {
+      "comment" : "应用锁上锁时长选项：5 分钟",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After 5 Minutes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 分钟后"
+          }
+        }
+      }
+    },
+    "settings.app_lock.passcode_required.title" : {
+      "comment" : "打开应用锁时设备没设置密码的弹窗标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set a Device Passcode First"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先设置设备密码"
+          }
+        }
+      }
+    },
+    "settings.app_lock.passcode_required.message" : {
+      "comment" : "打开应用锁时设备没设置密码的弹窗说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device has no passcode. Set one in Settings › Face ID & Passcode, then turn on the lock."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这台设备还没有设置密码。请先在系统「设置 › 面容 ID 与密码」里设置密码，再打开应用锁。"
+          }
+        }
+      }
+    },
+    "app_lock.reason" : {
+      "comment" : "系统面容 ID / 密码验证界面上的原因说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock Yado Asset to view your ledger."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解锁芽豆资产，查看你的账本。"
+          }
+        }
+      }
+    },
+    "app_lock.locked.title" : {
+      "comment" : "锁屏标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado Asset Is Locked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆资产已锁定"
+          }
+        }
+      }
+    },
+    "app_lock.unlock" : {
+      "comment" : "锁屏上的解锁按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解锁"
+          }
+        }
+      }
+    },
+    "app_lock.privacy_cover.label" : {
+      "comment" : "App 切换器遮挡层的无障碍标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado Asset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆资产"
+          }
+        }
+      }
+    },
     "profile.sync_on" : {
       "comment" : "「我的」页头副标题：当前账号已开启云端同步",
       "extractionState" : "manual",
