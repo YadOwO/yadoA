@@ -16,11 +16,13 @@
 
 - 环境只有两套：dev（Mac mini 上的整套服务，独立的 Logto、数据库和各后端，经 `dev-*.yado1225.top` 这组公网域名访问）和线上。由构建配置在编译时决定，见 `Features/Auth/AppEnvironment.swift`。
 
-  | 配置 | 环境 | Bundle ID | Scheme | 用途 |
-  | --- | --- | --- | --- | --- |
-  | Debug | dev | `com.yado.yadoA.dev` | `yadoA` | 日常开发、测试 |
-  | DebugProd | 线上 | `com.yado.yadoA` | `yadoA-prod` | 断点排查线上问题 |
-  | Release | 线上 | `com.yado.yadoA` | 各 Scheme 的 Archive | 出包 |
+  | 配置 | 环境 | Bundle ID | 图标 | Scheme | 用途 |
+  | --- | --- | --- | --- | --- | --- |
+  | Debug | dev | `com.yado.yadoA.dev` | `AppIconDev` | `yadoA` | 日常开发、测试 |
+  | DebugProd | 线上 | `com.yado.yadoA` | `AppIcon` | `yadoA-prod` | 断点排查线上问题 |
+  | Release | 线上 | `com.yado.yadoA` | `AppIcon` | 各 Scheme 的 Archive | 出包（TestFlight 和上架是同一个包） |
+
+- dev 包靠图标区分：`AppIconDev.icon` 是 `AppIcon.icon` 的副本，换成蓝色背景、右上角加黄色「DEV」丝带。改正式图标时同步改这份副本。显示名两个包相同，因为 `InfoPlist.xcstrings` 按语言给 `CFBundleDisplayName` 定了值，会盖过构建设置。
 
 - 登录、各后端地址、本机数据整套跟着环境走：dev 包和线上包是两个 App，数据各一份，不要做"同一个包里切环境"。
 - 随环境变化的值只放在 `AuthConfig` 的 `dev` / `prod` 两套取值里，业务代码读 `AuthConfig.xxx`，不要在别处写死地址或自己按环境分支。

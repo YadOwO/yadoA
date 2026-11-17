@@ -17,6 +17,7 @@ import Foundation
 ///
 /// dev 包与线上包的 Bundle ID 不同，系统把它们当成两个 App：数据库、设置、钥匙串里的登录状态各一份，
 /// 可以同时装在一台设备上，dev 的数据不会同步到线上账号。
+/// 同时装着时靠图标区分：Debug 用 `AppIconDev`（蓝底、右上角「DEV」丝带），其余配置用 `AppIcon`。
 nonisolated enum AppEnvironment: String, Sendable {
     /// 开发环境：Mac mini 上的整套 dev 服务（独立的 Logto、数据库和各后端），经 `dev-` 开头的公网域名访问。
     case dev

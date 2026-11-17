@@ -11,7 +11,7 @@ private enum HandDrawnTickGeometry {
         let widths: [CGFloat]
     }
 
-    /// 先短促下顿、再向右上提笔的两段笔画；与 `AppIcon.icon`、`BrandMark`、`LaunchMark` 里的对勾同源，改动时需一并更新这些资源。
+    /// 先短促下顿、再向右上提笔的两段笔画；与 `AppIcon.icon`、`AppIconDev.icon`、`BrandMark`、`LaunchMark` 里的对勾同源，改动时需一并更新这些资源。
     static let strokes = [
         Stroke(
             points: [
