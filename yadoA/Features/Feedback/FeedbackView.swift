@@ -122,6 +122,12 @@ private struct FeedbackChatView: View {
     /// 点了发送失败的消息后，等待选择重发或删除的那一条。
     @State private var failedMessage: FeedbackConversation.OutgoingMessage?
 
+    /// 下一条消息是否附带诊断；默认关闭，发出后自动关回。
+    @State private var attachDiagnostics = false
+
+    /// 本机最近的诊断，进入页面时在后台读取。
+    @State private var availableDiagnostics: [DiagnosticReport] = []
+
     /// 列表底部的锚点，有新消息时滚到这里。
     private static let bottomAnchorID = "feedback-bottom"
 
@@ -149,13 +155,21 @@ private struct FeedbackChatView: View {
             .scrollDismissesKeyboard(.interactively)
             .overlay { stateOverlay }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                FeedbackInputBar(draft: $draft) { send() }
+                FeedbackInputBar(
+                    draft: $draft,
+                    attachDiagnostics: $attachDiagnostics,
+                    hasDiagnostics: !availableDiagnostics.isEmpty
+                ) { send() }
             }
             .onChange(of: conversation.lastItemID) { _, _ in
                 withAnimation {
                     proxy.scrollTo(Self.bottomAnchorID, anchor: .bottom)
                 }
             }
+        }
+        .task {
+            let limit = FeedbackDiagnostic.maxAttachedCount
+            availableDiagnostics = await Task.detached { DiagnosticStore.shared.recent(limit: limit) }.value
         }
         .confirmationDialog(
             text("feedback.message.failed"),
@@ -276,7 +290,9 @@ private struct FeedbackChatView: View {
         guard FeedbackComposer.canSend(text) else { return }
         draft = ""
         let clientInfo = FeedbackClientInfo.current(locale: locale)
-        Task { await conversation.send(text, clientInfo: clientInfo) }
+        let diagnostics = attachDiagnostics ? availableDiagnostics.map(FeedbackDiagnostic.init(report:)) : []
+        attachDiagnostics = false
+        Task { await conversation.send(text, clientInfo: clientInfo, diagnostics: diagnostics) }
     }
 
     /// 加载失败原因对应的提示文案键。
@@ -293,6 +309,8 @@ private struct FeedbackChatView: View {
             "feedback.error.rateLimited"
         case .unauthorized, .serviceUnavailable, .invalidContract:
             "feedback.error.unavailable"
+        case .upgradeRequired:
+            "appUpdate.inline"
         }
     }
 
@@ -329,7 +347,7 @@ private struct FeedbackBubble: View {
     }
 }
 
-/// 气泡本身：自己的用强调色浅底，团队的用次级背景色；正文可以选中复制。
+/// 气泡本身：自己的用强调色浅底，团队的用纸面卡片色加细描边；正文可以长按选中拷贝。
 private struct FeedbackBubbleText: View {
     @Environment(\.locale) private var locale
 
@@ -342,21 +360,17 @@ private struct FeedbackBubbleText: View {
     var body: some View {
         Text(content)
             .font(.body)
-            .textSelection(.enabled)
+            .conversationTextSelection()
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
-            .background(background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .conversationBubble(
+                sender == .user ? .user : .reply,
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            )
             // 读屏先读发送方再读正文
             .accessibilityLabel(senderName)
             .accessibilityValue(content)
-    }
-
-    /// 气泡底色：两种外观下都使用语义色。
-    private var background: AnyShapeStyle {
-        sender == .user
-            ? AnyShapeStyle(Color.accentColor.opacity(0.12))
-            : AnyShapeStyle(Color(uiColor: .secondarySystemBackground))
     }
 
     /// 读屏时的发送方名称。
@@ -371,6 +385,12 @@ private struct FeedbackInputBar: View {
 
     /// 输入框里的文字。
     @Binding var draft: String
+
+    /// 下一条消息是否附带诊断。
+    @Binding var attachDiagnostics: Bool
+
+    /// 本机是否有诊断；没有时不显示开关。
+    let hasDiagnostics: Bool
 
     /// 点发送。
     let onSend: () -> Void
@@ -389,12 +409,23 @@ private struct FeedbackInputBar: View {
                 .font(.caption)
                 .foregroundStyle(Color(.ledgerRed))
             }
+            if hasDiagnostics {
+                VStack(alignment: .leading, spacing: 2) {
+                    Toggle(text("feedback.diagnostics.attach"), isOn: $attachDiagnostics)
+                        .font(.subheadline)
+                        .accessibilityIdentifier("feedback-attach-diagnostics")
+                    Text(text("feedback.diagnostics.footnote"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
             HStack(alignment: .bottom, spacing: 10) {
                 TextField(text("feedback.input.placeholder"), text: $draft, axis: .vertical)
                     .lineLimit(1...5)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .feedbackInputSurface(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .glassSurface(in: RoundedRectangle(cornerRadius: 20, style: .continuous), isInteractive: true)
                     .accessibilityIdentifier("feedback-input")
                 Button(action: onSend) {
                     Image(systemName: "arrow.up.circle.fill")
@@ -417,20 +448,6 @@ private struct FeedbackInputBar: View {
     }
 }
 
-/// 输入框底色：iOS 26 用 Liquid Glass，iOS 18 用常规材质。
-private struct FeedbackInputSurface<SurfaceShape: Shape>: ViewModifier {
-    /// 底色形状。
-    let shape: SurfaceShape
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content.glassEffect(.regular.interactive(), in: shape)
-        } else {
-            content.background(.regularMaterial, in: shape)
-        }
-    }
-}
-
 /// 输入栏背景：iOS 26 由系统的滚动边缘效果衬底，不再加底色；iOS 18 用工具栏材质，避免消息透到输入框后面。
 private struct FeedbackInputBarBackground: ViewModifier {
     func body(content: Content) -> some View {
@@ -443,11 +460,6 @@ private struct FeedbackInputBarBackground: ViewModifier {
 }
 
 private extension View {
-    /// 给输入框加上玻璃或材质底色。
-    func feedbackInputSurface<SurfaceShape: Shape>(in shape: SurfaceShape) -> some View {
-        modifier(FeedbackInputSurface(shape: shape))
-    }
-
     /// 给输入栏加上与系统版本匹配的背景。
     func feedbackInputBarBackground() -> some View {
         modifier(FeedbackInputBarBackground())

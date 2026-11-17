@@ -79,7 +79,7 @@ private struct AICreditLotRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(lot.title(locale: locale))
                     .font(.body)
-                Text(dateText("ai.lots.expiresOn", lot.expiresAt))
+                Text(AccountLocalization.formatted("ai.lots.expiresOn", value: lot.expiryText(locale: locale), locale: locale))
                     .font(.footnote)
                     .foregroundStyle(isExpiringSoon ? Color(.ledgerRed) : Color.secondary)
                 if let createdAt = lot.createdAt {

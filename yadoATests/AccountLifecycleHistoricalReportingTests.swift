@@ -82,7 +82,7 @@ struct AccountLifecycleHistoricalReportingTests {
             AccountTransactionHistoryPresentation.descriptor(accountID: accountID)
         )
         #expect(history.map(\.id) == beforeTransactions.map(\.id))
-        #expect(try AccountListPresentation.sorted(repository.accounts()).isEmpty)
+        #expect(try AccountListPresentation.sorted(repository.accounts(), order: .default).isEmpty)
     }
 
     private var utcCalendar: Calendar {

@@ -67,8 +67,7 @@ struct CategoryBreakdownView: View {
         .sheet(isPresented: $isMonthPickerPresented) {
             NavigationStack {
                 HomeMonthPickerView(
-                    initialMonth: HomeMonth.from(date: chart.anchorDate, calendar: calendar, locale: locale)
-                        ?? HomeMonth(year: 1970, month: 1)!,
+                    initialMonth: HomeMonth.containing(chart.anchorDate, calendar: calendar, locale: locale),
                     onCancel: { isMonthPickerPresented = false },
                     onConfirm: { month in
                         if let date = month.firstDate(calendar: calendar) {
@@ -216,7 +215,7 @@ private struct CategoryBreakdownCard: View {
         let title = selected?.title
             ?? AccountLocalization.string(chart.totalTitleLocalizationKey, locale: locale)
         let amount = (selected?.amount ?? breakdown.totalAmount)
-            .formatted(.currency(code: "CNY").locale(locale))
+            .formattedCurrency(locale: locale)
         return VStack(spacing: 5) {
             Text(title)
                 .font(.caption)
@@ -290,7 +289,7 @@ private struct CategoryBreakdownCard: View {
 
     /// 分类金额和百分比共用同一分母，供图形和可操作图例完整播报。
     private func detail(for segment: CategoryRankingItem, breakdown: CategoryBreakdownPresentation) -> String {
-        let amount = segment.amount.formatted(.currency(code: "CNY").locale(locale))
+        let amount = segment.amount.formattedCurrency(locale: locale)
         let share = breakdown.share(of: segment).formatted(.percent.precision(.fractionLength(1)).locale(locale))
         return "\(amount), \(share)"
     }

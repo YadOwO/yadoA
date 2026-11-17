@@ -95,25 +95,16 @@ struct AccountListPresentationTests {
         #expect(summary.netAssets == 40)
     }
 
-    @Test("账户按最新时间和 UUID 并列键稳定排序")
-    func deterministicNewestFirstSorting() {
-        let sameDate = Date(timeIntervalSince1970: 100)
-        let newer = makeAccount(
-            id: UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")!,
-            updatedAt: sameDate.addingTimeInterval(1)
-        )
-        let equalTimeFirst = makeAccount(
-            id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
-            updatedAt: sameDate
-        )
-        let equalTimeSecond = makeAccount(
-            id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
-            updatedAt: sameDate
-        )
+    @Test("账户列表只保留启用账户，并按统一顺序排列")
+    func sortedKeepsActiveAccountsInDisplayOrder() {
+        let credit = makeAccount(typeRawValue: AccountType.creditCard.rawValue)
+        let cash = makeAccount(typeRawValue: AccountType.cash.rawValue)
+        let deactivated = makeAccount(typeRawValue: AccountType.cash.rawValue)
+        deactivated.deactivatedAt = Date(timeIntervalSince1970: 200)
 
-        let result = AccountListPresentation.sorted([equalTimeSecond, newer, equalTimeFirst])
+        let result = AccountListPresentation.sorted([credit, deactivated, cash], order: .default)
 
-        #expect(result.map(\.id) == [newer.id, equalTimeFirst.id, equalTimeSecond.id])
+        #expect(result.map(\.id) == [cash.id, credit.id])
     }
 
     @Test("已知模板本地化并显示品牌图标和掩码后缀")
@@ -177,6 +168,35 @@ struct AccountListPresentationTests {
         #expect(!presentation.formattedAmount.contains("-"))
     }
 
+    @Test("只有拉低净资产的金额上负向色：欠款和透支，资产余额与溢缴不上色")
+    func onlyDebtAndOverdraftUseNegativeTone() {
+        let cases: [(String, Decimal, AmountTone)] = [
+            (AccountType.cash.rawValue, 100, .neutral),
+            (AccountType.debitCard.rawValue, -20, .negative),
+            (AccountType.creditCard.rawValue, 30, .negative),
+            (AccountType.creditCard.rawValue, -10, .neutral),
+            (AccountType.liability.rawValue, 0, .neutral),
+            ("futureType", -5, .negative)
+        ]
+
+        for (typeRawValue, balance, tone) in cases {
+            let account = makeAccount(typeRawValue: typeRawValue, balance: balance)
+            #expect(AccountListPresentation.row(for: account).amountTone == tone)
+            #expect(AccountDetailPresentationFactory.detail(for: account).amountTone == tone)
+        }
+    }
+
+    @Test("汇总卡片只在有欠款或净资产为负时上负向色")
+    func summaryTonesHighlightOnlyNegativeSide() {
+        let healthy = AccountSummaryPresentation.summary(assets: 100, liabilities: 0)
+        #expect(healthy.netAssetsTone == .neutral)
+        #expect(healthy.liabilitiesTone == .neutral)
+
+        let indebted = AccountSummaryPresentation.summary(assets: 100, liabilities: 300)
+        #expect(indebted.netAssetsTone == .negative)
+        #expect(indebted.liabilitiesTone == .negative)
+    }
+
     @Test("未知持久类型安全降级且金额标签可访问")
     func unknownTypeHasSafeFallback() {
         let account = makeAccount(typeRawValue: "futureType", name: "未来账户")
@@ -209,7 +229,7 @@ struct AccountListPresentationTests {
         try repository.save(draft, locale: Locale(identifier: "en_US"))
 
         let queriedAccounts = try queryContext.fetch(FetchDescriptor<Account>())
-        let rows = AccountListPresentation.sorted(queriedAccounts).map {
+        let rows = AccountListPresentation.sorted(queriedAccounts, order: .default).map {
             AccountListPresentation.row(for: $0, locale: Locale(identifier: "en_US"))
         }
 
@@ -258,10 +278,11 @@ struct AccountListPresentationTests {
 
         let queryContext = ModelContext(dataContainer.modelContainer)
         let accounts = try queryContext.fetch(FetchDescriptor<Account>())
-        let sortedAccounts = AccountListPresentation.sorted(accounts)
+        let sortedAccounts = AccountListPresentation.sorted(accounts, order: .default)
         let first = try #require(accounts.first { $0.id == firstID })
         let second = try #require(accounts.first { $0.id == secondID })
-        #expect(sortedAccounts.map(\.id) == [firstID, secondID])
+        // 同一分类内先创建的在前：账户 B 创建得更早。
+        #expect(sortedAccounts.map(\.id) == [secondID, firstID])
         #expect(first.updatedAt == firstUpdatedAt)
         #expect(second.updatedAt == secondUpdatedAt)
         #expect(second.balance == Decimal(90))
@@ -305,10 +326,11 @@ struct AccountListPresentationTests {
         let accounts = try ModelContext(dataContainer.modelContainer).fetch(
             FetchDescriptor<Account>()
         )
-        let sortedAccounts = AccountListPresentation.sorted(accounts)
+        let sortedAccounts = AccountListPresentation.sorted(accounts, order: .default)
         let first = try #require(accounts.first { $0.id == firstID })
         let second = try #require(accounts.first { $0.id == secondID })
-        #expect(sortedAccounts.map(\.id) == [firstID, secondID])
+        // 同一分类内先创建的在前：账户 B 创建得更早。
+        #expect(sortedAccounts.map(\.id) == [secondID, firstID])
         #expect(first.updatedAt == firstUpdatedAt)
         #expect(second.updatedAt == secondUpdatedAt)
         #expect(second.balance == Decimal(120))

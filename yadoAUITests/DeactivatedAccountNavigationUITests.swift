@@ -14,12 +14,14 @@ final class DeactivatedAccountNavigationUITests: XCTestCase {
     @MainActor
     private func openDeactivatedAccountsFromManagement(in app: XCUIApplication) {
         openAccountsTab(in: app)
-        var management = app.buttons["account-list-management"]
-        // 新系统会把 secondaryAction 收入工具栏的“更多”菜单。
-        if !management.exists {
-            app.buttons["OverflowBarButtonItem"].tap()
-            management = app.buttons["Account Management"]
+        // 账户管理收在右上角的「更多」菜单里；系统菜单项按标题查找。
+        var more = app.buttons["account-list-more"]
+        if !more.exists {
+            more = app.navigationBars["Accounts"].buttons["More"]
         }
+        XCTAssertTrue(more.waitForExistence(timeout: 3))
+        more.tap()
+        let management = app.buttons["Account Management"]
         XCTAssertTrue(management.waitForExistence(timeout: 3))
         management.tap()
         app.buttons["account-management-deactivated"].tap()

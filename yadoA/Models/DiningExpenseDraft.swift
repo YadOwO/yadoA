@@ -90,7 +90,7 @@ struct DiningExpenseDraft: Hashable, Sendable {
     ) {
         guard let source = DiningExpenseEditDraft(transaction: transaction, catalog: catalog) else { return nil }
         let isAccountAvailable = accounts.contains {
-            $0.id == source.accountID && $0.supportsBookkeeping && $0.currencyCode == "CNY"
+            $0.id == source.accountID && $0.acceptsBookkeepingEntries
         }
         self.init(
             accountID: isAccountAvailable ? source.accountID : nil,

@@ -169,6 +169,35 @@ final class SyncLifecycle {
         }
     }
 
+    /// 注销账号：先让服务端删除账号和云端数据，成功后解除绑定并按选择处理本机数据；调用方随后执行 `AuthStore.signOut()`。
+    ///
+    /// 顺序：暂停同步引擎 → 执行 `deleteRemote` → 解除绑定并保存 → 清台账或清空本机数据。
+    /// 先解除绑定再清空，清空就不会被当成要上传的删除。和 `prepareForSignOut` 不同，这里不先同步一次，
+    /// 因为账号即将删除，上传没有意义。
+    ///
+    /// - Parameters:
+    ///   - choice: 保留在本机（只清台账），或从本机清除。
+    ///   - deleteRemote: 删除服务端账号和数据的动作；抛出的错误原样向上抛，不包装。
+    /// - Throws: `deleteRemote` 的错误（此时什么都不改）；远端已删除但本机处理失败时抛出 `SyncLifecycleError.storage`，
+    ///   此时绑定已经解除。
+    func deleteAccount(
+        _ choice: SyncSignOutChoice,
+        deleteRemote: () async throws -> Void
+    ) async throws {
+        try await withEngineSuspended {
+            try await deleteRemote()
+            var state = loadState()
+            state.unbind()
+            state.save(to: defaults)
+            switch choice {
+            case .keepOnDevice:
+                try storage { try store.clearLedger() }
+            case .eraseFromDevice:
+                try storage { try LocalDataResetService(container: container).eraseAll() }
+            }
+        }
+    }
+
     /// 已开启同步时清空数据。
     ///
     /// - Parameters:
@@ -248,7 +277,7 @@ final class SyncLifecycle {
         }
     }
 
-    /// 同步服务地址与上次不同（本地开发包在线上与本地服务之间切换）时解除绑定、清空台账，本机数据保留。
+    /// 同步服务地址与上次记录的不同（例如服务迁移、地址变更）时解除绑定、清空台账，本机数据保留。
     ///
     /// 绑定、进度和代次只对原来那套服务有效；新服务上的数据可能是空的，直接按旧进度同步会被当成云端重置，
     /// 全量拉取还会用空结果替换本机已同步的数据。解除绑定后，到同步设置页重新开启即可把本机数据上传到新服务。
@@ -260,7 +289,7 @@ final class SyncLifecycle {
     @discardableResult
     func resetIfEndpointChanged(to endpoint: URL) throws -> Bool {
         var state = loadState()
-        let previous = state.serverEndpoint ?? SyncAPI.productionEndpoint.absoluteString
+        let previous = state.serverEndpoint ?? AuthConfig.syncServiceURL.absoluteString
         guard previous != endpoint.absoluteString else {
             if state.serverEndpoint == nil {
                 state.serverEndpoint = endpoint.absoluteString

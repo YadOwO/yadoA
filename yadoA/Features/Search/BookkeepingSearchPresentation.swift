@@ -579,9 +579,7 @@ struct BookkeepingSearchPresentation {
         let accountState = BookkeepingTransactionAccountState(account: account)
         let accountName = account?.name
         let displayAmount = searchablePayload.entryType == .income ? amount : -amount
-        let formattedAmount = displayAmount.formatted(
-            .currency(code: transaction.currencyCode).locale(locale)
-        )
+        let formattedAmount = displayAmount.formattedCurrency(locale: locale, currencyCode: transaction.currencyCode)
         let formattedDate = BookkeepingDateFormatting.shortDate(date, locale: locale, calendar: calendar)
         let note = sanitizedOptionalText(transaction.note)
         let accountStatus = accountState.localizedTitle(locale: locale)
@@ -610,9 +608,8 @@ struct BookkeepingSearchPresentation {
             accessibilityLabel: spokenParts.joined(separator: ", "),
             isRecurring: transaction.recurringRuleID != nil,
             canEdit: accountState == .active
-                && account?.supportsBookkeeping == true
-                && account?.currencyCode == "CNY"
-                && transaction.currencyCode == "CNY"
+                && account?.acceptsBookkeepingEntries == true
+                && transaction.currencyCode == BookkeepingCurrency.code
         )
     }
 
@@ -732,8 +729,9 @@ struct BookkeepingSearchPresentation {
         let displayAmount = transaction.entryType == .income
             ? transaction.amount
             : -transaction.amount
-        let formattedAmount = displayAmount.formatted(
-            .currency(code: transaction.transaction.currencyCode).locale(locale)
+        let formattedAmount = displayAmount.formattedCurrency(
+            locale: locale,
+            currencyCode: transaction.transaction.currencyCode
         )
         let lines = BookkeepingEntryLines(note: transaction.note, categoryTitle: transaction.categoryTitle)
         let spokenParts = [

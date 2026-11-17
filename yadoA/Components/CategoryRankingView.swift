@@ -22,7 +22,7 @@ struct CategoryRankingView: View {
     /// 每个分类一项的汇总数据；零额分类不展示。
     let items: [CategoryRankingItem]
     /// 金额展示使用的货币代码，默认与现有记账保持一致。
-    var currencyCode = "CNY"
+    var currencyCode = BookkeepingCurrency.code
 
     var body: some View {
         let rankedItems = items.filter { $0.amount > 0 }.sorted {
@@ -68,7 +68,7 @@ struct CategoryRankingView: View {
     ) -> some View {
         let percentage = ratio(item.amount, to: total)
             .formatted(.percent.precision(.fractionLength(1)).locale(locale))
-        let amount = item.amount.formatted(.currency(code: currencyCode).locale(locale))
+        let amount = item.amount.formattedCurrency(locale: locale, currencyCode: currencyCode)
 
         return HStack(alignment: .top, spacing: 12) {
             Image(systemName: item.symbolName)

@@ -25,6 +25,9 @@ enum FeedbackAPIError: Error, Equatable {
 
     /// 请求或响应不符合契约，属于程序错误。
     case invalidContract
+
+    /// App 版本低于服务端要求，需要升级后才能使用意见反馈。
+    case upgradeRequired
 }
 
 /// 意见反馈用户端接口；对话与未读状态依赖该协议，测试注入假实现。
@@ -111,10 +114,13 @@ final class FeedbackAPI: FeedbackServing {
     /// 单次请求的超时时长；接口只读写数据库。
     static let requestTimeout: TimeInterval = 15
 
+    /// 请求体较大（带诊断）时的超时时间。
+    static let uploadTimeout: TimeInterval = 60
+
     /// 每页消息条数；服务端上限 100。
     static let pageSize = 30
 
-    /// 指定的服务地址（不含路径）；为空时每次请求按 `HubServiceEnvironment` 取当前地址。
+    /// 指定的服务地址（不含路径）；为空时用当前环境的 `AuthConfig.hubServiceURL`。
     private let endpointOverride: URL?
 
     /// 网络会话；测试可注入。
@@ -126,7 +132,7 @@ final class FeedbackAPI: FeedbackServing {
     /// 创建客户端。
     ///
     /// - Parameters:
-    ///   - endpoint: 服务地址；为空时每次请求取 `HubServiceEnvironment.currentEndpoint`。
+    ///   - endpoint: 服务地址；为空时用当前环境的 `AuthConfig.hubServiceURL`。
     ///   - session: 网络会话。
     ///   - accessToken: 获取 access token 的动作，抛出 `ServiceAuthError`。
     init(
@@ -148,7 +154,7 @@ final class FeedbackAPI: FeedbackServing {
 
     /// 本次请求要连的地址。
     private var endpoint: URL {
-        endpointOverride ?? HubServiceEnvironment.currentEndpoint
+        endpointOverride ?? AuthConfig.hubServiceURL
     }
 
     func fetchMessages(before: Int64?) async throws -> FeedbackMessagePage {
@@ -184,9 +190,10 @@ final class FeedbackAPI: FeedbackServing {
         }
         var request = URLRequest(url: url)
         request.httpMethod = route.method
-        request.timeoutInterval = Self.requestTimeout
+        request.timeoutInterval = (body?.count ?? 0) > 64 * 1024 ? Self.uploadTimeout : Self.requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        AppVersion.apply(to: &request)
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = body
@@ -202,6 +209,8 @@ final class FeedbackAPI: FeedbackServing {
         switch statusCode {
         case 401:
             .unauthorized
+        case 426:
+            .upgradeRequired
         case 429:
             .rateLimited
         case 500...599:
@@ -267,6 +276,9 @@ final class FeedbackAPI: FeedbackServing {
         }
         guard let httpResponse = response as? HTTPURLResponse else {
             throw FeedbackAPIError.invalidContract
+        }
+        if AppUpdatePrompt.checkUpgradeRequired(httpResponse) {
+            throw FeedbackAPIError.upgradeRequired
         }
         guard httpResponse.statusCode == 200 else {
             throw Self.error(statusCode: httpResponse.statusCode)

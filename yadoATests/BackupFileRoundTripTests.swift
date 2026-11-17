@@ -240,6 +240,25 @@ struct BackupFileRoundTripTests {
 
         #expect(String(decoding: noneData, as: UTF8.self).contains("\"defaultAccountID\" : null"))
         #expect(!String(decoding: absentData, as: UTF8.self).contains("bookkeepingPreference"))
+        // 没调整过分类顺序时不写该键，与旧格式一致。
+        #expect(!String(decoding: recordData, as: UTF8.self).contains("accountTypeOrder"))
+    }
+
+    @Test("账户分类顺序往返保留原始值，旧备份缺少该键时解析为默认顺序")
+    func accountTypeOrderRoundTrips() throws {
+        let preference = BackupBookkeepingPreference(
+            defaultAccountID: nil,
+            accountTypeOrder: ["creditCard", "cash", "futureType"]
+        )
+        let data = try BackupFileEncoding.makeEncoder().encode(preference)
+        let decoded = try JSONDecoder().decode(BackupBookkeepingPreference.self, from: data)
+        #expect(decoded == preference)
+
+        let legacy = try JSONDecoder().decode(
+            BackupBookkeepingPreference.self,
+            from: Data(#"{"defaultAccountID":null}"#.utf8)
+        )
+        #expect(legacy.accountTypeOrder == nil)
     }
 
     @Test("未来版本追加的可选字段被旧解码器安全忽略")

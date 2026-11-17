@@ -16,7 +16,7 @@ enum BookkeepingDefaultResolution: Equatable, Sendable {
     case invalid(UUID)
 }
 
-/// 本地财务容器中唯一的默认记账账户偏好。
+/// 本地财务容器中唯一的记账偏好：默认记账账户和账户分类顺序。
 @Model
 final class BookkeepingPreference {
     /// 跨文件重开保持不变的 canonical singleton ID。
@@ -28,6 +28,11 @@ final class BookkeepingPreference {
     /// 默认账户的稳定 UUID；为空表示用户确认当前没有默认账户。
     var defaultAccountID: UUID?
 
+    /// 用户调整过的账户分类顺序，存 `AccountType.rawValue`；为空表示沿用添加账户页的默认顺序。
+    ///
+    /// 只存原始值，读取时由 `AccountDisplayOrder` 去掉未知和重复值，并补齐缺少的分类。
+    var accountTypeOrder: [String]?
+
     /// 本实体是否由写账户命令自动创建；不持久化，只在创建它的那次保存中有效。
     ///
     /// 同步台账据此区分系统初始化和用户或导入写入的「无默认」，见 `SyncPayloadCoder.isPristineDefault`。
@@ -36,10 +41,20 @@ final class BookkeepingPreference {
     /// 创建一条偏好实体。
     init(
         id: UUID = BookkeepingPreference.singletonID,
-        defaultAccountID: UUID? = nil
+        defaultAccountID: UUID? = nil,
+        accountTypeOrder: [String]? = nil
     ) {
         self.id = id
         self.defaultAccountID = defaultAccountID
+        self.accountTypeOrder = accountTypeOrder
+    }
+
+    /// 从查询结果中取出 canonical 单例；SwiftUI 视图的 `@Query` 结果用它，忽略非 canonical 的残留记录。
+    ///
+    /// - Parameter preferences: 查询到的全部偏好记录。
+    /// - Returns: canonical 偏好；不存在时为 `nil`。
+    static func canonical(in preferences: [BookkeepingPreference]) -> BookkeepingPreference? {
+        preferences.first { $0.id == singletonID }
     }
 
     /// 根据 canonical 偏好和当前账户快照解析默认状态。

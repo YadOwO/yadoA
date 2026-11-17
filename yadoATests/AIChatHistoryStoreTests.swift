@@ -8,6 +8,8 @@ import UIKit
 @MainActor
 struct AIChatHistoryStoreTests {
     /// 测试用的存储，图片放在独立的临时目录。
+    /// 嵌套类型不会继承外层的 @MainActor，而存储的初始化和写入都在主 actor 上，所以单独标注。
+    @MainActor
     private struct Fixture {
         let container: ModelContainer
         let images: AIChatImageStore
@@ -51,6 +53,61 @@ struct AIChatHistoryStoreTests {
 
         #expect(fixture.store.turns.count == 1)
         #expect(fixture.store.turns.first?.isUndone == true)
+    }
+
+    @Test("查账结果随记录保存，重新读取后还在；再次写入同一轮时跟着更新")
+    func persistsInsight() throws {
+        let fixture = try Fixture()
+        let insight = AIChatInsight(
+            title: "10月 · 2 笔",
+            formattedTotal: "¥63.00",
+            formattedIncome: nil,
+            comparison: .init(isLess: true, formattedDelta: "¥10.00"),
+            buckets: [.init(id: 20261001, label: "10/1", value: 28, formattedValue: "¥28.00")]
+        )
+        var turn = VoiceSession.Turn(userText: "这个月花了多少", eventStartIndex: 0)
+        turn.outcome = .reply("花了 ¥63")
+        fixture.store.save(turn, locale: Locale(identifier: "zh-Hans"))
+
+        turn.insights = [insight]
+        fixture.store.save(turn, locale: Locale(identifier: "zh-Hans"))
+        fixture.store.loadLatest()
+
+        #expect(fixture.store.turns.first?.insight == insight)
+    }
+
+    @Test("周期记账改动随记录保存，不算流水改动；规则还在时才能点开")
+    func persistsRecurringChange() throws {
+        let fixture = try Fixture()
+        let ruleID = UUID()
+        let change = VoiceRecurringChange(
+            ruleID: ruleID, actionText: "新建周期记账", title: "房租", symbolName: "house.fill", formattedAmount: "¥800.00",
+            detail: "每月 · 下次 11月1日", summary: "已新建周期记账：房租，每月 ¥800.00", inverse: .remove(ruleID: ruleID)
+        )
+        var turn = VoiceSession.Turn(userText: "每月 1 号交房租 800", eventStartIndex: 0)
+        turn.changes = [.recurring(change)]
+        turn.outcome = .reply(change.summary)
+        fixture.store.save(turn, locale: Locale(identifier: "zh-Hans"))
+        fixture.store.loadLatest()
+
+        let saved = try #require(fixture.store.turns.first?.changes.first)
+        #expect(saved.kind == .recurring)
+        #expect(!saved.isEntry)
+        #expect(saved.targetID == ruleID)
+        #expect(saved.title == "房租")
+        #expect(saved.accountAction == "新建周期记账")
+        #expect(saved.accountDetail == "每月 · 下次 11月1日")
+        #expect(fixture.store.existingTargetIDs(in: fixture.store.turns).isEmpty)
+
+        let context = ModelContext(fixture.container)
+        context.insert(RecurringRule(
+            id: ruleID, entryTypeRawValue: BookkeepingEntryType.expense.rawValue, accountID: UUID(),
+            categoryKey: ExpenseCategory.housing.rawValue, amount: 800, note: "房租",
+            frequencyRawValue: RecurringFrequency.monthly.rawValue, anchorDay: 20261101, nextDueDay: 20261101,
+            endDay: nil, pausedAt: nil, createdAt: .now, updatedAt: .now
+        ))
+        try context.save()
+        #expect(fixture.store.existingTargetIDs(in: fixture.store.turns) == [ruleID])
     }
 
     @Test("分页读取：先读最近一页，再往前读，始终按时间正序")
@@ -97,16 +154,34 @@ struct AIChatHistoryStoreTests {
         #expect(fixture.images.data(for: orphanFile) == nil)
     }
 
+    @Test("一次保存多张图片，文件名与输入顺序一致；按名删除只删指定的文件")
+    func savesAllAndRemovesNamedFiles() throws {
+        let fixture = try Fixture()
+        let fileNames = try fixture.images.saveAll([Data([1]), Data([2])])
+
+        #expect(fileNames.count == 2)
+        #expect(fixture.images.data(for: fileNames[0]) == Data([1]))
+        #expect(fixture.images.data(for: fileNames[1]) == Data([2]))
+
+        fixture.images.removeFiles(named: [fileNames[0], "missing.jpg"])
+
+        #expect(fixture.images.data(for: fileNames[0]) == nil)
+        #expect(fixture.images.data(for: fileNames[1]) == Data([2]))
+    }
+
     @Test("清空后记录和图片都没有了")
     func clearsEverything() throws {
         let fixture = try Fixture()
+        #expect(!fixture.store.hasRecords())
         let file = try fixture.images.save(Data([1]))
         fixture.save("午饭", at: .now, imageFileNames: [file])
+        #expect(fixture.store.hasRecords())
 
         try fixture.store.clearAll()
         fixture.store.loadLatest()
 
         #expect(fixture.store.turns.isEmpty)
+        #expect(!fixture.store.hasRecords())
         #expect(fixture.images.data(for: file) == nil)
     }
 

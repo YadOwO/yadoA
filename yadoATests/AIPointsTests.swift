@@ -152,6 +152,76 @@ struct AIPointsTests {
         }
     }
 
+    @Test("签到状态与结果解码：状态分已签和未签，结果时间带毫秒，时间格式错误时解码失败")
+    func decodesCheckInContract() throws {
+        let pending = try JSONDecoder().decode(
+            AICheckInStatus.self,
+            from: Data(#"{"date":"2026-11-05","checkedIn":false,"checkIn":null,"minPoints":10,"maxPoints":50}"#.utf8)
+        )
+        #expect(pending.date == "2026-11-05")
+        #expect(!pending.checkedIn)
+        #expect(pending.checkIn == nil)
+        #expect(pending.minPoints == 10)
+        #expect(pending.maxPoints == 50)
+
+        let doneJSON = """
+        {"date":"2026-11-05","checkedIn":true,
+         "checkIn":{"points":42,"createdAt":"2026-10-28T02:32:00.000Z","expiresAt":"2026-10-29T02:32:00.000Z"},
+         "minPoints":10,"maxPoints":50}
+        """
+        let done = try JSONDecoder().decode(AICheckInStatus.self, from: Data(doneJSON.utf8))
+        #expect(done.checkedIn)
+        #expect(done.checkIn?.points == 42)
+        #expect(done.checkIn?.createdAt == Date(timeIntervalSince1970: 1_793_154_720))
+
+        let resultJSON = """
+        {"date":"2026-11-05","points":42,"isBonus":true,"isDuplicate":false,"balance":142,
+         "createdAt":"2026-10-28T02:32:00.000Z","expiresAt":"2026-10-29T02:32:00.000Z"}
+        """
+        let result = try JSONDecoder().decode(AICheckInResult.self, from: Data(resultJSON.utf8))
+        #expect(result.points == 42)
+        #expect(result.isBonus)
+        #expect(!result.isDuplicate)
+        #expect(result.balance == 142)
+        #expect(result.createdAt == Date(timeIntervalSince1970: 1_793_154_720))
+        #expect(result.expiresAt == Date(timeIntervalSince1970: 1_793_241_120))
+
+        let badTime = """
+        {"date":"2026-11-05","points":42,"isBonus":false,"isDuplicate":false,"balance":142,
+         "createdAt":"yesterday","expiresAt":"2026-10-29T02:32:00.000Z"}
+        """
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(AICheckInResult.self, from: Data(badTime.utf8))
+        }
+    }
+
+    @Test("每日签到的明细与批次：标题、图标、中文标题，签到批次的到期时间显示到时分")
+    func mapsDailyCheckInPresentation() {
+        let entry = Self.entry(kind: .grant, points: 30, reason: AICreditEntry.dailyCheckInReason, product: "yadoa")
+        #expect(entry.titleKey == "ai.entry.grant.dailyCheckIn")
+        #expect(entry.symbol == "calendar.badge.checkmark")
+        #expect(entry.title(locale: Locale(identifier: "zh-Hans")) == "每日签到")
+
+        let expiresAt = Date(timeIntervalSince1970: 1_793_241_120)
+        let checkInLot = AICreditLot(
+            points: 30,
+            expiresAt: expiresAt,
+            kind: .grant,
+            reason: AICreditEntry.dailyCheckInReason,
+            product: "yadoa"
+        )
+        let plainLot = AICreditLot(points: 30, expiresAt: expiresAt, kind: .grant, reason: "compensation")
+        #expect(checkInLot.isDailyCheckIn)
+        #expect(!plainLot.isDailyCheckIn)
+        #expect(checkInLot.titleKey == "ai.entry.grant.dailyCheckIn")
+        #expect(checkInLot.symbol == "calendar.badge.checkmark")
+        #expect(plainLot.symbol == "gift")
+
+        let english = Locale(identifier: "en_US")
+        #expect(checkInLot.expiryText(locale: english).contains(":"))
+        #expect(!plainLot.expiryText(locale: english).contains(":"))
+    }
+
     @Test("批次标题与图标和生成它的入账流水一致，存量批次显示早期点数")
     func mapsLotPresentation() {
         let expiresAt = Date(timeIntervalSince1970: 1_800_930_720)
@@ -184,7 +254,7 @@ struct AIPointsTests {
         let simplifiedChinese = Locale(identifier: "zh-Hans")
         #expect(AccountLocalization.string("ai.points.title", locale: english) == "AI Points")
         #expect(AccountLocalization.string("ai.points.title", locale: simplifiedChinese) == "AI 点数")
-        #expect(AccountLocalization.formatted("ai.rules.perTurn", value: "2", locale: simplifiedChinese) == "语音记账每说一句扣 2 点")
+        #expect(AccountLocalization.string("ai.rules.perTurn", locale: simplifiedChinese) == "每说一句扣一次点，扣几点看这句用的模型")
         #expect(AccountLocalization.string("ai.points.exhausted", locale: simplifiedChinese) == "点数已用完，暂时无法使用 AI 记账。")
         #expect(AccountLocalization.string("ai.points.switchTier", locale: simplifiedChinese) == "余额不够当前模型每句扣的点数，切换到扣点更少的模型可继续使用。")
         let expiry = AccountLocalization.string("ai.points.expiry", locale: simplifiedChinese)
@@ -199,6 +269,52 @@ struct AIPointsTests {
         #expect(AccountLocalization.formatted("ai.tier.perTurn", value: "2", locale: english) == "2 pts per sentence")
         #expect(AccountLocalization.formatted("ai.tier.turnsLeft", value: "49", locale: simplifiedChinese) == "余额可说 49 句")
         #expect(AccountLocalization.string("voice.turn.switchModelTier", locale: simplifiedChinese) == "换个模型")
+        #expect(AccountLocalization.string("ai.tier.quickVoice.title", locale: simplifiedChinese) == "快捷语音模型")
+        #expect(AccountLocalization.string("ai.tier.chat.title", locale: simplifiedChinese) == "对话模型")
+        #expect(AccountLocalization.string("ai.entries.title", locale: simplifiedChinese) == "点数明细")
+        #expect(AccountLocalization.string("ai.chatHistory.cleared", locale: simplifiedChinese) == "对话记录已清空")
+        #expect(AccountLocalization.string("ai.entry.grant.dailyCheckIn", locale: simplifiedChinese) == "每日签到")
+        #expect(AccountLocalization.string("ai.entry.grant.dailyCheckIn", locale: english) == "Daily check-in")
+        #expect(AccountLocalization.string("profile.checkIn.label", locale: simplifiedChinese) == "签到")
+        #expect(AccountLocalization.string("profile.checkIn.accessibilityLabel", locale: simplifiedChinese) == "每日签到，领取 AI 点数")
+        let announcement = AccountLocalization.string("profile.checkIn.announcement", locale: simplifiedChinese)
+        #expect(String(format: announcement, locale: simplifiedChinese, "30", "24") == "获得 30 点，24 小时内有效")
+        let checkInKeys = [
+            "ai.entry.grant.dailyCheckIn", "profile.checkIn.label", "profile.checkIn.accessibilityLabel",
+            "profile.checkIn.gained", "profile.checkIn.announcement", "profile.checkIn.failure.network",
+            "profile.checkIn.failure.unavailable", "profile.checkIn.failure.signIn", "checkIn.signIn.message",
+        ]
+        for key in checkInKeys {
+            for locale in [english, simplifiedChinese] {
+                #expect(AccountLocalization.string(key, locale: locale) != key, "\(key) 缺少 \(locale.identifier) 文案")
+            }
+        }
+        #expect(SignInReason.checkIn.messageLocalizationKey == "checkIn.signIn.message")
+        // AI 点数页的分组标题和行尾状态
+        let pageKeys = [
+            "ai.points.section.model", "ai.points.section.privacy",
+            "ai.traceConsent.on", "ai.traceConsent.off", "ai.chatHistory.cleared",
+        ]
+        for key in pageKeys {
+            for locale in [english, simplifiedChinese] {
+                // 缺文案时返回 key 本身
+                #expect(AccountLocalization.string(key, locale: locale) != key, "\(key) 缺少 \(locale.identifier) 文案")
+            }
+        }
+    }
+
+    @Test("快捷语音和 AI 对话的模型：每边都有标题和说明，且有中英文")
+    func describesEveryModelScope() {
+        let locales = [Locale(identifier: "en"), Locale(identifier: "zh-Hans")]
+        for scope in AIModelScope.allCases {
+            for key in [scope.titleKey, scope.scopeNoteKey] {
+                for locale in locales {
+                    // 缺文案时返回 key 本身
+                    #expect(AccountLocalization.string(key, locale: locale) != key, "\(key) 缺少 \(locale.identifier) 文案")
+                }
+            }
+        }
+        #expect(Set(AIModelScope.allCases.map(\.storageKey)).count == AIModelScope.allCases.count)
     }
 
     @Test("模型选择页：每个档位都有名称、一句话特点和不重复的具体特点，且有中英文")
@@ -230,6 +346,7 @@ struct AIPointsTests {
         #expect(wallet.httpMethod == "GET")
         #expect(wallet.url?.absoluteString == "https://example.invalid/v1/billing/wallet?product=yadoa")
         #expect(wallet.value(forHTTPHeaderField: "Authorization") == "Bearer abc")
+        #expect(wallet.value(forHTTPHeaderField: AppVersion.headerName) == AppVersion.current)
         #expect(wallet.timeoutInterval == AIBillingAPI.requestTimeout)
 
         let firstPage = api.makeURLRequest(.entries(cursor: nil, limit: 20), token: "abc")
@@ -241,11 +358,30 @@ struct AIPointsTests {
 
         let models = api.makeURLRequest(.models, token: "abc")
         #expect(models.url?.absoluteString == "https://example.invalid/v1/models")
+
+        let checkInStatus = api.makeURLRequest(.checkInStatus, token: "abc")
+        #expect(checkInStatus.httpMethod == "GET")
+        #expect(checkInStatus.url?.absoluteString == "https://example.invalid/v1/billing/check-in?product=yadoa")
+        #expect(checkInStatus.httpBody == nil)
+
+        let checkIn = api.makeURLRequest(.checkIn, token: "abc")
+        #expect(checkIn.httpMethod == "POST")
+        #expect(checkIn.url?.absoluteString == "https://example.invalid/v1/billing/check-in")
+        #expect(checkIn.url?.query() == nil)
+        #expect(checkIn.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        #expect(checkIn.value(forHTTPHeaderField: "Authorization") == "Bearer abc")
+        #expect(checkIn.value(forHTTPHeaderField: AppVersion.headerName) == AppVersion.current)
+        let body = try #require(checkIn.httpBody)
+        #expect(try JSONDecoder().decode([String: String].self, from: body) == ["product": "yadoa"])
+        // 钱包仍是 GET，也不带请求体
+        #expect(wallet.httpMethod == "GET")
+        #expect(wallet.httpBody == nil)
     }
 
     @Test("查询接口错误状态码映射")
     func mapsBillingErrorStatusCodes() {
         #expect(AIBillingAPI.error(statusCode: 401) == .unauthorized)
+        #expect(AIBillingAPI.error(statusCode: 426) == .upgradeRequired)
         #expect(AIBillingAPI.error(statusCode: 429) == .serviceUnavailable)
         #expect(AIBillingAPI.error(statusCode: 503) == .serviceUnavailable)
         #expect(AIBillingAPI.error(statusCode: 400) == .invalidContract)
@@ -273,18 +409,24 @@ struct AIPointsTests {
 
     // MARK: - 余额状态
 
-    @Test("刷新取到余额与档位列表，没选过档位时按服务端默认档位算每轮点数，每次刷新都重新查档位列表")
+    @Test("刷新取到余额与档位列表，没选过档位时两边都默认用精准算每轮点数，每次刷新都重新查档位列表")
     func refreshLoadsBalanceAndPointsPerTurn() async {
         let api = FakeAIBillingAPI()
         api.walletResults = [.success(AIWallet(balance: 100)), .success(AIWallet(balance: 98))]
         let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        // 还没取到档位列表时也先按精准发送
+        #expect(store.requestTier(for: .quickVoice) == .precise)
 
         await store.refresh()
         #expect(store.balance == 100)
-        #expect(store.requestTier == nil)
-        #expect(store.displayTier == .standard)
-        #expect(store.pointsPerTurn == 1)
-        #expect(!store.isExhausted)
+        #expect(store.tierList?.appDefaultTier == .precise)
+        for scope in AIModelScope.allCases {
+            #expect(store.selectedTier(for: scope) == nil)
+            #expect(store.requestTier(for: scope) == .precise)
+            #expect(store.displayTier(for: scope) == .precise)
+            #expect(store.pointsPerTurn(for: scope) == 2)
+            #expect(!store.isExhausted(for: scope))
+        }
 
         await store.refresh()
         #expect(store.balance == 98)
@@ -295,9 +437,9 @@ struct AIPointsTests {
     func refreshPicksUpTierAvailabilityChanges() async {
         let api = FakeAIBillingAPI()
         let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
-        store.selectTier(.precise)
+        store.selectTier(.precise, for: .chat)
         await store.refresh()
-        #expect(store.requestTier == .precise)
+        #expect(store.requestTier(for: .chat) == .precise)
 
         let preciseDisabled = AIModelTierList(defaultTier: "standard", tiers: [
             .init(id: "standard", pointsPerTurn: 1, isAvailable: true),
@@ -305,13 +447,13 @@ struct AIPointsTests {
         ])
         api.tiersResult = .success(preciseDisabled)
         await store.refresh()
-        #expect(store.requestTier == nil)
-        #expect(store.pointsPerTurn == 1)
+        #expect(store.requestTier(for: .chat) == nil)
+        #expect(store.pointsPerTurn(for: .chat) == 1)
 
         api.tiersResult = .failure(.network)
         await store.refresh()
         #expect(store.tierList == preciseDisabled)
-        #expect(store.requestTier == nil)
+        #expect(store.requestTier(for: .chat) == nil)
     }
 
     @Test("余额不够所用档位但够更便宜的档位时提示切换，连最便宜的档位都不够才算真正用完")
@@ -320,16 +462,19 @@ struct AIPointsTests {
         api.walletResults = [.success(AIWallet(balance: 1))]
         let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
         await store.refresh()
-        #expect(!store.isExhausted)
-        #expect(!store.canAffordCheaperTier)
+        // 默认的精准每句 2 点，余额只够普通档
+        #expect(store.isExhausted(for: .chat))
+        #expect(store.canAffordCheaperTier(for: .chat))
 
-        store.selectTier(.precise)
-        #expect(store.isExhausted)
-        #expect(store.canAffordCheaperTier)
+        store.selectTier(.standard, for: .chat)
+        #expect(!store.isExhausted(for: .chat))
+        #expect(!store.canAffordCheaperTier(for: .chat))
+        // 快捷语音仍用默认的精准，余额不够说一句
+        #expect(store.isExhausted(for: .quickVoice))
 
         store.balanceReporter()(0)
-        #expect(store.isExhausted)
-        #expect(!store.canAffordCheaperTier)
+        #expect(store.isExhausted(for: .chat))
+        #expect(!store.canAffordCheaperTier(for: .chat))
     }
 
     @Test("帮助改进 AI：默认关闭，按账号保存，换账号不继承，未登录时不生效")
@@ -360,6 +505,80 @@ struct AIPointsTests {
         #expect(!reloaded.isTraceConsented)
     }
 
+    @Test("帮助改进 AI：只在 dev 环境提供，线上（Release、DebugProd）不提供")
+    func offersTraceConsentOnlyInDev() {
+        #expect(AuthConfig.dev.isAITraceConsentAvailable)
+        #expect(!AuthConfig.prod.isAITraceConsentAvailable)
+    }
+
+    @Test("帮助改进 AI：环境不提供时，就算本机存过授权也视为未授权，请求不带 X-AI-Trace-Consent")
+    func ignoresTraceConsentWhenUnavailable() throws {
+        let defaults = UserDefaults.isolated()
+        let userID = "user-1"
+        let store = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults, isTraceConsentAvailable: true) { userID }
+        store.setTraceConsented(true)
+        #expect(store.isTraceConsented)
+
+        let store2 = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults, isTraceConsentAvailable: false) { userID }
+        #expect(!store2.isTraceConsented)
+        #expect(defaults.stringArray(forKey: "ai.traceConsentUserIDs")?.contains("user-1") == true)
+        store2.setTraceConsented(true)
+        #expect(!store2.isTraceConsented)
+
+        let endpoint = try #require(URL(string: "https://example.invalid"))
+        let api = VoiceSessionAPI(endpoint: endpoint, isTraceConsented: { store2.isTraceConsented }) { "token" }
+        let request = VoiceSessionTurnRequest(
+            locale: "zh-Hans", capabilities: [], now: "2026-10-20T12:30:00-07:00", defaultAccountId: nil,
+            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)]
+        )
+        let trace = VoiceRequestTrace(sessionID: "S", turn: 1, request: 1)
+        let urlRequest = try api.makeURLRequest(request, turnID: UUID(), tier: nil, trace: trace, token: "abc")
+        #expect(urlRequest.value(forHTTPHeaderField: VoiceSessionAPI.traceConsentHeader) == nil)
+        #expect(urlRequest.value(forHTTPHeaderField: AppVersion.headerName) == AppVersion.current)
+    }
+
+    @Test("AI 记账同意：默认未同意，按账号保存，换账号不继承，未登录不生效，可以撤回，和帮助改进 AI 互不影响")
+    func keepsAIProcessingConsentPerAccount() {
+        let defaults = UserDefaults.isolated()
+        var userID: String? = "user-1"
+        let store = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults) { userID }
+        #expect(!store.isAIProcessingConsented)
+
+        store.setAIProcessingConsented(true)
+        #expect(store.isAIProcessingConsented)
+        // 和“帮助改进 AI”互不影响
+        #expect(!store.isTraceConsented)
+
+        userID = "user-2"
+        #expect(!store.isAIProcessingConsented)
+
+        // 另一个账号打开“帮助改进 AI”，不会让它变成已同意
+        store.setTraceConsented(true)
+        #expect(!store.isAIProcessingConsented)
+
+        userID = nil
+        #expect(!store.isAIProcessingConsented)
+        store.setAIProcessingConsented(true)
+
+        userID = "user-2"
+        #expect(!store.isAIProcessingConsented)
+
+        // 新建一个 store 模拟重启，状态还在
+        userID = "user-1"
+        let reloaded = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults) { userID }
+        #expect(reloaded.isAIProcessingConsented)
+        userID = "user-2"
+        #expect(!reloaded.isAIProcessingConsented)
+
+        userID = "user-1"
+        reloaded.setAIProcessingConsented(false)
+        #expect(!reloaded.isAIProcessingConsented)
+        // 撤回不动“帮助改进 AI”：user-1 没打开过
+        #expect(!reloaded.isTraceConsented)
+        let afterWithdraw = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults) { userID }
+        #expect(!afterWithdraw.isAIProcessingConsented)
+    }
+
     @Test("按余额各档位还能说几句：不够一句为 0，余额未知或档位不扣点时不显示")
     func countsTurnsLeftPerTier() async {
         let api = FakeAIBillingAPI()
@@ -379,44 +598,68 @@ struct AIPointsTests {
         #expect(store.turnsLeft(for: .precise) == 0)
     }
 
-    @Test("选档位：保存在本机，每轮点数随之变化，重新创建后仍记得")
-    func selectsTierAndPersists() async {
+    @Test("选档位：快捷语音和 AI 对话分开保存在本机，每轮点数各自变化，重新创建后仍记得")
+    func selectsTierPerScopeAndPersists() async {
         let api = FakeAIBillingAPI()
         api.walletResults = [.success(AIWallet(balance: 2))]
         let defaults = UserDefaults.isolated()
         let store = AIPointsStore(api: api, defaults: defaults) { "user-1" }
         await store.refresh()
 
-        store.selectTier(.precise)
-        #expect(store.requestTier == .precise)
-        #expect(store.displayTier == .precise)
-        #expect(store.pointsPerTurn == 2)
+        store.selectTier(.standard, for: .chat)
+        #expect(store.requestTier(for: .chat) == .standard)
+        #expect(store.displayTier(for: .chat) == .standard)
+        #expect(store.pointsPerTurn(for: .chat) == 1)
+        // 另一边不受影响，仍用默认的精准
+        #expect(store.selectedTier(for: .quickVoice) == nil)
+        #expect(store.requestTier(for: .quickVoice) == .precise)
+        #expect(store.pointsPerTurn(for: .quickVoice) == 2)
+
+        store.selectTier(.precise, for: .quickVoice)
+        #expect(store.requestTier(for: .quickVoice) == .precise)
+        #expect(store.requestTier(for: .chat) == .standard)
 
         store.balanceReporter()(1)
-        #expect(store.isExhausted)
+        #expect(!store.isExhausted(for: .chat))
+        #expect(store.isExhausted(for: .quickVoice))
 
         let reopened = AIPointsStore(api: api, defaults: defaults) { "user-1" }
-        #expect(reopened.selectedTier == .precise)
+        #expect(reopened.selectedTier(for: .chat) == .standard)
+        #expect(reopened.selectedTier(for: .quickVoice) == .precise)
         // 还没取到档位列表时先按所选档位发送
-        #expect(reopened.requestTier == .precise)
-        #expect(reopened.pointsPerTurn == nil)
+        #expect(reopened.requestTier(for: .chat) == .standard)
+        #expect(reopened.pointsPerTurn(for: .chat) == nil)
     }
 
-    @Test("所选档位服务端已不可用时不带档位，按服务端默认档位显示与计点")
+    @Test("所选档位服务端已停用时退回精准；精准也停用时不带档位，按服务端默认档位显示与计点")
     func unavailableSelectedTierFallsBackToDefault() async {
         let api = FakeAIBillingAPI()
         api.tiersResult = .success(AIModelTierList(defaultTier: "standard", tiers: [
-            .init(id: "standard", pointsPerTurn: 1, isAvailable: true),
-            .init(id: "precise", pointsPerTurn: 2, isAvailable: false),
+            .init(id: "standard", pointsPerTurn: 1, isAvailable: false),
+            .init(id: "precise", pointsPerTurn: 2, isAvailable: true),
         ]))
         let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
-        store.selectTier(.precise)
+        store.selectTier(.standard, for: .quickVoice)
 
         await store.refresh()
-        #expect(store.selectedTier == .precise)
-        #expect(store.requestTier == nil)
-        #expect(store.displayTier == .standard)
-        #expect(store.pointsPerTurn == 1)
+        #expect(store.requestTier(for: .quickVoice) == .precise)
+        #expect(store.pointsPerTurn(for: .quickVoice) == 2)
+
+        let preciseDisabled = AIModelTierList(defaultTier: "standard", tiers: [
+            .init(id: "standard", pointsPerTurn: 1, isAvailable: true),
+            .init(id: "precise", pointsPerTurn: 2, isAvailable: false),
+        ])
+        api.tiersResult = .success(preciseDisabled)
+        store.selectTier(.precise, for: .quickVoice)
+        await store.refresh()
+        #expect(store.selectedTier(for: .quickVoice) == .precise)
+        #expect(store.requestTier(for: .quickVoice) == nil)
+        #expect(store.displayTier(for: .quickVoice) == .standard)
+        #expect(store.pointsPerTurn(for: .quickVoice) == 1)
+        // 没选过的一边也一样，“默认”标记落到服务端的默认档位上
+        #expect(store.requestTier(for: .chat) == nil)
+        #expect(store.displayTier(for: .chat) == .standard)
+        #expect(preciseDisabled.appDefaultTier == .standard)
     }
 
     @Test("刷新失败保留已有余额，未登录时清空余额")
@@ -435,7 +678,8 @@ struct AIPointsTests {
         await store.refresh()
         #expect(store.balance == nil)
         #expect(store.failure == nil)
-        #expect(store.pointsPerTurn == 1)
+        // 档位列表与账号无关，退出登录后保留
+        #expect(store.pointsPerTurn(for: .quickVoice) == 2)
     }
 
     @Test("语音记账带回的余额就地更新；换账号后不展示旧账号余额")
@@ -448,13 +692,13 @@ struct AIPointsTests {
         await store.refresh()
         store.balanceReporter()(0)
         #expect(store.balance == 0)
-        #expect(store.isExhausted)
+        #expect(store.isExhausted(for: .quickVoice))
 
         userID = "user-2"
         api.walletResults = [.failure(.network)]
         await store.refresh()
         #expect(store.balance == nil)
-        #expect(!store.isExhausted)
+        #expect(!store.isExhausted(for: .quickVoice))
 
         userID = nil
         store.balanceReporter()(5)
@@ -565,9 +809,9 @@ struct AIPointsTests {
         let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
 
         store.balanceReporter()(1)
-        #expect(!store.isExhausted)
+        #expect(!store.isExhausted(for: .quickVoice))
         store.balanceReporter()(0)
-        #expect(store.isExhausted)
+        #expect(store.isExhausted(for: .quickVoice))
     }
 
     @Test("最近过期的一批：扣点先扣最早过期的批次，已到期的批次不算")
@@ -754,7 +998,122 @@ struct AIPointsTests {
         #expect(!feed.hasMore)
     }
 
+    // MARK: - 每日签到
+
+    @Test("签到成功：余额用返回值，签到批次按过期时间插入，状态变为已签")
+    func checkInSucceeds() async {
+        let api = FakeAIBillingAPI()
+        let later = Date(timeIntervalSince1970: 1_900_000_000)
+        api.walletResults = [.success(AIWallet(balance: 100, lots: [AICreditLot(points: 100, expiresAt: later)]))]
+        api.checkInStatusResults = [.success(Self.pendingCheckInStatus)]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        await store.refreshCheckInStatus()
+        #expect(store.shouldOfferCheckIn)
+
+        let result = Self.checkInResult(points: 42, balance: 142, isDuplicate: false)
+        api.checkInResult = .success(result)
+        let outcome = await store.checkIn()
+
+        #expect(outcome == .success(result))
+        #expect(store.balance == 142)
+        #expect(store.lots.count == 2)
+        #expect(store.lots.first?.reason == AICreditEntry.dailyCheckInReason)
+        #expect(store.lots.map(\.expiresAt) == store.lots.map(\.expiresAt).sorted())
+        #expect(store.checkInStatus?.checkedIn == true)
+        #expect(store.checkInStatus?.checkIn?.points == 42)
+        #expect(store.checkInStatus?.minPoints == 10)
+        #expect(!store.shouldOfferCheckIn)
+        #expect(!store.isCheckingIn)
+        #expect(api.checkInCalls == 1)
+        #expect(api.walletCalls == 1)
+    }
+
+    @Test("重复签到：不追加批次，重新拉一次钱包，状态为已签")
+    func checkInDuplicateRefreshesWallet() async {
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(AIWallet(balance: 142))]
+        api.checkInStatusResults = [.success(Self.pendingCheckInStatus)]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        await store.refreshCheckInStatus()
+        #expect(api.walletCalls == 1)
+
+        api.checkInResult = .success(Self.checkInResult(points: 42, balance: 142, isDuplicate: true))
+        _ = await store.checkIn()
+
+        #expect(store.lots.isEmpty)
+        #expect(api.walletCalls == 2)
+        #expect(store.balance == 142)
+        #expect(store.checkInStatus?.checkedIn == true)
+        #expect(!store.shouldOfferCheckIn)
+    }
+
+    @Test("签到失败：余额和批次不变，返回对应错误，仍可签到")
+    func checkInFailureKeepsState() async {
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(AIWallet(balance: 100, lots: [AICreditLot(points: 100, expiresAt: .distantFuture)]))]
+        api.checkInStatusResults = [.success(Self.pendingCheckInStatus)]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        await store.refreshCheckInStatus()
+
+        api.checkInResult = .failure(.network)
+        let outcome = await store.checkIn()
+
+        #expect(outcome == .failure(.network))
+        #expect(store.balance == 100)
+        #expect(store.lots.count == 1)
+        #expect(store.shouldOfferCheckIn)
+        #expect(!store.isCheckingIn)
+    }
+
+    @Test("签到状态：刷新失败为 nil，未登录为 nil，换账号后清空")
+    func checkInStatusLifecycle() async {
+        let api = FakeAIBillingAPI()
+        var userID: String? = "user-1"
+        let store = AIPointsStore(api: api, defaults: .isolated()) { userID }
+
+        api.checkInStatusResults = [.failure(.network)]
+        await store.refreshCheckInStatus()
+        #expect(store.checkInStatus == nil)
+        #expect(!store.shouldOfferCheckIn)
+
+        api.checkInStatusResults = [.success(Self.pendingCheckInStatus)]
+        await store.refreshCheckInStatus()
+        #expect(store.shouldOfferCheckIn)
+
+        // 换账号：刷新余额时发现账号变了，先清空旧账号的状态
+        userID = "user-2"
+        await store.refresh()
+        #expect(store.checkInStatus == nil)
+
+        userID = nil
+        await store.refreshCheckInStatus()
+        #expect(store.checkInStatus == nil)
+        #expect(await store.checkIn() == .failure(.notSignedIn))
+    }
+
     // MARK: - 辅助
+
+    /// 今天还没签到的状态。
+    private static let pendingCheckInStatus = AICheckInStatus(
+        date: "2026-11-05", checkedIn: false, checkIn: nil, minPoints: 10, maxPoints: 50
+    )
+
+    /// 构造一次签到结果，24 小时后过期。
+    private static func checkInResult(points: Int, balance: Int, isDuplicate: Bool) -> AICheckInResult {
+        let createdAt = Date(timeIntervalSince1970: 1_793_154_720)
+        return AICheckInResult(
+            date: "2026-11-05",
+            points: points,
+            isBonus: points >= 40,
+            isDuplicate: isDuplicate,
+            balance: balance,
+            createdAt: createdAt,
+            expiresAt: createdAt.addingTimeInterval(24 * 3600)
+        )
+    }
 
     /// 构造一条流水。
     private static func entry(
@@ -793,6 +1152,12 @@ private final class FakeAIBillingAPI: AIBillingFetching {
         .init(id: "precise", pointsPerTurn: 2, isAvailable: true),
     ]))
 
+    /// 依次返回的签到状态结果；用完后重复最后一个。
+    var checkInStatusResults: [Result<AICheckInStatus, AIBillingAPIError>] = [.failure(.invalidContract)]
+
+    /// 签到结果。
+    var checkInResult: Result<AICheckInResult, AIBillingAPIError> = .failure(.invalidContract)
+
     /// 设置后查询余额时先挂起，直到用例恢复。
     var walletGate: AsyncSaveGate?
 
@@ -801,6 +1166,12 @@ private final class FakeAIBillingAPI: AIBillingFetching {
 
     /// 查询档位列表的次数。
     private(set) var tierCalls = 0
+
+    /// 查询签到状态的次数。
+    private(set) var checkInStatusCalls = 0
+
+    /// 签到的次数。
+    private(set) var checkInCalls = 0
 
     /// 依次请求过的流水游标。
     private(set) var requestedCursors: [String?] = []
@@ -823,6 +1194,17 @@ private final class FakeAIBillingAPI: AIBillingFetching {
     func fetchModelTiers() async throws -> AIModelTierList {
         tierCalls += 1
         return try tiersResult.get()
+    }
+
+    func fetchCheckInStatus() async throws -> AICheckInStatus {
+        let index = min(checkInStatusCalls, checkInStatusResults.count - 1)
+        checkInStatusCalls += 1
+        return try checkInStatusResults[index].get()
+    }
+
+    func checkIn() async throws -> AICheckInResult {
+        checkInCalls += 1
+        return try checkInResult.get()
     }
 }
 

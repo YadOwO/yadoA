@@ -18,6 +18,8 @@ enum SyncMessages {
             "sync.error.network"
         case .invalidContract:
             "sync.error.invalidContract"
+        case .upgradeRequired:
+            "appUpdate.inline"
         }
     }
 

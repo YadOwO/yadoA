@@ -14,6 +14,8 @@ struct VoiceBookkeepingDock: View {
     @Environment(AuthStore.self) private var authStore
     @Environment(VoiceBookkeepingState.self) private var voice
     @Environment(\.locale) private var locale
+    /// 隐私政策同意状态；离线模式下整个语音区域不显示。预览中没有注入时为 nil，按允许联网处理。
+    @Environment(PrivacyAgreementStore.self) private var privacyAgreement: PrivacyAgreementStore?
 
     /// 麦克风按钮（含上下留白）占用的高度变化时回调，页面据此给列表末尾留白；麦克风在附属栏里时为 0。
     let onButtonHeightChange: (CGFloat) -> Void
@@ -27,7 +29,27 @@ struct VoiceBookkeepingDock: View {
     private var session: VoiceSession? { voice.session }
     private var input: VoiceInputController { voice.input }
 
+    /// 是否允许联网；没注入同意状态时按允许处理。
+    private var isNetworkAllowed: Bool {
+        privacyAgreement?.allowsNetwork ?? true
+    }
+
+    /// 离线模式（没同意隐私政策）下不显示卡片、悬浮麦克风和聊天入口，并把底部留白归零；同意后立即恢复。
     var body: some View {
+        Group {
+            if isNetworkAllowed {
+                dock
+            }
+        }
+        .task(id: isNetworkAllowed) {
+            if !isNetworkAllowed {
+                onButtonHeightChange(0)
+            }
+        }
+    }
+
+    /// 语音区域本体：一次性提示、会话卡片、悬浮麦克风和聊天入口。
+    private var dock: some View {
         VStack(spacing: 10) {
             // 提示参与布局；短按时没有卡片和悬浮按钮，也要保留完整高度，避免空栈上的 overlay 落入附属栏。
             transientHint
@@ -42,9 +64,11 @@ struct VoiceBookkeepingDock: View {
                     onManualEntry: { voice.manualEntryNote = VoiceManualEntryNote(text: $0) },
                     onSignIn: { signInPresentation.present(reason: .voiceBookkeeping) },
                     onSwitchModelTier: { voice.isModelTierPresented = true },
+                    onSelectOption: { voice.send($0.label, option: $0) },
                     onEnd: { voice.closeCard() },
                     onOpenChat: { voice.openChat(isSignedIn: authStore.isAuthenticated) },
-                    onCreateAccount: { voice.accountCreationTurn = $0 }
+                    onCreateAccount: { voice.accountCreationTurn = $0 },
+                    onOpenRecurringRules: { voice.isRecurringRulesPresented = true }
                 )
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
@@ -131,7 +155,7 @@ struct VoiceBookkeepingDock: View {
                 .fixedSize()
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .voiceFloatingSurface(in: Capsule())
+                .floatingGlassSurface(in: Capsule())
                 .allowsHitTesting(false)
                 .transition(.opacity)
                 .accessibilityHidden(true)
@@ -156,7 +180,7 @@ struct VoiceBookkeepingDock: View {
             .lineLimit(1)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .voiceFloatingSurface(in: Capsule())
+            .floatingGlassSurface(in: Capsule())
             .opacity(isShown ? 1 : 0)
             .allowsHitTesting(false)
             // 麦克风自身的无障碍提示已说明操作方式，示例只做视觉引导
@@ -230,6 +254,8 @@ private struct VoiceBookkeepingHost: ViewModifier {
     func body(content: Content) -> some View {
         content
             .task {
+                // 同意状态在 AI 点数里；放在创建会话之前，重复进入时也保证注入
+                voice.isAIProcessingConsented = { [aiPoints] in aiPoints?.isAIProcessingConsented ?? false }
                 guard voice.session == nil else { return }
                 // 启动时清理一次；放在创建会话之前，这时还没有新一轮的图片，不会误删
                 let history = AIChatHistoryStore(container: modelContext.container)
@@ -242,11 +268,21 @@ private struct VoiceBookkeepingHost: ViewModifier {
                     ) { [authStore] in
                         try await authStore.accessTokenForAIService()
                     },
-                    modelTier: { [aiPoints] in aiPoints?.requestTier },
+                    modelTier: { [aiPoints] scope in aiPoints?.requestTier(for: scope) },
                     locale: locale,
                     calendar: calendar,
                     history: history
                 )
+                #if DEBUG
+                // UI 自动化没有真实账号，从入口打不开聊天页；夹具启用时直接盖上
+                if AIChatUITestFixture.isEnabled {
+                    voice.isChatPresented = true
+                }
+                // UI 自动化没有真实账号，从入口走不到说明弹层；夹具启用时直接弹出，不发请求
+                if AIProcessingConsentUITestFixture.isEnabled {
+                    voice.isAIConsentPresented = true
+                }
+                #endif
             }
             // 账本被替换、记录被清空时，当前对话段不能再引用之前的内容；聊天页重新读取记录
             .onReceive(
@@ -259,6 +295,8 @@ private struct VoiceBookkeepingHost: ViewModifier {
             .onChange(of: authStore.userID) { _, _ in
                 voice.endSession()
                 voice.isChatPresented = false
+                // 换账号要重新同意：弹层还开着就关掉，不接着执行
+                voice.declineAIConsent()
             }
             .onChange(of: locale) { _, newValue in
                 voice.session?.locale = newValue
@@ -318,6 +356,17 @@ private struct VoiceBookkeepingHost: ViewModifier {
                         }
                 }
             }
+            .sheet(isPresented: $voice.isRecurringRulesPresented) {
+                NavigationStack {
+                    RecurringRuleListView()
+                        .toolbar {
+                            // 列表右侧已有新建按钮，完成放在左侧
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button(text("common.done")) { voice.isRecurringRulesPresented = false }
+                            }
+                        }
+                }
+            }
             .sheet(item: $voice.manualEntryNote) { item in
                 NavigationStack {
                     DiningExpenseEntryView(
@@ -346,7 +395,7 @@ private struct VoiceBookkeepingHost: ViewModifier {
             }
             .sheet(isPresented: $voice.isModelTierPresented) {
                 NavigationStack {
-                    AIModelTierView()
+                    AIModelTierView(scope: .quickVoice)
                         .toolbar {
                             ToolbarItem(placement: .confirmationAction) {
                                 Button(text("common.done")) { voice.isModelTierPresented = false }
@@ -358,6 +407,8 @@ private struct VoiceBookkeepingHost: ViewModifier {
             .voiceInputAlerts(voice.input, isEnabled: !voice.isChatPresented) {
                 signInPresentation.present(reason: .voiceBookkeeping)
             }
+            // 同上：聊天页盖在上面时由聊天页弹说明
+            .aiProcessingConsentSheet(voice, isEnabled: !voice.isChatPresented)
             .alert(text("voice.undo.failed"), isPresented: undoFailureBinding) {
                 Button(text("common.close"), role: .cancel) {}
             }

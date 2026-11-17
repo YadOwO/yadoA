@@ -1,6 +1,597 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "account.list.more" : {
+      "comment" : "账户页右上角「更多」菜单按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多"
+          }
+        }
+      }
+    },
+    "account.type_order.title" : {
+      "comment" : "账户管理中的账户分类排序入口与页面标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account Category Order"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账户分类排序"
+          }
+        }
+      }
+    },
+    "account.type_order.footer" : {
+      "comment" : "账户分类排序页底部说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag to reorder. The Accounts page and every account picker follow this order."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动调整顺序。账户页和各处选择账户时都按这个顺序排列。"
+          }
+        }
+      }
+    },
+    "account.type_order.reset" : {
+      "comment" : "账户分类排序页恢复默认顺序按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复默认"
+          }
+        }
+      }
+    },
+    "account.type_order.save_error" : {
+      "comment" : "账户分类排序保存失败提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't save the order. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排序保存失败，请重试。"
+          }
+        }
+      }
+    },
+    "developer.lineAvatar.open" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Avatar Picker"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开头像选择"
+          }
+        }
+      }
+    },
+    "developer.lineAvatar.selected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last Picked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近选中"
+          }
+        }
+      }
+    },
+    "developer.section.lineAvatar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Line Avatars"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "线条头像"
+          }
+        }
+      }
+    },
+    "feedback.diagnostics.attach" : {
+      "comment" : "反馈页附带诊断开关",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attach recent diagnostics"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "附带最近的诊断信息"
+          }
+        }
+      }
+    },
+    "feedback.diagnostics.footnote" : {
+      "comment" : "附带诊断开关下方的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Includes up to 5 recent crash, hang, or disk-write reports from this device: call stacks, iOS version, and app version. No ledger data. Sent only with this message when turned on."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "包含本机最近最多 5 份崩溃、卡顿或磁盘写入异常报告：调用栈、系统版本和 App 版本，不含任何账本数据。只在打开后随这条反馈发送。"
+          }
+        }
+      }
+    },
+    "privacy.agreement.agree" : {
+      "comment" : "隐私政策同意卡底部的主按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agree"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同意"
+          }
+        }
+      }
+    },
+    "privacy.agreement.decline" : {
+      "comment" : "隐私政策同意卡底部的次要按钮；不同意后进入离线模式",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disagree"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不同意"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.ai.body" : {
+      "comment" : "同意卡上 AI 记账一项的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Say a sentence or send a picture, and AI logs it for you"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "说一句话或发张图，由 AI 帮你记"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.ai.title" : {
+      "comment" : "同意卡上 AI 记账一项的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI bookkeeping"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 记账"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.feedback.body" : {
+      "comment" : "同意卡上意见反馈一项的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave us a message and read our replies"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "给我们留言，查看回复"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.feedback.title" : {
+      "comment" : "同意卡上意见反馈一项的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feedback"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "意见反馈"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.signIn.body" : {
+      "comment" : "同意卡上登录一项的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in with your Yado account, and it knows you on a new phone too"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用芽豆账号登录，换手机也认得你"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.signIn.title" : {
+      "comment" : "同意卡上登录一项的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.sync.body" : {
+      "comment" : "同意卡上云同步一项的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When turned on, your ledger is synced to the cloud"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开启后把账本同步到云端"
+          }
+        }
+      }
+    },
+    "privacy.agreement.feature.sync.title" : {
+      "comment" : "同意卡上云同步一项的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloud sync"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "云同步"
+          }
+        }
+      }
+    },
+    "privacy.agreement.intro" : {
+      "comment" : "同意卡的引言",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bookkeeping, accounts and charts live only on this phone and need no network. The features below go online, and send data only when you use them:"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记账、账户和图表都只存在这台手机上，不用联网。下面这些功能要联网，只在你使用时才发出数据："
+          }
+        }
+      }
+    },
+    "privacy.agreement.links" : {
+      "comment" : "同意卡上的协议说明，两个 Markdown 链接地址不能改（yadoa-legal://terms 和 yadoa-legal://privacy）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please read the [Terms of Service](yadoa-legal://terms) and the [Privacy Policy](yadoa-legal://privacy). The app goes online only after you tap Agree. If you tap Disagree, you can still keep books offline, but sign-in, sync, AI and feedback are unavailable."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请阅读[《用户协议》](yadoa-legal://terms)和[《隐私政策》](yadoa-legal://privacy)。点「同意」后才会联网；点「不同意」也能离线记账，但登录、同步、AI 和反馈都不能用。"
+          }
+        }
+      }
+    },
+    "privacy.agreement.title" : {
+      "comment" : "隐私政策同意卡的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Before you use Yado Assets"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用芽豆资产前"
+          }
+        }
+      }
+    },
+    "profile.offline.agree" : {
+      "comment" : "「我的」页离线说明下的按钮，点后重新弹出同意卡",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review and Agree to Privacy Policy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看并同意隐私政策"
+          }
+        }
+      }
+    },
+    "profile.offline.message" : {
+      "comment" : "「我的」页在离线模式下替代登录按钮的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Offline mode: sign-in, sync, AI and feedback are off, and your ledger stays on this device."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "离线模式：登录、同步、AI 和意见反馈已关闭，账本只在本机。"
+          }
+        }
+      }
+    },
+    "series.title" : {
+      "comment" : "「我的」页更多芽豆产品入口与页面标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More from yado"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多芽豆产品"
+          }
+        }
+      }
+    },
+    "series.intro" : {
+      "comment" : "更多芽豆产品页顶部说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apps in the yado series share one yado account."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆系列的 App 共用一个芽豆账号。"
+          }
+        }
+      }
+    },
+    "series.empty" : {
+      "comment" : "更多芽豆产品页没有可展示产品时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More yado apps are on the way."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多芽豆产品正在路上。"
+          }
+        }
+      }
+    },
+    "series.status.comingSoon" : {
+      "comment" : "产品卡片上的即将上线状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coming Soon"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即将上线"
+          }
+        }
+      }
+    },
+    "series.action.get" : {
+      "comment" : "产品卡片上跳到 App Store 的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "获取"
+          }
+        }
+      }
+    },
+    "series.action.get.accessibility" : {
+      "comment" : "「获取」按钮的无障碍标签，%@ 是产品名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get %@ on the App Store"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 App Store 获取%@"
+          }
+        }
+      }
+    },
+    "series.action.learnMore" : {
+      "comment" : "产品卡片上打开产品介绍页的入口",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Learn More"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "了解更多"
+          }
+        }
+      }
+    },
+    "series.action.learnMore.accessibility" : {
+      "comment" : "「了解更多」的无障碍标签，%@ 是产品名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Learn more about %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "了解更多关于%@的介绍"
+          }
+        }
+      }
+    },
     "feedback.title" : {
       "comment" : "「我的」页意见反馈入口与反馈页标题",
       "extractionState" : "manual",
@@ -33,6 +624,384 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ 条新回复"
+          }
+        }
+      }
+    },
+    "ai.entry.grant.dailyCheckIn" : {
+      "comment" : "明细中每日签到赠送的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily check-in"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日签到"
+          }
+        }
+      }
+    },
+    "lineAvatar.picker.confirm" : {
+      "comment" : "线条头像选择页：选定当前头像的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This One"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "就这个"
+          }
+        }
+      }
+    },
+    "lineAvatar.picker.drawing" : {
+      "comment" : "线条头像选择页：开场书写 logo 时画布的无障碍标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado logo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "yado 标志"
+          }
+        }
+      }
+    },
+    "lineAvatar.picker.shuffle" : {
+      "comment" : "线条头像选择页：换成另一个头像的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shuffle"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "换一换"
+          }
+        }
+      }
+    },
+    "lineAvatar.picker.title" : {
+      "comment" : "线条头像选择页：标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick an Avatar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选一个头像"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.bean" : {
+      "comment" : "预制线条头像名：顶着一棵芽的圆豆子",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprout"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.bear" : {
+      "comment" : "预制线条头像名：熊",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bear"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小熊"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.cat" : {
+      "comment" : "预制线条头像名：猫",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kitty"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小猫"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.chick" : {
+      "comment" : "预制线条头像名：小鸟",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chick"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小鸟"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.dog" : {
+      "comment" : "预制线条头像名：狗",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puppy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小狗"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.frog" : {
+      "comment" : "预制线条头像名：青蛙",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frog"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "青蛙"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.panda" : {
+      "comment" : "预制线条头像名：熊猫",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Panda"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "熊猫"
+          }
+        }
+      }
+    },
+    "lineAvatar.preset.rabbit" : {
+      "comment" : "预制线条头像名：兔子",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bunny"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "兔子"
+          }
+        }
+      }
+    },
+    "profile.checkIn.label" : {
+      "comment" : "“我的”页签到气泡上的文字",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check in"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到"
+          }
+        }
+      }
+    },
+    "profile.checkIn.accessibilityLabel" : {
+      "comment" : "签到气泡的 VoiceOver 标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily check-in, get AI points"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日签到，领取 AI 点数"
+          }
+        }
+      }
+    },
+    "profile.checkIn.gained" : {
+      "comment" : "签到成功后气泡里滚动的点数，%@ 为点数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%@ pts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%@ 点"
+          }
+        }
+      }
+    },
+    "profile.checkIn.announcement" : {
+      "comment" : "签到成功的 VoiceOver 播报，%1$@ 为点数，%2$@ 为有效小时数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Got %1$@ points, valid for %2$@ hours"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "获得 %1$@ 点，%2$@ 小时内有效"
+          }
+        }
+      }
+    },
+    "profile.checkIn.failure.network" : {
+      "comment" : "签到失败：网络不可用",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network unavailable. Tap to try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网络不可用，点一下重试"
+          }
+        }
+      }
+    },
+    "profile.checkIn.failure.unavailable" : {
+      "comment" : "签到失败：服务暂时不可用",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check-in is unavailable right now. Try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到暂时不可用，请稍后再试"
+          }
+        }
+      }
+    },
+    "profile.checkIn.failure.signIn" : {
+      "comment" : "签到失败：登录失效",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please sign in again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请重新登录后再签到"
+          }
+        }
+      }
+    },
+    "checkIn.signIn.message" : {
+      "comment" : "未登录点“我的”页签到时登录页上的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to check in daily and get free AI points. Points stay with your account."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录后每天签到就能领 AI 点数，点数跟着账号走。"
           }
         }
       }
@@ -357,6 +1326,222 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "通用"
+          }
+        }
+      }
+    },
+    "settings.section.security" : {
+      "comment" : "设置页应用锁所在分组标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy & Security"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私与安全"
+          }
+        }
+      }
+    },
+    "settings.app_lock.title" : {
+      "comment" : "设置页应用锁开关标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face ID / Passcode Lock"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "面容 ID / 密码锁"
+          }
+        }
+      }
+    },
+    "settings.app_lock.timeout.title" : {
+      "comment" : "设置页应用锁「离开多久后上锁」选择行标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lock After Leaving"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "离开后上锁"
+          }
+        }
+      }
+    },
+    "settings.app_lock.timeout.immediately" : {
+      "comment" : "应用锁上锁时长选项：立即",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Immediately"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "立即"
+          }
+        }
+      }
+    },
+    "settings.app_lock.timeout.one_minute" : {
+      "comment" : "应用锁上锁时长选项：1 分钟",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After 1 Minute"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 分钟后"
+          }
+        }
+      }
+    },
+    "settings.app_lock.timeout.five_minutes" : {
+      "comment" : "应用锁上锁时长选项：5 分钟",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After 5 Minutes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 分钟后"
+          }
+        }
+      }
+    },
+    "settings.app_lock.passcode_required.title" : {
+      "comment" : "打开应用锁时设备没设置密码的弹窗标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set a Device Passcode First"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先设置设备密码"
+          }
+        }
+      }
+    },
+    "settings.app_lock.passcode_required.message" : {
+      "comment" : "打开应用锁时设备没设置密码的弹窗说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device has no passcode. Set one in Settings › Face ID & Passcode, then turn on the lock."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这台设备还没有设置密码。请先在系统「设置 › 面容 ID 与密码」里设置密码，再打开应用锁。"
+          }
+        }
+      }
+    },
+    "app_lock.reason" : {
+      "comment" : "系统面容 ID / 密码验证界面上的原因说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock Yado Asset to view your ledger."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解锁芽豆资产，查看你的账本。"
+          }
+        }
+      }
+    },
+    "app_lock.locked.title" : {
+      "comment" : "锁屏标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado Asset Is Locked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆资产已锁定"
+          }
+        }
+      }
+    },
+    "app_lock.unlock" : {
+      "comment" : "锁屏上的解锁按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解锁"
+          }
+        }
+      }
+    },
+    "app_lock.privacy_cover.label" : {
+      "comment" : "App 切换器遮挡层的无障碍标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado Asset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆资产"
           }
         }
       }
@@ -1144,24 +2329,26 @@
         }
       }
     },
-    "bill.balance.color": {
+    "settings.amount_colors.title": {
+      "comment": "设置页全局正负颜色偏好的标题，账单结余、账户欠款、点数增减都按它上色。",
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Balance colors"
+            "value": "Positive/Negative Colors"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "结余颜色"
+            "value": "正负颜色"
           }
         }
       }
     },
-    "bill.balance.positiveRed": {
+    "settings.amount_colors.positive_red": {
+      "comment": "正负颜色选项：正数红、负数绿。",
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -1178,7 +2365,8 @@
         }
       }
     },
-    "bill.balance.positiveGreen": {
+    "settings.amount_colors.positive_green": {
+      "comment": "正负颜色选项：正数绿、负数红。",
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -4309,6 +5497,114 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "记账"
+          }
+        }
+      }
+    },
+    "appUpdate.inline" : {
+      "comment" : "各联网功能页面里的行内提示：App 版本过低、需要更新后才能使用该功能",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update the app to use this feature."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要更新 App 后才能使用"
+          }
+        }
+      }
+    },
+    "appUpdate.later" : {
+      "comment" : "「需要更新」提示里有 App Store 链接时的取消按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Later"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稍后"
+          }
+        }
+      }
+    },
+    "appUpdate.message" : {
+      "comment" : "「需要更新」提示的说明：联网功能暂时不能用，本机记账不受影响",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This version is too old to use sync, AI bookkeeping and other online features. Bookkeeping on this device still works. Please update to the latest version from the App Store."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前版本过旧，同步、AI 记账等联网功能暂时无法使用，本机记账不受影响。请到 App Store 更新到最新版本。"
+          }
+        }
+      }
+    },
+    "appUpdate.ok" : {
+      "comment" : "「需要更新」提示在没有 App Store 链接时的唯一按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "知道了"
+          }
+        }
+      }
+    },
+    "appUpdate.openAppStore" : {
+      "comment" : "「需要更新」提示里跳转到 App Store 的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go to App Store"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前往 App Store"
+          }
+        }
+      }
+    },
+    "appUpdate.title" : {
+      "comment" : "App 版本过低时弹出的系统提示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update Required"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要更新"
           }
         }
       }
@@ -9298,6 +10594,24 @@
         }
       }
     },
+    "voice.change.recurring.hint" : {
+      "comment" : "VoiceOver hint on a recurring-rule result row; opens the recurring list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the recurring list."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开周期记账列表。"
+          }
+        }
+      }
+    },
     "voice.change.inferred" : {
       "comment" : "Fields the AI guessed or filled with defaults. %@ is a list such as Account and Category.",
       "extractionState" : "manual",
@@ -9882,6 +11196,168 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已删除账户：%@"
+          }
+        }
+      }
+    },
+    "voice.recurring.action.create" : {
+      "comment" : "Leading action on a result row for a recurring rule created by voice.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New recurring"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新建周期记账"
+          }
+        }
+      }
+    },
+    "voice.recurring.action.pause" : {
+      "comment" : "Leading action on a result row for a recurring rule paused by voice.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已暂停"
+          }
+        }
+      }
+    },
+    "voice.recurring.action.resume" : {
+      "comment" : "Leading action on a result row for a recurring rule resumed by voice.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resumed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已恢复"
+          }
+        }
+      }
+    },
+    "voice.recurring.entriesKept" : {
+      "comment" : "Detail on a deleted recurring rule row: entries it already recorded stay in the ledger.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded entries kept"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已记入的流水保留"
+          }
+        }
+      }
+    },
+    "voice.summary.recurringCreated" : {
+      "comment" : "%1$@ is the rule's note or category, %2$@ the frequency such as Monthly, %3$@ the amount per period.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added recurring %1$@, %2$@ %3$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已新建周期记账：%1$@，%2$@ %3$@"
+          }
+        }
+      }
+    },
+    "voice.summary.recurringUpdated" : {
+      "comment" : "%@ is the edited recurring rule's note or category.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated recurring %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已修改周期记账：%@"
+          }
+        }
+      }
+    },
+    "voice.summary.recurringPaused" : {
+      "comment" : "%@ is the paused recurring rule's note or category.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused recurring %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已暂停周期记账：%@"
+          }
+        }
+      }
+    },
+    "voice.summary.recurringResumed" : {
+      "comment" : "%@ is the resumed recurring rule's note or category.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resumed recurring %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已恢复周期记账：%@"
+          }
+        }
+      }
+    },
+    "voice.summary.recurringDeleted" : {
+      "comment" : "%@ is the deleted recurring rule's note or category; recorded entries are kept.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted recurring %@; recorded entries kept"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已删除周期记账：%@，已记入的流水保留"
           }
         }
       }
@@ -10793,74 +12269,6 @@
         }
       }
     },
-    "debug.aiService.production" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Production"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "线上"
-          }
-        }
-      }
-    },
-    "debug.aiService.local" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Local"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本地"
-          }
-        }
-      }
-    },
-    "debug.aiService.localEndpoint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Local address"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本地地址"
-          }
-        }
-      }
-    },
-    "debug.aiService.invalidEndpoint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Invalid address. Production will be used."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "地址无效，将连线上服务。"
-          }
-        }
-      }
-    },
     "debug.aiService.current" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -10874,23 +12282,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "当前连接"
-          }
-        }
-      }
-    },
-    "debug.aiService.footer" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Local: run pnpm dev in yado_ai on your Mac. Simulator: http://localhost:7790. iPhone: join the same Wi-Fi as the Mac and use http://<Mac name>.local:7790 or the Mac's IP address. Takes effect on the next request."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本地：在 Mac 上进入 yado_ai 运行 pnpm dev。模拟器填 http://localhost:7790；真机与 Mac 连同一个 Wi-Fi，填 http://<电脑名>.local:7790 或 Mac 的局域网 IP。切换后下一次请求即生效。"
           }
         }
       }
@@ -12090,6 +13481,176 @@
         }
       }
     },
+    "account.delete.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Yado Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "注销芽豆账号"
+          }
+        }
+      }
+    },
+    "account.delete.warning.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete your Yado account?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "注销芽豆账号？"
+          }
+        }
+      }
+    },
+    "account.delete.warning.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Yado apps share this one Yado account, so deleting it affects every Yado app and can't be undone. The account will be permanently deleted, and you won't be able to sign in with it in any Yado app. Data synced to the cloud from every Yado app will be permanently deleted. Any remaining AI points are forfeited immediately and can't be restored or reversed."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆系列的所有 App 共用这一个芽豆账号，注销会影响全部芽豆 App，且无法撤销：账号会被永久删除，在所有芽豆 App 里都无法再用它登录；各芽豆 App 同步到云端的数据都会被永久删除；剩余的 AI 点数立即作废，不能恢复也不能撤回。"
+          }
+        }
+      }
+    },
+    "account.delete.warning.continue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续注销"
+          }
+        }
+      }
+    },
+    "account.delete.choice.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What about data on this device?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本机账本怎么处理？"
+          }
+        }
+      }
+    },
+    "account.delete.choice.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Yado account and the cloud data of every Yado app will be deleted. You can keep the ledger on this device and keep using it (it will no longer sync), or erase it too."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆账号和所有芽豆 App 的云端数据都会删除。本机账本可以保留在这台设备上继续使用（不再同步），也可以一并清除。"
+          }
+        }
+      }
+    },
+    "account.delete.choice.keep" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Account, Keep Local Data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "注销并保留本机账本"
+          }
+        }
+      }
+    },
+    "account.delete.choice.erase" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Account and Local Data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "注销并清除本机账本"
+          }
+        }
+      }
+    },
+    "account.delete.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your account deletion didn't finish. Some data may already be deleted, and AI features may be unavailable for now. Please try again later to finish."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "注销没有完成，部分数据可能已经删除，AI 功能可能暂时无法使用。请稍后重试，完成注销。"
+          }
+        }
+      }
+    },
+    "account.delete.local_cleanup_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Yado account was deleted, but data on this device couldn't be erased. You can reset it in Settings."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆账号已注销，但本机数据没能清除，可以在设置里重置数据。"
+          }
+        }
+      }
+    },
     "auth.sign_out.failed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12120,6 +13681,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已开启云端同步。「仅清除本机」会保留云端数据并关闭同步；「清除本机和云端」会同时删除云端数据。\n\n如果后悔了，%1$lld 天内可以在这里撤销。"
+          }
+        }
+      }
+    },
+    "profile.reset.scope.offlineMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloud sync is on, but the app is in offline mode, so only this device can be erased. Your cloud data is kept and sync is turned off.\n\nChanged your mind? You can undo this here within %1$lld days."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已开启云端同步，但当前处于离线模式，只能清除本机：云端数据会保留，同步随之关闭。\n\n如果后悔了，%1$lld 天内可以在这里撤销。"
           }
         }
       }
@@ -12460,6 +14038,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bundle ID"
+          }
+        }
+      }
+    },
+    "developer.app.environment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Environment"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "环境"
           }
         }
       }
@@ -13868,6 +15463,78 @@
         }
       }
     },
+    "auth.sign_in.agreement" : {
+      "comment" : "登录页最底部的同意说明；两个 Markdown 链接地址不要翻译，可调整语序",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By signing in, you agree to the [Terms of Use](yadoa-legal://terms) and [Privacy Policy](yadoa-legal://privacy)."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录即表示你已阅读并同意[《用户协议》](yadoa-legal://terms)和[《隐私政策》](yadoa-legal://privacy)"
+          }
+        }
+      }
+    },
+    "legal.privacy.title" : {
+      "comment" : "设置页“关于”分组里的隐私政策入口",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy Policy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私政策"
+          }
+        }
+      }
+    },
+    "legal.sharing.title" : {
+      "comment" : "设置页“关于”分组里的第三方信息共享清单入口",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Third-Party Sharing List"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第三方信息共享清单"
+          }
+        }
+      }
+    },
+    "legal.terms.title" : {
+      "comment" : "设置页“关于”分组里的用户协议入口",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terms of Use"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用户协议"
+          }
+        }
+      }
+    },
     "settings.onboarding.replay" : {
       "comment" : "设置页重看首次引导的入口",
       "extractionState" : "manual",
@@ -14039,20 +15706,92 @@
         }
       }
     },
-    "ai.tier.title" : {
-      "comment" : "AI 点数页中选择模型档位那一行的标题",
+    "ai.tier.chat.compare" : {
+      "comment" : "聊天页模型菜单里打开模型选择页的一项",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI model"
+            "value" : "Compare models"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI 模型"
+            "value" : "比较模型"
+          }
+        }
+      }
+    },
+    "ai.tier.chat.note" : {
+      "comment" : "AI 对话模型选择页顶部的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used for everything you send in Yado Assistant: speech, text, and images. Holding the mic at the bottom of the screen uses its own model, set in Profile › AI Points. Changing one doesn’t affect the other."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在芽豆助手里说话、打字、发图片都用这个模型。按住底部麦克风说话的模型在“我的 › AI 点数”里单独设置，两边互不影响。"
+          }
+        }
+      }
+    },
+    "ai.tier.chat.title" : {
+      "comment" : "聊天页输入栏里模型按钮的读屏名称与 AI 对话模型选择页的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat model"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对话模型"
+          }
+        }
+      }
+    },
+    "ai.tier.quickVoice.note" : {
+      "comment" : "AI 点数页快捷语音模型行下方与快捷语音模型选择页顶部的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used when you hold the mic at the bottom of the screen to speak. Yado Assistant has its own model, chosen in the chat’s message box. Changing one doesn’t affect the other."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按住底部麦克风说话时用这个模型。芽豆助手的模型在对话页的输入框里单独选，两边互不影响。"
+          }
+        }
+      }
+    },
+    "ai.tier.quickVoice.title" : {
+      "comment" : "AI 点数页中快捷语音模型那一行与其选择页的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick voice model"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快捷语音模型"
           }
         }
       }
@@ -14404,30 +16143,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voice bookkeeping uses %@ pts per sentence"
+            "value" : "Each sentence uses points once; how many depends on the model it uses"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "语音记账每说一句扣 %@ 点"
-          }
-        }
-      }
-    },
-    "ai.rules.perTurn.unknown" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Voice bookkeeping uses points once per sentence"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "语音记账每说一句扣一次点"
+            "value" : "每说一句扣一次点，扣几点看这句用的模型"
           }
         }
       }
@@ -14467,18 +16189,19 @@
       }
     },
     "ai.entries.title" : {
+      "comment" : "AI 点数页进入点数明细的那一行与点数明细页的标题",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "History"
+            "value" : "Points History"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "明细"
+            "value" : "点数明细"
           }
         }
       }
@@ -14947,24 +16670,6 @@
         }
       }
     },
-    "voice.chat.empty.title" : {
-      "comment" : "Empty state title of the AI chat.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Type, speak, or send a photo"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打一句、说一句，或发张图"
-          }
-        }
-      }
-    },
     "voice.chat.empty.detail" : {
       "comment" : "Empty state detail of the AI chat; states what it can do.",
       "extractionState" : "manual",
@@ -14972,13 +16677,607 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "I can record, change, and look up entries, and manage your accounts."
+            "value" : "Record, change, and look up entries. Say it, type it, or send a receipt."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "我可以帮你记账、改账、查账和管理账户。"
+            "value" : "记账、改账、查账都可以。说一句、打一句，或者发张小票。"
+          }
+        }
+      }
+    },
+    "voice.chat.status.noEntries" : {
+      "comment" : "AI chat status pill when nothing was recorded today.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing recorded today"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天还没记账"
+          }
+        }
+      }
+    },
+    "voice.chat.status.todayExpense" : {
+      "comment" : "AI chat status pill: today's total spending. %@ is the amount.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today's spending %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日支出 %@"
+          }
+        }
+      }
+    },
+    "voice.chat.status.listening" : {
+      "comment" : "AI chat status while the user is speaking.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listening…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在听…"
+          }
+        }
+      }
+    },
+    "voice.chat.status.thinking" : {
+      "comment" : "AI chat status while waiting for the model.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thinking…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "想一下…"
+          }
+        }
+      }
+    },
+    "voice.chat.status.image" : {
+      "comment" : "AI chat status while the model reads an attached image.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading the image…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在看图…"
+          }
+        }
+      }
+    },
+    "voice.chat.status.searching" : {
+      "comment" : "AI chat status after the model asked to query the ledger.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking your books…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻账本…"
+          }
+        }
+      }
+    },
+    "voice.chat.status.writing" : {
+      "comment" : "AI chat status after part of a turn was written and the model is deciding what is next.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Writing it down…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记下来…"
+          }
+        }
+      }
+    },
+    "voice.chat.greeting.morning" : {
+      "comment" : "AI chat empty state greeting, 5:00 to 11:00.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good morning. What should we record?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "早上好，今天记点什么？"
+          }
+        }
+      }
+    },
+    "voice.chat.greeting.noon" : {
+      "comment" : "AI chat empty state greeting, 11:00 to 14:00.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good afternoon. What should we record?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中午好，今天记点什么？"
+          }
+        }
+      }
+    },
+    "voice.chat.greeting.afternoon" : {
+      "comment" : "AI chat empty state greeting, 14:00 to 18:00.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good afternoon. What should we record?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下午好，今天记点什么？"
+          }
+        }
+      }
+    },
+    "voice.chat.greeting.evening" : {
+      "comment" : "AI chat empty state greeting, 18:00 to 23:00.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good evening. What should we record?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "晚上好，今天记点什么？"
+          }
+        }
+      }
+    },
+    "voice.chat.greeting.night" : {
+      "comment" : "AI chat empty state greeting, late night.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Still up? What should we record?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这么晚了，记点什么？"
+          }
+        }
+      }
+    },
+    "voice.chat.placeholder.answer" : {
+      "comment" : "Placeholder of the AI chat text field while the assistant waits for an answer.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Just type your answer…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直接回答就行…"
+          }
+        }
+      }
+    },
+    "voice.chat.slip.created" : {
+      "comment" : "Headline of a result slip after new entries were recorded. %d is the count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded %d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已记 %d 笔"
+          }
+        }
+      }
+    },
+    "voice.chat.slip.updated" : {
+      "comment" : "Headline of a result slip after entries were changed. %d is the count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changed %d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已修改 %d 笔"
+          }
+        }
+      }
+    },
+    "voice.chat.slip.deleted" : {
+      "comment" : "Headline of a result slip after entries were deleted. %d is the count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted %d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已删除 %d 笔"
+          }
+        }
+      }
+    },
+    "voice.chat.slip.changed" : {
+      "comment" : "Headline of a result slip with mixed changes. %d is the count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated %d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已处理 %d 笔"
+          }
+        }
+      }
+    },
+    "voice.chat.pick.failed" : {
+      "comment" : "Shown when confirming an account inline failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't change the account. Open the entry to edit it."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没能改成这个账户，可以点开这一笔修改。"
+          }
+        }
+      }
+    },
+    "voice.chat.insight.count" : {
+      "comment" : "Count of entries in an AI chat query result. %d is the count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d entries"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d 笔"
+          }
+        }
+      }
+    },
+    "voice.chat.insight.less" : {
+      "comment" : "AI chat query result comparison. %@ is the amount.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ less than the previous period"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比上一期少 %@"
+          }
+        }
+      }
+    },
+    "voice.chat.insight.more" : {
+      "comment" : "AI chat query result comparison. %@ is the amount.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ more than the previous period"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比上一期多 %@"
+          }
+        }
+      }
+    },
+    "voice.chat.insight.income" : {
+      "comment" : "AI chat query result: income total shown next to spending. %@ is the amount.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Income %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收入 %@"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.monthSpend" : {
+      "comment" : "AI chat suggestion; sent as a message when tapped.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How much did I spend this month?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个月花了多少"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.attachReceipt" : {
+      "comment" : "AI chat suggestion that opens the image options.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send a receipt"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发张小票"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.record" : {
+      "comment" : "AI chat suggestion that focuses the text field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record an entry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记一笔"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.recordAnother" : {
+      "comment" : "AI chat suggestion that focuses the text field after recording.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record another"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再记一笔"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.netWorth" : {
+      "comment" : "AI chat suggestion; sent as a message when tapped.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What's my net worth?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我净资产多少"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.editAmount" : {
+      "comment" : "AI chat suggestion that fills the text field to change the amount of the entry just recorded.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change amount"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "改金额"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.editAmount.fill" : {
+      "comment" : "Text placed in the AI chat field; the user types the amount next. %@ is the entry name. Keep the trailing space.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change %@ to "
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@改成 "
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.labelMonth" : {
+      "comment" : "AI chat suggestion; sent as a message when tapped. %@ is the entry name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How much on %@ this month?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个月%@花了多少"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.compare" : {
+      "comment" : "AI chat suggestion after a query result; sent as a message when tapped.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare with the previous period"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "和上一期比"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.largest" : {
+      "comment" : "AI chat suggestion after a query result; sent as a message when tapped.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What was the largest entry?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最大的一笔是哪笔"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.recurringList" : {
+      "comment" : "Suggestion chip after a recurring rule change; sent as the user's next message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What recurring entries do I have?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我有哪些周期记账"
           }
         }
       }
@@ -15249,6 +17548,438 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "（这句附了图片，已处理）"
+          }
+        }
+      }
+    },
+    "ai.chatHistory.cleared" : {
+      "comment" : "清空对话记录成功后，原来的清空入口改成这句",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat history cleared"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对话记录已清空"
+          }
+        }
+      }
+    },
+    "ai.points.section.model" : {
+      "comment" : "AI 点数页模型分组的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Model"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模型"
+          }
+        }
+      }
+    },
+    "ai.points.section.privacy" : {
+      "comment" : "AI 点数页隐私与数据分组的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy & Data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私与数据"
+          }
+        }
+      }
+    },
+    "ai.traceConsent.off" : {
+      "comment" : "AI 点数页“帮助改进 AI”那一行：未开启",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未开启"
+          }
+        }
+      }
+    },
+    "ai.consent.title" : {
+      "comment" : "“AI 记账说明”页和弹层的标题；AI 点数页隐私分组里该入口的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About AI Bookkeeping"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 记账说明"
+          }
+        }
+      }
+    },
+    "ai.consent.intro" : {
+      "comment" : "“AI 记账说明”弹层的引言",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Before you use AI bookkeeping, here is what gets sent and where it goes."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 AI 记账前，请先了解哪些内容会发出去。"
+          }
+        }
+      }
+    },
+    "ai.consent.data.title" : {
+      "comment" : "“AI 记账说明”第一段小标题：发送哪些内容",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What Gets Sent"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "会发送哪些内容"
+          }
+        }
+      }
+    },
+    "ai.consent.data.body" : {
+      "comment" : "“AI 记账说明”第一段正文：发送的内容",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The text from what you say, anything you type, and any images you send, plus the account names, categories, and related transactions that help AI pick the right account and category."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你说的话转成的文字、打的字、发的图片，以及为了让 AI 选对账户和分类而附带的账户名、分类和相关收支明细。"
+          }
+        }
+      }
+    },
+    "ai.consent.recipient.title" : {
+      "comment" : "“AI 记账说明”第二段小标题：发给谁",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Who Receives It"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发给谁"
+          }
+        }
+      }
+    },
+    "ai.consent.recipient.body" : {
+      "comment" : "“AI 记账说明”第二段正文：接收方，不写具体供应商",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This content goes to the Yado Asset servers first, which then pass it to a third-party model provider for processing. Your account identifier is not sent to the model provider."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些内容先发到芽豆的服务器，再由服务器转给第三方模型供应商处理。不会把你的账号标识发给模型供应商。"
+          }
+        }
+      }
+    },
+    "ai.consent.speech.title" : {
+      "comment" : "“AI 记账说明”第三段小标题：语音",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voice"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语音"
+          }
+        }
+      }
+    },
+    "ai.consent.speech.body" : {
+      "comment" : "“AI 记账说明”第三段正文：语音转文字和录音去向",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your iPhone converts speech to text. The recording itself is never sent to Yado Asset or the model provider."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语音由 iPhone 系统转成文字，录音本身不会发给芽豆或模型供应商。"
+          }
+        }
+      }
+    },
+    "ai.consent.purpose.title" : {
+      "comment" : "“AI 记账说明”第四段小标题：用途和保存时间",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purpose and Retention"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用途和保存时间"
+          }
+        }
+      }
+    },
+    "ai.consent.purpose.body" : {
+      "comment" : "“AI 记账说明”第四段正文：用途、服务端和本机保存时间，与隐私政策一致",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This content is used only to complete this one bookkeeping request or lookup. After processing, the Yado Asset servers do not keep your text, images, or AI replies; only the points deduction record is kept. Your chat history stays on this device and is deleted automatically after 90 days. If you turn on “Help Improve AI”, data is kept as described for that switch."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些内容只用于完成这一次记账或查询。芽豆的服务器处理完不保存你的文字、图片和 AI 的回复，只保存扣点记录；对话记录只保存在本机，90 天后自动删除。打开“帮助改进 AI”时另按该开关的说明保存。"
+          }
+        }
+      }
+    },
+    "ai.consent.purpose.bodyWithoutTrace" : {
+      "comment" : "“AI 记账说明”第四段正文，用于不提供“帮助改进 AI”的环境（线上包）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This content is used only to complete this one bookkeeping request or lookup. After processing, the Yado Asset servers do not keep your text, images, or AI replies; only the points deduction record is kept. Your chat history stays on this device and is deleted automatically after 90 days."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些内容只用于完成这一次记账或查询。芽豆的服务器处理完不保存你的文字、图片和 AI 的回复，只保存扣点记录；对话记录只保存在本机，90 天后自动删除。"
+          }
+        }
+      }
+    },
+    "ai.consent.footnote" : {
+      "comment" : "“AI 记账说明”弹层的脚注",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can review or withdraw this anytime in Profile › AI Points. Not agreeing does not affect manual bookkeeping or other features."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可以随时在“我的 › AI 点数”里查看或撤回。不同意不影响手动记账等其他功能。"
+          }
+        }
+      }
+    },
+    "ai.consent.agree" : {
+      "comment" : "“AI 记账说明”弹层的同意按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agree and Continue"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同意并继续"
+          }
+        }
+      }
+    },
+    "ai.consent.decline" : {
+      "comment" : "“AI 记账说明”弹层的不同意按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂不使用"
+          }
+        }
+      }
+    },
+    "ai.consent.granted" : {
+      "comment" : "同意“AI 记账说明”后在按住说话处显示的一次性提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All set. Hold the mic to speak."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已同意，按住麦克风说话。"
+          }
+        }
+      }
+    },
+    "ai.processingConsent.toggle" : {
+      "comment" : "“AI 记账说明”页的开关标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow Sending to AI"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许发送给 AI 处理"
+          }
+        }
+      }
+    },
+    "ai.processingConsent.on" : {
+      "comment" : "AI 点数页“AI 记账说明”那一行：已同意",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agreed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已同意"
+          }
+        }
+      }
+    },
+    "ai.processingConsent.off" : {
+      "comment" : "AI 点数页“AI 记账说明”那一行：未同意",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not agreed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未同意"
+          }
+        }
+      }
+    },
+    "ai.processingConsent.footnote" : {
+      "comment" : "“AI 记账说明”页开关下的脚注",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turning this off withdraws your consent, and you will be asked again the next time you use AI bookkeeping. Content already sent is not affected."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭即撤回同意，之后再使用 AI 记账时会重新询问；已经发出的内容不受影响。"
+          }
+        }
+      }
+    },
+    "ai.traceConsent.on" : {
+      "comment" : "AI 点数页“帮助改进 AI”那一行：已开启",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已开启"
           }
         }
       }

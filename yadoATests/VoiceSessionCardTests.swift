@@ -178,7 +178,7 @@ struct VoiceSessionCardTests {
                 VoiceSessionCard(
                     session: session, input: input,
                     onLocateChange: { _ in }, onOpenTransaction: { _ in }, onOpenAccount: { _ in },
-                    onManualEntry: { _ in }, onSignIn: {}, onSwitchModelTier: {}, onEnd: {}
+                    onManualEntry: { _ in }, onSignIn: {}, onSwitchModelTier: {}, onSelectOption: { _ in }, onEnd: {}
                 )
                 .environment(\.locale, Self.locale)
                 .animation(.easeOut(duration: 0.2), value: session.latestTurn)

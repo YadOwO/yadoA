@@ -431,10 +431,52 @@ nonisolated final class VoiceAudioRelay: @unchecked Sendable {
     private var pending: [AVAudioPCMBuffer] = []
     private var pendingFrames: AVAudioFrameCount = 0
 
+    /// 回报当前音量（音频线程）；界面据此画声波。
+    private let onLevel: (@Sendable (Float) -> Void)?
+
+    /// 收到过的音频段数；隔一段回报一次音量，够声波用，不必每段都切回主线程。
+    private var receivedBufferCount = 0
+
+    /// 创建音频中转。
+    ///
+    /// - Parameter onLevel: 回报 0～1 的音量；为空时不计算。
+    init(onLevel: (@Sendable (Float) -> Void)? = nil) {
+        self.onLevel = onLevel
+    }
+
+    /// 由均方根振幅换算成 0～1 的音量：按分贝映射，正常说话落在中段。
+    ///
+    /// - Parameter rms: 一段音频的均方根振幅。
+    /// - Returns: 音量；-55 dB 及以下为 0，-15 dB 及以上为 1。
+    static func normalizedLevel(rms: Float) -> Float {
+        guard rms > 0 else { return 0 }
+        return min(1, max(0, (20 * log10(rms) + 55) / 40))
+    }
+
+    /// 一段音频的音量；不是浮点采样时为 `nil`。
+    private static func level(of buffer: AVAudioPCMBuffer) -> Float? {
+        guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return nil }
+        let count = Int(buffer.frameLength)
+        var sum: Float = 0
+        for index in 0..<count {
+            sum += samples[index] * samples[index]
+        }
+        return normalizedLevel(rms: (sum / Float(count)).squareRoot())
+    }
+
     /// 收到一段麦克风音频（音频线程）。
     ///
     /// - Parameter buffer: 采集回调给出的音频。
     func receive(_ buffer: AVAudioPCMBuffer) {
+        if let onLevel {
+            let shouldReport = lock.withLock {
+                receivedBufferCount += 1
+                return receivedBufferCount % 2 == 0
+            }
+            if shouldReport, let level = Self.level(of: buffer) {
+                onLevel(level)
+            }
+        }
         lock.withLock {
             if let backend {
                 backend.append(buffer)

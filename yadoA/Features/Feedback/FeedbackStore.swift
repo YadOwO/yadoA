@@ -26,25 +26,41 @@ final class FeedbackStore {
     /// 读取当前登录账号 ID 的动作；未登录时返回 nil。
     private let currentUserID: () -> String?
 
+    /// 当前是否允许联网：中国大陆地区同意隐私政策之前为 false，此时刷新未读数直接返回，不发请求。
+    private let isNetworkAllowed: () -> Bool
+
     /// 创建未读状态。
     ///
     /// - Parameters:
     ///   - api: 意见反馈接口。
     ///   - currentUserID: 读取当前登录账号 ID 的动作。
-    init(api: FeedbackServing, currentUserID: @escaping () -> String?) {
+    ///   - isNetworkAllowed: 查询当前是否允许联网的动作，默认恒为允许。
+    init(
+        api: FeedbackServing,
+        currentUserID: @escaping () -> String?,
+        isNetworkAllowed: @escaping () -> Bool = { true }
+    ) {
         self.api = api
         self.currentUserID = currentUserID
+        self.isNetworkAllowed = isNetworkAllowed
     }
 
     /// 用登录状态创建：凭证取自公共服务的 access token，账号取 Logto 用户 ID。
     ///
-    /// - Parameter authStore: 全局登录状态。
-    convenience init(authStore: AuthStore) {
-        self.init(api: FeedbackAPI(authStore: authStore), currentUserID: { authStore.userID })
+    /// - Parameters:
+    ///   - authStore: 全局登录状态。
+    ///   - isNetworkAllowed: 查询当前是否允许联网的动作，默认恒为允许。
+    convenience init(authStore: AuthStore, isNetworkAllowed: @escaping () -> Bool = { true }) {
+        self.init(
+            api: FeedbackAPI(authStore: authStore),
+            currentUserID: { authStore.userID },
+            isNetworkAllowed: isNetworkAllowed
+        )
     }
 
-    /// 从服务端刷新未读数；未登录时清零，失败时保留原值。
+    /// 从服务端刷新未读数；未登录时清零，失败时保留原值；不允许联网时什么都不做（不清零，也不取号）。
     func refreshUnread() async {
+        guard isNetworkAllowed() else { return }
         guard let userID = currentUserID() else {
             clear()
             return

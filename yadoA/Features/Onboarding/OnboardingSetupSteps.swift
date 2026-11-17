@@ -95,7 +95,7 @@ struct OnboardingStartPageStep: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 8)
-        .voiceFloatingSurface(in: Capsule())
+        .floatingGlassSurface(in: Capsule())
         .animation(.spring(duration: 0.5, bounce: 0.3), value: selection)
         .accessibilityHidden(true)
     }
@@ -298,7 +298,7 @@ struct OnboardingAccountsStep: View {
             name: option.title(locale: locale),
             lastFourDigits: nil,
             balance: 0,
-            currencyCode: "CNY",
+            currencyCode: BookkeepingCurrency.code,
             locale: locale
         )
     }

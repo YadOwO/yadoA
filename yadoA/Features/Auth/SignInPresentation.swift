@@ -9,6 +9,9 @@ enum SignInReason: Equatable {
     /// 未登录时点「意见反馈」：反馈对话跟着账号走，换设备也能看到回复。
     case feedback
 
+    /// 未登录时点「我的」页的签到。
+    case checkIn
+
     /// 登录页上的说明文案键。
     var messageLocalizationKey: String {
         switch self {
@@ -16,6 +19,8 @@ enum SignInReason: Equatable {
             "voice.signIn.message"
         case .feedback:
             "feedback.signIn.message"
+        case .checkIn:
+            "checkIn.signIn.message"
         }
     }
 }

@@ -51,7 +51,7 @@ struct AccountLifecycleSheet: View {
 
                 if plan.balance != .zero {
                     LedgerFormRow(title: text("account.lifecycle.current_balance")) {
-                        Text(plan.balance.formatted(.currency(code: "CNY").locale(locale)))
+                        Text(plan.balance.formattedCurrency(locale: locale))
                             .font(.system(.body, design: .serif))
                             .monospacedDigit()
                     }

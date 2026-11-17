@@ -59,7 +59,7 @@ struct BookkeepingEntrySnapshot: Equatable, Sendable {
     ///
     /// - Parameter transaction: 需要拷贝的流水。
     init?(transaction: AccountTransaction) {
-        guard transaction.currencyCode == "CNY",
+        guard transaction.currencyCode == BookkeepingCurrency.code,
               let payload = try? transaction.validatedPayload(),
               let entry = payload.bookkeepingAmount,
               let reference = payload.categoryReference

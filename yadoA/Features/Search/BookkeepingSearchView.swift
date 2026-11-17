@@ -224,14 +224,14 @@ struct BookkeepingSearchView: View {
             parts.append(String(
                 format: text("bookkeeping.search.summary.expense"),
                 locale: locale,
-                summary.expenseTotal.formatted(.currency(code: "CNY").locale(locale))
+                summary.expenseTotal.formattedCurrency(locale: locale)
             ))
         }
         if summary.incomeTotal > 0 {
             parts.append(String(
                 format: text("bookkeeping.search.summary.income"),
                 locale: locale,
-                summary.incomeTotal.formatted(.currency(code: "CNY").locale(locale))
+                summary.incomeTotal.formattedCurrency(locale: locale)
             ))
         }
         return parts.joined(separator: " · ")

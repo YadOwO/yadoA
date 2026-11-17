@@ -73,8 +73,7 @@ struct BillOverviewPresentation {
         locale: Locale = .current
     ) {
         let calendar = TransactionDay.gregorianCalendar(basedOn: sourceCalendar, locale: locale)
-        let currentMonth = HomeMonth.from(date: now, calendar: calendar)
-            ?? HomeMonth(year: 1970, month: 1)!
+        let currentMonth = HomeMonth.containing(now, calendar: calendar)
         var monthly: [HomeMonth: BillTotals] = [:]
         var yearly: [Int: BillTotals] = [:]
         var total = BillTotals()

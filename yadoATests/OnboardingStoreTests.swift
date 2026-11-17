@@ -36,6 +36,28 @@ struct OnboardingStoreTests {
         ])
     }
 
+    @Test("离线模式（没同意隐私政策）跳过账号和登录邀请，不管是否登录")
+    func offlineSkipsAccountAndSignIn() throws {
+        let store = OnboardingStore(defaults: try makeDefaults("offline"))
+        store.setOffline(true)
+
+        let expected: [OnboardingStep] = [.opening, .privacy, .voiceDemo, .insight, .startPage, .accounts, .plant]
+        #expect(store.sequence(isSignedIn: false) == expected)
+        #expect(store.sequence(isSignedIn: true) == expected)
+    }
+
+    @Test("停在账号这一行时切到离线模式，换到后面第一个没答过的行")
+    func offlineMovesAwayFromAccountStep() throws {
+        let store = OnboardingStore(defaults: try makeDefaults("offline-account"))
+        store.advance(isSignedIn: false)
+        store.advance(isSignedIn: false)
+        #expect(store.step == .account)
+
+        store.setOffline(true)
+
+        #expect(store.step == .voiceDemo)
+    }
+
     @Test("中途退出后从保存的那一行继续，草稿保留")
     func resumesFromSavedProgress() throws {
         let defaults = try makeDefaults("resume")

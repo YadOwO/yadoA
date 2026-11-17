@@ -67,11 +67,7 @@ enum SyncPayloadCoder {
         case let category as BookkeepingCategory:
             return try makeRecord(.category, id: category.id, dto: BackupCategory(category))
         case let preference as BookkeepingPreference:
-            return try makeRecord(
-                .preference,
-                id: preference.id,
-                dto: BackupBookkeepingPreference(defaultAccountID: preference.defaultAccountID)
-            )
+            return try makeRecord(.preference, id: preference.id, dto: BackupBookkeepingPreference(preference))
         case let rule as RecurringRule:
             return try makeRecord(.recurringRule, id: rule.id, dto: BackupRecurringRule(rule))
         default:
@@ -104,7 +100,9 @@ enum SyncPayloadCoder {
                 && category.deletedAt == nil
                 && category.replacementKey == nil
         case let preference as BookkeepingPreference:
-            return preference.isAutoCreated && preference.defaultAccountID == nil
+            return preference.isAutoCreated
+                && preference.defaultAccountID == nil
+                && preference.accountTypeOrder == nil
         default:
             return false
         }

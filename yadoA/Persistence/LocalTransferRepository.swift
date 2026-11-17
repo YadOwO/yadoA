@@ -152,7 +152,7 @@ final class LocalTransferRepository {
             throw TransferRepositoryError.accountNotFound(id)
         }
         guard account.isActive else { throw TransferRepositoryError.accountDeactivated(id) }
-        guard account.currencyCode == "CNY" else {
+        guard account.currencyCode == BookkeepingCurrency.code else {
             throw TransferRepositoryError.unsupportedCurrency(account.currencyCode)
         }
         guard account.supportsBookkeeping, let type = account.accountType else {

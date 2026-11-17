@@ -299,3 +299,135 @@ struct RecurringRuleInput: Equatable, Sendable {
         self.endDay = endDay
     }
 }
+
+/// 修改一条周期记账时要改的内容；`nil` 表示不改。
+///
+/// 语音会话按字段下发修改，仓库按「恢复 → 改内容 → 暂停」的顺序在同一次保存里执行。
+struct RecurringRuleChange: Equatable, Sendable {
+    /// 可以清空的字段（备注、结束日期）的修改方式。
+    enum Clearable<Value: Equatable & Sendable>: Equatable, Sendable {
+        /// 改为新值。
+        case set(Value)
+
+        /// 清空：备注置空，结束日期改为一直重复。
+        case clear
+    }
+
+    /// 新的收支方向；改方向时必须同时给出匹配的分类。
+    var entryType: BookkeepingEntryType?
+
+    /// 新的分类 key。
+    var categoryKey: String?
+
+    /// 新的记入账户。
+    var accountID: UUID?
+
+    /// 新的每期金额。
+    var amount: Decimal?
+
+    /// 备注的修改方式。
+    var note: Clearable<String>?
+
+    /// 新的重复频率；改了频率时下一期成为新的起始日。
+    var frequency: RecurringFrequency?
+
+    /// 新的下一期 `YYYYMMDD`；改了下一期时它成为新的起始日。
+    var nextDueDay: Int?
+
+    /// 结束日期的修改方式。
+    var endDay: Clearable<Int>?
+
+    /// `true` 暂停，`false` 恢复。
+    var isPaused: Bool?
+
+    /// 是否改了规则内容（暂停、恢复以外的字段）。
+    var changesContent: Bool {
+        entryType != nil || categoryKey != nil || accountID != nil || amount != nil || note != nil
+            || frequency != nil || nextDueDay != nil || endDay != nil
+    }
+
+    /// 是否什么都没改。
+    var isEmpty: Bool {
+        !changesContent && isPaused == nil
+    }
+}
+
+/// 周期记账规则全部持久化字段的值类型快照，撤销语音会话对规则的修改或删除时按它原样还原。
+struct RecurringRuleSnapshot: Equatable, Sendable {
+    /// 规则稳定 UUID。
+    let id: UUID
+
+    /// 收支方向的持久化值。
+    let entryTypeRawValue: String
+
+    /// 记入账户。
+    let accountID: UUID
+
+    /// 分类 key。
+    let categoryKey: String
+
+    /// 每期金额。
+    let amount: Decimal
+
+    /// 备注。
+    let note: String?
+
+    /// 重复频率的持久化值。
+    let frequencyRawValue: String
+
+    /// 排期起始日。
+    let anchorDay: Int
+
+    /// 下一期。
+    let nextDueDay: Int
+
+    /// 结束日期。
+    let endDay: Int?
+
+    /// 暂停时间。
+    let pausedAt: Date?
+
+    /// 创建时间。
+    let createdAt: Date
+
+    /// 最近一次修改时间。
+    let updatedAt: Date
+
+    /// 拷贝规则当前的全部字段。
+    init(rule: RecurringRule) {
+        id = rule.id
+        entryTypeRawValue = rule.entryTypeRawValue
+        accountID = rule.accountID
+        categoryKey = rule.categoryKey
+        amount = rule.amount
+        note = rule.note
+        frequencyRawValue = rule.frequencyRawValue
+        anchorDay = rule.anchorDay
+        nextDueDay = rule.nextDueDay
+        endDay = rule.endDay
+        pausedAt = rule.pausedAt
+        createdAt = rule.createdAt
+        updatedAt = rule.updatedAt
+    }
+
+    /// 按快照生成尚未插入 context 的规则。
+    func makeRule() -> RecurringRule {
+        RecurringRule(
+            id: id, entryTypeRawValue: entryTypeRawValue, accountID: accountID, categoryKey: categoryKey,
+            amount: amount, note: note, frequencyRawValue: frequencyRawValue, anchorDay: anchorDay,
+            nextDueDay: nextDueDay, endDay: endDay, pausedAt: pausedAt, createdAt: createdAt, updatedAt: updatedAt
+        )
+    }
+}
+
+/// 撤销语音会话中一次周期记账改动的反向变更。
+enum RecurringRuleRevert: Equatable, Sendable {
+    /// 删除新建的规则；它当场记入的流水由各自的撤销删除。
+    case remove(ruleID: UUID)
+
+    /// 把修改、暂停或恢复过的规则还原为快照；规则期间已被删除时失败。
+    case restore(RecurringRuleSnapshot)
+
+    /// 按快照插回被删除的规则。
+    case reinsert(RecurringRuleSnapshot)
+}

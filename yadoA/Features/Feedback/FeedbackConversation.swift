@@ -18,6 +18,9 @@ final class FeedbackConversation {
         /// 在本机点发送的时间。
         let createdAt: Date
 
+        /// 随这条消息附带的诊断；重发时带同一批。
+        let diagnostics: [FeedbackDiagnostic]
+
         /// 是否发送失败，等用户重发或删除。
         var isFailed: Bool
     }
@@ -115,9 +118,10 @@ final class FeedbackConversation {
     /// - Parameters:
     ///   - text: 输入框里的原文；去掉首尾空白后为空或超出上限时不发送。
     ///   - clientInfo: 发送时的设备信息。
-    func send(_ text: String, clientInfo: FeedbackClientInfo) async {
+    ///   - diagnostics: 随这条消息附带的诊断，默认不附带。
+    func send(_ text: String, clientInfo: FeedbackClientInfo, diagnostics: [FeedbackDiagnostic] = []) async {
         guard FeedbackComposer.canSend(text) else { return }
-        let message = OutgoingMessage(id: UUID(), content: FeedbackComposer.content(from: text), createdAt: .now, isFailed: false)
+        let message = OutgoingMessage(id: UUID(), content: FeedbackComposer.content(from: text), createdAt: .now, diagnostics: diagnostics, isFailed: false)
         outgoing.append(message)
         await deliver(message.id, clientInfo: clientInfo)
     }
@@ -160,7 +164,7 @@ final class FeedbackConversation {
         outgoing[index].isFailed = false
         let message = outgoing[index]
         do {
-            let saved = try await api.send(FeedbackSendRequest(id: message.id, content: message.content, clientInfo: clientInfo))
+            let saved = try await api.send(FeedbackSendRequest(id: message.id, content: message.content, clientInfo: clientInfo, diagnostics: message.diagnostics))
             merge([saved])
         } catch {
             if let failedIndex = outgoing.firstIndex(where: { $0.id == id }) {

@@ -85,7 +85,7 @@ final class LocalBalanceAdjustmentRepository {
         guard account.supportsBookkeeping else {
             throw BalanceAdjustmentRepositoryError.unsupportedAccountType(account.typeRawValue)
         }
-        guard account.currencyCode == "CNY" else {
+        guard account.currencyCode == BookkeepingCurrency.code else {
             throw BalanceAdjustmentRepositoryError.unsupportedCurrency(account.currencyCode)
         }
         guard AccountAmountParser.hasCNYPrecision(account.balance) else {

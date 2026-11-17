@@ -28,6 +28,9 @@ enum VoiceSessionFailure: Equatable {
 
     /// 网络不可用。
     case network
+
+    /// App 版本过低，需要升级后才能使用语音记账。
+    case upgradeRequired
 }
 
 /// 一次语音记账会话：维护发给 AI 服务的事件记录，在本地执行工具调用，并支持逐轮撤销。
@@ -56,6 +59,18 @@ final class VoiceSession {
             case failed(VoiceSessionFailure)
         }
 
+        /// 处理中进行到哪一步；只显示客户端确实知道的阶段，聊天页据此显示状态。
+        enum Phase: Equatable {
+            /// 已发出，等模型回复。
+            case thinking
+
+            /// 模型要查账，本机查完后等它看结果。
+            case searching
+
+            /// 已写入一部分，等模型决定后续。
+            case writing
+        }
+
         /// 稳定标识。
         let id = UUID()
 
@@ -70,6 +85,12 @@ final class VoiceSession {
 
         /// 处理结果。
         var outcome: Outcome = .processing
+
+        /// 处理中进行到哪一步。
+        var phase: Phase = .thinking
+
+        /// 本轮查询汇总的结果；不改动数据，只用于展示。
+        var insights: [AIChatInsight] = []
 
         /// 本轮成功写入的改动（收支流水与账户相关），按执行顺序排列。
         var changes: [VoiceChange] = []
@@ -134,8 +155,8 @@ final class VoiceSession {
 
     private let container: ModelContainer
     private let api: VoiceSessionTurnSending
-    /// 读取语音记账要用的模型档位；每句开始时取一次，为 nil 时由服务端按默认档位处理。
-    private let modelTier: () -> AIModelTier?
+    /// 按这句话的入口读取要用的模型档位；每句开始时取一次，为 nil 时由服务端按默认档位处理。
+    private let modelTier: (AIModelScope) -> AIModelTier?
     private let highlight: HomeRecentEntryHighlight
     private let now: () -> Date
     /// 写入「语音耗时」的记录；未启用语音耗时（`VoiceTimingFeature.isEnabled`）时为空，不保存耗时。
@@ -155,7 +176,7 @@ final class VoiceSession {
     /// - Parameters:
     ///   - container: 应用持有的本地财务容器。
     ///   - api: 会话接口。
-    ///   - modelTier: 读取模型档位的动作，通常是 `AIPointsStore.requestTier`；默认不带档位。
+    ///   - modelTier: 按入口读取模型档位的动作，通常是 `AIPointsStore.requestTier(for:)`；默认不带档位。
     ///   - locale: 界面语言。
     ///   - calendar: 记账日使用的日历。
     ///   - highlight: 首页变更提示通道。
@@ -165,7 +186,7 @@ final class VoiceSession {
     init(
         container: ModelContainer,
         api: VoiceSessionTurnSending,
-        modelTier: @escaping () -> AIModelTier? = { nil },
+        modelTier: @escaping (AIModelScope) -> AIModelTier? = { _ in nil },
         locale: Locale = .current,
         calendar: Calendar = .current,
         highlight: HomeRecentEntryHighlight = .shared,
@@ -217,11 +238,13 @@ final class VoiceSession {
     ///   - selectedOption: 回答追问时点选的候选项。
     ///   - speechFinalizeDuration: 松手到拿到最终识别文字的耗时，计入本轮耗时；点选候选项时为空。
     ///   - images: 随这句话发送的图片；有图片时文字可以为空。
+    ///   - scope: 这句话从哪个入口发出，决定用哪边选的模型档位；同一个对话段里两边的句子可以用不同档位。
     func send(
         _ rawText: String,
         selectedOption: VoiceAskOption? = nil,
         speechFinalizeDuration: Duration? = nil,
-        images: [VoiceImageUpload] = []
+        images: [VoiceImageUpload] = [],
+        scope: AIModelScope = .quickVoice
     ) async {
         let text = String(
             rawText.trimmingCharacters(in: .whitespacesAndNewlines).prefix(VoiceSessionLimits.maxUserTextLength)
@@ -267,7 +290,7 @@ final class VoiceSession {
         // 一句话一个计费轮次：这句的续步沿用，用户下一句（包括回答追问）重新生成
         let billingTurnID = UUID()
         // 档位与计费轮次一起在这句开始时确定：处理期间用户换了档位，续步仍沿用，否则服务端会判为不一致
-        let tier = modelTier()
+        let tier = modelTier(scope)
         let turnStartedAt = VoiceTimingClock.now
         let signposter = VoiceTimingLog.signposter
         let turnSignpost = signposter.beginInterval("VoiceTurn", id: signposter.makeSignpostID(), "turn \(turnIndex)")
@@ -315,23 +338,12 @@ final class VoiceSession {
                 case let .toolCalls(calls, canFinishLocally, followUpAsk):
                     let executionStartedAt = VoiceTimingClock.now
                     let executionSignpost = signposter.beginInterval("VoiceExecute", id: signposter.makeSignpostID())
-                    var isAllSucceeded = true
-                    for call in calls {
-                        let execution = executor.execute(call)
-                        events.append(.toolCall(call))
-                        events.append(.toolResult(execution.result))
-                        isAllSucceeded = isAllSucceeded && execution.result.output.isSuccess
-                        if let change = execution.change {
-                            updateTurn(turnID) { $0.changes.append(change) }
-                            // 余额调整、转账与账户改动不在首页明细中展示，只有收支流水需要提示
-                            if let entryHighlight = change.entryChange?.highlight {
-                                highlight.mark(entryHighlight)
-                            }
-                        }
-                    }
+                    let isAllSucceeded = executeToolCalls(calls, with: executor, turnID: turnID)
                     signposter.endInterval("VoiceExecute", executionSignpost)
                     requestTimings[requestTimings.count - 1].toolCallCount = calls.count
                     requestTimings[requestTimings.count - 1].executionMs = VoiceTimingClock.milliseconds(since: executionStartedAt)
+                    let nextPhase: Turn.Phase = calls.contains(where: \.isQuery) ? .searching : .writing
+                    updateTurn(turnID) { $0.phase = nextPhase }
                     // 随调用下发的追问：全部成功时直接显示，不必为同一个问题再请求一次
                     if let followUpAsk, isAllSucceeded {
                         askUser(turnID, question: followUpAsk.question, options: followUpAsk.options)
@@ -360,6 +372,35 @@ final class VoiceSession {
         }
     }
 
+    /// 依次执行一批工具调用：把调用和结果写进会话记录，把洞察和改动记入本轮，收支改动顺带在首页标出。
+    ///
+    /// - Parameters:
+    ///   - calls: 服务端这次下发的工具调用，按顺序执行。
+    ///   - executor: 本轮共用的工具执行器。
+    ///   - turnID: 改动记入的那一轮。
+    /// - Returns: 是否全部调用都成功。
+    private func executeToolCalls(_ calls: [VoiceToolCall], with executor: VoiceToolExecutor, turnID: UUID) -> Bool {
+        var isAllSucceeded = true
+        for call in calls {
+            let execution = executor.execute(call)
+            events.append(.toolCall(call))
+            events.append(.toolResult(execution.result))
+            isAllSucceeded = isAllSucceeded && execution.result.output.isSuccess
+            if let insight = execution.insight {
+                updateTurn(turnID) { $0.insights.append(insight) }
+            }
+            // 新建或修改周期记账时，规则后面跟着当场记入的流水，一并记入本轮
+            for change in execution.changes {
+                updateTurn(turnID) { $0.changes.append(change) }
+                // 余额调整、转账、账户与周期记账的改动不在首页明细中展示，只有收支流水需要提示
+                if let entryHighlight = change.entryChange?.highlight {
+                    highlight.mark(entryHighlight)
+                }
+            }
+        }
+        return isAllSucceeded
+    }
+
     /// 撤销最近一轮的全部写入，并把这一轮移出会话记录，模型不会再引用已撤销的流水。
     ///
     /// 失败时数据保持撤销前的状态，`hasUndoFailure` 置为真。
@@ -382,6 +423,56 @@ final class VoiceSession {
         }
         lastActivityAt = now()
         saveToHistory(turn.id)
+    }
+
+    /// 确认一笔新记流水的账户：在本机直接改，不请求模型、不扣点，也不新增一轮。
+    ///
+    /// 同时改写会话记录里当初的那次新增，下一轮模型看到的就是确认后的账户；事件条数不变，撤销仍按原位置截断。
+    ///
+    /// - Parameters:
+    ///   - turnID: 这笔流水所在的一轮。
+    ///   - changeID: 这笔流水的改动标识。
+    ///   - accountID: 用户选的账户。
+    /// - Returns: 是否改成功；处理中、这一轮已撤销、流水或账户不可用时为 false，数据不变。
+    func confirmInferredAccount(turnID: UUID, changeID: UUID, accountID: UUID) -> Bool {
+        guard !isProcessing,
+              let turn = turns.first(where: { $0.id == turnID }),
+              !turn.isUndone,
+              let changeIndex = turn.changes.firstIndex(where: { $0.id == changeID }),
+              let entry = turn.changes[changeIndex].entryChange,
+              entry.kind == .created,
+              entry.inferredFields.contains(.account)
+        else { return false }
+        let executor = VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: now)
+        let execution = executor.execute(.updateTransaction(id: UUID().uuidString, input: VoiceUpdateTransactionInput(
+            id: entry.transactionID.uuidString,
+            patch: VoiceTransactionPatch(accountId: accountID.uuidString)
+        )))
+        guard execution.result.output.isSuccess, let updated = execution.change?.entryChange else { return false }
+        rewriteCreateEvent(transactionID: entry.transactionID, accountID: accountID)
+        // 仍是原来那次新增：撤销照旧删除这笔，只有展示内容跟着变
+        let confirmed = VoiceEntryChange(
+            id: entry.id,
+            kind: entry.kind,
+            transactionID: entry.transactionID,
+            transactionDay: entry.transactionDay,
+            row: updated.row,
+            accountName: updated.accountName,
+            label: entry.label,
+            formattedAmount: entry.formattedAmount,
+            inferredFields: entry.inferredFields.filter { $0 != .account },
+            inverse: entry.inverse,
+            highlight: entry.highlight
+        )
+        updateTurn(turnID) { $0.changes[changeIndex] = .entry(confirmed) }
+        lastActivityAt = now()
+        saveToHistory(turnID)
+        return true
+    }
+
+    /// 读取今天的收支概况，聊天页顶部显示。
+    func todaySummary() -> VoiceTodaySummary {
+        VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: now).todaySummary()
     }
 
     /// 用户关闭卡片（点关闭、点卡片外或进入二级页面）：只收起卡片，对话段不结束；
@@ -434,6 +525,28 @@ final class VoiceSession {
     private var isAwaitingAnswer: Bool {
         if case .ask = latestTurn?.outcome { return true }
         return false
+    }
+
+    /// 把会话记录里新增这笔流水的那次调用改成用户确认的账户，并去掉账户的待确认标记。
+    ///
+    /// - Parameters:
+    ///   - transactionID: 新记的流水。
+    ///   - accountID: 用户确认的账户。
+    private func rewriteCreateEvent(transactionID: UUID, accountID: UUID) {
+        let createdOutput = VoiceToolOutput.created(id: transactionID.uuidString)
+        // 每个工具调用后面紧跟它的执行结果
+        for index in events.indices.dropLast() {
+            guard case let .toolCall(.createTransaction(id, input)) = events[index],
+                  case let .toolResult(result) = events[index + 1],
+                  result.toolCallId == id,
+                  result.output == createdOutput
+            else { continue }
+            var confirmed = input
+            confirmed.accountId = accountID.uuidString
+            confirmed.inferredFields.removeAll { $0 == .account }
+            events[index] = .toolCall(.createTransaction(id: id, input: confirmed))
+            return
+        }
     }
 
     /// 生成用户这句话的事件；只发图片时用一句默认说明，服务端要求文字不能为空。
@@ -616,6 +729,7 @@ final class VoiceSession {
         case .insufficientPoints: .insufficientPoints
         case .turnInvalid: .turnInvalid
         case .network: .network
+        case .upgradeRequired: .upgradeRequired
         case .serviceUnavailable, .timeout, .invalidContract, nil: .serviceUnavailable
         }
     }
@@ -635,7 +749,9 @@ struct VoiceImageUpload: Equatable {
 
 /// 在本地生成一轮的结果提示，例如「已记 2 笔：午饭 ¥28.00、打车 ¥35.00」。
 enum VoiceSessionSummary {
-    /// 生成结果提示：先按新增、修改、删除分段说明收支流水，再逐句说明账户相关的改动。
+    /// 生成结果提示：先逐句说明周期记账的改动，再按新增、修改、删除分段说明收支流水，最后逐句说明账户相关的改动。
+    ///
+    /// 周期记账放在最前面：当场记入的流水紧跟在规则后面，读起来是「已新建周期记账：房租…；已记 1 笔：房租…」。
     ///
     /// - Parameters:
     ///   - changes: 本轮的改动，按执行顺序排列。
@@ -643,15 +759,19 @@ enum VoiceSessionSummary {
     /// - Returns: 本地化提示；没有改动时为「这句话我没能处理」一类的兜底文案。
     static func text(for changes: [VoiceChange], locale: Locale) -> String {
         let entries = changes.compactMap(\.entryChange)
+        let recurringSentences = changes.compactMap { change -> String? in
+            guard case let .recurring(recurringChange) = change else { return nil }
+            return recurringChange.summary
+        }
         let accountSentences = changes.compactMap { change -> String? in
             guard case let .account(accountChange) = change else { return nil }
             return accountChange.summary
         }
-        guard !accountSentences.isEmpty else {
+        guard !recurringSentences.isEmpty || !accountSentences.isEmpty else {
             return text(forItems: entries.map { Item($0) }, locale: locale)
         }
         let entryText = entries.isEmpty ? [] : [text(forItems: entries.map { Item($0) }, locale: locale)]
-        return (entryText + accountSentences)
+        return (recurringSentences + entryText + accountSentences)
             .joined(separator: AccountLocalization.string("voice.summary.separator", locale: locale))
     }
 
@@ -709,6 +829,16 @@ extension VoiceSessionSummary.Item {
     /// 由一笔收支流水的改动生成摘要。
     fileprivate init(_ change: VoiceEntryChange) {
         self.init(kind: change.kind, label: change.label, formattedAmount: change.formattedAmount)
+    }
+}
+
+extension VoiceToolCall {
+    /// 是否只读账本：查询流水、汇总或查询周期记账。
+    fileprivate var isQuery: Bool {
+        switch self {
+        case .searchTransactions, .summarizeTransactions, .searchRecurringRules: true
+        default: false
+        }
     }
 }
 

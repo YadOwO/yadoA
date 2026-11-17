@@ -22,6 +22,9 @@ enum AIBillingAPIError: Error, Equatable {
 
     /// 请求或响应不符合契约，属于程序错误。
     case invalidContract
+
+    /// App 版本低于服务端要求，需要升级后才能查询点数。
+    case upgradeRequired
 }
 
 /// 查询点数余额、流水与模型档位的能力；测试注入假实现。
@@ -44,9 +47,21 @@ protocol AIBillingFetching {
     /// - Returns: 档位列表。
     /// - Throws: `AIBillingAPIError`。
     func fetchModelTiers() async throws -> AIModelTierList
+
+    /// 查询今天的签到状态。
+    ///
+    /// - Returns: 今天是否已签到及签到记录。
+    /// - Throws: `AIBillingAPIError`。
+    func fetchCheckInStatus() async throws -> AICheckInStatus
+
+    /// 每日签到：服务端随机发放点数；今天已签过时不重复入账，返回当天那次的结果。
+    ///
+    /// - Returns: 签到结果。
+    /// - Throws: `AIBillingAPIError`。
+    func checkIn() async throws -> AICheckInResult
 }
 
-/// 调用 yado_ai 点数与模型档位查询接口的网络客户端；这些接口不调用模型、不扣点。
+/// 调用 yado_ai 点数与模型档位查询接口的网络客户端：查询与签到，不调用模型、不扣点。
 final class AIBillingAPI: AIBillingFetching {
     /// 客户端用到的接口。
     enum Route: Equatable {
@@ -59,19 +74,26 @@ final class AIBillingAPI: AIBillingFetching {
         /// `GET /v1/models`：模型档位与每轮点数。
         case models
 
+        /// `GET /v1/billing/check-in`：今天的签到状态。
+        case checkInStatus
+
+        /// `POST /v1/billing/check-in`：签到。
+        case checkIn
+
         /// 接口路径。
         var path: String {
             switch self {
             case .wallet: "v1/billing/wallet"
             case .entries: "v1/billing/entries"
             case .models: "v1/models"
+            case .checkInStatus, .checkIn: "v1/billing/check-in"
             }
         }
 
         /// 查询参数；余额和流水都要带本产品代号，服务端缺这个参数时返回 400。
         var queryItems: [URLQueryItem] {
             switch self {
-            case .wallet:
+            case .wallet, .checkInStatus:
                 return [URLQueryItem(name: "product", value: AIBillingAPI.product)]
             case let .entries(cursor, limit):
                 var items = [
@@ -82,8 +104,24 @@ final class AIBillingAPI: AIBillingFetching {
                     items.append(URLQueryItem(name: "cursor", value: cursor))
                 }
                 return items
-            case .models:
+            case .models, .checkIn:
                 return []
+            }
+        }
+
+        /// HTTP 方法；只有签到是 POST。
+        var httpMethod: String {
+            switch self {
+            case .checkIn: "POST"
+            default: "GET"
+            }
+        }
+
+        /// 请求体；只有签到带 JSON，内容是本产品代号。
+        var httpBody: Data? {
+            switch self {
+            case .checkIn: try? JSONEncoder().encode(["product": AIBillingAPI.product])
+            default: nil
             }
         }
     }
@@ -97,7 +135,7 @@ final class AIBillingAPI: AIBillingFetching {
     /// 每页流水条数；服务端上限 50。
     static let pageSize = 20
 
-    /// 指定的 AI 服务地址（不含路径）；为空时每次请求按 `AIServiceEnvironment` 取当前地址。
+    /// 指定的 AI 服务地址（不含路径）；为空时用当前环境的 `AuthConfig.aiServiceURL`。
     private let endpointOverride: URL?
 
     /// 网络会话；测试可注入。
@@ -109,7 +147,7 @@ final class AIBillingAPI: AIBillingFetching {
     /// 创建客户端。
     ///
     /// - Parameters:
-    ///   - endpoint: AI 服务地址；为空时每次请求取 `AIServiceEnvironment.currentEndpoint`，开发者设置里切换后立即生效。
+    ///   - endpoint: AI 服务地址；为空时用当前环境的 `AuthConfig.aiServiceURL`。
     ///   - session: 网络会话。
     ///   - accessToken: 获取 access token 的动作，抛出 `ServiceAuthError`。
     init(
@@ -124,7 +162,7 @@ final class AIBillingAPI: AIBillingFetching {
 
     /// 本次请求要连的地址。
     private var endpoint: URL {
-        endpointOverride ?? AIServiceEnvironment.currentEndpoint
+        endpointOverride ?? AuthConfig.aiServiceURL
     }
 
     func fetchWallet() async throws -> AIWallet {
@@ -139,12 +177,20 @@ final class AIBillingAPI: AIBillingFetching {
         try await send(.models)
     }
 
+    func fetchCheckInStatus() async throws -> AICheckInStatus {
+        try await send(.checkInStatus)
+    }
+
+    func checkIn() async throws -> AICheckInResult {
+        try await send(.checkIn)
+    }
+
     /// 构造接口请求。
     ///
     /// - Parameters:
     ///   - route: 接口。
     ///   - token: access token。
-    /// - Returns: 带鉴权头和超时设置的 GET 请求。
+    /// - Returns: 按接口方法构造、带鉴权头和超时设置的请求；有请求体时带 JSON 内容类型。
     func makeURLRequest(_ route: Route, token: String) -> URLRequest {
         var url = endpoint.appending(path: route.path)
         let queryItems = route.queryItems
@@ -152,10 +198,15 @@ final class AIBillingAPI: AIBillingFetching {
             url.append(queryItems: queryItems)
         }
         var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+        request.httpMethod = route.httpMethod
         request.timeoutInterval = Self.requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        AppVersion.apply(to: &request)
+        if let body = route.httpBody {
+            request.httpBody = body
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
         return request
     }
 
@@ -167,6 +218,8 @@ final class AIBillingAPI: AIBillingFetching {
         switch statusCode {
         case 401:
             .unauthorized
+        case 426:
+            .upgradeRequired
         case 429, 500...599:
             .serviceUnavailable
         default:
@@ -202,6 +255,9 @@ final class AIBillingAPI: AIBillingFetching {
         }
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AIBillingAPIError.invalidContract
+        }
+        if AppUpdatePrompt.checkUpgradeRequired(httpResponse) {
+            throw AIBillingAPIError.upgradeRequired
         }
         guard httpResponse.statusCode == 200 else {
             throw Self.error(statusCode: httpResponse.statusCode)

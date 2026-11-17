@@ -6,7 +6,7 @@ final class AccountListFlowUITests: XCTestCase {
     }
 
     @MainActor
-    func testEmptyStateCreatesFirstAccountAndMovesAddActionToToolbar() throws {
+    func testEmptyStateCreatesFirstAccountAndMovesAddActionToMoreMenu() throws {
         let app = launchIsolatedAppInEnglish()
         openAccountsTab(in: app)
 
@@ -28,30 +28,41 @@ final class AccountListFlowUITests: XCTestCase {
         XCTAssertTrue(save.isEnabled)
         save.tap()
 
-        XCTAssertTrue(app.staticTexts["Cash"].waitForExistence(timeout: 3))
+        let accountRow = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "account-list-row-")
+        ).firstMatch
+        XCTAssertTrue(accountRow.waitForExistence(timeout: 3))
         XCTAssertFalse(emptyAdd.exists)
-        XCTAssertTrue(app.buttons["account-list-toolbar-add"].waitForExistence(timeout: 2))
+        // 账户按分类分组，现金账户在「现金」分组下。
+        XCTAssertTrue(app.descendants(matching: .any)["account-list-section-cash"].exists)
 
         let summaryCard = app.descendants(matching: .any)["account-list-summary-card"]
         XCTAssertTrue(summaryCard.waitForExistence(timeout: 2))
         XCTAssertFalse(summaryCard.label.isEmpty)
         XCTAssertTrue(summaryCard.label.contains("40"))
 
-        // 系统菜单保留操作标题，但不会保留 SwiftUI 按钮的 identifier。
-        let management = app.buttons["Account Management"]
-        if !management.exists {
-            app.navigationBars["Accounts"].buttons["More"].tap()
+        // 添加账户和账户管理都收在右上角的「更多」菜单里。
+        var more = app.buttons["account-list-more"]
+        if !more.exists {
+            more = app.navigationBars["Accounts"].buttons["More"]
         }
-        XCTAssertTrue(management.waitForExistence(timeout: 2))
+        XCTAssertTrue(more.waitForExistence(timeout: 2))
+        more.tap()
+        // 系统菜单保留操作标题，但不会保留 SwiftUI 按钮的 identifier。
+        XCTAssertTrue(app.buttons["Add Account"].waitForExistence(timeout: 2))
+        let management = app.buttons["Account Management"]
+        XCTAssertTrue(management.exists)
         management.tap()
         XCTAssertTrue(app.buttons["account-management-choose-default"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["account-management-type-order"].exists)
         // 没有已停用账户时不显示入口。
         XCTAssertFalse(app.buttons["account-management-deactivated"].exists)
         app.buttons["account-management-close"].tap()
 
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 3))
         XCTAssertTrue(app.tabBars.firstMatch.isHittable)
-        app.staticTexts["Cash"].firstMatch.tap()
+        // 分组标题也叫「Cash」，按行标识点进详情。
+        accountRow.tap()
 
         XCTAssertTrue(app.navigationBars["Account Details"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.tabBars.firstMatch.exists, "账户详情保留 Tab Bar")

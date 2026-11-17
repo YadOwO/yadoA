@@ -167,6 +167,140 @@ struct RecurringRuleTests {
         #expect(try fixture.rule(ruleID).anchorDay == 20261105)
     }
 
+    // MARK: - 按字段修改与撤销
+
+    @Test("按字段修改：只改给出的字段，清空备注和结束日期；改金额不重置起始日")
+    func updateChangesOnlyGivenFields() throws {
+        let fixture = try Fixture()
+        let ruleID = try fixture.saveRule(nextDueDay: 20261101, endDay: 20271101)
+        var change = RecurringRuleChange()
+        change.amount = 88
+        change.note = .set(" 会员 ")
+        change.endDay = .clear
+
+        try fixture.repository.update(id: ruleID, change: change, today: 20261020)
+
+        let rule = try fixture.rule(ruleID)
+        #expect(rule.amount == 88)
+        #expect(rule.note == "会员")
+        #expect(rule.endDay == nil)
+        #expect(rule.anchorDay == 20261101)
+        #expect(rule.nextDueDay == 20261101)
+        #expect(rule.categoryKey == ExpenseCategory.dining.rawValue)
+
+        change = RecurringRuleChange()
+        change.note = .clear
+        try fixture.repository.update(id: ruleID, change: change, today: 20261020)
+        #expect(try fixture.rule(ruleID).note == nil)
+    }
+
+    @Test("按字段修改：先恢复再改内容，恢复推后的下一期不算改排期；同时暂停时最后暂停")
+    func updateResumesBeforeContentAndPausesLast() throws {
+        let fixture = try Fixture()
+        let ruleID = try fixture.saveRule(nextDueDay: 20261101)
+        try fixture.repository.setPaused(true, id: ruleID, today: 20261020)
+
+        var resume = RecurringRuleChange()
+        resume.isPaused = false
+        resume.amount = 120
+        try fixture.repository.update(id: ruleID, change: resume, today: 20270215)
+
+        var rule = try fixture.rule(ruleID)
+        #expect(rule.pausedAt == nil)
+        #expect(rule.nextDueDay == 20270301)
+        #expect(rule.anchorDay == 20261101)
+        #expect(rule.amount == 120)
+
+        var pause = RecurringRuleChange()
+        pause.amount = 130
+        pause.isPaused = true
+        let pausedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        try fixture.repository.update(id: ruleID, change: pause, today: 20270215, now: pausedAt)
+
+        rule = try fixture.rule(ruleID)
+        #expect(rule.amount == 130)
+        #expect(rule.pausedAt == pausedAt)
+        #expect(rule.updatedAt == pausedAt)
+    }
+
+    @Test("按字段修改：内容不合法时整次不生效，暂停也不生效；规则不存在时报错")
+    func updateRejectsInvalidChange() throws {
+        let fixture = try Fixture()
+        let ruleID = try fixture.saveRule(nextDueDay: 20261101)
+        var change = RecurringRuleChange()
+        change.endDay = .set(20261031)
+        change.isPaused = true
+
+        #expect(throws: RecurringRuleRepositoryError.invalidInput) {
+            try fixture.repository.update(id: ruleID, change: change, today: 20261020)
+        }
+        let rule = try fixture.rule(ruleID)
+        #expect(rule.endDay == nil)
+        #expect(rule.pausedAt == nil)
+
+        let missing = UUID()
+        #expect(throws: RecurringRuleRepositoryError.ruleNotFound(missing)) {
+            try fixture.repository.update(id: missing, change: change, today: 20261020)
+        }
+    }
+
+    @Test("只记入指定规则到期的期数，其他到期的规则不动")
+    func generateDueForOneRule() throws {
+        let fixture = try Fixture()
+        let target = try fixture.saveRule(nextDueDay: 20261020)
+        let other = try fixture.saveRule(nextDueDay: 20261020)
+
+        let generated = fixture.repository.generateDue(ruleID: target, today: 20261020)
+
+        #expect(generated == [RecurringGeneratedEntry(id: RecurringRule.occurrenceID(ruleID: target, day: 20261020), transactionDay: 20261020)])
+        #expect(try fixture.rule(target).nextDueDay == 20261120)
+        #expect(try fixture.rule(other).nextDueDay == 20261020)
+        #expect(try fixture.transactions().count == 1)
+        #expect(fixture.repository.generateDue(ruleID: UUID(), today: 20261020).isEmpty)
+    }
+
+    @Test("撤销：删除新建的规则、按快照还原修改、按快照补回删除；目标已不存在时报错")
+    func revertRuleChanges() throws {
+        let fixture = try Fixture()
+        let ruleID = try fixture.saveRule(nextDueDay: 20261101, endDay: 20271101)
+        let original = RecurringRuleSnapshot(rule: try fixture.rule(ruleID))
+
+        // 还原修改
+        try fixture.repository.setPaused(true, id: ruleID, today: 20261020)
+        _ = try fixture.saveRule(id: ruleID, amount: 66, nextDueDay: 20261201)
+        var context = fixture.container.makeManualSaveContext()
+        try LocalRecurringRuleRepository.revert(.restore(original), in: context)
+        try context.save()
+        #expect(RecurringRuleSnapshot(rule: try fixture.rule(ruleID)) == original)
+
+        // 补回删除；同步期间又带回同一条时按快照覆盖，不重复插入
+        try fixture.repository.delete(id: ruleID)
+        context = fixture.container.makeManualSaveContext()
+        try LocalRecurringRuleRepository.revert(.reinsert(original), in: context)
+        try context.save()
+        #expect(RecurringRuleSnapshot(rule: try fixture.rule(ruleID)) == original)
+        _ = try fixture.saveRule(id: ruleID, amount: 77, nextDueDay: 20261101)
+        context = fixture.container.makeManualSaveContext()
+        try LocalRecurringRuleRepository.revert(.reinsert(original), in: context)
+        try context.save()
+        #expect(try ModelContext(fixture.container).fetchCount(FetchDescriptor<RecurringRule>()) == 1)
+        #expect(try fixture.rule(ruleID).amount == original.amount)
+
+        // 撤销新建
+        context = fixture.container.makeManualSaveContext()
+        try LocalRecurringRuleRepository.revert(.remove(ruleID: ruleID), in: context)
+        try context.save()
+        #expect(try ModelContext(fixture.container).recurringRule(id: ruleID) == nil)
+
+        context = fixture.container.makeManualSaveContext()
+        #expect(throws: RecurringRuleRepositoryError.ruleNotFound(ruleID)) {
+            try LocalRecurringRuleRepository.revert(.remove(ruleID: ruleID), in: context)
+        }
+        #expect(throws: RecurringRuleRepositoryError.ruleNotFound(ruleID)) {
+            try LocalRecurringRuleRepository.revert(.restore(original), in: context)
+        }
+    }
+
     // MARK: - 与其他功能的关系
 
     @Test("自动记入的流水不影响最近分类")

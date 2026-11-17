@@ -30,6 +30,9 @@ struct VoiceSessionCard: View {
     /// 打开模型选择，换用扣点更少的档位。
     let onSwitchModelTier: () -> Void
 
+    /// 点选的追问候选项交给语音状态发送，好经过 AI 记账说明的同意检查。
+    let onSelectOption: (VoiceAskOption) -> Void
+
     /// 关闭卡片。
     let onEnd: () -> Void
 
@@ -38,6 +41,9 @@ struct VoiceSessionCard: View {
 
     /// 这句话因为没有账户没能记上，去新建账户。
     var onCreateAccount: (VoiceSession.Turn) -> Void = { _ in }
+
+    /// 打开周期记账列表，查看语音改过的规则。
+    var onOpenRecurringRules: () -> Void = {}
 
     /// 滚动区域的最大高度，超出部分在卡片里滚动查看；一般一句话就能记完，不会用满。
     private static let maxScrollHeight: CGFloat = 300
@@ -119,7 +125,7 @@ struct VoiceSessionCard: View {
             }
         }
         .padding(.top, 6)
-        .voiceFloatingSurface(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .floatingGlassSurface(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     /// 布局完成后滚到真正的内容末尾；已经贴底就不再发出请求，避免滚动反馈循环。
@@ -155,17 +161,6 @@ struct VoiceSessionCard: View {
             Label(text("voice.conversation.title"), systemImage: "waveform")
                 .font(.footnote.weight(.medium))
                 .foregroundStyle(.secondary)
-            #if DEBUG
-            // 连本地 AI 服务时标出来，免得把本地结果当成线上
-            if AIServiceEnvironment.current == .local {
-                Text(text("debug.aiService.local"))
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.orange)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.orange.opacity(0.15), in: Capsule())
-            }
-            #endif
             Spacer(minLength: 0)
             Button(action: onOpenChat) {
                 Image(systemName: "bubble.left.and.text.bubble.right")
@@ -206,7 +201,9 @@ struct VoiceSessionCard: View {
                         onManualEntry: onManualEntry,
                         onSignIn: onSignIn,
                         onSwitchModelTier: onSwitchModelTier,
-                        onCreateAccount: onCreateAccount
+                        onSelectOption: onSelectOption,
+                        onCreateAccount: onCreateAccount,
+                        onOpenRecurringRules: onOpenRecurringRules
                     )
                     .id(turn.id)
                 }
@@ -231,7 +228,7 @@ struct VoiceSessionCard: View {
     }
 }
 
-/// 卡片中的一轮：用户的话靠右，结果、写入的流水和操作靠左。
+/// 卡片中的一轮：用户的话靠右，结果、写入的流水和操作靠左；用户的话和结果文字可以长按选中拷贝。
 private struct VoiceSessionTurnView: View {
     @Environment(\.locale) private var locale
 
@@ -259,14 +256,21 @@ private struct VoiceSessionTurnView: View {
     /// 打开模型选择，换用扣点更少的档位。
     let onSwitchModelTier: () -> Void
 
+    /// 点选的追问候选项交给语音状态发送，好经过 AI 记账说明的同意检查。
+    let onSelectOption: (VoiceAskOption) -> Void
+
     /// 这句话因为没有账户没能记上，去新建账户。
     let onCreateAccount: (VoiceSession.Turn) -> Void
+
+    /// 打开周期记账列表。
+    let onOpenRecurringRules: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // 只发图片的一轮没有文字；卡片上不放图片，图片在聊天页看
             VoiceUserBubble(text: turn.userText.isEmpty ? text("voice.chat.image.label") : turn.userText)
                 .strikethrough(turn.isUndone)
+                .conversationTextSelection()
 
             if turn.outcome == .processing {
                 HStack(spacing: 6) {
@@ -278,6 +282,7 @@ private struct VoiceSessionTurnView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(turn.failure == nil ? Color.primary : Color(.ledgerRed))
                     .fixedSize(horizontal: false, vertical: true)
+                    .conversationTextSelection()
             }
             ForEach(turn.changes) { change in
                 switch change {
@@ -285,6 +290,8 @@ private struct VoiceSessionTurnView: View {
                     entryRow(entryChange)
                 case let .account(accountChange):
                     accountRow(accountChange)
+                case let .recurring(recurringChange):
+                    recurringRow(recurringChange)
                 }
             }
             // DEBUG 包与 TestFlight 包显示这句话的耗时，点开看每一步
@@ -293,7 +300,8 @@ private struct VoiceSessionTurnView: View {
             }
             if isLatest, case let .ask(_, options) = turn.outcome, !options.isEmpty {
                 VoiceAskOptionsView(options: options, isEnabled: !session.isProcessing) { option in
-                    Task { await session.send(option.label, selectedOption: option) }
+                    // 会话卡片只在一级页面上，这时语音状态的入口就是快捷语音，点选的回答按快捷语音的模型处理
+                    onSelectOption(option)
                 }
             }
             VoiceTurnActions(
@@ -375,6 +383,39 @@ private struct VoiceSessionTurnView: View {
         .accessibilityHint(accountID == nil ? Text(verbatim: "") : Text(text("voice.change.account.hint")))
     }
 
+    /// 一次周期记账的改动：规则不在记账页明细里，点整行以弹层打开周期记账列表，在那里查看和编辑。
+    private func recurringRow(_ change: VoiceRecurringChange) -> some View {
+        // 删除或撤销后规则可能已不存在，不再打开
+        let isAvailable = change.ruleID != nil && !turn.isUndone
+        return Button {
+            if isAvailable {
+                onOpenRecurringRules()
+            }
+        } label: {
+            HStack(spacing: 2) {
+                VoiceChangeRowLayout(
+                    symbolName: change.symbolName,
+                    action: change.actionText,
+                    title: change.title,
+                    detail: change.detail,
+                    amount: change.formattedAmount,
+                    isUndone: turn.isUndone
+                )
+                // 与其他行尾的详情按钮同宽同样式；不可用时保留占位，各行金额仍然对齐
+                Image(systemName: "info.circle")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 32, height: 32)
+                    .opacity(isAvailable ? 1 : 0)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isAvailable)
+        .accessibilityHint(isAvailable ? Text(text("voice.change.recurring.hint")) : Text(verbatim: ""))
+    }
+
     private func text(_ key: String) -> String {
         AccountLocalization.string(key, locale: locale)
     }
@@ -407,22 +448,30 @@ struct VoiceTurnActions: View {
     /// 重新发送没能完成的这一轮；只有聊天页提供，打字和图片不重发就没了。
     var onRetry: (() -> Void)?
 
+    /// 是否在这里放撤销和“已撤销”；聊天页的撤销在结果纸条上，这里不再重复。
+    var showsUndo = true
+
+    /// 这里发出的话用哪边的模型：判断点数不够时能否换用更便宜的档位，换模型也打开这一边的选择页。
+    var modelScope: AIModelScope = .quickVoice
+
     /// 是否为最近一轮；登录和手动记账只对最近一轮有意义。
     private var isLatest: Bool {
         session.latestTurn?.id == turn.id
     }
 
     var body: some View {
-        let isUndoable = session.undoableTurn?.id == turn.id
+        let isUndoable = showsUndo && session.undoableTurn?.id == turn.id
+        let showsUndone = showsUndo && turn.isUndone
         let requiresSignIn = isLatest && turn.failure?.requiresSignIn == true
         let offersManualEntry = isLatest && turn.offersManualEntry
         // 点数不够所用档位、但够更便宜的档位时，给出换模型的入口；换好后余额够说一句，入口随之消失
-        let offersTierSwitch = isLatest && turn.failure == .insufficientPoints && aiPoints?.canAffordCheaperTier == true
+        let offersTierSwitch = isLatest && turn.failure == .insufficientPoints
+            && aiPoints?.canAffordCheaperTier(for: modelScope) == true
         let offersRetry = isLatest && !session.isProcessing && turn.failure != nil && !requiresSignIn && onRetry != nil
         let offersAccountCreation = isLatest && turn.requiresAccount
-        if isUndoable || offersManualEntry || requiresSignIn || offersAccountCreation || turn.isUndone {
+        if isUndoable || offersManualEntry || requiresSignIn || offersAccountCreation || showsUndone {
             HStack(spacing: 12) {
-                if turn.isUndone {
+                if showsUndone {
                     Label(text("voice.turn.undone"), systemImage: "arrow.uturn.backward")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -532,7 +581,7 @@ struct VoiceUserBubble: View {
             .foregroundStyle(isPlaceholder ? Color.secondary : Color.primary)
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
-            .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .conversationBubble(.user, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .frame(maxWidth: .infinity, alignment: .trailing)
     }
 }

@@ -17,19 +17,11 @@ struct AccountDataContainer {
     /// 创建容器时明确选择的存储介质。
     let storage: Storage
 
-    /// 当前本地财务 schema，包含账户、类型化流水、默认账户偏好、收支分类设置、周期记账规则、同步台账和 AI 对话记录。
-    static let schema = Schema(
-        [
-            Account.self,
-            AccountTransaction.self,
-            BookkeepingPreference.self,
-            BookkeepingCategory.self,
-            RecurringRule.self,
-            SyncLedgerEntry.self,
-            AIChatTurnRecord.self,
-        ],
-        version: .init(9, 0, 0)
-    )
+    /// 当前本地财务 schema，取迁移计划里的最新版本 `FinanceSchemaV1`（9.0.0）。
+    ///
+    /// 包含账户、类型化流水、默认账户偏好、收支分类设置、周期记账规则、同步台账和 AI 对话记录。
+    /// 出新版本时，改指向最新的 `FinanceSchemaV<n>`。
+    static let schema = FinanceSchemaV1.schema
 
     /// 创建生产环境文件存储，不会在失败时删除、替换或降级现有文件。
     ///
@@ -41,6 +33,8 @@ struct AccountDataContainer {
     }
 
     /// 创建基于指定 URL 的文件容器，供生产与持久化集成测试复用。
+    ///
+    /// 按 `FinanceMigrationPlan` 打开（需要时迁移）。
     static func fileBacked(storeURL: URL) throws -> AccountDataContainer {
         try FileManager.default.createDirectory(
             at: storeURL.deletingLastPathComponent(),
@@ -52,11 +46,13 @@ struct AccountDataContainer {
             url: storeURL,
             cloudKitDatabase: .none
         )
-        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let container = try makeModelContainer(configuration: configuration)
         return AccountDataContainer(modelContainer: container, storage: .file(storeURL))
     }
 
     /// 创建显式隔离的内存容器；生产初始化逻辑不会调用该方法作为降级。
+    ///
+    /// 按 `FinanceMigrationPlan` 打开（需要时迁移）。
     static func inMemory() throws -> AccountDataContainer {
         let configuration = ModelConfiguration(
             "FinanceSchemaV9Preview",
@@ -64,8 +60,21 @@ struct AccountDataContainer {
             isStoredInMemoryOnly: true,
             cloudKitDatabase: .none
         )
-        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let container = try makeModelContainer(configuration: configuration)
         return AccountDataContainer(modelContainer: container, storage: .inMemory)
+    }
+
+    /// 按迁移计划创建 SwiftData 容器，文件容器和内存容器统一走这里，保证都带迁移计划。
+    ///
+    /// - Parameter configuration: 已指定名字、存储位置和 CloudKit 设置的容器配置。
+    /// - Returns: 带 `FinanceMigrationPlan` 的 SwiftData 容器。
+    /// - Throws: 容器创建或迁移失败时原样抛出，不删库、不降级。
+    private static func makeModelContainer(configuration: ModelConfiguration) throws -> ModelContainer {
+        try ModelContainer(
+            for: schema,
+            migrationPlan: FinanceMigrationPlan.self,
+            configurations: [configuration]
+        )
     }
 
     /// 生产账户存储的稳定默认位置。

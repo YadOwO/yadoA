@@ -195,6 +195,11 @@ final class OnboardingStore: Identifiable {
     /// 最近一次换行是否是回到前面的某一行，决定过渡方向。
     private(set) var isGoingBack = false
 
+    /// 是否处于离线模式：中国大陆地区没有同意隐私政策时为 true。
+    ///
+    /// 离线模式下引导跳过「芽豆账号」和「登录邀请」两行，它们都要联网；只是运行时状态，不写进进度。
+    private(set) var isOffline = false
+
     private let defaults: UserDefaults
 
     /// 创建引导状态；首次引导读取上次没走完的进度。
@@ -213,6 +218,22 @@ final class OnboardingStore: Identifiable {
         answered = progress?.answered ?? []
     }
 
+    /// 切换离线模式；不同意隐私政策时跳过账号和登录邀请两行。
+    ///
+    /// 切到离线时，如果当前正停在已被跳过的行（账号或登录邀请），换到新序列里第一个还没答过的行，找不到就落在第一页。
+    ///
+    /// - Parameter isOffline: 是否处于离线模式。
+    func setOffline(_ isOffline: Bool) {
+        guard self.isOffline != isOffline else { return }
+        self.isOffline = isOffline
+        guard isOffline else { return }
+        let steps = sequence(isSignedIn: false)
+        guard !steps.contains(step) else { return }
+        isGoingBack = false
+        step = steps.first { !answered.contains($0) } ?? .plant
+        save()
+    }
+
     /// 本次引导依次要写的行。
     ///
     /// - Parameter isSignedIn: 当前是否已登录；已登录时不再出现登录邀请。
@@ -222,9 +243,16 @@ final class OnboardingStore: Identifiable {
         if mode == .replay {
             return [.opening, .privacy, .voiceDemo, .insight, .startPage, .accounts, .plant]
         }
-        var steps: [OnboardingStep] = [.opening, .privacy, .account, .voiceDemo, .insight, .startPage]
+        // 离线模式（没同意隐私政策）不联网，跳过账号和登录邀请两行
+        var steps: [OnboardingStep] = isOffline
+            ? [.opening, .privacy, .voiceDemo, .insight, .startPage]
+            : [.opening, .privacy, .account, .voiceDemo, .insight, .startPage]
         if !draft.hasCloudAccounts {
             steps.append(.accounts)
+        }
+        if isOffline {
+            steps.append(.plant)
+            return steps
         }
         // 在登录邀请这一行登录成功时仍保留它，后面的行才找得到位置
         if !isSignedIn || step == .signIn {

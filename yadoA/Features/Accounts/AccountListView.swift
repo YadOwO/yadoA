@@ -2,255 +2,6 @@ import Foundation
 import SwiftData
 import SwiftUI
 
-/// 与 SwiftUI 渲染解耦的账户行展示数据，便于验证本地化和未知值降级。
-struct AccountRowPresentation: Identifiable, Equatable {
-    /// 持久账户的稳定标识。
-    let id: UUID
-
-    /// 不可改名的机构账户使用本地化模板标签，其余保留持久化账户名称。
-    let name: String
-
-    /// 本地化账户类型及可选掩码后缀。
-    let detail: String
-
-    /// 使用账户自身货币代码格式化后的金额。
-    let formattedAmount: String
-
-    /// 明确表达余额、金额或债务含义的可见标签。
-    let amountLabel: String
-
-    /// 同时包含金融语义与金额的无障碍播报文本。
-    let amountAccessibilityLabel: String
-
-    /// 是否是当前唯一默认记账账户。
-    let isDefault: Bool
-
-    /// 品牌图片或类型降级图标。
-    let icon: AccountIconPresentation
-}
-
-/// 账户列表顶部资产汇总卡片的展示数据。
-struct AccountSummaryPresentation: Equatable {
-    /// 所有资产账户余额减去所有负债账户余额后的净资产。
-    let netAssets: Decimal
-
-    /// 非负债类型账户的余额总和。
-    let assets: Decimal
-
-    /// 信用卡和负债类型账户的债务总和。
-    let liabilities: Decimal
-
-    /// 当前语言环境下格式化后的净资产。
-    let formattedNetAssets: String
-
-    /// 当前语言环境下格式化后的资产总额。
-    let formattedAssets: String
-
-    /// 当前语言环境下格式化后的负债总额。
-    let formattedLiabilities: String
-
-    /// 包含三项汇总和金额的完整播报文本。
-    let accessibilityLabel: String
-
-    /// 从账户列表生成资产、负债和净资产汇总。
-    ///
-    /// 未知账户类型按资产处理，以避免损坏或未来类型的余额从总览中无提示消失。
-    static func summary(
-        for accounts: [Account],
-        locale: Locale = .current
-    ) -> AccountSummaryPresentation {
-        var assets = Decimal.zero
-        var liabilities = Decimal.zero
-
-        for account in accounts where account.isActive {
-            if account.accountType?.expenseBalanceEffect == .increaseDebt {
-                liabilities += account.balance
-            } else {
-                assets += account.balance
-            }
-        }
-        return summary(assets: assets, liabilities: liabilities, locale: locale)
-    }
-
-    /// 由已经汇总好的资产和负债生成展示数据；首次引导的示例账户也用它，和账户页保持同一种写法。
-    ///
-    /// - Parameters:
-    ///   - assets: 资产总额。
-    ///   - liabilities: 负债总额，以正数表示欠款。
-    ///   - locale: 金额与播报文本使用的语言环境。
-    /// - Returns: 资产、负债和净资产汇总。
-    static func summary(
-        assets: Decimal,
-        liabilities: Decimal,
-        locale: Locale = .current
-    ) -> AccountSummaryPresentation {
-        let netAssets = assets - liabilities
-        let formattedNetAssets = AccountListPresentation.currencyAmount(
-            netAssets,
-            currencyCode: "CNY",
-            locale: locale
-        )
-        let formattedAssets = AccountListPresentation.currencyAmount(
-            assets,
-            currencyCode: "CNY",
-            locale: locale
-        )
-        let formattedLiabilities = AccountListPresentation.currencyAmount(
-            liabilities,
-            currencyCode: "CNY",
-            locale: locale
-        )
-        let accessibilityLabel = String(
-            format: AccountLocalization.string(
-                "account.summary.accessibility_format",
-                locale: locale
-            ),
-            locale: locale,
-            AccountLocalization.string("account.summary.net_assets", locale: locale),
-            formattedNetAssets,
-            AccountLocalization.string("account.summary.assets", locale: locale),
-            formattedAssets,
-            AccountLocalization.string("account.summary.liabilities", locale: locale),
-            formattedLiabilities
-        )
-
-        return AccountSummaryPresentation(
-            netAssets: netAssets,
-            assets: assets,
-            liabilities: liabilities,
-            formattedNetAssets: formattedNetAssets,
-            formattedAssets: formattedAssets,
-            formattedLiabilities: formattedLiabilities,
-            accessibilityLabel: accessibilityLabel
-        )
-    }
-}
-
-/// 账户列表查询结果的确定性排序与展示转换边界。
-enum AccountListPresentation {
-    /// 最新更新时间优先；时间相同时按 UUID 字符串升序稳定排列。
-    static func sorted(_ accounts: [Account]) -> [Account] {
-        accounts.filter { $0.isActive }.sorted(by: AccountOrdering.newestFirst)
-    }
-
-    /// 将持久模型安全转换为当前语言环境的行展示数据。
-    static func row(
-        for account: Account,
-        locale: Locale = .current,
-        isDefault: Bool = false
-    ) -> AccountRowPresentation {
-        row(
-            id: account.id,
-            accountType: account.accountType,
-            templateID: account.templateID,
-            name: account.name,
-            lastFourDigits: account.lastFourDigits,
-            balance: account.balance,
-            currencyCode: account.currencyCode,
-            locale: locale,
-            isDefault: isDefault
-        )
-    }
-
-    /// 由账户字段生成行展示数据；首次引导的示例账户不落库，也用它得到与账户页一致的一行。
-    ///
-    /// - Parameters:
-    ///   - id: 账户标识。
-    ///   - accountType: 账户类型；未知类型为 `nil`。
-    ///   - templateID: 静态模板标识。
-    ///   - name: 账户名称。
-    ///   - lastFourDigits: 卡号后四位。
-    ///   - balance: 当前余额或欠款。
-    ///   - currencyCode: ISO 货币代码。
-    ///   - locale: 文案与金额使用的语言环境。
-    ///   - isDefault: 是否为默认记账账户。
-    /// - Returns: 账户行展示数据。
-    static func row(
-        id: UUID,
-        accountType: AccountType?,
-        templateID: String?,
-        name: String,
-        lastFourDigits: String?,
-        balance: Decimal,
-        currencyCode: String,
-        locale: Locale = .current,
-        isDefault: Bool = false
-    ) -> AccountRowPresentation {
-        let template = template(id: templateID, accountType: accountType)
-        let typeTitle = accountType?.title(locale: locale)
-            ?? AccountLocalization.string("account.type.unknown.title", locale: locale)
-        let amountLabel = accountType?.amountLabel(locale: locale)
-            ?? AccountLocalization.string("account.amount.value", locale: locale)
-        let formattedAmount = currencyAmount(
-            balance,
-            currencyCode: currencyCode,
-            locale: locale
-        )
-        let detail: String
-        if let suffix = lastFourDigits {
-            detail = String(
-                format: AccountLocalization.string("account.list.type_suffix_format", locale: locale),
-                locale: locale,
-                typeTitle,
-                suffix
-            )
-        } else {
-            detail = typeTitle
-        }
-        let accessibilityLabel = String(
-            format: AccountLocalization.string("account.list.amount_accessibility_format", locale: locale),
-            locale: locale,
-            amountLabel,
-            formattedAmount
-        )
-
-        return AccountRowPresentation(
-            id: id,
-            name: accountType?.showsEditableName == false
-                ? (template?.name(locale: locale) ?? name)
-                : name,
-            detail: detail,
-            formattedAmount: formattedAmount,
-            amountLabel: amountLabel,
-            amountAccessibilityLabel: accessibilityLabel,
-            isDefault: isDefault,
-            icon: AccountIconPresentation(
-                brandImageName: template?.brandImageName,
-                symbolName: template?.symbolName ?? accountType?.symbolName ?? "questionmark.circle.fill",
-                tint: accountType?.tint ?? .secondary
-            )
-        )
-    }
-
-    /// 仅接受与持久账户类型一致的当前静态模板，避免过期或损坏 ID 误配品牌。
-    static func template(id: String?, accountType: AccountType?) -> AccountTemplate? {
-        guard let id, let accountType else { return nil }
-        return accountType.templates.first { $0.id == id }
-    }
-
-    /// 使用持久化 ISO 货币代码与当前语言环境格式化精确金额。
-    fileprivate static func currencyAmount(
-        _ amount: Decimal,
-        currencyCode: String,
-        locale: Locale
-    ) -> String {
-        amount.formatted(
-            .currency(code: currencyCode)
-                .locale(locale)
-        )
-    }
-}
-
-/// 将账户数量映射为空/非空状态下唯一主要添加入口的位置。
-enum AccountListState {
-    /// 空状态是否展示内嵌添加入口。
-    static func showsInlineAdd(accountCount: Int) -> Bool { accountCount == 0 }
-
-    /// 非空状态是否展示导航栏添加入口。
-    static func showsToolbarAdd(accountCount: Int) -> Bool { accountCount > 0 }
-
-}
-
 /// 应用根账户列表，根据 SwiftData 查询结果切换空状态与列表状态。
 struct AccountListView: View {
     @Environment(\.locale) private var locale
@@ -275,19 +26,20 @@ struct AccountListView: View {
     private static let voiceMarkLifetime: Duration = .milliseconds(4000)
 
     var body: some View {
-        let accounts = AccountListPresentation.sorted(queriedAccounts)
+        let order = AccountDisplayOrder(preferences: preferences)
+        let accounts = AccountListPresentation.sorted(queriedAccounts, order: order)
 
         Group {
             if AccountListState.showsInlineAdd(accountCount: accounts.count) {
                 emptyContent
             } else {
-                accountList(accounts)
+                accountList(accounts, sections: order.sections(accounts))
             }
         }
         .navigationTitle(AccountLocalization.string("account.list.title", locale: locale))
         .toolbar {
             // 至少两个可记账账户才有转账的意义。
-            if TransferView.transferableAccounts(queriedAccounts).count >= 2 {
+            if TransferView.transferableAccounts(queriedAccounts, order: order).count >= 2 {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         transferDraft = TransferDraft(
@@ -303,21 +55,9 @@ struct AccountListView: View {
                     .accessibilityIdentifier("account-list-transfer")
                 }
             }
-            if AccountListState.showsToolbarAdd(accountCount: accounts.count) {
-                ToolbarItem(placement: .primaryAction) {
-                    addButton(identifier: "account-list-toolbar-add")
-                }
-            }
-            ToolbarItem(placement: .secondaryAction) {
-                Button {
-                    isPresentingManagement = true
-                } label: {
-                    Label(
-                        AccountLocalization.string("account.management.title", locale: locale),
-                        systemImage: "gearshape"
-                    )
-                }
-                .accessibilityIdentifier("account-list-management")
+            // 添加账户和账户管理收进同一个「更多」菜单，右上角最多两个按钮。
+            ToolbarItem(placement: .primaryAction) {
+                moreMenu(showsAdd: AccountListState.showsToolbarAdd(accountCount: accounts.count))
             }
         }
         .onAppear { isVisible = true }
@@ -377,9 +117,44 @@ struct AccountListView: View {
     /// 从账户列表发起转账时预选的转出账户：有默认记账账户时用它，否则先不选。
     private var defaultTransferSourceID: UUID? {
         BookkeepingPreference.resolvedAccountID(
-            preference: preferences.first { $0.id == BookkeepingPreference.singletonID },
+            preference: BookkeepingPreference.canonical(in: preferences),
             accounts: queriedAccounts
         )
+    }
+
+    /// 右上角的「更多」菜单：有账户时提供添加账户，始终提供账户管理。
+    ///
+    /// 系统菜单不保留菜单项的 identifier，UI 测试按菜单项标题查找。
+    /// - Parameter showsAdd: 是否提供添加账户；没有账户时添加入口在页面中间。
+    private func moreMenu(showsAdd: Bool) -> some View {
+        Menu {
+            if showsAdd {
+                addButton(identifier: "account-list-toolbar-add")
+            }
+            Button {
+                isPresentingManagement = true
+            } label: {
+                Label(
+                    AccountLocalization.string("account.management.title", locale: locale),
+                    systemImage: "gearshape"
+                )
+            }
+            .accessibilityIdentifier("account-list-management")
+        } label: {
+            Label(
+                AccountLocalization.string("account.list.more", locale: locale),
+                systemImage: moreSymbolName
+            )
+        }
+        .accessibilityIdentifier("account-list-more")
+    }
+
+    /// 「更多」按钮的图标：iOS 26 起导航栏按钮自带圆形玻璃底，用不带圆圈的省略号；更早的系统用带圆圈的样式。
+    private var moreSymbolName: String {
+        if #available(iOS 26, *) {
+            return "ellipsis"
+        }
+        return "ellipsis.circle"
     }
 
     /// 干净存储唯一的主要添加入口。
@@ -411,11 +186,15 @@ struct AccountListView: View {
         }
     }
 
-    /// 非空状态下使用原生 SwiftUI List 展示账户；汇总是手绘方框，账户行直接写在纸面上。
-    private func accountList(_ accounts: [Account]) -> some View {
+    /// 非空状态下使用原生 SwiftUI List 展示账户；汇总是手绘方框，账户按分类分段直接写在纸面上。
+    ///
+    /// - Parameters:
+    ///   - accounts: 按统一顺序排好的启用账户。
+    ///   - sections: 同一批账户按分类分好的组。
+    private func accountList(_ accounts: [Account], sections: [AccountTypeSection]) -> some View {
         let summary = AccountSummaryPresentation.summary(for: accounts, locale: locale)
         let defaultAccountID = BookkeepingPreference.resolvedAccountID(
-            preference: preferences.first { $0.id == BookkeepingPreference.singletonID },
+            preference: BookkeepingPreference.canonical(in: preferences),
             accounts: accounts
         )
 
@@ -428,26 +207,31 @@ struct AccountListView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
 
-                Section {
-                    ForEach(accounts) { account in
-                        let presentation = AccountListPresentation.row(
-                            for: account,
-                            locale: locale,
-                            isDefault: account.id == defaultAccountID
-                        )
-                        NavigationLink(value: AccountsRoute.detail(account.id)) {
-                            AccountListRow(
-                                presentation: presentation,
-                                voiceMarkToken: voiceMark.flatMap { $0.accountIDs.contains(account.id) ? $0.token : nil }
+                ForEach(sections) { section in
+                    Section {
+                        ForEach(section.accounts) { account in
+                            let presentation = AccountListPresentation.row(
+                                for: account,
+                                locale: locale,
+                                isDefault: account.id == defaultAccountID
                             )
+                            NavigationLink(value: AccountsRoute.detail(account.id)) {
+                                AccountListRow(
+                                    presentation: presentation,
+                                    voiceMarkToken: voiceMark.flatMap { $0.accountIDs.contains(account.id) ? $0.token : nil }
+                                )
+                            }
+                            .navigationLinkIndicatorVisibility(.hidden)
+                            .ledgerRow(
+                                seed: account.id.handDrawnSeed,
+                                showsRule: account.id != section.accounts.last?.id
+                            )
+                            .accessibilityIdentifier("account-list-row-\(account.id.uuidString)")
+                            .id(account.id)
                         }
-                        .navigationLinkIndicatorVisibility(.hidden)
-                        .ledgerRow(
-                            seed: account.id.handDrawnSeed,
-                            showsRule: account.id != accounts.last?.id
-                        )
-                        .accessibilityIdentifier("account-list-row-\(account.id.uuidString)")
-                        .id(account.id)
+                    } header: {
+                        AccountSectionHeader(title: section.title(locale: locale), seed: section.id.handDrawnSeed)
+                            .accessibilityIdentifier("account-list-section-\(section.id)")
                     }
                 }
             }
@@ -476,89 +260,7 @@ struct AccountListView: View {
     }
 }
 
-/// 账户列表顶部的资产汇总卡片，突出净资产并并列展示资产和负债；首次引导的示例也用它。
-struct AccountSummaryCard: View {
-    @Environment(\.locale) private var locale
-
-    /// 用户选择的启动页面；账户页是启动页时汇总卡片才带装饰。
-    @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
-
-    let presentation: AccountSummaryPresentation
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(
-                    AccountLocalization.string(
-                        "account.summary.net_assets",
-                        locale: locale
-                    )
-                )
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-
-                Text(presentation.formattedNetAssets)
-                    .font(.system(.largeTitle, design: .serif, weight: .medium))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.65)
-            }
-
-            HStack(alignment: .top, spacing: 16) {
-                AccountSummaryMetric(
-                    title: AccountLocalization.string("account.summary.assets", locale: locale),
-                    amount: presentation.formattedAssets
-                )
-
-                AccountSummaryMetric(
-                    title: AccountLocalization.string(
-                        "account.summary.liabilities",
-                        locale: locale
-                    ),
-                    amount: presentation.formattedLiabilities
-                )
-            }
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            // 框内铺纸色，启动页装饰的垫纸只从框的右下边缘露出来。
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color(.paperBackground))
-            HandDrawnBox(cornerRadius: 22, seed: 21)
-                .stroke(
-                    Color.primary.opacity(0.85),
-                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
-                )
-        }
-        .startPageDecoration(isEnabled: startPage == .accounts, cornerRadius: 22, seed: 21)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(presentation.accessibilityLabel)
-        .accessibilityIdentifier("account-list-summary-card")
-    }
-}
-
-/// 汇总卡片中资产或负债的次级金额指标。
-private struct AccountSummaryMetric: View {
-    let title: String
-    let amount: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(amount)
-                .font(.system(.title3, design: .serif, weight: .medium))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-/// 支持动态字体换行、且不依赖颜色表达金额语义的共享账户行。
+/// 支持动态字体换行的共享账户行；金额语义由“余额/欠款”标签表达，欠款金额的颜色只是轻提示。
 struct AccountListRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.locale) private var locale
@@ -635,6 +337,7 @@ struct AccountListRow: View {
                 .foregroundStyle(.secondary)
             Text(presentation.formattedAmount)
                 .font(.system(.body, design: .serif).monospacedDigit())
+                .amountTone(presentation.amountTone)
                 .modifier(voiceUnderline(seed: 9))
         }
         .fixedSize(horizontal: false, vertical: true)

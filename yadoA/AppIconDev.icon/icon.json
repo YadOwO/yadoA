@@ -1,0 +1,118 @@
+{
+  "fill-specializations" : [
+    {
+      "value" : {
+        "linear-gradient" : [
+          "srgb:0.89020,0.93333,0.98039,1.00000",
+          "srgb:0.73333,0.82353,0.92549,1.00000"
+        ],
+        "orientation" : {
+          "start" : {
+            "x" : 0,
+            "y" : 0
+          },
+          "stop" : {
+            "x" : 1,
+            "y" : 1
+          }
+        }
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : {
+        "linear-gradient" : [
+          "srgb:0.11765,0.16471,0.23922,1.00000",
+          "srgb:0.04314,0.07059,0.12549,1.00000"
+        ],
+        "orientation" : {
+          "start" : {
+            "x" : 0,
+            "y" : 0
+          },
+          "stop" : {
+            "x" : 1,
+            "y" : 1
+          }
+        }
+      }
+    }
+  ],
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "03-dev-ribbon.svg",
+          "name" : "03-dev-ribbon"
+        }
+      ],
+      "name" : "Dev Ribbon",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.15
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.2
+      }
+    },
+    {
+      "layers" : [
+        {
+          "image-name-specializations" : [
+            {
+              "value" : "02-tick.svg"
+            },
+            {
+              "appearance" : "dark",
+              "value" : "02-tick-dark.svg"
+            }
+          ],
+          "name" : "02-tick"
+        }
+      ],
+      "name" : "yadoA Tick",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.3
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.35
+      }
+    },
+    {
+      "layers" : [
+        {
+          "image-name-specializations" : [
+            {
+              "value" : "01-body.svg"
+            },
+            {
+              "appearance" : "dark",
+              "value" : "01-body-dark.svg"
+            }
+          ],
+          "name" : "01-body"
+        }
+      ],
+      "name" : "yadoA Letter",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.15
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.2
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

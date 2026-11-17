@@ -18,9 +18,8 @@ struct AccountManagementView: View {
     }
 
     var body: some View {
-        let accounts = AccountListPresentation.sorted(queriedAccounts)
         let defaultAccountID = BookkeepingPreference.resolvedAccountID(
-            preference: preferences.first { $0.id == BookkeepingPreference.singletonID },
+            preference: BookkeepingPreference.canonical(in: preferences),
             accounts: queriedAccounts
         )
 
@@ -64,7 +63,7 @@ struct AccountManagementView: View {
                 }
                 .accessibilityIdentifier("account-management-choose-default")
 
-                if !accounts.contains(where: { $0.isEligibleForDefault }) {
+                if !queriedAccounts.contains(where: { $0.isEligibleForDefault }) {
                     Button {
                         isPresentingCreation = true
                     } label: {
@@ -77,14 +76,25 @@ struct AccountManagementView: View {
                 }
             }
 
-            LedgerCard(seed: 118) {
-                DataExportEntryView(container: modelContext.container)
-                DataImportEntryView(container: modelContext.container)
-            }
+            LedgerCard(seed: 119) {
+                NavigationLink {
+                    AccountTypeOrderView()
+                } label: {
+                    HStack(spacing: 12) {
+                        Label(
+                            AccountLocalization.string("account.type_order.title", locale: locale),
+                            systemImage: "arrow.up.arrow.down"
+                        )
+                        .labelStyle(.titleAndIcon)
+                        Spacer(minLength: 8)
+                        LedgerChevron()
+                    }
+                    .ledgerCardRow()
+                }
+                .accessibilityIdentifier("account-management-type-order")
 
-            // 没有已停用账户时不显示入口卡片。
-            if deactivatedAccountCount > 0 {
-                LedgerCard(seed: 119) {
+                // 没有已停用账户时不显示入口。
+                if deactivatedAccountCount > 0 {
                     NavigationLink {
                         DeactivatedAccountListView()
                     } label: {
@@ -103,6 +113,11 @@ struct AccountManagementView: View {
                     }
                     .accessibilityIdentifier("account-management-deactivated")
                 }
+            }
+
+            LedgerCard(seed: 118) {
+                DataExportEntryView(container: modelContext.container)
+                DataImportEntryView(container: modelContext.container)
             }
         }
         .buttonStyle(.plain)

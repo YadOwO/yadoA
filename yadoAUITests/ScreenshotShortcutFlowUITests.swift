@@ -14,6 +14,20 @@ final class ScreenshotShortcutFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["home-add-expense"].waitForExistence(timeout: 5))
     }
 
+    /// 开了应用锁时冷启动收到截图：锁屏下看不到录入页，解锁后才展示。
+    @MainActor
+    func testLockedColdStartShowsScreenshotEntryOnlyAfterUnlock() {
+        let app = launchAppLockInEnglish(extraArguments: [
+            "--ui-testing-screenshot-shortcut", "--ui-testing-screenshot-cold-start"
+        ])
+        XCTAssertTrue(app.descendants(matching: .any)["app-lock-screen"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["screenshot-entry-close"].exists)
+
+        app.buttons["app-lock-unlock"].tap()
+
+        assertScreenshotReceived(in: app)
+    }
+
     @MainActor
     func testIntentWhileSetupIsPresentedAndRepeatAfterClosing() {
         let app = launchScreenshotFixture(coldStart: false)

@@ -1,38 +1,6 @@
 import SwiftData
 import SwiftUI
 
-// MARK: - 悬浮层材质
-
-/// 悬浮在明细上的语音控件底色：iOS 26 用 Liquid Glass，iOS 18 用材质底加投影表达层级。
-private struct VoiceFloatingSurface<SurfaceShape: Shape>: ViewModifier {
-    /// 底色形状。
-    let shape: SurfaceShape
-
-    /// 是否可交互；按钮使用交互玻璃，按下时有系统反馈。
-    let isInteractive: Bool
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content.glassEffect(isInteractive ? .regular.interactive() : .regular, in: shape)
-        } else {
-            content
-                .background(.regularMaterial, in: shape)
-                .shadow(color: .black.opacity(0.14), radius: 10, y: 4)
-        }
-    }
-}
-
-extension View {
-    /// 给语音悬浮控件加上玻璃或材质底色。
-    ///
-    /// - Parameters:
-    ///   - shape: 底色形状。
-    ///   - isInteractive: 是否使用可交互的玻璃效果。
-    func voiceFloatingSurface<SurfaceShape: Shape>(in shape: SurfaceShape, isInteractive: Bool = false) -> some View {
-        modifier(VoiceFloatingSurface(shape: shape, isInteractive: isInteractive))
-    }
-}
-
 // MARK: - 麦克风按钮
 
 /// 语音记账的麦克风按钮：按住说话、松手发送、上滑取消；没有轻点操作，打字和发图片走旁边的聊天入口 `AIChatEntryButton`。
@@ -77,7 +45,7 @@ struct VoiceMicButton: View {
         }
         .frame(width: 64, height: 64)
         // 玻璃只负责外观，触摸由上层 UIKit 控件接收，避免额外的手势识别等待。
-        .voiceFloatingSurface(in: Circle())
+        .floatingGlassSurface(in: Circle())
         .scaleEffect(controller.isRecording && !reduceMotion ? 1.12 : 1)
         .animation(reduceMotion ? nil : .spring(duration: 0.25), value: controller.isRecording)
         .contentShape(Circle())
@@ -288,6 +256,24 @@ enum VoiceEntryChangeText {
         }
     }
 
+    /// 待确认字段的说明，例如「待确认：账户、分类」。
+    ///
+    /// - Parameters:
+    ///   - inferredFields: 待确认字段的原始值。
+    ///   - locale: 文案使用的语言环境。
+    /// - Returns: 说明文字；没有待确认字段时为 `nil`。
+    static func inferredText(_ inferredFields: [String], locale: Locale) -> String? {
+        guard !inferredFields.isEmpty else { return nil }
+        let fields = inferredFields.map { AccountLocalization.string("voice.inferred.\($0)", locale: locale) }
+        let listFormatter = ListFormatter()
+        listFormatter.locale = locale
+        return AccountLocalization.formatted(
+            "voice.change.inferred",
+            value: listFormatter.string(from: fields) ?? fields.joined(separator: ", "),
+            locale: locale
+        )
+    }
+
     /// 日期、账户与待确认字段，例如「9月28日 · 微信钱包 · 待确认：账户」；日期只在不是今天时显示。
     ///
     /// - Parameters:
@@ -318,15 +304,8 @@ enum VoiceEntryChangeText {
         if let accountName {
             parts.append(accountName)
         }
-        if !inferredFields.isEmpty {
-            let fields = inferredFields.map { AccountLocalization.string("voice.inferred.\($0)", locale: locale) }
-            let listFormatter = ListFormatter()
-            listFormatter.locale = locale
-            parts.append(AccountLocalization.formatted(
-                "voice.change.inferred",
-                value: listFormatter.string(from: fields) ?? fields.joined(separator: ", "),
-                locale: locale
-            ))
+        if let inferred = inferredText(inferredFields, locale: locale) {
+            parts.append(inferred)
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
@@ -429,6 +408,7 @@ extension VoiceSessionFailure {
         case .turnInvalid: "voice.failure.turnInvalid"
         case .serviceUnavailable: "voice.failure.serviceUnavailable"
         case .network: "voice.failure.network"
+        case .upgradeRequired: "appUpdate.inline"
         }
         return AccountLocalization.string(key, locale: locale)
     }

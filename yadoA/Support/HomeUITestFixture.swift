@@ -28,7 +28,7 @@ enum HomeUITestFixture {
                 note: nil,
                 lastFourDigits: nil,
                 balance: 0,
-                currencyCode: "CNY",
+                currencyCode: BookkeepingCurrency.code,
                 createdAt: now,
                 updatedAt: now
             )
@@ -90,7 +90,7 @@ enum HomeUITestFixture {
                 note: nil,
                 lastFourDigits: nil,
                 balance: 20,
-                currencyCode: "CNY",
+                currencyCode: BookkeepingCurrency.code,
                 createdAt: now,
                 updatedAt: now
             )
@@ -104,7 +104,7 @@ enum HomeUITestFixture {
                 note: "Historical export fixture",
                 lastFourDigits: "1234",
                 balance: 0,
-                currencyCode: "CNY",
+                currencyCode: BookkeepingCurrency.code,
                 createdAt: now,
                 updatedAt: now,
                 deactivatedAt: now
@@ -162,7 +162,7 @@ enum HomeUITestFixture {
                 note: nil,
                 lastFourDigits: nil,
                 balance: 100,
-                currencyCode: "CNY",
+                currencyCode: BookkeepingCurrency.code,
                 createdAt: now,
                 updatedAt: now
             )
@@ -176,7 +176,7 @@ enum HomeUITestFixture {
                 note: nil,
                 lastFourDigits: nil,
                 balance: 100,
-                currencyCode: "CNY",
+                currencyCode: BookkeepingCurrency.code,
                 createdAt: now,
                 updatedAt: now,
                 deactivatedAt: now

@@ -96,7 +96,7 @@ extension DiningExpenseEditFlow: BookkeepingEntryFormFlow {
     var formAccountID: UUID? { draft.accountID }
 
     var formTransactionDate: Date {
-        TransactionDay.date(from: draft.transactionDay, calendar: .current) ?? .now
+        TransactionDay.date(from: draft.transactionDay, calendar: calendar) ?? calendar.startOfDay(for: .now)
     }
 
     var formNote: String { draft.note }
@@ -112,7 +112,7 @@ extension DiningExpenseEditFlow: BookkeepingEntryFormFlow {
     }
 
     func updateTransactionDate(_ date: Date) {
-        update { $0.transactionDay = TransactionDay.encode(date, calendar: .current) }
+        update { $0.transactionDay = TransactionDay.encode(date, calendar: calendar) }
     }
 
     func updateNote(_ note: String) {

@@ -26,12 +26,15 @@ nonisolated enum SyncAPIError: Error, Equatable, Sendable {
     /// 请求或响应不符合契约，属于程序错误，重试无意义。
     case invalidContract
 
+    /// App 版本低于服务端要求，需要升级后才能同步。
+    case upgradeRequired
+
     /// 是否属于临时故障，可按退避策略自动重试。
     var isRetryable: Bool {
         switch self {
         case .serviceUnavailable, .timeout, .network:
             true
-        case .notSignedIn, .sessionExpired, .unauthorized, .epochMismatch, .invalidContract:
+        case .notSignedIn, .sessionExpired, .unauthorized, .epochMismatch, .invalidContract, .upgradeRequired:
             false
         }
     }
@@ -139,25 +142,17 @@ nonisolated final class SyncAPI: SyncServing {
     /// 创建客户端。
     ///
     /// - Parameters:
-    ///   - endpoint: 服务地址；默认为线上 `AuthConfig.syncServiceEndpoint`。
+    ///   - endpoint: 服务地址；默认为当前环境的 `AuthConfig.syncServiceURL`。
     ///   - session: 网络会话。
     ///   - accessToken: 获取 access token 的动作，通常是 `AuthStore.accessTokenForSyncService()`。
     init(
-        endpoint: URL = SyncAPI.productionEndpoint,
+        endpoint: URL = AuthConfig.syncServiceURL,
         session: URLSession = .shared,
         accessToken: @escaping @Sendable () async throws -> String
     ) {
         self.endpoint = endpoint
         self.session = session
         self.accessToken = accessToken
-    }
-
-    /// 线上服务地址；`AuthConfig.syncServiceEndpoint` 是写死的常量，非法即为配置错误。
-    static var productionEndpoint: URL {
-        guard let url = URL(string: AuthConfig.syncServiceEndpoint) else {
-            preconditionFailure("AuthConfig.syncServiceEndpoint 不是合法 URL：\(AuthConfig.syncServiceEndpoint)")
-        }
-        return url
     }
 
     func fetchState() async throws -> SyncServerState {
@@ -194,6 +189,7 @@ nonisolated final class SyncAPI: SyncServing {
         request.timeoutInterval = Self.requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        AppVersion.apply(to: &request)
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = body
@@ -211,6 +207,8 @@ nonisolated final class SyncAPI: SyncServing {
         switch statusCode {
         case 401:
             return .unauthorized
+        case 426:
+            return .upgradeRequired
         case 409:
             let errorBody = try? JSONDecoder().decode(SyncErrorBody.self, from: body)
             guard errorBody?.code == "EPOCH_MISMATCH", let epoch = errorBody?.details?.epoch else {
@@ -267,6 +265,9 @@ nonisolated final class SyncAPI: SyncServing {
         }
         guard let httpResponse = response as? HTTPURLResponse else {
             throw SyncAPIError.invalidContract
+        }
+        if AppUpdatePrompt.checkUpgradeRequired(httpResponse) {
+            throw SyncAPIError.upgradeRequired
         }
         guard httpResponse.statusCode == 200 else {
             throw Self.error(statusCode: httpResponse.statusCode, body: data)

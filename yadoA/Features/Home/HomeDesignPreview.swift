@@ -38,7 +38,7 @@ enum HomeDesignPreviewData {
                 note: nil,
                 lastFourDigits: nil,
                 balance: 8_640,
-                currencyCode: "CNY",
+                currencyCode: BookkeepingCurrency.code,
                 createdAt: now,
                 updatedAt: now
             )

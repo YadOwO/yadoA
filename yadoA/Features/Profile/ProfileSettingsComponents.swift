@@ -51,15 +51,15 @@ struct ProfileSettingsRow: View {
     var value: String = ""
     /// 当前值的强调色；为 `nil` 时用灰色，表示“已开启”等生效状态时传入状态色。
     var valueTint: Color?
+    /// 当前值文字变化时的过渡，例如余额用 `.numericText()` 滚动；为 `nil` 时用系统默认。
+    var valueContentTransition: ContentTransition?
 
     var body: some View {
         HStack(spacing: 12) {
             Label(AccountLocalization.string(titleKey, locale: locale), systemImage: symbol)
                 .labelStyle(ProfileSettingsLabelStyle())
             Spacer(minLength: 4)
-            Text(value)
-                .foregroundStyle(valueTint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.secondary))
-                .multilineTextAlignment(.trailing)
+            valueText
             Image(systemName: "chevron.right")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.tertiary)
@@ -70,6 +70,19 @@ struct ProfileSettingsRow: View {
         .padding(.vertical, 18)
         .frame(minHeight: 60)
         .contentShape(Rectangle())
+    }
+
+    /// 行尾的当前值，按需套上内容过渡。
+    @ViewBuilder
+    private var valueText: some View {
+        let text = Text(value)
+            .foregroundStyle(valueTint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.secondary))
+            .multilineTextAlignment(.trailing)
+        if let valueContentTransition {
+            text.contentTransition(valueContentTransition)
+        } else {
+            text
+        }
     }
 }
 

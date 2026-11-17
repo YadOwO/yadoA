@@ -22,6 +22,15 @@ struct VoiceAudioRelayTests {
         #expect(backend.receivedFrames == [100, 200, 300])
     }
 
+    @Test("音量按分贝映射到 0～1：静音为 0，正常说话落在中段，很响时封顶")
+    func normalizesLevel() {
+        #expect(VoiceAudioRelay.normalizedLevel(rms: 0) == 0)
+        #expect(VoiceAudioRelay.normalizedLevel(rms: 0.0001) == 0)
+        #expect(VoiceAudioRelay.normalizedLevel(rms: 1) == 1)
+        let speech = VoiceAudioRelay.normalizedLevel(rms: 0.02)
+        #expect(speech > 0.3 && speech < 0.8)
+    }
+
     @Test("暂存超过上限时丢弃最早的音频")
     func dropsOldestAudioBeyondLimit() throws {
         let relay = VoiceAudioRelay()

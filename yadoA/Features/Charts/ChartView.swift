@@ -155,8 +155,7 @@ struct ChartView: View {
 
     /// 将日期转换为月份滚轮需要的有效自然年月。
     private func activeMonth(for date: Date) -> HomeMonth {
-        HomeMonth.from(date: date, calendar: environmentCalendar, locale: locale)
-            ?? HomeMonth(year: 1970, month: 1)!
+        HomeMonth.containing(date, calendar: environmentCalendar, locale: locale)
     }
 
     /// 将绝对日期保存为业务日，避免运行期间切换时区后周期漂移。
@@ -393,7 +392,7 @@ private struct ChartSummaryHeader: View {
 
     /// 当前周期收支总额的本地化货币金额。
     private var formattedTotal: String {
-        chart.totalAmount.formatted(.currency(code: "CNY").locale(locale))
+        chart.totalAmount.formattedCurrency(locale: locale)
     }
 }
 

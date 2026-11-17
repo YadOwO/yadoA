@@ -34,6 +34,9 @@ final class AIChatTurnRecord {
     /// 这一轮的改动快照，内容是 `[AIChatChangeSnapshot]` 的 JSON。
     var changesData: Data
 
+    /// 这一轮查询结果的快照，内容是 `AIChatInsight` 的 JSON；没有查询结果时为空。
+    var insightData: Data?
+
     /// 创建一条记录。
     ///
     /// - Parameters:
@@ -48,6 +51,7 @@ final class AIChatTurnRecord {
         isFailed = snapshot.isFailed
         isUndone = snapshot.isUndone
         self.changesData = changesData
+        insightData = snapshot.insight.flatMap { try? JSONEncoder().encode($0) }
     }
 }
 
@@ -66,6 +70,9 @@ nonisolated struct AIChatChangeSnapshot: Codable, Equatable, Identifiable, Senda
 
         /// 账户相关的改动。
         case account
+
+        /// 周期记账规则的改动。
+        case recurring
     }
 
     /// 本次改动的唯一标识。
@@ -74,7 +81,7 @@ nonisolated struct AIChatChangeSnapshot: Codable, Equatable, Identifiable, Senda
     /// 改动类型。
     var kind: Kind
 
-    /// 点开时要看的流水或账户；删除账户时为空。
+    /// 点开时要看的流水、账户或周期记账规则；删除账户、删除规则时为空。
     var targetID: UUID?
 
     /// 行图标。
@@ -95,14 +102,16 @@ nonisolated struct AIChatChangeSnapshot: Codable, Equatable, Identifiable, Senda
     /// 流水待确认字段的原始值；账户改动为空。
     var inferredFields: [String]
 
-    /// 账户改动的动作文字，例如「调整余额」；流水改动为空。
+    /// 账户或周期记账改动的动作文字，例如「调整余额」「新建周期记账」；流水改动为空。
+    ///
+    /// 字段名沿用最早只有账户改动时的命名，已经写进本机历史记录，不再改名。
     var accountAction: String?
 
-    /// 账户改动的补充说明；流水改动为空。
+    /// 账户或周期记账改动的补充说明；流水改动为空。
     var accountDetail: String?
 
     /// 是否是流水改动。
-    var isEntry: Bool { kind != .account }
+    var isEntry: Bool { kind != .account && kind != .recurring }
 }
 
 extension AIChatChangeSnapshot {
@@ -144,6 +153,20 @@ extension AIChatChangeSnapshot {
                 accountAction: account.actionText,
                 accountDetail: account.detail
             )
+        case let .recurring(recurring):
+            self.init(
+                id: recurring.id,
+                kind: .recurring,
+                targetID: recurring.ruleID,
+                symbolName: recurring.symbolName,
+                title: recurring.title,
+                formattedAmount: recurring.formattedAmount,
+                transactionDay: nil,
+                accountName: nil,
+                inferredFields: [],
+                accountAction: recurring.actionText,
+                accountDetail: recurring.detail
+            )
         }
     }
 }
@@ -173,6 +196,9 @@ struct AIChatTurnSnapshot: Equatable, Identifiable {
 
     /// 这一轮的改动。
     let changes: [AIChatChangeSnapshot]
+
+    /// 这一轮的查询结果；一轮查了多次时不展示，避免只画其中一次让人误读。
+    var insight: AIChatInsight?
 }
 
 extension AIChatTurnSnapshot {
@@ -190,7 +216,8 @@ extension AIChatTurnSnapshot {
             resultText: turn.resultText(locale: locale),
             isFailed: turn.failure != nil,
             isUndone: turn.isUndone,
-            changes: turn.changes.map(AIChatChangeSnapshot.init(change:))
+            changes: turn.changes.map(AIChatChangeSnapshot.init(change:)),
+            insight: turn.insights.count == 1 ? turn.insights.first : nil
         )
     }
 
@@ -204,7 +231,8 @@ extension AIChatTurnSnapshot {
             resultText: record.resultText,
             isFailed: record.isFailed,
             isUndone: record.isUndone,
-            changes: (try? JSONDecoder().decode([AIChatChangeSnapshot].self, from: record.changesData)) ?? []
+            changes: (try? JSONDecoder().decode([AIChatChangeSnapshot].self, from: record.changesData)) ?? [],
+            insight: record.insightData.flatMap { try? JSONDecoder().decode(AIChatInsight.self, from: $0) }
         )
     }
 }
@@ -212,6 +240,7 @@ extension AIChatTurnSnapshot {
 /// 对话记录的本机存储：每轮结束时写入，聊天页分页读取。
 ///
 /// 记录写失败不影响记账本身，账本才是真数据，因此这里的写入都不向外抛错。
+/// 对话记录只留在本机、不参与同步：保存一律走 `saveOrRollback(tracksSyncChanges: false)`，不登记同步台账。
 @MainActor
 @Observable
 final class AIChatHistoryStore {
@@ -279,10 +308,11 @@ final class AIChatHistoryStore {
                 record.isFailed = snapshot.isFailed
                 record.isUndone = snapshot.isUndone
                 record.changesData = changesData
+                record.insightData = snapshot.insight.flatMap { try? JSONEncoder().encode($0) }
             } else {
                 context.insert(AIChatTurnRecord(snapshot: snapshot, changesData: changesData))
             }
-            try context.save()
+            try context.saveOrRollback(tracksSyncChanges: false)
         } catch {
             context.rollback()
             return
@@ -294,6 +324,13 @@ final class AIChatHistoryStore {
         }
     }
 
+    /// 本机是否还有对话记录；AI 点数页据此决定清空入口能不能点。读不出来时当作有，不挡住清空。
+    func hasRecords() -> Bool {
+        var descriptor = FetchDescriptor<AIChatTurnRecord>()
+        descriptor.fetchLimit = 1
+        return ((try? container.makeManualSaveContext().fetchCount(descriptor)) ?? 1) > 0
+    }
+
     /// 清空全部记录和图片。
     ///
     /// - Throws: 保存失败时抛出，此时记录保持原样。
@@ -301,7 +338,7 @@ final class AIChatHistoryStore {
         let context = container.makeManualSaveContext()
         do {
             try context.delete(model: AIChatTurnRecord.self)
-            try context.save()
+            try context.saveOrRollback(tracksSyncChanges: false)
         } catch {
             context.rollback()
             throw error
@@ -324,7 +361,7 @@ final class AIChatHistoryStore {
                 predicate: #Predicate { $0.createdAt < cutoff }
             ))
             expired.forEach(context.delete)
-            try context.save()
+            try context.saveOrRollback(tracksSyncChanges: false)
             let kept = try context.fetch(FetchDescriptor<AIChatTurnRecord>())
             images.removeFiles(notIn: Set(kept.flatMap(\.imageFileNames)))
         } catch {
@@ -332,14 +369,15 @@ final class AIChatHistoryStore {
         }
     }
 
-    /// 这些轮次涉及的流水和账户中，当前仍然存在的那些。
+    /// 这些轮次涉及的流水、账户和周期记账规则中，当前仍然存在的那些。
     ///
     /// - Parameter turns: 要检查的轮次。
-    /// - Returns: 仍然存在的流水和账户 UUID。
+    /// - Returns: 仍然存在的流水、账户和规则 UUID。
     func existingTargetIDs(in turns: [AIChatTurnSnapshot]) -> Set<UUID> {
         let changes = turns.flatMap(\.changes)
         let transactionIDs = changes.filter(\.isEntry).compactMap(\.targetID)
-        let accountIDs = changes.filter { !$0.isEntry }.compactMap(\.targetID)
+        let accountIDs = changes.filter { $0.kind == .account }.compactMap(\.targetID)
+        let ruleIDs = changes.filter { $0.kind == .recurring }.compactMap(\.targetID)
         let context = container.makeManualSaveContext()
         let transactions = (try? context.fetch(FetchDescriptor<AccountTransaction>(
             predicate: #Predicate { transactionIDs.contains($0.id) }
@@ -347,6 +385,9 @@ final class AIChatHistoryStore {
         let accounts = (try? context.fetch(FetchDescriptor<Account>(
             predicate: #Predicate { accountIDs.contains($0.id) }
         ))) ?? []
-        return Set(transactions.map(\.id)).union(accounts.map(\.id))
+        let rules = (try? context.fetch(FetchDescriptor<RecurringRule>(
+            predicate: #Predicate { ruleIDs.contains($0.id) }
+        ))) ?? []
+        return Set(transactions.map(\.id)).union(accounts.map(\.id)).union(rules.map(\.id))
     }
 }

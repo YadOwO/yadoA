@@ -5,10 +5,13 @@ import SwiftUI
 ///
 /// 账本本来就是空的时候不进入确认流程，直接提示没有数据可以清除。
 /// 本机数据已绑定云端同步时，确认改为二选一：仅清除本机（解除绑定，云端保留），或连同云端一起清除。
+/// 离线模式（没同意隐私政策）下清除云端要联网，只给「仅清除本机」一个选项。
 struct DataResetEntryView: View {
     @Environment(\.locale) private var locale
     /// 云端同步的绑定与清空流程；预览中没有注入时为 nil，按未开启同步处理。
     @Environment(SyncLifecycle.self) private var syncLifecycle: SyncLifecycle?
+    /// 隐私政策同意状态；预览中没有注入时为 nil，按允许联网处理。
+    @Environment(PrivacyAgreementStore.self) private var privacyAgreement: PrivacyAgreementStore?
 
     /// 当前应用容器；确认后才创建清除服务。
     private let container: ModelContainer
@@ -69,14 +72,17 @@ struct DataResetEntryView: View {
             }
             .accessibilityIdentifier("profile-reset-device-only")
 
-            Button(text("profile.reset.scope.all"), role: .destructive) {
-                Task { await reset(.deviceAndCloud) }
+            // 离线模式下清除云端会被联网关口拦下、只能报网络错误，干脆不提供
+            if isNetworkAllowed {
+                Button(text("profile.reset.scope.all"), role: .destructive) {
+                    Task { await reset(.deviceAndCloud) }
+                }
+                .accessibilityIdentifier("profile-reset-device-and-cloud")
             }
-            .accessibilityIdentifier("profile-reset-device-and-cloud")
 
             Button(text("common.cancel"), role: .cancel) {}
         } message: {
-            Text(retentionText("profile.reset.scope.message"))
+            Text(retentionText(isNetworkAllowed ? "profile.reset.scope.message" : "profile.reset.scope.offlineMessage"))
         }
         .alert(text("profile.reset.error"), isPresented: $isPresentingFailure) {
             Button(text("common.close"), role: .cancel) {}
@@ -161,6 +167,11 @@ struct DataResetEntryView: View {
         canUndoReset = DataUndoService(container: container).availableSnapshot()?.operation == .reset
         AppHaptics.play(.destructive)
         isPresentingSuccess = true
+    }
+
+    /// 是否允许联网；没注入同意状态时按允许处理。
+    private var isNetworkAllowed: Bool {
+        privacyAgreement?.allowsNetwork ?? true
     }
 
     /// 解析带撤销保留天数占位符的文案。

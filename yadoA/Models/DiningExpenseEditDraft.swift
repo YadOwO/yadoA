@@ -67,7 +67,7 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
         transaction: AccountTransaction,
         catalog: BookkeepingCategoryCatalog = .presets
     ) {
-        guard transaction.currencyCode == "CNY",
+        guard transaction.currencyCode == BookkeepingCurrency.code,
               TransactionDay.isValid(transaction.transactionDay),
               let payload = try? transaction.validatedPayload(),
               let entry = payload.bookkeepingAmount,
@@ -147,12 +147,22 @@ final class DiningExpenseEditFlow: ObservableObject {
     /// 由上层注入的本地更新动作。
     private let saveAction: DiningExpenseEditSaveAction
 
+    /// 业务日与日期互转使用的公历；与新增流程一致，只取注入日历的时区。
+    let calendar: Calendar
+
     /// 创建一份可测试的完整编辑流程。
+    ///
+    /// - Parameters:
+    ///   - draft: 从已保存流水生成的编辑草稿。
+    ///   - calendar: 提供当前时区的日历，内部统一转换为公历。
+    ///   - saveAction: 原子更新流水和账户余额的动作。
     init(
         draft: DiningExpenseEditDraft,
+        calendar: Calendar = .current,
         saveAction: @escaping DiningExpenseEditSaveAction
     ) {
         self.draft = draft
+        self.calendar = TransactionDay.gregorianCalendar(basedOn: calendar)
         self.saveAction = saveAction
     }
 

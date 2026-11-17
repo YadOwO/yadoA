@@ -117,20 +117,32 @@ enum ProfileRoute: Hashable {
     /// 云端同步页面。
     case sync
 
-    /// AI 点数页面：余额、扣点规则与点数明细。
+    /// AI 点数页面：余额、明细与设置入口、扣点规则。
     case aiPoints
 
     /// AI 点数的到期明细：从 AI 点数页的到期提示进入，列出每批点数的来源与到期时间。
     case aiPointLots
 
-    /// AI 模型选择：从 AI 点数页进入，介绍各模型档位的特点与每句扣的点数，点选后保存在本机。
+    /// AI 点数的明细：从 AI 点数页进入，分页列出每一笔点数的增减。
+    case aiCreditEntries
+
+    /// 快捷语音的模型选择：从 AI 点数页进入，介绍各模型档位的特点与每句扣的点数，点选后保存在本机；AI 对话的模型在聊天页选。
     case aiModelTier
+
+    /// “帮助改进 AI”：从 AI 点数页进入，开关和上报说明在同一页；只在提供它的环境（dev）有入口和页面，见 `AuthConfig.isAITraceConsentAvailable`。
+    case aiTraceConsent
+
+    /// AI 记账说明：从 AI 点数页进入，查看发给 AI 的内容、撤回或重新同意。
+    case aiProcessingConsent
 
     /// 设置页面。
     case settings
 
     /// 意见反馈：与芽豆团队的对话，登录后才有入口。
     case feedback
+
+    /// 更多芽豆产品：芽豆系列其他 App 的列表；目录里有其他产品时才有入口。
+    case moreProducts
 
     /// 开发调试页面；只在 DEBUG 包有入口和页面。
     case developer
@@ -151,12 +163,24 @@ enum ProfileRoute: Hashable {
             AIPointsView()
         case .aiPointLots:
             AIPointLotsView()
+        case .aiCreditEntries:
+            AICreditEntriesView()
         case .aiModelTier:
-            AIModelTierView()
+            AIModelTierView(scope: .quickVoice)
+        case .aiTraceConsent:
+            if AuthConfig.isAITraceConsentAvailable {
+                AITraceConsentView()
+            } else {
+                EmptyView()
+            }
+        case .aiProcessingConsent:
+            AIProcessingConsentView()
         case .settings:
             SettingsView()
         case .feedback:
             FeedbackView()
+        case .moreProducts:
+            SeriesProductsView()
         case .developer:
             #if DEBUG
             DeveloperView()
@@ -176,6 +200,8 @@ struct AppTabView: View {
     @Environment(AuthStore.self) private var authStore
     /// 意见反馈的未读回复数，显示在「我的」Tab 的角标上；预览中没有注入时为 nil。
     @Environment(FeedbackStore.self) private var feedback: FeedbackStore?
+    /// 隐私政策同意状态；离线模式下不显示语音入口，也不刷新未读数。预览中没有注入时为 nil，按允许联网处理。
+    @Environment(PrivacyAgreementStore.self) private var privacyAgreement: PrivacyAgreementStore?
     /// 用户选择的启动页面；对应 Tab 排在底部导航第一位，修改后立即重建并重排。
     @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
     /// 冷启动时落在用户选择的启动页面；之后在设置里修改不会打断当前所在 Tab。
@@ -188,6 +214,11 @@ struct AppTabView: View {
     @State private var profilePath: [ProfileRoute] = []
     /// 语音记账的共享状态；麦克风可能在 Tab Bar 附属栏里，与各一级页面的会话卡片分属两处，由这里统一持有。
     @State private var voice = VoiceBookkeepingState()
+
+    /// 是否允许联网；没注入同意状态时按允许处理。
+    private var isNetworkAllowed: Bool {
+        privacyAgreement?.allowsNetwork ?? true
+    }
 
     /// 当前 Tab 是否停在一级页面；语音入口和会话卡片只在一级页面出现。
     ///
@@ -214,15 +245,19 @@ struct AppTabView: View {
             }
         }
         .tabBarMinimizeOnScrollDownIfAvailable()
-        // 麦克风在四个一级页面常显，进入二级页面时收起
-        .voiceMicAccessoryIfAvailable(isEnabled: isAtTabRoot, voice: voice)
+        // 麦克风在四个一级页面常显，进入二级页面时收起；离线模式（没同意隐私政策）下不显示
+        .voiceMicAccessoryIfAvailable(isEnabled: isAtTabRoot && isNetworkAllowed, voice: voice)
         // 系统 Tab Bar 原地重排时图标与标题会错位，顺序变化时整体重建；
         // 各导航路径保存在本视图，重建后仍然保留。
         .id(startPage)
         // 会话、计时与弹层挂在 .id 外面，重排 Tab 时不会重建
         .voiceBookkeepingHost(voice)
         // App 启动、回到前台、换账号或退出登录时刷新意见反馈的未读数；退出登录时清零
-        .task(id: FeedbackUnreadTrigger(userID: authStore.userID, isActive: scenePhase == .active)) {
+        .task(id: FeedbackUnreadTrigger(
+            userID: authStore.userID,
+            isActive: scenePhase == .active,
+            isNetworkAllowed: isNetworkAllowed
+        )) {
             guard scenePhase == .active else { return }
             await feedback?.refreshUnread()
         }
@@ -338,13 +373,16 @@ struct AppTabView: View {
     }
 }
 
-/// 触发刷新意见反馈未读数的条件：账号变化，或 App 回到前台。
+/// 触发刷新意见反馈未读数的条件：账号变化、App 回到前台，或同意隐私政策后允许联网。
 private struct FeedbackUnreadTrigger: Equatable {
     /// 当前登录账号；退出登录时为 nil。
     let userID: String?
 
     /// App 是否在前台。
     let isActive: Bool
+
+    /// 是否允许联网；同意隐私政策后变为 true，立即重新刷新一次。
+    let isNetworkAllowed: Bool
 }
 
 #Preview {
