@@ -89,7 +89,7 @@ struct AICreditEntriesView: View {
         .accessibilityIdentifier("ai-entries-load-more")
     }
 
-    /// 明细加载失败的一行，带重试按钮；App 版本过低（426）时提示需要更新。
+    /// 明细加载失败的一行，带重试按钮；App 版本过低（426）时只提示需要更新，不给重试（重试必然失败）。
     ///
     /// - Parameter feed: 出错的流水分页。
     private func failureRow(_ feed: AICreditEntryFeed) -> some View {
@@ -98,13 +98,15 @@ struct AICreditEntriesView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 8)
-            Button(text("common.retry")) {
-                Task { await feed.retry() }
+            if feed.failure != .upgradeRequired {
+                Button(text("common.retry")) {
+                    Task { await feed.retry() }
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .disabled(feed.isLoading)
+                .accessibilityIdentifier("ai-entries-retry")
             }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.capsule)
-            .disabled(feed.isLoading)
-            .accessibilityIdentifier("ai-entries-retry")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)

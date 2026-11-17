@@ -23,11 +23,7 @@ final class AppUpdatePrompt {
 
     /// App 在 App Store 上的产品页地址；没配置 ID 或 ID 不是纯数字时为 nil，提示里就不显示跳转按钮。
     static var appStoreURL: URL? {
-        guard let appStoreID,
-              !appStoreID.isEmpty,
-              appStoreID.allSatisfy({ $0.isASCII && $0.isNumber })
-        else { return nil }
-        return URL(string: "https://apps.apple.com/app/id\(appStoreID)")
+        AppStoreLink.productURL(id: appStoreID)
     }
 
     /// 是否正在显示提示，供 alert 绑定。

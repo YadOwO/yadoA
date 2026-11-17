@@ -82,12 +82,8 @@ struct SeriesProduct: Decodable, Equatable, Identifiable {
 
     /// App Store 上的产品页地址；只有已上架且 ID 是纯数字时才有，界面据此决定是否显示「获取」。
     var appStoreURL: URL? {
-        guard status == .available,
-              let appStoreId,
-              !appStoreId.isEmpty,
-              appStoreId.allSatisfy({ $0.isASCII && $0.isNumber })
-        else { return nil }
-        return URL(string: "https://apps.apple.com/app/id\(appStoreId)")
+        guard status == .available else { return nil }
+        return AppStoreLink.productURL(id: appStoreId)
     }
 }
 
