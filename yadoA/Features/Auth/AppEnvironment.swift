@@ -12,8 +12,8 @@ import Foundation
 /// | 配置       | 标志               | 环境 | Bundle ID            | 用途                   |
 /// |------------|--------------------|------|----------------------|------------------------|
 /// | Debug      | `DEBUG` `ENV_DEV`  | dev  | `com.yado.yadoA.dev` | 日常开发、测试         |
-/// | DebugProd  | `DEBUG` `ENV_PROD` | 线上 | `com.yado.yadoA`     | 断点排查线上问题       |
-/// | Release    | `ENV_PROD`         | 线上 | `com.yado.yadoA`     | 出包                   |
+/// | DebugProd  | `DEBUG` `ENV_PROD` | 线上 | `top.yado1225.yadoA`     | 断点排查线上问题       |
+/// | Release    | `ENV_PROD`         | 线上 | `top.yado1225.yadoA`     | 出包                   |
 ///
 /// dev 包与线上包的 Bundle ID 不同，系统把它们当成两个 App：数据库、设置、钥匙串里的登录状态各一份，
 /// 可以同时装在一台设备上，dev 的数据不会同步到线上账号。
