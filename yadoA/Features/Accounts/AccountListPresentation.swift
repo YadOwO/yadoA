@@ -242,6 +242,64 @@ enum AccountListPresentation {
     }
 }
 
+/// 欠款填成负数的提示。
+///
+/// 信用卡、负债的余额表示欠款，正数是欠了多少；不少用户习惯把欠款写成负数，结果被当成「多还的钱」算进资产，
+/// 净资产反而偏高。负的欠款也可能是真的溢缴，所以只提示、不自动改：用户可以一键改成正数，也可以确认「确实多还了」，
+/// 之后这个账户不再提示。确认过的账户存在本机，不随账本同步。
+enum NegativeDebtHint {
+    /// 用户确认过「确实多还了」的账户 UUID，逗号分隔，存在本机。
+    static let dismissedStorageKey = "account.negativeDebtHint.dismissed"
+
+    /// 这个账户的欠款是否填成了负数：只看信用卡、负债这类余额表示欠款的账户。
+    ///
+    /// - Parameters:
+    ///   - accountType: 账户类型；未知类型按资产处理，不提示。
+    ///   - balance: 当前余额或欠款。
+    static func isNegativeDebt(accountType: AccountType?, balance: Decimal) -> Bool {
+        accountType?.expenseBalanceEffect == .increaseDebt && balance < 0
+    }
+
+    /// 需要提示的账户：启用中、欠款为负、用户没有确认过，保持传入的顺序。
+    ///
+    /// - Parameters:
+    ///   - accounts: 按显示顺序排好的账户。
+    ///   - dismissedIDs: 用户确认过「确实多还了」的账户。
+    static func accounts(in accounts: [Account], dismissedIDs: Set<UUID>) -> [Account] {
+        accounts.filter { account in
+            account.isActive
+                && !dismissedIDs.contains(account.id)
+                && isNegativeDebt(accountType: account.accountType, balance: account.balance)
+        }
+    }
+
+    /// 解析本机存的已确认账户；无法解析的片段直接忽略。
+    ///
+    /// - Parameter stored: 逗号分隔的 UUID 字符串。
+    static func dismissedIDs(from stored: String) -> Set<UUID> {
+        Set(stored.split(separator: ",").compactMap { UUID(uuidString: String($0)) })
+    }
+
+    /// 把已确认账户写回本机存储的格式；按字符串排序，同样的集合总是得到同样的值。
+    ///
+    /// - Parameter ids: 已确认账户。
+    static func storedValue(for ids: Set<UUID>) -> String {
+        ids.map(\.uuidString).sorted().joined(separator: ",")
+    }
+
+    /// 列表顶部提示里的账户名称，例如「“花呗”和“招行信用卡”」。
+    ///
+    /// - Parameters:
+    ///   - names: 要提示的账户名称，按显示顺序排列。
+    ///   - locale: 文案使用的语言环境。
+    static func quotedNames(_ names: [String], locale: Locale) -> String {
+        let quoted = names.map { AccountLocalization.formatted("account.negative_debt.name_quote", value: $0, locale: locale) }
+        let formatter = ListFormatter()
+        formatter.locale = locale
+        return formatter.string(from: quoted) ?? quoted.joined(separator: ", ")
+    }
+}
+
 /// 将账户数量映射为空/非空状态下唯一主要添加入口的位置。
 enum AccountListState {
     /// 空状态是否展示内嵌添加入口。

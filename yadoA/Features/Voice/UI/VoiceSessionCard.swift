@@ -265,6 +265,9 @@ private struct VoiceSessionTurnView: View {
     /// 打开周期记账列表。
     let onOpenRecurringRules: () -> Void
 
+    /// 「点一下可以查看」的一次性提示状态。
+    @State private var tapHint = VoiceResultTapHint.shared
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // 只发图片的一轮没有文字；卡片上不放图片，图片在聊天页看
@@ -284,15 +287,28 @@ private struct VoiceSessionTurnView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .conversationTextSelection()
             }
-            ForEach(turn.changes) { change in
-                switch change {
-                case let .entry(entryChange):
-                    entryRow(entryChange)
-                case let .account(accountChange):
-                    accountRow(accountChange)
-                case let .recurring(recurringChange):
-                    recurringRow(recurringChange)
+            if !turn.changes.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(turn.changes) { change in
+                        switch change {
+                        case let .entry(entryChange):
+                            entryRow(entryChange)
+                        case let .account(accountChange):
+                            accountRow(accountChange)
+                        case let .recurring(recurringChange):
+                            recurringRow(recurringChange)
+                        }
+                    }
                 }
+            }
+            // 用户还不知道结果可以点开时，在最新一轮的结果下面写一句；点过一次或看过几次后不再出现
+            if showsTapHint {
+                Label(text("voice.change.tapHint"), systemImage: "hand.tap")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, VoiceChangeRowButtonStyle.horizontalPadding)
+                    .onAppear { tapHint.markShown(turnID: turn.id) }
+                    .accessibilityIdentifier("voice-change-tap-hint")
             }
             // DEBUG 包与 TestFlight 包显示这句话的耗时，点开看每一步
             if VoiceTimingFeature.isEnabled, let timing = turn.timing {
@@ -321,74 +337,92 @@ private struct VoiceSessionTurnView: View {
         session.latestTurn?.id == turn.id
     }
 
-    /// 一笔收支流水的改动：点行在记账页明细里定位它（不在记账页时先切过去），行尾打开详情。
-    private func entryRow(_ change: VoiceEntryChange) -> some View {
-        // 删除或撤销后流水已不存在，既无法定位也没有详情可看
-        let isAvailable = change.kind != .deleted && !turn.isUndone
-        return HStack(spacing: 2) {
-            // 点一笔就在记账页明细里定位它，卡片跟着过去；一句话改了好几笔时逐笔点着看
-            Button {
-                onLocateChange(change)
-            } label: {
-                VoiceEntryChangeRow(change: change, isUndone: turn.isUndone)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(!isAvailable)
-            .accessibilityHint(isAvailable ? Text(text("voice.change.locate.hint")) : Text(verbatim: ""))
+    /// 是否在这一轮结果下面提示可以点开：最近一轮、已经处理完、至少有一行能点，并且用户还没学会。
+    private var showsTapHint: Bool {
+        isLatest && turn.outcome != .processing && hasTappableChange && tapHint.shouldShow(for: turn.id)
+    }
 
-            // 卡片外的点击会关闭会话，详情入口放在行尾；不可用时保留占位，各行金额仍然对齐
-            Button {
-                onOpenTransaction(change.transactionID)
-            } label: {
-                Image(systemName: "info.circle")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 32, height: 32)
-                    .contentShape(Rectangle())
+    /// 这一轮是否至少有一行结果可以点开；已撤销或只有删除时没有。
+    private var hasTappableChange: Bool {
+        guard !turn.isUndone else { return false }
+        return turn.changes.contains { change in
+            switch change {
+            case let .entry(entryChange): entryChange.kind != .deleted
+            case let .account(accountChange): !accountChange.accountIDs.isEmpty
+            case let .recurring(recurringChange): recurringChange.ruleID != nil
             }
-            .buttonStyle(.plain)
-            .disabled(!isAvailable)
-            .opacity(isAvailable ? 1 : 0)
-            .accessibilityHidden(!isAvailable)
-            .accessibilityLabel(AccountLocalization.formatted(
-                "voice.change.detail.accessibility", value: change.label, locale: locale
-            ))
         }
     }
 
-    /// 一次账户相关的改动：余额调整、转账与账户改动不在记账页明细里，点整行以弹层打开账户详情，转账时打开转出账户。
+    /// 一笔收支流水的改动：点格子在记账页明细里定位它（不在记账页时先切过去），格子里行尾的 ⓘ 打开详情。
+    private func entryRow(_ change: VoiceEntryChange) -> some View {
+        // 删除或撤销后流水已不存在，既无法定位也没有详情可看
+        let isAvailable = change.kind != .deleted && !turn.isUndone
+        // 点一笔就在记账页明细里定位它，卡片跟着过去；一句话改了好几笔时逐笔点着看
+        return Button {
+            tapHint.markLearned()
+            onLocateChange(change)
+        } label: {
+            HStack(spacing: 2) {
+                VoiceEntryChangeRow(change: change, isUndone: turn.isUndone)
+                // 给浮在上面的详情按钮留位置，与账户、周期记账行尾的箭头同宽，各行金额对齐
+                Color.clear
+                    .frame(width: VoiceChangeRowButtonStyle.accessoryWidth, height: 1)
+                    .accessibilityHidden(true)
+            }
+        }
+        .buttonStyle(VoiceChangeRowButtonStyle())
+        .disabled(!isAvailable)
+        .accessibilityHint(isAvailable ? Text(text("voice.change.locate.hint")) : Text(verbatim: ""))
+        // 卡片外的点击会关闭会话，详情入口放在格子里的行尾；浮在定位按钮上面，点它不会触发定位
+        .overlay(alignment: .trailing) {
+            if isAvailable {
+                Button {
+                    tapHint.markLearned()
+                    onOpenTransaction(change.transactionID)
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .frame(width: VoiceChangeRowButtonStyle.accessoryWidth, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, VoiceChangeRowButtonStyle.horizontalPadding)
+                .accessibilityLabel(AccountLocalization.formatted(
+                    "voice.change.detail.accessibility", value: change.label, locale: locale
+                ))
+            }
+        }
+    }
+
+    /// 一次账户相关的改动：余额调整、转账与账户改动不在记账页明细里，点整个格子以弹层打开账户详情，转账时打开转出账户。
     private func accountRow(_ change: VoiceAccountChange) -> some View {
         // 删除或撤销后账户可能已不存在，不再打开详情
         let accountID = turn.isUndone ? nil : change.accountIDs.first
         return Button {
             if let accountID {
+                tapHint.markLearned()
                 onOpenAccount(accountID)
             }
         } label: {
             HStack(spacing: 2) {
                 VoiceAccountChangeRow(change: change, isUndone: turn.isUndone)
-                // 与流水行尾的详情按钮同宽同样式；不可用时保留占位，各行金额仍然对齐
-                Image(systemName: "info.circle")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 32, height: 32)
-                    .opacity(accountID == nil ? 0 : 1)
-                    .accessibilityHidden(true)
+                VoiceChangeRowChevron(isVisible: accountID != nil)
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(VoiceChangeRowButtonStyle())
         .disabled(accountID == nil)
         .accessibilityHint(accountID == nil ? Text(verbatim: "") : Text(text("voice.change.account.hint")))
     }
 
-    /// 一次周期记账的改动：规则不在记账页明细里，点整行以弹层打开周期记账列表，在那里查看和编辑。
+    /// 一次周期记账的改动：规则不在记账页明细里，点整个格子以弹层打开周期记账列表，在那里查看和编辑。
     private func recurringRow(_ change: VoiceRecurringChange) -> some View {
         // 删除或撤销后规则可能已不存在，不再打开
         let isAvailable = change.ruleID != nil && !turn.isUndone
         return Button {
             if isAvailable {
+                tapHint.markLearned()
                 onOpenRecurringRules()
             }
         } label: {
@@ -401,17 +435,10 @@ private struct VoiceSessionTurnView: View {
                     amount: change.formattedAmount,
                     isUndone: turn.isUndone
                 )
-                // 与其他行尾的详情按钮同宽同样式；不可用时保留占位，各行金额仍然对齐
-                Image(systemName: "info.circle")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 32, height: 32)
-                    .opacity(isAvailable ? 1 : 0)
-                    .accessibilityHidden(true)
+                VoiceChangeRowChevron(isVisible: isAvailable)
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(VoiceChangeRowButtonStyle())
         .disabled(!isAvailable)
         .accessibilityHint(isAvailable ? Text(text("voice.change.recurring.hint")) : Text(verbatim: ""))
     }

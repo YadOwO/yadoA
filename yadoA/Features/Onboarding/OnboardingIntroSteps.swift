@@ -108,7 +108,39 @@ struct OnboardingOpeningStep: View {
 
 // MARK: - 本地承诺
 
-/// 本地承诺：墨线画出一部手机，把纸上的账本圈在里面，豆子落进圈里。
+/// 本地承诺这一行逐条写下的隐私承诺；文案必须与隐私政策一致，不能写政策里没有的保证（例如云端端到端加密）。
+enum OnboardingPrivacyPromise: String, CaseIterable, Identifiable {
+    /// 账本默认只存在本机，不登录、不联网也能用。
+    case local
+    /// 云同步默认关闭，开启后加密传输、只用于同步，可以随时关闭和删除。
+    case sync
+    /// 不接广告和第三方统计，不追踪，不出售信息。
+    case noAds
+
+    /// 稳定标识。
+    var id: String { rawValue }
+
+    /// 行首图标。
+    var systemImage: String {
+        switch self {
+        case .local: "iphone"
+        case .sync: "lock.icloud"
+        case .noAds: "hand.raised"
+        }
+    }
+
+    /// 标题的本地化键。
+    var titleKey: String {
+        "onboarding.privacy.\(rawValue).title"
+    }
+
+    /// 说明的本地化键。
+    var bodyKey: String {
+        "onboarding.privacy.\(rawValue).body"
+    }
+}
+
+/// 本地承诺：逐条写下账本存在哪、同步怎么处理、数据不拿去做什么，再用墨线画出一部手机把账本圈在里面，豆子落进圈里。
 struct OnboardingPrivacyStep: View {
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -140,16 +172,12 @@ struct OnboardingPrivacyStep: View {
             )
             .accessibilityAddTraits(.isHeader)
 
-            Text(text("onboarding.privacy.message"))
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 14)
-                .onboardingReveal(isDetailVisible)
+            promises
+                .padding(.top, 22)
 
             phone
                 .frame(maxWidth: .infinity)
-                .padding(.top, 40)
+                .padding(.top, 32)
         } actions: {
             Button(text("onboarding.continue"), action: onContinue)
                 .buttonStyle(OnboardingPrimaryButtonStyle())
@@ -159,6 +187,40 @@ struct OnboardingPrivacyStep: View {
         .onChange(of: isDetailVisible) { _, isVisible in
             guard isVisible else { return }
             Task { await drawPhone() }
+        }
+    }
+
+    /// 三条承诺：标题写完后图标一笔笔画出，文字跟着浮上来；与登录邀请里的权益列表同一种写法。
+    private var promises: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            ForEach(Array(OnboardingPrivacyPromise.allCases.enumerated()), id: \.element) { index, promise in
+                // 图标画出来之前是空的，按顶边对齐，避免出现时整行跳一下
+                HStack(alignment: .top, spacing: 12) {
+                    ZStack {
+                        if isDetailVisible {
+                            Image(systemName: promise.systemImage)
+                                .foregroundStyle(Color(.ledgerRed))
+                                .transition(OnboardingSymbolTransition.drawOn)
+                        }
+                    }
+                    .font(.body)
+                    .frame(width: 24, height: 20)
+                    .animation(.easeOut(duration: 0.5).delay(Double(index) * 0.12), value: isDetailVisible)
+                    .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(text(promise.titleKey))
+                            .font(.subheadline.weight(.semibold))
+                        Text(text(promise.bodyKey))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .onboardingReveal(isDetailVisible, delay: Double(index) * 0.12)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("onboarding-privacy-\(promise.rawValue)")
+            }
         }
     }
 
@@ -194,7 +256,8 @@ struct OnboardingPrivacyStep: View {
                     .padding(.bottom, 26)
             }
         }
-        .frame(width: 128, height: 214)
+        // 上面多了三条承诺，手机比原来小一圈，小屏上也能和按钮一起放下
+        .frame(width: 112, height: 184)
         .accessibilityHidden(true)
     }
 

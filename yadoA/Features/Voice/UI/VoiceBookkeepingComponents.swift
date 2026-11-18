@@ -374,6 +374,53 @@ struct VoiceChangeRowLayout: View {
     }
 }
 
+/// 会话卡片里一行结果的按钮外观：能点时铺一层浅底、按下加深，看上去就是一个可以点的格子；
+/// 删除或撤销后不能点时去掉底色，但保留同样的内边距，各行仍然对齐。
+///
+/// 底色用跟随外观的墨色透明度，浅色和深色玻璃上都看得出来。
+struct VoiceChangeRowButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    /// 格子的圆角。
+    static let cornerRadius: CGFloat = 14
+
+    /// 格子的左右内边距；行尾的详情按钮按它对齐到格子里面。
+    static let horizontalPadding: CGFloat = 10
+
+    /// 行尾指示的宽度：流水行的详情按钮、账户和周期记账行的箭头都占这么宽，各行金额对齐。
+    static let accessoryWidth: CGFloat = 32
+
+    func makeBody(configuration: Configuration) -> some View {
+        let shape = RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
+        configuration.label
+            .padding(.vertical, 6)
+            .padding(.horizontal, Self.horizontalPadding)
+            .background(Color.primary.opacity(backgroundOpacity(isPressed: configuration.isPressed)), in: shape)
+            .contentShape(shape)
+    }
+
+    /// 按下时加深，不能点时透明。
+    private func backgroundOpacity(isPressed: Bool) -> Double {
+        guard isEnabled else { return 0 }
+        return isPressed ? 0.1 : 0.045
+    }
+}
+
+/// 结果格子行尾的箭头：整格点开账户详情或周期记账列表；不能点时保留占位，各行金额仍然对齐。
+struct VoiceChangeRowChevron: View {
+    /// 是否显示；删除或撤销后不显示。
+    let isVisible: Bool
+
+    var body: some View {
+        Image(systemName: "chevron.right")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(width: VoiceChangeRowButtonStyle.accessoryWidth, height: 32)
+            .opacity(isVisible ? 1 : 0)
+            .accessibilityHidden(true)
+    }
+}
+
 /// 一轮中的一次账户相关改动：图标、动作、账户名称、说明与金额，样式与流水行一致。
 struct VoiceAccountChangeRow: View {
     /// 账户相关改动。

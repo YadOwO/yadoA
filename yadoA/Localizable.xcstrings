@@ -12739,13 +12739,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Off"
+            "value" : "This Phone Only"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "未开启"
+            "value" : "仅存本机"
           }
         }
       }
@@ -13079,13 +13079,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign in to sync your accounts and transactions, so they're there on a new phone or your other devices."
+            "value" : "Your ledger is only on this phone right now. Sign in to sync your accounts and transactions, so they're there on a new phone or your other devices."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "登录后可以把账户和流水同步到云端，换手机或在多台设备上都能用。"
+            "value" : "现在账本只存在这台手机上。登录后可以把账户和流水同步到云端，换手机或在多台设备上都能用。"
           }
         }
       }
@@ -13147,13 +13147,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn on sync to keep this device and the cloud up to date."
+            "value" : "Your ledger is only on this phone right now. Turn on sync to keep this device and the cloud up to date."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "开启后，本机和云端的数据会保持一致。"
+            "value" : "现在账本只存在这台手机上。开启后，本机和云端的数据会保持一致。"
           }
         }
       }
@@ -13368,13 +13368,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sync your accounts and transactions to this account, so they're there on a new phone or your other devices. Data on this device will be merged with the cloud."
+            "value" : "Sync your accounts and transactions to this account, so they're there on a new phone or your other devices. Data on this device will be merged with the cloud. It's encrypted in transit and used only for sync."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "把账户和流水同步到这个账号，换手机或在其他设备上登录都能看到。本机数据会和云端合并。"
+            "value" : "把账户和流水同步到这个账号，换手机或在其他设备上登录都能看到。本机数据会和云端合并；传输全程加密，只用于同步。"
           }
         }
       }
@@ -14149,24 +14149,6 @@
         }
       }
     },
-    "onboarding.privacy.message" : {
-      "comment" : "首次引导本地承诺的说明；只写已实现的事实",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Record, chart, and manage accounts without signing in. Signing in doesn't upload anything. Sync is your call, and you can change it anytime."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "不登录也能记账、看图表、管账户。登录了也不会自动上传，同不同步由你决定，随时可以改。"
-          }
-        }
-      }
-    },
     "onboarding.history.privacy" : {
       "comment" : "首次引导上方灰色小字：本地承诺",
       "extractionState" : "manual",
@@ -14390,13 +14372,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your ledger is uploaded to Yado's servers so it's there on a new phone or any of your devices. Leave it off and it stays only on this phone."
+            "value" : "Your ledger is uploaded to Yado's servers over an encrypted connection, so it's there on a new phone or any of your devices. It's used only for sync. Leave it off and it stays only on this phone."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "开启后，账本会上传到芽豆的服务器，换手机、多台设备都能看到。不开启，账本就只存在本机。"
+            "value" : "开启后，账本会经加密连接上传到芽豆的服务器，换手机、多台设备都能看到；只用于同步，不做别的用途。不开启，账本就只存在本机。"
           }
         }
       }
@@ -14444,13 +14426,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You can change this anytime in Settings."
+            "value" : "You can turn it off or delete your cloud data anytime in Settings."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "以后可以在设置里随时开关。"
+            "value" : "以后可以在设置里随时关闭，也可以删除云端数据。"
           }
         }
       }
@@ -14588,13 +14570,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "One sentence can add several entries, and delete or fix others too."
+            "value" : "One sentence can add several entries, and delete or fix others too. Tap any result to see it."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "一句话里可以同时记好几笔，也能顺手删掉、改掉。"
+            "value" : "一句话里可以同时记好几笔，也能顺手删掉、改掉。记好的每一笔，点一下就能查看。"
           }
         }
       }
@@ -18070,6 +18052,366 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "对话记录不受影响，其中的结果可能与恢复后的账本不一致。"
+          }
+        }
+      }
+    },
+    "voice.change.tapHint" : {
+      "comment" : "语音卡片最新一轮结果下方的一次性提示：告诉用户结果行可以点开查看或修改。用户从卡片上点过一次结果、或在 3 轮里看过后不再出现。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap an item to view or edit it"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点一下记录，可以查看或修改"
+          }
+        }
+      }
+    },
+    "onboarding.privacy.local.title" : {
+      "comment" : "首次引导本地承诺第一条的标题；只写已实现的事实",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No account or network needed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不用登录，不用联网"
+          }
+        }
+      }
+    },
+    "onboarding.privacy.local.body" : {
+      "comment" : "首次引导本地承诺第一条的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entries, accounts and charts are stored only on this phone and work fully offline."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记账、账户、图表默认都只存在这台手机上，离线也能完整使用。"
+          }
+        }
+      }
+    },
+    "onboarding.privacy.sync.title" : {
+      "comment" : "首次引导本地承诺第二条的标题：云同步",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync is your call"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步由你决定"
+          }
+        }
+      }
+    },
+    "onboarding.privacy.sync.body" : {
+      "comment" : "首次引导本地承诺第二条的说明。只能写传输加密：隐私政策写明云端没有端到端加密，不能写成加密存储。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloud sync is off by default, and signing in uploads nothing. If you turn it on, data is encrypted in transit and used only for sync. Turn it off or delete your cloud data anytime."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "云同步默认关闭，登录也不会自动上传。开启后全程加密传输，只用于同步，随时可以关掉、删除云端数据。"
+          }
+        }
+      }
+    },
+    "onboarding.privacy.noAds.title" : {
+      "comment" : "首次引导本地承诺第三条的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No ads, no selling data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不卖数据，不投广告"
+          }
+        }
+      }
+    },
+    "onboarding.privacy.noAds.body" : {
+      "comment" : "首次引导本地承诺第三条的说明，与隐私政策「我们不做的事」一致",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No ad or third-party analytics SDKs, no tracking, and we never sell your information."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不接入广告和第三方统计，不追踪你，也不出售你的信息。"
+          }
+        }
+      }
+    },
+    "sync.privacy.footer" : {
+      "comment" : "「我的 → 云端同步」开关下方的说明，与隐私政策的云同步一节一致；只写传输加密，不写加密存储。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your ledger travels to Yado's servers over an encrypted connection and is used only to sync between your devices, never analyzed or used for anything else. With sync off, everything on this phone keeps working."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账本经加密连接传到芽豆的服务器，只用于在你的设备之间同步，不做分析，也不用于其他目的。关闭同步后，本机数据照常可用。"
+          }
+        }
+      }
+    },
+    "account.balance_adjustment.current.debt" : {
+      "comment" : "信用卡、负债账户调整余额时，当前金额的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current amount owed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前欠款"
+          }
+        }
+      }
+    },
+    "account.balance_adjustment.target.debt" : {
+      "comment" : "信用卡、负债账户调整余额时，目标金额的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total owed now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "现在一共欠多少"
+          }
+        }
+      }
+    },
+    "account.balance_adjustment.target_explanation.debt" : {
+      "comment" : "信用卡、负债账户调整余额时的说明：欠款填正数，不要加负号",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the total you owe as a positive number, without a minus sign. Debt is subtracted from net worth automatically. Choose Overpaid only if you paid back more than you owed."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "填欠款总额，正数就行，不用加负号；负债会自动从净资产里扣掉。只有多还了钱（溢缴）时才选「多还的钱」。"
+          }
+        }
+      }
+    },
+    "account.balance_adjustment.sign.debt.positive" : {
+      "comment" : "信用卡、负债账户调整余额的正负选择：正数表示欠款",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Owed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欠款"
+          }
+        }
+      }
+    },
+    "account.balance_adjustment.sign.debt.negative" : {
+      "comment" : "信用卡、负债账户调整余额的正负选择：负数表示多还了钱（溢缴）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overpaid"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多还的钱"
+          }
+        }
+      }
+    },
+    "account.creation.debt_hint" : {
+      "comment" : "新建信用卡、负债账户时金额下方的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter what you owe as a positive number. For 3,000 owed, enter 3000. It counts as debt and is subtracted from net worth."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欠款填正数，例如欠 3,000 就填 3000；会自动计入负债，从净资产里扣掉。"
+          }
+        }
+      }
+    },
+    "account.negative_debt.name_quote" : {
+      "comment" : "账户页欠款为负提示里给账户名加的引号；%@ 为账户名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」"
+          }
+        }
+      }
+    },
+    "account.negative_debt.list.message" : {
+      "comment" : "账户页汇总下方的提示：有信用卡、负债账户的欠款是负数；%@ 为带引号的账户名称列表",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The amount owed on %@ is negative, so it counts as overpaid money in your assets and net worth may be too high."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 的欠款是负数，会被当成多还的钱算进资产，净资产可能偏高。"
+          }
+        }
+      }
+    },
+    "account.negative_debt.list.action" : {
+      "comment" : "账户页欠款为负提示的操作文字，点整条打开账户详情",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "去检查"
+          }
+        }
+      }
+    },
+    "account.negative_debt.detail.message" : {
+      "comment" : "账户详情余额下方的提示：欠款是负数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A negative amount owed means you overpaid, and it counts toward your assets. If you actually owe this money, change it to a positive number."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欠款是负数，表示多还了钱（溢缴），会算进资产。如果其实是欠了钱，请改成正数。"
+          }
+        }
+      }
+    },
+    "account.negative_debt.fix" : {
+      "comment" : "账户详情欠款为负提示的按钮：打开预填成正数的余额调整；%@ 为改正后的欠款金额",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change to %@ Owed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "改成欠款 %@"
+          }
+        }
+      }
+    },
+    "account.negative_debt.dismiss" : {
+      "comment" : "账户详情欠款为负提示的按钮：确认确实多还了，之后不再提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I Did Overpay"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确实多还了"
           }
         }
       }

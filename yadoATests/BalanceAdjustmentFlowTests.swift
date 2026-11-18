@@ -16,6 +16,44 @@ struct BalanceAdjustmentFlowTests {
         #expect(draft.targetBalance == Decimal(string: "-10.25"))
     }
 
+    @Test("欠款填成负数时按正数预填，打开就能直接保存成欠款")
+    func negativeDebtFixPrefillsPositiveTarget() {
+        let currentBalance = Decimal(string: "-3000.5")!
+        // 与账户详情一键改正时的预填方式一致：草稿用改正后的值，当前余额保持原值
+        let flow = BalanceAdjustmentFlow(
+            draft: BalanceAdjustmentDraft(accountID: UUID(), currentBalance: -currentBalance),
+            currentBalance: currentBalance,
+            saveAction: { _ in .unchanged(currentBalance: 0) }
+        )
+
+        #expect(flow.draft.sign == .positive)
+        #expect(flow.draft.amountText == "3000.5")
+        #expect(flow.draft.targetBalance == Decimal(string: "3000.5"))
+        #expect(flow.currentBalance == currentBalance)
+        #expect(flow.canSubmit)
+    }
+
+    @Test("欠款账户的调整文案两种语言都有，正负选项不出现「负数」")
+    func debtAdjustmentCopyIsLocalized() {
+        let keys = [
+            "account.balance_adjustment.current.debt",
+            "account.balance_adjustment.target.debt",
+            "account.balance_adjustment.target_explanation.debt",
+            "account.balance_adjustment.sign.debt.positive",
+            "account.balance_adjustment.sign.debt.negative",
+        ]
+        for localeID in ["en", "zh-Hans"] {
+            let locale = Locale(identifier: localeID)
+            for key in keys {
+                #expect(AccountLocalization.string(key, locale: locale) != key)
+            }
+        }
+        let zhNegative = AccountLocalization.string(
+            "account.balance_adjustment.sign.debt.negative", locale: Locale(identifier: "zh-Hans")
+        )
+        #expect(!zhNegative.contains("负数"))
+    }
+
     @Test("区域小数输入限制两位且零不保留负号")
     func nativeAmountInputNormalizesPrecisionAndZeroSign() {
         let flow = makeFlow(currentBalance: 10)

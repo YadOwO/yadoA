@@ -25,7 +25,8 @@ struct SyncSettingsView: View {
                 statusCard
 
                 if canManageSync {
-                    section("sync.section.sync") {
+                    // 开关下面写明数据怎么传、拿去做什么，与隐私政策的云同步一节一致
+                    section("sync.section.sync", footerKey: "sync.privacy.footer") {
                         Toggle(isOn: enabledBinding) {
                             Label(text("sync.toggle.title"), systemImage: "arrow.triangle.2.circlepath.icloud")
                                 .labelStyle(SyncSettingsLabelStyle())

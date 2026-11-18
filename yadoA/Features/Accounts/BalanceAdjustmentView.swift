@@ -13,25 +13,35 @@ struct BalanceAdjustmentView: View {
     /// 仅在余额与流水均保存成功后交由账户详情关闭 Sheet。
     private let onSaved: @MainActor () -> Void
 
+    /// 余额是否表示欠款（信用卡、负债）：这时文案改说「欠款」，正负改成「欠款 / 多还的钱」，
+    /// 避免用户把欠款填成负数、被当成多还的钱算进资产。
+    private let isDebt: Bool
+
     /// 创建一份直接设置目标总余额的调整表单。
     ///
     /// - Parameters:
     ///   - accountID: 被调整账户的稳定 UUID。
     ///   - currentBalance: 打开 Sheet 时的账户总余额。
+    ///   - accountType: 账户类型，决定按余额还是按欠款来说；未知类型按余额。
+    ///   - initialTargetBalance: 预填的目标余额；为 `nil` 时预填当前余额。欠款填成负数、一键改成正数时传入。
     ///   - save: 原子保存目标余额和调整流水的动作。
     ///   - onSaved: 保存成功后的关闭与刷新动作。
     init(
         accountID: UUID,
         currentBalance: Decimal,
+        accountType: AccountType? = nil,
+        initialTargetBalance: Decimal? = nil,
         save: @escaping BalanceAdjustmentSaveAction,
         onSaved: @escaping @MainActor () -> Void
     ) {
         self.onSaved = onSaved
+        isDebt = accountType?.expenseBalanceEffect == .increaseDebt
         _flow = StateObject(
             wrappedValue: BalanceAdjustmentFlow(
+                // 草稿只用这个金额预填输入框和正负，不影响「当前余额」的展示和同值判断
                 draft: BalanceAdjustmentDraft(
                     accountID: accountID,
-                    currentBalance: currentBalance
+                    currentBalance: initialTargetBalance ?? currentBalance
                 ),
                 currentBalance: currentBalance,
                 saveAction: save
@@ -104,27 +114,18 @@ struct BalanceAdjustmentView: View {
     /// 清晰说明页面正在设置总余额，而不是输入增减差额。
     private var currentBalanceSummary: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(
-                AccountLocalization.string(
-                    "account.balance_adjustment.current",
-                    locale: locale
-                )
-            )
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+            Text(text(debtAware("account.balance_adjustment.current")))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
 
             Text(formattedCurrency(flow.currentBalance))
                 .font(.system(.title2, design: .serif, weight: .medium))
                 .monospacedDigit()
 
-            Text(
-                AccountLocalization.string(
-                    "account.balance_adjustment.target_explanation",
-                    locale: locale
-                )
-            )
-            .font(.footnote)
-            .foregroundStyle(.secondary)
+            Text(text(debtAware("account.balance_adjustment.target_explanation")))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("balance-adjustment-current")
@@ -133,21 +134,13 @@ struct BalanceAdjustmentView: View {
     /// 正负选择与系统小数键盘共同编辑目标总余额。
     private var targetBalanceSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(
-                AccountLocalization.string(
-                    "account.balance_adjustment.target",
-                    locale: locale
-                )
-            )
-            .font(.system(.headline, design: .serif))
+            Text(text(debtAware("account.balance_adjustment.target")))
+                .font(.system(.headline, design: .serif))
 
             signPicker
 
             TextField(
-                AccountLocalization.string(
-                    "account.balance_adjustment.target",
-                    locale: locale
-                ),
+                text(debtAware("account.balance_adjustment.target")),
                 text: targetAmountTextBinding,
                 prompt: Text(verbatim: "0")
             )
@@ -269,14 +262,27 @@ struct BalanceAdjustmentView: View {
         )
     }
 
-    /// 返回正负状态对应的本地化可见文本。
+    /// 返回正负状态对应的本地化可见文本；欠款账户写「欠款 / 多还的钱」，不出现「负数」。
     private func signTitle(_ sign: BalanceAdjustmentSign) -> String {
-        AccountLocalization.string(
-            sign == .positive
-                ? "account.balance_adjustment.sign.positive"
-                : "account.balance_adjustment.sign.negative",
-            locale: locale
-        )
+        let key = switch (sign, isDebt) {
+        case (.positive, false): "account.balance_adjustment.sign.positive"
+        case (.negative, false): "account.balance_adjustment.sign.negative"
+        case (.positive, true): "account.balance_adjustment.sign.debt.positive"
+        case (.negative, true): "account.balance_adjustment.sign.debt.negative"
+        }
+        return text(key)
+    }
+
+    /// 欠款账户换用同一处文案的欠款版本，键名在原键后加 `.debt`。
+    ///
+    /// - Parameter key: 按余额说的文案键。
+    /// - Returns: 欠款账户返回 `<key>.debt`，其他账户原样返回。
+    private func debtAware(_ key: String) -> String {
+        isDebt ? key + ".debt" : key
+    }
+
+    private func text(_ key: String) -> String {
+        AccountLocalization.string(key, locale: locale)
     }
 
     /// 可选调整原因；空白内容会在模型边界清理为 `nil`。
