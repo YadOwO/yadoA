@@ -10540,24 +10540,6 @@
         }
       }
     },
-    "voice.change.detail.accessibility" : {
-      "comment" : "VoiceOver label of the button that opens a transaction's details from the voice card. %@ is the transaction name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Details for %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "查看“%@”详情"
-          }
-        }
-      }
-    },
     "voice.change.locate.hint" : {
       "comment" : "VoiceOver hint on a transaction in the voice card: tapping switches to the Ledger tab if needed and scrolls its list to it.",
       "extractionState" : "manual",
@@ -10572,42 +10554,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在记账页列表中定位这笔流水。"
-          }
-        }
-      }
-    },
-    "voice.change.account.hint" : {
-      "comment" : "VoiceOver hint on an account change (balance adjustment, transfer, account edit) in the voice card: tapping opens the account's details.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Opens the account details."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打开账户详情。"
-          }
-        }
-      }
-    },
-    "voice.change.recurring.hint" : {
-      "comment" : "VoiceOver hint on a recurring-rule result row; opens the recurring list.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Opens the recurring list."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打开周期记账列表。"
           }
         }
       }
@@ -18412,6 +18358,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "确实多还了"
+          }
+        }
+      }
+    },
+    "voice.change.locate.action" : {
+      "comment" : "从语音卡片打开的流水详情左上角的按钮：关掉详情，切到记账页并在列表里定位、标出这一笔",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show in Ledger"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在记账页定位"
           }
         }
       }

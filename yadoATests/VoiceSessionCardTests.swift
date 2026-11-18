@@ -177,7 +177,7 @@ struct VoiceSessionCardTests {
             window.rootViewController = UIHostingController(rootView:
                 VoiceSessionCard(
                     session: session, input: input,
-                    onLocateChange: { _ in }, onOpenTransaction: { _ in }, onOpenAccount: { _ in },
+                    onOpenTransaction: { _ in }, onOpenAccount: { _ in },
                     onManualEntry: { _ in }, onSignIn: {}, onSwitchModelTier: {}, onSelectOption: { _ in }, onEnd: {}
                 )
                 .environment(\.locale, Self.locale)

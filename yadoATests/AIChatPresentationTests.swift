@@ -176,6 +176,62 @@ struct AIChatPresentationTests {
         )
     }
 
+    // MARK: - 会话卡片点开结果
+
+    @Test("卡片上点新增、修改的流水打开它的详情，并带着这次改动以便去记账页定位；删除的不能点")
+    func cardOpensTransactionWithChange() {
+        let created = VoiceEntryChange(
+            kind: .created, transactionID: UUID(), transactionDay: 20261117, row: nil, accountName: "招商银行", label: "吃饭",
+            formattedAmount: "¥20.00", inferredFields: [.account], inverse: .delete(UUID()), highlight: nil
+        )
+        let deleted = VoiceEntryChange(
+            kind: .deleted, transactionID: UUID(), transactionDay: 20261116, row: nil, accountName: nil, label: "咖啡",
+            formattedAmount: "¥18.00", inferredFields: [], inverse: .delete(UUID()), highlight: nil
+        )
+        let changes: [VoiceChange] = [.entry(created), .entry(deleted)]
+
+        let createdRow = AIChatChangeSnapshot(change: .entry(created))
+        #expect(VoiceChangeOpenTarget.resolve(createdRow, in: changes) == .transaction(created))
+        #expect(VoiceChangeOpenTarget.resolve(AIChatChangeSnapshot(change: .entry(deleted)), in: changes) == nil)
+        // 纸条上的行找不到对应的改动时不打开
+        #expect(VoiceChangeOpenTarget.resolve(createdRow, in: [.entry(deleted)]) == nil)
+    }
+
+    @Test("卡片上点账户改动打开第一个账户，点周期记账打开列表；删掉的账户和规则不能点")
+    func cardOpensAccountAndRecurring() {
+        let fromID = UUID()
+        let transfer = VoiceChange.account(VoiceAccountChange(
+            accountIDs: [fromID, UUID()], actionText: "转账", title: "招行 → 微信", symbolName: "arrow.left.arrow.right",
+            formattedAmount: "¥100.00", detail: nil, summary: "已从招行转 ¥100.00 到微信", inverse: .removeTransfer(UUID())
+        ))
+        let removedAccount = VoiceChange.account(VoiceAccountChange(
+            accountIDs: [], actionText: "已删除", title: "旧卡", symbolName: "creditcard.fill",
+            formattedAmount: nil, detail: nil, summary: "已删除旧卡", inverse: .removeBalanceAdjustment(UUID())
+        ))
+        let rule = VoiceChange.recurring(VoiceRecurringChange(
+            ruleID: UUID(), actionText: "新建周期记账", title: "房租", symbolName: "house.fill", formattedAmount: "¥800.00",
+            detail: nil, summary: "已新建周期记账：房租，每月 ¥800.00", inverse: .remove(ruleID: UUID())
+        ))
+        let removedRule = VoiceChange.recurring(VoiceRecurringChange(
+            ruleID: nil, actionText: "已删除", title: "健身卡", symbolName: "figure.run", formattedAmount: "¥99.00",
+            detail: nil, summary: "已删除周期记账：健身卡", inverse: .remove(ruleID: UUID())
+        ))
+        let changes = [transfer, removedAccount, rule, removedRule]
+
+        #expect(VoiceChangeOpenTarget.resolve(AIChatChangeSnapshot(change: transfer), in: changes) == .account(fromID))
+        #expect(VoiceChangeOpenTarget.resolve(AIChatChangeSnapshot(change: removedAccount), in: changes) == nil)
+        #expect(VoiceChangeOpenTarget.resolve(AIChatChangeSnapshot(change: rule), in: changes) == .recurringRules)
+        #expect(VoiceChangeOpenTarget.resolve(AIChatChangeSnapshot(change: removedRule), in: changes) == nil)
+    }
+
+    @Test("详情里去记账页定位的按钮文案两种语言都有")
+    func locateActionIsLocalized() {
+        for localeID in ["en", "zh-Hans"] {
+            let value = AccountLocalization.string("voice.change.locate.action", locale: Locale(identifier: localeID))
+            #expect(value != "voice.change.locate.action")
+        }
+    }
+
     // MARK: - 查账分布
 
     @Test("范围覆盖今天时只算到今天；没有条件时取流水的范围")

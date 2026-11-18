@@ -70,7 +70,9 @@ struct AIChatTurnResultView: View {
 // MARK: - 结果纸条
 
 /// 结果纸条：逐行写入，全部写完才在标题后点上红色句号。撤销时用红笔逐行划掉。
-private struct AIChatResultSlip: View {
+///
+/// 聊天页和一级页面上的语音会话卡片共用这一张，两边的结果长得一样、点法一样：点行看详情，点红色虚线的待确认就地改。
+struct AIChatResultSlip: View {
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -207,7 +209,11 @@ private struct AIChatResultSlip: View {
                 && change.targetID.map { existingTargetIDs.contains($0) } == true,
             isPicking: pickingChangeID == change.id,
             accountOptions: accountOptions,
-            onOpen: { actions.open(change) },
+            onOpen: {
+                // 点下去轻轻一下，和按下时的底色一起告诉用户这一行是能点的
+                AppHaptics.play(.selection)
+                actions.open(change)
+            },
             onTapInferred: { tapInferred(change) },
             onPickAccount: { pick($0, for: change) }
         )
@@ -263,7 +269,7 @@ private struct AIChatResultSlip: View {
     }
 }
 
-/// 纸条上的一行：图标、名称、说明和金额。点行看详情，点红色虚线的待确认可以就地改。
+/// 纸条上的一行：图标、名称、说明和金额。点行看详情，按下时铺一层底色；点下方红色虚线的待确认可以就地改。
 private struct AIChatChangeRow: View {
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
@@ -300,70 +306,15 @@ private struct AIChatChangeRow: View {
     @State private var strikeProgress: CGFloat = 0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                Image(systemName: change.symbolName ?? "questionmark")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Color.accentColor)
-                    .frame(width: 32, height: 32)
-                    .background(Color.accentColor.opacity(0.08), in: Circle())
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        if let action {
-                            Text(action)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(change.kind == .deleted ? Color(.ledgerRed) : Color.secondary)
-                        }
-                        Text(change.title)
-                            .font(.subheadline.weight(.semibold))
-                            .lineLimit(1)
-                    }
-                    if let detail {
-                        Text(detail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-                    if let inferred, !isUndone {
-                        Button(action: onTapInferred) {
-                            Text(inferred)
-                                .font(.caption)
-                                .foregroundStyle(.primary)
-                                .padding(.bottom, 1.5)
-                                .overlay(alignment: .bottom) { AIChatDashedLine() }
-                                .frame(minHeight: 24)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("voice-chat-inferred")
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                if let amount = change.formattedAmount {
-                    Text(amount)
-                        .font(.system(.body, design: .serif).monospacedDigit())
-                        .lineLimit(1)
-                }
-                // 不可用时保留占位，各行金额仍然对齐
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 14)
-                    .opacity(isAvailable ? 1 : 0)
-                    .accessibilityHidden(true)
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(isAvailable ? .isButton : [])
-            .accessibilityAction {
+        VStack(alignment: .leading, spacing: 4) {
+            // 整行是一个按钮，按下时铺一层底色；待确认放在按钮外面，点它不会打开详情
+            Button {
                 if isAvailable { onOpen() }
+            } label: {
+                mainLine
             }
-            .accessibilityActions {
-                if let inferred, !isUndone {
-                    Button(inferred, action: onTapInferred)
-                }
-            }
-            .opacity(isUndone ? 0.45 : 1)
+            .buttonStyle(AIChatChangeRowButtonStyle(isEnabled: isAvailable))
+            .disabled(!isAvailable)
             .overlay {
                 AIChatHandStrike()
                     .trim(from: 0, to: strikeProgress)
@@ -372,9 +323,20 @@ private struct AIChatChangeRow: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if isAvailable { onOpen() }
+            if let inferred, !isUndone {
+                Button(action: onTapInferred) {
+                    Text(inferred)
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .padding(.bottom, 1.5)
+                        .overlay(alignment: .bottom) { AIChatDashedLine() }
+                        .frame(minHeight: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                // 与上面的名称、说明左对齐：图标 32 加间距 10
+                .padding(.leading, 42)
+                .accessibilityIdentifier("voice-chat-inferred")
             }
             if isPicking {
                 LedgerFlowLayout(spacing: 6) {
@@ -387,6 +349,7 @@ private struct AIChatChangeRow: View {
                     }
                 }
                 .padding(.leading, 42)
+                .padding(.top, 4)
                 .transition(.opacity.combined(with: .move(edge: .top)))
                 .accessibilityIdentifier("voice-chat-account-picks")
             }
@@ -402,6 +365,52 @@ private struct AIChatChangeRow: View {
                 strikeProgress = 1
             }
         }
+    }
+
+    /// 一行的主体：图标、动作和名称、说明、金额与行尾箭头；不可用时箭头留出占位，各行金额仍然对齐。
+    private var mainLine: some View {
+        HStack(spacing: 10) {
+            Image(systemName: change.symbolName ?? "questionmark")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 32, height: 32)
+                .background(Color.accentColor.opacity(0.08), in: Circle())
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    if let action {
+                        Text(action)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(change.kind == .deleted ? Color(.ledgerRed) : Color.secondary)
+                    }
+                    Text(change.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.primary)
+                        .lineLimit(1)
+                }
+                if let detail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if let amount = change.formattedAmount {
+                Text(amount)
+                    .font(.system(.body, design: .serif).monospacedDigit())
+                    .foregroundStyle(Color.primary)
+                    .lineLimit(1)
+            }
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 14)
+                .opacity(isAvailable ? 1 : 0)
+                .accessibilityHidden(true)
+        }
+        .opacity(isUndone ? 0.45 : 1)
+        .accessibilityElement(children: .combine)
     }
 
     /// 行首的动作；新增不写，纸条标题已经说了。
@@ -429,6 +438,28 @@ private struct AIChatChangeRow: View {
     /// 待确认字段的说明。
     private var inferred: String? {
         VoiceEntryChangeText.inferredText(change.inferredFields, locale: locale)
+    }
+}
+
+/// 纸条上一行的按钮外观：按下时铺一层浅底，底色比行稍宽，像在纸上按了一下；不能点时没有变化。
+///
+/// 底色用跟随外观的墨色透明度，浅色和深色纸面上都看得出来。
+private struct AIChatChangeRowButtonStyle: ButtonStyle {
+    /// 这一行能不能点；删除、撤销或目标已经不在时不铺底色。
+    let isEnabled: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        let isHighlighted = isEnabled && configuration.isPressed
+        configuration.label
+            .contentShape(Rectangle())
+            .background {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.primary.opacity(isHighlighted ? 0.07 : 0))
+                    // 底色往外扩一点，盖住图标和箭头的边，不贴着文字
+                    .padding(.horizontal, -8)
+                    .padding(.vertical, -6)
+            }
+            .animation(.easeOut(duration: 0.12), value: isHighlighted)
     }
 }
 
