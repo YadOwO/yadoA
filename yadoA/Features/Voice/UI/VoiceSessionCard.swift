@@ -271,11 +271,13 @@ private struct VoiceSessionTurnView: View {
     /// 这一轮涉及的流水、账户和规则里当前仍然存在的那些；`nil` 表示还没查过。
     @State private var existingTargetIDs: Set<UUID>?
 
-    /// 决定何时重新检查结果行目标是否还在的依赖：轮次增减、处理状态、撤销和详情弹层开关。
+    /// 决定何时重新检查结果行目标是否还在的依赖：轮次增减、处理状态、本轮和其他轮次的撤销、详情弹层开关。
     private struct RefreshKey: Equatable {
         let turnCount: Int
         let isProcessing: Bool
         let isUndone: Bool
+        /// 会话里已撤销的轮数；撤销后一轮会用原 UUID 把它删掉的记录恢复回来，前面的轮次要重新查。
+        let undoneTurnCount: Int
         let isShowingDetail: Bool
     }
 
@@ -347,6 +349,7 @@ private struct VoiceSessionTurnView: View {
                 turnCount: session.turns.count,
                 isProcessing: session.isProcessing,
                 isUndone: turn.isUndone,
+                undoneTurnCount: session.turns.lazy.filter(\.isUndone).count,
                 isShowingDetail: isShowingDetail
             )
         ) {
