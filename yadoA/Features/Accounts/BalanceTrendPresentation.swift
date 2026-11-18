@@ -42,12 +42,12 @@ enum BalanceTrendRange: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
-/// 走势金额的方向语义，决定线画在零的哪一侧和涨跌算好还是算坏。
+/// 走势金额的方向语义，决定涨跌算好还是算坏。
 enum BalanceTrendDirection: Equatable, Sendable {
-    /// 资产余额或净资产：从零往上画，变多是好事。
+    /// 资产余额或净资产：变多是好事。
     case asset
 
-    /// 信用卡、负债的欠款：取负后从零往下画，变多是坏事。
+    /// 信用卡、负债的欠款：按欠了多少（正数）画，变多是坏事。
     case debt
 }
 
@@ -128,6 +128,11 @@ struct BalanceTrendSeries: Equatable {
         AmountTone(signOf: direction == .debt ? -change : change)
     }
 
+    /// 整段走势变好还是变坏：线和「较某天」那一行都按它上色，跟随「正负颜色」设置；没有变化时不上色。
+    var changeTone: AmountTone {
+        tone(forChange: change)
+    }
+
     /// 某一点金额本身的上色语义，与账户行一致：欠款、透支、净资产为负时用负向色。
     ///
     /// - Parameter amount: 走势上某一点的金额。
@@ -135,88 +140,62 @@ struct BalanceTrendSeries: Equatable {
         AccountListPresentation.amountTone(isDebt: direction == .debt, balance: amount)
     }
 
+    /// 某个业务日对应的点；没有这一天或传入 `nil` 时为 `nil`。
+    ///
+    /// - Parameter day: `YYYYMMDD` 业务日。
+    func point(day: Int?) -> BalanceTrendPoint? {
+        guard let day else { return nil }
+        return points.first { $0.day == day }
+    }
+
     /// 离给定日期最近的点，供点按、滑动图表时选中；没有点时为 `nil`。
+    ///
+    /// 点按日期排好序，用二分查找，滑动时每一帧都要找一次。
     ///
     /// - Parameter date: 手指位置对应的日期。
     /// - Returns: 日期最接近的点；两边一样近时取较早的一个。
     func point(nearest date: Date) -> BalanceTrendPoint? {
-        points.min { lhs, rhs in
-            abs(lhs.date.timeIntervalSince(date)) < abs(rhs.date.timeIntervalSince(date))
-        }
-    }
-
-    /// 金额画在图上的位置：资产原样在零上方，欠款取负画在零下方。
-    ///
-    /// 这样零以上都是撑起净资产的部分、零以下都是拉低净资产的部分，线按所在一侧取正向色或负向色。
-    ///
-    /// - Parameter amount: 走势上某一点的金额。
-    /// - Returns: 带符号的纵轴值。
-    func plotValue(of amount: Decimal) -> Decimal {
-        direction == .debt ? -amount : amount
-    }
-
-    /// 按零上、零下切开的几段线，供分段上色。
-    ///
-    /// 相邻两点一正一负时，在两点连线与零的交点补一个零点，前一段在这里收尾、后一段从这里开始，
-    /// 两段颜色在零处接上，不会出现一截线颜色画错一侧。值为零的点跟着前面的段走。
-    var segments: [BalanceTrendSegment] {
-        var result: [BalanceTrendSegment] = []
-        var current: [BalanceTrendPlotPoint] = []
-        // 当前段的正负号；段开头全是零时还没定下来，记为 0
-        var currentSign = 0
-
-        func closeSegment() {
-            guard !current.isEmpty else { return }
-            result.append(BalanceTrendSegment(id: result.count, isBelowZero: currentSign < 0, points: current))
-        }
-
-        for point in points {
-            let value = plotValue(of: point.amount).doubleValue
-            let sign = value > 0 ? 1 : (value < 0 ? -1 : 0)
-            if sign != 0, currentSign != 0, sign != currentSign, let previous = current.last {
-                let crossing: BalanceTrendPlotPoint
-                if previous.value == 0 {
-                    crossing = previous
-                } else {
-                    // 两点一正一负，比例一定落在 0 和 1 之间
-                    let fraction = previous.value / (previous.value - value)
-                    crossing = BalanceTrendPlotPoint(
-                        date: previous.date.addingTimeInterval(point.date.timeIntervalSince(previous.date) * fraction),
-                        value: 0,
-                        amount: nil
-                    )
-                    current.append(crossing)
-                }
-                closeSegment()
-                current = [crossing]
-                currentSign = sign
+        guard let first = points.first, let last = points.last else { return nil }
+        // 找第一个不早于它的点，再和前一个比远近
+        var low = 0
+        var high = points.count
+        while low < high {
+            let middle = (low + high) / 2
+            if points[middle].date < date {
+                low = middle + 1
+            } else {
+                high = middle
             }
-            if currentSign == 0 { currentSign = sign }
-            current.append(BalanceTrendPlotPoint(date: point.date, value: value, amount: point.amount))
         }
-        closeSegment()
-        return result
+        if low == 0 { return first }
+        if low == points.count { return last }
+        let before = points[low - 1]
+        let after = points[low]
+        return date.timeIntervalSince(before.date) <= after.date.timeIntervalSince(date) ? before : after
     }
 
-    /// 完整走势的纵轴范围：总包含零，资产从零往上、欠款从零往下；远离零的一侧留一点空白。
+    /// 读屏上下轻扫时换到的点：从选中的那天往后或往前挪几个点，到头就停在头上。
     ///
-    /// 全是零时按方向留出一格：资产线贴在底部，欠款线贴在顶部。
-    var valueDomain: ClosedRange<Double> {
-        let values = points.map { plotValue(of: $0.amount).doubleValue }
-        let low = min(values.min() ?? 0, 0)
-        let high = max(values.max() ?? 0, 0)
-        guard high > low else { return direction == .debt ? -1...0 : 0...1 }
-        let padding = (high - low) * 0.08
-        return (low < 0 ? low - padding : 0)...(high > 0 ? high + padding : 0)
+    /// - Parameters:
+    ///   - day: 当前选中的业务日；还没选中时从最后一天开始。
+    ///   - offset: 往后为正，往前为负。
+    /// - Returns: 挪到的点；没有点时为 `nil`。
+    func point(steppingFrom day: Int?, by offset: Int) -> BalanceTrendPoint? {
+        guard !points.isEmpty else { return nil }
+        guard let day, let index = points.firstIndex(where: { $0.day == day }) else {
+            return points.last
+        }
+        return points[min(max(index + offset, 0), points.count - 1)]
     }
 
-    /// 迷你走势的纵轴范围：只框住线本身，上下留一点空白，让小图也看得出起伏。
+    /// 纵轴范围：上下各留一点空白，让线不贴边，起伏看得清；金额全都一样时围绕它展开。
     ///
-    /// 都不为负时下沿不低于零，都不为正时上沿不高于零；全是零时按方向留出一格。
-    var fittedDomain: ClosedRange<Double> {
-        let values = points.map { plotValue(of: $0.amount).doubleValue }
-        guard let low = values.min(), let high = values.max() else { return 0...1 }
-        if low == 0, high == 0 { return direction == .debt ? -1...0 : 0...1 }
+    /// 金额都不为负时下沿不低于零，都不为正时上沿不高于零，避免出现没有意义的负数或正数刻度。
+    var amountDomain: ClosedRange<Double> {
+        let amounts = points.map(\.amount.doubleValue)
+        guard let low = amounts.min(), let high = amounts.max() else { return 0...1 }
+        // 全是零（例如没有负债）：把线放在底部
+        if low == 0, high == 0 { return 0...1 }
         let padding = high > low ? (high - low) * 0.12 : max(abs(high) * 0.1, 1)
         var lower = low - padding
         var upper = high + padding
@@ -225,34 +204,10 @@ struct BalanceTrendSeries: Equatable {
         return lower...upper
     }
 
-    /// 线是否同时有零上和零下的部分；迷你走势只在这时画零线。
+    /// 金额是否有正有负；跨过零时在零处画一道淡线，看得出什么时候转正、转负。
     var crossesZero: Bool {
         points.contains { $0.amount < 0 } && points.contains { $0.amount > 0 }
     }
-}
-
-/// 画在图上的一个位置：日期和带符号的纵轴值。
-struct BalanceTrendPlotPoint: Equatable {
-    /// 横轴日期；跨零处补的点落在两天之间。
-    let date: Date
-
-    /// 纵轴值：零上为资产，零下为欠款。
-    let value: Double
-
-    /// 对应那一天的金额，供读屏播报；跨零处补的点不是某一天，为 `nil`。
-    let amount: Decimal?
-}
-
-/// 同在零上或同在零下的一段连续走势。
-struct BalanceTrendSegment: Identifiable, Equatable {
-    /// 段的序号，从早到晚递增。
-    let id: Int
-
-    /// 是否在零下方，决定用负向色还是正向色。
-    let isBelowZero: Bool
-
-    /// 段内按日期从早到晚排列的点。
-    let points: [BalanceTrendPlotPoint]
 }
 
 /// 按日推算账户余额的历史。
@@ -261,6 +216,9 @@ struct BalanceTrendSegment: Identifiable, Equatable {
 /// 流水规则与余额缓存一致，都来自 `AccountBalanceRebuilder.balanceChanges`。
 /// 账户从建账那天、或最早一笔流水的前一天（取更早的）开始计入，在此之前不算；
 /// 留出前一天是为了让期初余额也成为线上的一点，建账当天就记了账也能看到第一笔带来的变化。
+///
+/// 最费时的是把全部流水汇总成每个账户每天的变化（`Ledger`）。界面上由 `BalanceHistoryStore`
+/// 在本地数据变化后汇总一次并缓存，这里只用汇总好的材料取点，切换范围、金额种类和滑动查看都不再读流水。
 struct AccountBalanceHistory {
     /// 单个账户推算走势需要的材料。
     struct Ledger {
@@ -277,6 +235,69 @@ struct AccountBalanceHistory {
         let changes: [(day: Int, amount: Decimal)]
     }
 
+    /// 逐笔汇总流水，得到各账户每天的余额变化；缓存分批读取流水时一笔一笔加进来。
+    ///
+    /// 未知类型的账户无法判断流水方向，不汇总它的流水，按当前余额从建账日起保持不变；与汇总卡片一样计入资产。
+    struct LedgerBuilder {
+        /// 已知类型的账户，决定流水让余额变多还是变少。
+        private let accountTypes: [UUID: AccountType]
+
+        /// 账户 UUID → 业务日 → 当天余额变化合计。
+        private var changesByAccount: [UUID: [Int: Decimal]] = [:]
+
+        /// - Parameter accounts: 要汇总的账户。
+        init(accounts: [Account]) {
+            var accountTypes: [UUID: AccountType] = [:]
+            for account in accounts {
+                if let type = account.accountType { accountTypes[account.id] = type }
+            }
+            self.accountTypes = accountTypes
+        }
+
+        /// 加入一笔流水；业务日无效、字段损坏或与这些账户无关的不计。
+        ///
+        /// - Parameter transaction: 一笔流水。
+        mutating func add(_ transaction: AccountTransaction) {
+            let day = transaction.transactionDay
+            // 展示用的推算：极端金额算不出来时跳过这一笔，不影响页面其他内容
+            guard TransactionDay.isValid(day),
+                  let changes = try? AccountBalanceRebuilder.balanceChanges(
+                      of: transaction,
+                      accountTypes: accountTypes
+                  )
+            else { return }
+            for change in changes {
+                changesByAccount[change.accountID, default: [:]][day, default: .zero] += change.amount
+            }
+        }
+
+        /// 生成各账户的推算材料。
+        ///
+        /// - Parameters:
+        ///   - accounts: 与建立时相同的账户，提供当前余额和建账日。
+        ///   - calendar: 提供时区的日历，内部统一换成公历。
+        /// - Returns: 账户 UUID 到推算材料的映射。
+        func ledgers(for accounts: [Account], calendar sourceCalendar: Calendar) -> [UUID: Ledger] {
+            let calendar = TransactionDay.gregorianCalendar(basedOn: sourceCalendar)
+            var ledgers: [UUID: Ledger] = [:]
+            for account in accounts {
+                let changes = changesByAccount[account.id] ?? [:]
+                let createdDay = TransactionDay.encode(account.createdAt, calendar: calendar)
+                let openingDay = changes.keys.min()
+                    .map { AccountBalanceHistory.day(before: $0, calendar: calendar) } ?? createdDay
+                ledgers[account.id] = Ledger(
+                    startDay: min(createdDay, openingDay),
+                    balance: account.balance,
+                    isDebt: account.accountType?.expenseBalanceEffect == .increaseDebt,
+                    changes: changes
+                        .map { (day: $0.key, amount: $0.value) }
+                        .sorted { $0.day > $1.day }
+                )
+            }
+            return ledgers
+        }
+    }
+
     /// 参与推算的账户，键为账户 UUID。
     let ledgers: [UUID: Ledger]
 
@@ -286,9 +307,29 @@ struct AccountBalanceHistory {
     /// 推算日期使用的公历，时区沿用调用方。
     private let calendar: Calendar
 
-    /// 由账户和流水建立推算材料。
+    /// 由已经汇总好的材料建立；界面用 `BalanceHistoryStore` 缓存的材料走这里，不读流水。
     ///
-    /// 未知类型的账户无法判断流水方向，按当前余额从建账日起保持不变；与汇总卡片一样计入资产。
+    /// - Parameters:
+    ///   - ledgers: 各账户的推算材料。
+    ///   - accountIDs: 只看这些账户；为 `nil` 时看全部。
+    ///   - today: 今天，决定走势至少画到哪天。
+    ///   - calendar: 提供时区的日历，内部统一换成公历。
+    init(
+        ledgers: [UUID: Ledger],
+        accountIDs: Set<UUID>? = nil,
+        today: Date = .now,
+        calendar sourceCalendar: Calendar = .current
+    ) {
+        let calendar = TransactionDay.gregorianCalendar(basedOn: sourceCalendar)
+        let selected = accountIDs.map { ids in ledgers.filter { ids.contains($0.key) } } ?? ledgers
+        self.calendar = calendar
+        self.ledgers = selected
+        // 变化按从晚到早排，第一条就是这个账户最晚的一笔
+        let latestDay = selected.values.compactMap { $0.changes.first?.day }.max()
+        self.endDay = max(TransactionDay.encode(today, calendar: calendar), latestDay ?? .min)
+    }
+
+    /// 由账户和流水直接建立，测试和预览用；界面上走 `BalanceHistoryStore` 的缓存。
     ///
     /// - Parameters:
     ///   - accounts: 参与推算的账户。
@@ -301,45 +342,15 @@ struct AccountBalanceHistory {
         today: Date = .now,
         calendar sourceCalendar: Calendar = .current
     ) {
-        let calendar = TransactionDay.gregorianCalendar(basedOn: sourceCalendar)
-        self.calendar = calendar
-
-        var accountTypes: [UUID: AccountType] = [:]
-        for account in accounts {
-            if let type = account.accountType { accountTypes[account.id] = type }
+        var builder = LedgerBuilder(accounts: accounts)
+        for transaction in transactions {
+            builder.add(transaction)
         }
-
-        var changesByAccount: [UUID: [Int: Decimal]] = [:]
-        var endDay = TransactionDay.encode(today, calendar: calendar)
-        for transaction in transactions where TransactionDay.isValid(transaction.transactionDay) {
-            // 展示用的推算：极端金额算不出来时跳过这一笔，不影响页面其他内容
-            guard let changes = try? AccountBalanceRebuilder.balanceChanges(
-                of: transaction,
-                accountTypes: accountTypes
-            ), !changes.isEmpty else { continue }
-            let day = transaction.transactionDay
-            endDay = max(endDay, day)
-            for change in changes {
-                changesByAccount[change.accountID, default: [:]][day, default: .zero] += change.amount
-            }
-        }
-
-        var ledgers: [UUID: Ledger] = [:]
-        for account in accounts {
-            let changes = changesByAccount[account.id] ?? [:]
-            let createdDay = TransactionDay.encode(account.createdAt, calendar: calendar)
-            let openingDay = changes.keys.min().map { Self.day(before: $0, calendar: calendar) } ?? createdDay
-            ledgers[account.id] = Ledger(
-                startDay: min(createdDay, openingDay),
-                balance: account.balance,
-                isDebt: account.accountType?.expenseBalanceEffect == .increaseDebt,
-                changes: changes
-                    .map { (day: $0.key, amount: $0.value) }
-                    .sorted { $0.day > $1.day }
-            )
-        }
-        self.ledgers = ledgers
-        self.endDay = endDay
+        self.init(
+            ledgers: builder.ledgers(for: accounts, calendar: sourceCalendar),
+            today: today,
+            calendar: sourceCalendar
+        )
     }
 
     /// 是否有可以看的走势：参与推算的账户里至少记过一笔流水。

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import yadoA
 
@@ -194,40 +195,36 @@ struct AccountBalanceHistoryTests {
         #expect(partial.map { $0.accountID } == [cashID])
     }
 
-    @Test("完整走势的纵轴从零起：资产往上、欠款往下；迷你走势只框住线；点按、滑动取最近的一天")
+    @Test("纵轴范围留白但不越过零；有正有负时标出零线；点按、滑动取最近的一天")
     func seriesHelpers() throws {
         let start = try day(20260810)
-        let asset = BalanceTrendSeries(
+        let positive = BalanceTrendSeries(
             points: [
-                BalanceTrendPoint(day: 20260810, date: start, amount: 100),
+                BalanceTrendPoint(day: 20260810, date: start, amount: 10),
                 BalanceTrendPoint(day: 20260811, date: start.addingTimeInterval(86_400), amount: 110)
             ],
             direction: .asset
         )
-        #expect(asset.valueDomain.lowerBound == 0)
-        #expect(asset.valueDomain.upperBound > 110)
-        #expect(asset.fittedDomain.lowerBound > 0)
-        #expect(asset.fittedDomain.lowerBound < 100)
-        #expect(asset.fittedDomain.upperBound > 110)
-        #expect(!asset.crossesZero)
-        #expect(asset.point(nearest: start.addingTimeInterval(60_000))?.day == 20260811)
-        #expect(asset.point(nearest: start.addingTimeInterval(-60_000))?.day == 20260810)
+        #expect(positive.amountDomain.lowerBound == 0)
+        #expect(positive.amountDomain.upperBound > 110)
+        #expect(!positive.crossesZero)
+        #expect(positive.point(nearest: start.addingTimeInterval(60_000))?.day == 20260811)
+        #expect(positive.point(nearest: start.addingTimeInterval(-60_000))?.day == 20260810)
+        #expect(positive.point(nearest: start.addingTimeInterval(43_200))?.day == 20260810)
+        #expect(positive.point(nearest: start.addingTimeInterval(500_000))?.day == 20260811)
+        #expect(positive.point(day: 20260811)?.amount == 110)
+        #expect(positive.point(day: nil) == nil)
 
-        // 欠款取负画在零下方，零在纵轴顶端
-        let debt = BalanceTrendSeries(
+        // 余额都很大、起伏很小时纵轴只框住这一段，线不会被压平
+        let large = BalanceTrendSeries(
             points: [
-                BalanceTrendPoint(day: 20260810, date: start, amount: 100),
-                BalanceTrendPoint(day: 20260811, date: start.addingTimeInterval(86_400), amount: 300)
+                BalanceTrendPoint(day: 20260810, date: start, amount: 50_000),
+                BalanceTrendPoint(day: 20260811, date: start.addingTimeInterval(86_400), amount: 51_000)
             ],
-            direction: .debt
+            direction: .asset
         )
-        #expect(debt.plotValue(of: 300) == -300)
-        #expect(debt.valueDomain.upperBound == 0)
-        #expect(debt.valueDomain.lowerBound < -300)
-        #expect(debt.fittedDomain.upperBound < 0)
-        #expect(debt.segments.count == 1)
-        #expect(debt.segments.first?.isBelowZero == true)
-        #expect(debt.segments.first?.points.map(\.value) == [-100, -300])
+        #expect(large.amountDomain.lowerBound > 49_000)
+        #expect(large.amountDomain.upperBound < 52_000)
 
         let mixed = BalanceTrendSeries(
             points: [
@@ -237,61 +234,150 @@ struct AccountBalanceHistoryTests {
             direction: .asset
         )
         #expect(mixed.crossesZero)
-        #expect(mixed.valueDomain.contains(-50))
-        #expect(mixed.valueDomain.contains(50))
+        #expect(mixed.amountDomain.contains(0))
 
-        let zeroAssets = BalanceTrendSeries(
-            points: [BalanceTrendPoint(day: 20260810, date: start, amount: 0)],
-            direction: .asset
-        )
-        #expect(zeroAssets.valueDomain == 0...1)
-        #expect(zeroAssets.fittedDomain == 0...1)
-
-        let zeroDebt = BalanceTrendSeries(
+        let zeros = BalanceTrendSeries(
             points: [BalanceTrendPoint(day: 20260810, date: start, amount: 0)],
             direction: .debt
         )
-        #expect(zeroDebt.valueDomain == -1...0)
-        #expect(zeroDebt.fittedDomain == -1...0)
+        #expect(zeros.amountDomain == 0...1)
+        #expect(zeros.point(nearest: start) == zeros.points.first)
+        #expect(BalanceTrendSeries(points: [], direction: .asset).point(nearest: start) == nil)
     }
 
-    @Test("跨过零时在两点之间补一个零点，前后两段在零上接起来，分别算零下和零上")
-    func splitsSegmentsAtZero() throws {
+    @Test("线的颜色看整段变好还是变坏：资产变多、欠款变少为正向，没有变化不上色")
+    func colorsLineByChange() throws {
+        let start = try day(20260810)
+        func series(_ first: Decimal, _ last: Decimal, _ direction: BalanceTrendDirection) -> BalanceTrendSeries {
+            BalanceTrendSeries(
+                points: [
+                    BalanceTrendPoint(day: 20260810, date: start, amount: first),
+                    BalanceTrendPoint(day: 20260811, date: start.addingTimeInterval(86_400), amount: last)
+                ],
+                direction: direction
+            )
+        }
+
+        #expect(series(100, 120, .asset).changeTone == .positive)
+        #expect(series(120, 100, .asset).changeTone == .negative)
+        #expect(series(300, 500, .debt).changeTone == .negative)
+        #expect(series(500, 300, .debt).changeTone == .positive)
+        #expect(series(100, 100, .asset).changeTone == .neutral)
+        // 金额本身的颜色仍与账户行一致：欠款用负向色，资产余额不上色
+        #expect(series(500, 300, .debt).amountTone(for: 300) == .negative)
+        #expect(series(100, 120, .asset).amountTone(for: 120) == .neutral)
+    }
+
+    @Test("读屏上下轻扫逐日切换：没选中时从最后一天开始，到头停住")
+    func stepsSelectionForVoiceOver() throws {
         let start = try day(20260810)
         let series = BalanceTrendSeries(
-            points: [
-                BalanceTrendPoint(day: 20260810, date: start, amount: -50),
-                BalanceTrendPoint(day: 20260811, date: start.addingTimeInterval(86_400), amount: 50),
-                BalanceTrendPoint(day: 20260812, date: start.addingTimeInterval(172_800), amount: 80)
-            ],
+            points: (0..<3).map { offset in
+                BalanceTrendPoint(
+                    day: 20260810 + offset,
+                    date: start.addingTimeInterval(Double(offset) * 86_400),
+                    amount: Decimal(offset)
+                )
+            },
             direction: .asset
         )
-        let segments = series.segments
-        #expect(segments.map(\.isBelowZero) == [true, false])
-        #expect(segments.map(\.id) == [0, 1])
 
-        let crossing = try #require(segments.first?.points.last)
-        #expect(crossing.value == 0)
-        #expect(crossing.amount == nil)
-        #expect(crossing.date == start.addingTimeInterval(43_200))
-        #expect(segments.last?.points.first == crossing)
-        #expect(segments.first?.points.map(\.value) == [-50, 0])
-        #expect(segments.last?.points.map(\.value) == [0, 50, 80])
-        #expect(segments.last?.points.last?.amount == 80)
+        #expect(series.point(steppingFrom: nil, by: -1)?.day == 20260812)
+        #expect(series.point(steppingFrom: 20260812, by: -1)?.day == 20260811)
+        #expect(series.point(steppingFrom: 20260810, by: -1)?.day == 20260810)
+        #expect(series.point(steppingFrom: 20260812, by: 1)?.day == 20260812)
+        #expect(series.point(steppingFrom: 20990101, by: 1)?.day == 20260812)
+        #expect(BalanceTrendSeries(points: [], direction: .asset).point(steppingFrom: nil, by: 1) == nil)
+    }
 
-        // 正好落在零上的点直接当接头，不再另补
-        let touching = BalanceTrendSeries(
-            points: [
-                BalanceTrendPoint(day: 20260810, date: start, amount: 5),
-                BalanceTrendPoint(day: 20260811, date: start.addingTimeInterval(86_400), amount: 0),
-                BalanceTrendPoint(day: 20260812, date: start.addingTimeInterval(172_800), amount: -3)
-            ],
-            direction: .asset
+    @Test("用汇总好的材料建走势与直接用流水建的一致；可以只取部分账户，终点只看这些账户的流水")
+    func buildsFromCachedLedgers() throws {
+        let cash = makeAccount(type: .cash, balance: 900, createdDay: 20260801)
+        let credit = makeAccount(type: .creditCard, balance: 200, createdDay: 20260805)
+        let accounts = [cash, credit]
+        let transactions = [
+            try expense(cash.id, amount: 100, day: 20260810),
+            try expense(credit.id, amount: 200, day: 20260812),
+            try expense(credit.id, amount: 50, day: 20260830),
+            try income(credit.id, amount: 50, day: 20260830)
+        ]
+        let today = try day(20260819)
+
+        let direct = AccountBalanceHistory(
+            accounts: accounts,
+            transactions: transactions,
+            today: today,
+            calendar: utcCalendar
         )
-        #expect(touching.segments.map(\.isBelowZero) == [false, true])
-        #expect(touching.segments.first?.points.map(\.value) == [5, 0])
-        #expect(touching.segments.last?.points.map(\.value) == [0, -3])
-        #expect(touching.segments.last?.points.first?.amount == 0)
+        var builder = AccountBalanceHistory.LedgerBuilder(accounts: accounts)
+        transactions.forEach { builder.add($0) }
+        let ledgers = builder.ledgers(for: accounts, calendar: utcCalendar)
+        let cached = AccountBalanceHistory(ledgers: ledgers, today: today, calendar: utcCalendar)
+
+        #expect(cached.endDay == direct.endDay)
+        for range in BalanceTrendRange.allCases {
+            for metric in NetWorthTrendMetric.allCases {
+                #expect(cached.netWorthSeries(metric, range: range) == direct.netWorthSeries(metric, range: range))
+            }
+            #expect(cached.accountSeries(cash.id, range: range) == direct.accountSeries(cash.id, range: range))
+        }
+
+        // 只看现金账户：信用卡 8/30 那两笔不让走势画到 8/30
+        let cashOnly = AccountBalanceHistory(
+            ledgers: ledgers,
+            accountIDs: [cash.id],
+            today: today,
+            calendar: utcCalendar
+        )
+        #expect(cached.endDay == 20260830)
+        #expect(cashOnly.endDay == 20260819)
+        #expect(Array(cashOnly.ledgers.keys) == [cash.id])
+        #expect(cashOnly.netWorthSeries(.netAssets, range: .threeMonths).points.last?.amount == 900)
+        #expect(cashOnly.netWorthSeries(.liabilities, range: .threeMonths).points.allSatisfy { $0.amount == 0 })
+    }
+
+    @Test("走势缓存从本地数据分批读取，结果与直接推算一致；本地数据保存后标记为过期")
+    func storeLoadsAndInvalidatesOnSave() async throws {
+        let dataContainer = try AccountDataContainer.inMemory()
+        let container = dataContainer.modelContainer
+        let cash = makeAccount(type: .cash, balance: 900, createdDay: 20260801)
+        let credit = makeAccount(type: .creditCard, balance: 200, createdDay: 20260805)
+        let transactions = [
+            try expense(cash.id, amount: 100, day: 20260810),
+            try expense(credit.id, amount: 200, day: 20260812)
+        ]
+        let context = ModelContext(container)
+        context.insert(cash)
+        context.insert(credit)
+        transactions.forEach { context.insert($0) }
+        try context.save()
+
+        let store = BalanceHistoryStore()
+        #expect(store.ledgers == nil)
+        await store.reload(container: container, calendar: utcCalendar)
+
+        let ledgers = try #require(store.ledgers)
+        let today = try day(20260819)
+        let cached = AccountBalanceHistory(ledgers: ledgers, today: today, calendar: utcCalendar)
+        let direct = AccountBalanceHistory(
+            accounts: [cash, credit],
+            transactions: transactions,
+            today: today,
+            calendar: utcCalendar
+        )
+        #expect(Set(ledgers.keys) == [cash.id, credit.id])
+        #expect(cached.netWorthSeries(.netAssets, range: .all) == direct.netWorthSeries(.netAssets, range: .all))
+        #expect(cached.accountSeries(credit.id, range: .all) == direct.accountSeries(credit.id, range: .all))
+
+        // 再保存一次：数据版本加一，页面据此重算
+        let before = store.dataVersion
+        let writer = ModelContext(container)
+        writer.insert(try income(cash.id, amount: 10, day: 20260815))
+        try writer.save()
+        for _ in 0..<100 where store.dataVersion == before {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(store.dataVersion > before)
     }
 
     // MARK: - 辅助

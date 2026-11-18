@@ -217,6 +217,8 @@ struct AppTabView: View {
     @State private var profilePath: [ProfileRoute] = []
     /// 语音记账的共享状态；麦克风可能在 Tab Bar 附属栏里，与各一级页面的会话卡片分属两处，由这里统一持有。
     @State private var voice = VoiceBookkeepingState()
+    /// 余额走势的数据缓存，账户页、资产趋势页和账户详情共用；切 Tab 时保留，回来不用重新汇总流水。
+    @State private var balanceHistory = BalanceHistoryStore()
 
     /// 是否允许联网；没注入同意状态时按允许处理。
     private var isNetworkAllowed: Bool {
@@ -366,6 +368,7 @@ struct AppTabView: View {
                         }
                     }
             }
+            .environment(balanceHistory)
         case .profile:
             NavigationStack(path: $profilePath) {
                 ProfileView()

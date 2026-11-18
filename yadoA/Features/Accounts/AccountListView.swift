@@ -12,8 +12,8 @@ struct AccountListView: View {
     @Environment(VoiceBookkeepingState.self) private var voice: VoiceBookkeepingState?
     @Query private var queriedAccounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
-    /// 全部流水，用来推算汇总卡片里的净资产走势。
-    @Query private var transactions: [AccountTransaction]
+    /// 汇总卡片里净资产走势的材料；在数据变化后汇总一次，账户页不再读全部流水。
+    @Environment(BalanceHistoryStore.self) private var balanceHistory
     @State private var isPresentingCreation = false
     @State private var isPresentingManagement = false
     @State private var isPresentingDeactivated = false
@@ -64,6 +64,7 @@ struct AccountListView: View {
         }
         .onAppear { isVisible = true }
         .onDisappear { isVisible = false }
+        .refreshesBalanceHistory()
         // 用户正看着账户页时语音改了账户：在这些账户的名称和金额下补一道笔迹，并把第一个滚到可见处
         .onChange(of: voice?.session?.latestTurn?.outcome) { _, outcome in
             guard isVisible, outcome != .processing, let turn = voice?.session?.latestTurn else { return }
@@ -265,11 +266,16 @@ struct AccountListView: View {
         }
     }
 
-    /// 启用账户合计的净资产近三个月走势，与汇总卡片同一口径；一笔流水都没有时不画。
+    /// 启用账户合计的净资产近三个月走势，与汇总卡片同一口径；一笔流水都没有、或材料还没汇总好时不画。
     ///
     /// - Parameter accounts: 列表里的启用账户。
     private func netWorthTrend(of accounts: [Account]) -> BalanceTrendSeries? {
-        let history = AccountBalanceHistory(accounts: accounts, transactions: transactions, calendar: calendar)
+        guard let ledgers = balanceHistory.ledgers else { return nil }
+        let history = AccountBalanceHistory(
+            ledgers: ledgers,
+            accountIDs: Set(accounts.map(\.id)),
+            calendar: calendar
+        )
         guard history.hasHistory() else { return nil }
         return history.netWorthSeries(.netAssets, range: .threeMonths)
     }
@@ -450,6 +456,7 @@ private struct AccountListVoiceMark: Equatable {
     NavigationStack {
         AccountListView()
     }
+        .environment(BalanceHistoryStore())
         .modelContainer(
             for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
             inMemory: true
