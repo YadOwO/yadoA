@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OSLog
 import SwiftData
 import SwiftUI
 
@@ -8,14 +9,17 @@ import SwiftUI
 /// 流水可能有几万笔，不能每次刷新界面都全部读一遍。这里的做法：
 /// - 本地数据每保存一次，`dataVersion` 加一，旧结果标记为过期，但先不重算；
 /// - 有走势的页面在屏幕上时才重算，连续保存（导入、同步）只在停下来之后算一次；
-/// - 重算用一个临时 context 分批读取流水，每批之间让出主线程，读完就释放，不把几万笔流水留在内存里；
+/// - 重算用一个临时 context 读出流水，每汇总一批让出一次主线程，算完就释放，不把几万笔流水留在界面的 context 里；
 /// - 重算期间页面照常显示上一次的结果，算好后整体替换。
 ///
 /// 页面通过 `refreshesBalanceHistory()` 触发重算，用 `ledgers` 建 `AccountBalanceHistory` 取点。
 @Observable
 final class BalanceHistoryStore {
-    /// 每批读取的流水笔数；每读完一批让出一次主线程，保证滚动、点按不卡顿。
+    /// 每汇总这么多笔流水让出一次主线程，保证滚动、点按不卡顿。
     private static let batchSize = 2_000
+
+    /// 汇总失败时写日志，在 Xcode 控制台按「BalanceTrend」筛选可以看到。
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "yadoA", category: "BalanceTrend")
 
     /// 数据刚保存后等一小会儿再重算，连续保存只算一次。
     private static let debounce: Duration = .milliseconds(300)
@@ -84,14 +88,16 @@ final class BalanceHistoryStore {
             if loadingVersion == version { loadingVersion = nil }
         }
 
-        // 临时 context 读完即释放，读到的几万个流水对象不会留在界面的 context 里
+        // 临时 context：读出的几万个流水对象只挂在它上面，算完随它一起释放，不会留在界面的 context 里。
+        // 读取用和余额重算（AccountBalanceRebuilder）一样的整表读取。曾用过只读部分字段（propertiesToFetch）
+        // 加分批读取（fetch(_:batchSize:)），构建后走势整段消失；这两个接口项目里别处都没用过，换回前要先验证。
         let context = ModelContext(container)
         context.autosaveEnabled = false
         do {
             let accounts = try context.fetch(FetchDescriptor<Account>())
+            let transactions = try context.fetch(FetchDescriptor<AccountTransaction>())
             var builder = AccountBalanceHistory.LedgerBuilder(accounts: accounts)
             let batchSize = BalanceHistoryStore.batchSize
-            let transactions = try context.fetch(BalanceHistoryStore.transactionDescriptor, batchSize: batchSize)
             for (index, transaction) in transactions.enumerated() {
                 builder.add(transaction)
                 if index % batchSize == batchSize - 1 {
@@ -100,33 +106,24 @@ final class BalanceHistoryStore {
                     if Task.isCancelled { return }
                 }
             }
-            ledgers = builder.ledgers(for: accounts, calendar: calendar)
+            let result = builder.ledgers(for: accounts, calendar: calendar)
+            ledgers = result
             loadedVersion = version
             loadedContainer = ObjectIdentifier(container)
+            let transactionCount = transactions.count
+            let accountCount = accounts.count
+            let changedDayCount = result.values.reduce(0) { $0 + $1.changes.count }
+            BalanceHistoryStore.logger.debug(
+                "Summed \(transactionCount) transactions into \(changedDayCount) account-days for \(accountCount) accounts"
+            )
         } catch {
+            let message = String(describing: error)
+            BalanceHistoryStore.logger.error("Failed to load balance history: \(message, privacy: .public)")
             // 展示用的缓存：读不出来时继续用上一次的结果；第一次就失败时按没有流水处理，页面不会一直转圈
             if ledgers == nil { ledgers = [:] }
         }
-    }
-
-    /// 只读汇总要用的字段，备注等其他字段不读，减少读取量。
-    ///
-    /// 这里列的字段必须覆盖 `AccountBalanceRebuilder.balanceChanges` 和 `LedgerBuilder.add` 读到的全部字段，
-    /// 漏了的字段会在读到时逐笔补取，反而更慢。
-    private static var transactionDescriptor: FetchDescriptor<AccountTransaction> {
-        var descriptor = FetchDescriptor<AccountTransaction>()
-        descriptor.propertiesToFetch = [
-            \.accountID,
-            \.typeRawValue,
-            \.categoryRawValue,
-            \.amount,
-            \.balanceBefore,
-            \.balanceAfter,
-            \.balanceDelta,
-            \.counterpartAccountID,
-            \.transactionDay
-        ]
-        return descriptor
+        // 流水对象读字段要靠它所在的 context，汇总完之前不能让 context 提前释放
+        withExtendedLifetime(context) {}
     }
 
     /// 监听本地数据保存：任何 context 保存后都把结果标记为过期。
