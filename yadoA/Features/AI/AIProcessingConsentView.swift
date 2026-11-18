@@ -109,9 +109,12 @@ struct AIProcessingConsentSheet: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 8)
             .padding(.top, 8)
+            .background(Color(.paperBackground))
         }
         .paperPage()
         .presentationDetents([.large])
+        // 让弹层自成容器：按钮保留各自的标识，不被弹层这一层的标识盖掉
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("ai-consent-sheet")
     }
 
