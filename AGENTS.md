@@ -18,7 +18,7 @@
 
   | 配置 | 环境 | Bundle ID | 图标 | Scheme | 用途 |
   | --- | --- | --- | --- | --- | --- |
-  | Debug | dev | `com.yado.yadoA.dev` | `AppIconDev` | `yadoA` | 日常开发、测试 |
+  | Debug | dev | `top.yado1225.yadoA.dev` | `AppIconDev` | `yadoA` | 日常开发、测试 |
   | DebugProd | 线上 | `top.yado1225.yadoA` | `AppIcon` | `yadoA-prod` | 断点排查线上问题 |
   | Release | 线上 | `top.yado1225.yadoA` | `AppIcon` | 各 Scheme 的 Archive | 出包（TestFlight 和上架是同一个包） |
 

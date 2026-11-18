@@ -408,4 +408,20 @@ enum AIChatCopy {
         }
         return String(format: AccountLocalization.string(key, locale: locale), locale: locale, items.count)
     }
+
+    /// 这一轮界面上是否正在显示模型写的话：回复、追问、需要账户的提示，或用模型原话做标题的纸条。
+    ///
+    /// 聊天页和语音卡片都靠它决定要不要在下面标「由 AI 生成」，判断只在这里写一份。
+    /// 失败提示、处理中（没有结果文字）、以及纸条用短标题时（含「已撤销」）都不算：那些是本机拼的文案或用户确认过的改动。
+    /// 纸条是否用短标题，直接复用 `slipHeadline(for:locale:)`，不重新实现。
+    ///
+    /// - Parameters:
+    ///   - snapshot: 这一轮的展示内容。
+    ///   - locale: 文案使用的语言环境。
+    /// - Returns: 界面上显示的是模型写的话时为 `true`。
+    static func showsModelText(in snapshot: AIChatTurnSnapshot, locale: Locale) -> Bool {
+        !snapshot.isFailed
+            && snapshot.resultText != nil
+            && (snapshot.changes.isEmpty || slipHeadline(for: snapshot, locale: locale) == nil)
+    }
 }

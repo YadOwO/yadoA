@@ -11,7 +11,7 @@ import Foundation
 ///
 /// | 配置       | 标志               | 环境 | Bundle ID            | 用途                   |
 /// |------------|--------------------|------|----------------------|------------------------|
-/// | Debug      | `DEBUG` `ENV_DEV`  | dev  | `com.yado.yadoA.dev` | 日常开发、测试         |
+/// | Debug      | `DEBUG` `ENV_DEV`  | dev  | `top.yado1225.yadoA.dev` | 日常开发、测试         |
 /// | DebugProd  | `DEBUG` `ENV_PROD` | 线上 | `top.yado1225.yadoA`     | 断点排查线上问题       |
 /// | Release    | `ENV_PROD`         | 线上 | `top.yado1225.yadoA`     | 出包                   |
 ///

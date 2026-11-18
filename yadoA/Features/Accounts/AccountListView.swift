@@ -12,6 +12,8 @@ struct AccountListView: View {
     @Environment(VoiceBookkeepingState.self) private var voice: VoiceBookkeepingState?
     @Query private var queriedAccounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
+    /// 汇总卡片里净资产走势的材料；在数据变化后汇总一次，账户页不再读全部流水。
+    @Environment(BalanceHistoryStore.self) private var balanceHistory
     @State private var isPresentingCreation = false
     @State private var isPresentingManagement = false
     @State private var isPresentingDeactivated = false
@@ -21,6 +23,8 @@ struct AccountListView: View {
     @State private var isVisible = false
     /// 正在播放的语音改动提示；到期后清除。
     @State private var voiceMark: AccountListVoiceMark?
+    /// 用户确认过「确实多还了」、不再提示欠款为负的账户，逗号分隔的 UUID。
+    @AppStorage(NegativeDebtHint.dismissedStorageKey) private var dismissedNegativeDebtIDs = ""
 
     /// 语音改动提示从出现到笔迹淡出所需的总时长，之后清除标记。
     private static let voiceMarkLifetime: Duration = .milliseconds(4000)
@@ -62,6 +66,7 @@ struct AccountListView: View {
         }
         .onAppear { isVisible = true }
         .onDisappear { isVisible = false }
+        .refreshesBalanceHistory()
         // 用户正看着账户页时语音改了账户：在这些账户的名称和金额下补一道笔迹，并把第一个滚到可见处
         .onChange(of: voice?.session?.latestTurn?.outcome) { _, outcome in
             guard isVisible, outcome != .processing, let turn = voice?.session?.latestTurn else { return }
@@ -197,15 +202,33 @@ struct AccountListView: View {
             preference: BookkeepingPreference.canonical(in: preferences),
             accounts: accounts
         )
+        let negativeDebtAccounts = NegativeDebtHint.accounts(
+            in: accounts,
+            dismissedIDs: NegativeDebtHint.dismissedIDs(from: dismissedNegativeDebtIDs)
+        )
 
         return ScrollViewReader { proxy in
             List {
-                AccountSummaryCard(presentation: summary)
+                summaryCard(summary, trend: netWorthTrend(of: accounts))
                     .listRowInsets(
                         EdgeInsets(top: 12, leading: 2, bottom: 8, trailing: 2)
                     )
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
+
+                // 有欠款填成了负数时，净资产会偏高；紧跟在汇总下面提示，点一下打开第一个这样的账户去改
+                if let firstNegativeDebt = negativeDebtAccounts.first {
+                    NavigationLink(value: AccountsRoute.detail(firstNegativeDebt.id)) {
+                        NegativeDebtListHint(
+                            names: negativeDebtAccounts.map { AccountListPresentation.row(for: $0, locale: locale).name }
+                        )
+                    }
+                    .navigationLinkIndicatorVisibility(.hidden)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 2, bottom: 8, trailing: 2))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .accessibilityIdentifier("account-list-negative-debt-hint")
+                }
 
                 ForEach(sections) { section in
                     Section {
@@ -244,6 +267,37 @@ struct AccountListView: View {
                 }
             }
         }
+    }
+
+    /// 汇总卡片；有净资产走势时整张卡片点进资产趋势页。
+    ///
+    /// - Parameters:
+    ///   - summary: 资产、负债和净资产汇总。
+    ///   - trend: 净资产近三个月的走势；还没记过账时为 `nil`。
+    @ViewBuilder
+    private func summaryCard(_ summary: AccountSummaryPresentation, trend: BalanceTrendSeries?) -> some View {
+        if let trend, trend.canDraw {
+            NavigationLink(value: AccountsRoute.netWorthTrend) {
+                AccountSummaryCard(presentation: summary, trend: trend)
+            }
+            .navigationLinkIndicatorVisibility(.hidden)
+        } else {
+            AccountSummaryCard(presentation: summary)
+        }
+    }
+
+    /// 启用账户合计的净资产近三个月走势，与汇总卡片同一口径；一笔流水都没有、或材料还没汇总好时不画。
+    ///
+    /// - Parameter accounts: 列表里的启用账户。
+    private func netWorthTrend(of accounts: [Account]) -> BalanceTrendSeries? {
+        guard let ledgers = balanceHistory.ledgers else { return nil }
+        let history = AccountBalanceHistory(
+            ledgers: ledgers,
+            accountIDs: Set(accounts.map(\.id)),
+            calendar: calendar
+        )
+        guard history.hasHistory() else { return nil }
+        return history.netWorthSeries(.netAssets, range: .threeMonths)
     }
 
     /// 构造具有稳定自动化标识的主要添加按钮。
@@ -409,6 +463,50 @@ private struct AccountRowVoiceUnderline: ViewModifier {
     }
 }
 
+/// 汇总卡片下的一条提示：有账户的欠款填成了负数，被当成多还的钱算进资产，净资产可能偏高。
+///
+/// 整条点开第一个这样的账户，在详情里一键改成正数，或确认确实多还了。
+private struct NegativeDebtListHint: View {
+    @Environment(\.locale) private var locale
+
+    /// 欠款为负的账户名称，按显示顺序排列。
+    let names: [String]
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.circle")
+                .font(.body)
+                .foregroundStyle(Color(.ledgerRed))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(AccountLocalization.formatted(
+                    "account.negative_debt.list.message",
+                    value: NegativeDebtHint.quotedNames(names, locale: locale),
+                    locale: locale
+                ))
+                .font(.subheadline)
+                .foregroundStyle(Color.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+                Text(AccountLocalization.string("account.negative_debt.list.action", locale: locale))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color(.ledgerRed))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .padding(.top, 3)
+                .accessibilityHidden(true)
+        }
+        .padding(14)
+        .background(Color(.ledgerRed).opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+}
+
 /// 账户页一次语音改动提示：本轮改动过的账户与本次提示标识。
 private struct AccountListVoiceMark: Equatable {
     /// 本轮改动过、仍在列表中的账户。
@@ -422,6 +520,7 @@ private struct AccountListVoiceMark: Equatable {
     NavigationStack {
         AccountListView()
     }
+        .environment(BalanceHistoryStore())
         .modelContainer(
             for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
             inMemory: true

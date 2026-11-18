@@ -16,6 +16,9 @@ struct PrivacyAgreementView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // 页首落款：告诉用户是谁在请求同意
+                BrandLockup()
+                    .padding(.bottom, 4)
                 Text(text("privacy.agreement.title"))
                     .font(.system(.title, design: .serif, weight: .bold))
                     .foregroundStyle(.primary)
@@ -31,7 +34,7 @@ struct PrivacyAgreementView: View {
                 links
             }
             .padding(.horizontal, 24)
-            .padding(.top, 48)
+            .padding(.top, 32)
             .padding(.bottom, 24)
             .frame(maxWidth: 560, alignment: .leading)
             .frame(maxWidth: .infinity)

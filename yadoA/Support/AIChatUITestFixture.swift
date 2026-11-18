@@ -5,7 +5,7 @@ import SwiftData
 /// 仅供 UI 自动化使用的 AI 对话夹具：写入一轮本机对话记录，启动后直接打开聊天页。
 ///
 /// 聊天页要登录才能从入口打开，自动化里没有真实账号，所以夹具启用时启动后直接盖上聊天页；只看历史记录，不发请求。
-/// 文案与 `ConversationTextSelectionUITests` 里的断言保持一致。
+/// 文案与 `ConversationTextSelectionUITests`、`AIGeneratedLabelUITests` 里的断言保持一致。
 enum AIChatUITestFixture {
     /// 是否启用：只在隔离内存存储下生效，不会碰到真实的对话记录。
     static var isEnabled: Bool {

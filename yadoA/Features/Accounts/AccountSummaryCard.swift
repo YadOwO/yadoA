@@ -3,13 +3,19 @@ import SwiftData
 import SwiftUI
 
 /// 账户列表顶部的资产汇总卡片，突出净资产并并列展示资产和负债；首次引导的示例也用它。
+///
+/// 账户页传入净资产走势时，净资产下面多一条迷你走势和「较某天」的变化，整张卡片点进资产趋势页。
 struct AccountSummaryCard: View {
     @Environment(\.locale) private var locale
+    @Environment(\.calendar) private var calendar
 
     /// 用户选择的启动页面；账户页是启动页时汇总卡片才带装饰。
     @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
 
     let presentation: AccountSummaryPresentation
+
+    /// 净资产近三个月的走势；为空或画不成线时不显示迷你走势，例如首次引导的示例和还没记过账时。
+    var trend: BalanceTrendSeries?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -29,6 +35,10 @@ struct AccountSummaryCard: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
                     .amountTone(presentation.netAssetsTone)
+            }
+
+            if let trend, trend.canDraw, let first = trend.points.first {
+                sparkline(trend, since: first.date)
             }
 
             HStack(alignment: .top, spacing: 16) {
@@ -62,7 +72,42 @@ struct AccountSummaryCard: View {
         .startPageDecoration(isEnabled: startPage == .accounts, cornerRadius: 22, seed: 21)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
+        .accessibilityValue(trendAccessibilityValue)
+        .accessibilityHint(
+            trend?.canDraw == true
+                ? AccountLocalization.string("account.trend.open_hint", locale: locale)
+                : ""
+        )
         .accessibilityIdentifier("account-list-summary-card")
+    }
+
+    /// 迷你走势的播报：「较 2026/8/17，+¥1,234.00」；没有走势时为空。
+    private var trendAccessibilityValue: String {
+        guard let trend, trend.canDraw, let first = trend.points.first else { return "" }
+        return [
+            BalanceTrendChangeLine.sinceText(first.date, locale: locale, calendar: calendar),
+            BalanceTrendChangeLine.changeText(trend, locale: locale)
+        ].joined(separator: ", ")
+    }
+
+    /// 净资产下的迷你走势：一条没有坐标轴的线，下面写「较某天」的变化和一个箭头，提示点进去能看详细走势。
+    ///
+    /// - Parameters:
+    ///   - trend: 净资产走势。
+    ///   - since: 走势的第一天。
+    private func sparkline(_ trend: BalanceTrendSeries, since: Date) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            BalanceTrendChart(series: trend, style: .sparkline)
+                .frame(height: 44)
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                BalanceTrendChangeLine(series: trend, since: since)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
     }
 }
 

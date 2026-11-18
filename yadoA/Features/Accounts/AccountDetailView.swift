@@ -25,11 +25,8 @@ struct AccountDetailView: View {
     var body: some View {
         AccountDetailQueryContent(
             accountID: accountID,
-            onAdjustBalance: { accountID, currentBalance in
-                adjustmentSeed = BalanceAdjustmentSheetSeed(
-                    accountID: accountID,
-                    currentBalance: currentBalance
-                )
+            onAdjustBalance: { seed in
+                adjustmentSeed = seed
             },
             onTransfer: { accountID in
                 transferDraft = TransferDraft(
@@ -140,6 +137,8 @@ struct AccountDetailView: View {
                 BalanceAdjustmentView(
                     accountID: seed.accountID,
                     currentBalance: seed.currentBalance,
+                    accountType: seed.accountType,
+                    initialTargetBalance: seed.initialTargetBalance,
                     save: { draft in
                         let repository = LocalBalanceAdjustmentRepository(
                             container: modelContext.container
@@ -224,11 +223,14 @@ private struct AccountDetailQueryContent: View {
     @Query private var transactions: [AccountTransaction]
     @Query private var categories: [BookkeepingCategory]
 
+    /// 用户确认过「确实多还了」、不再提示欠款为负的账户，逗号分隔的 UUID。
+    @AppStorage(NegativeDebtHint.dismissedStorageKey) private var dismissedNegativeDebtIDs = ""
+
     /// 当前详情页对应的稳定账户 UUID。
     let accountID: UUID
 
-    /// 点击调整余额时回传原始账户余额，不从格式化文本反解析。
-    let onAdjustBalance: (UUID, Decimal) -> Void
+    /// 点击调整余额时回传原始账户余额和类型，不从格式化文本反解析；欠款为负、一键改正时另带预填的目标值。
+    let onAdjustBalance: (BalanceAdjustmentSheetSeed) -> Void
 
     /// 点击转账时回传当前账户，作为默认的转出账户。
     let onTransfer: (UUID) -> Void
@@ -251,7 +253,7 @@ private struct AccountDetailQueryContent: View {
     /// 创建仅查询目标 UUID 的详情内容。
     init(
         accountID: UUID,
-        onAdjustBalance: @escaping (UUID, Decimal) -> Void,
+        onAdjustBalance: @escaping (BalanceAdjustmentSheetSeed) -> Void,
         onTransfer: @escaping (UUID) -> Void,
         onDeleteTransfer: @escaping (UUID) -> Void,
         onEditAccount: @escaping (Account) -> Void,
@@ -339,6 +341,9 @@ private struct AccountDetailQueryContent: View {
                 }
             }
 
+            // 卡片和流水之间看余额（或欠款）怎么变过来的；没记过流水时不显示
+            AccountBalanceTrendSection(account: account)
+
             if days.isEmpty {
                 Section {
                     Text(
@@ -381,6 +386,7 @@ private struct AccountDetailQueryContent: View {
         }
         .listSectionSpacing(18)
         .listStyle(.insetGrouped)
+        .refreshesBalanceHistory()
         .toolbar {
             if presentation.isActive {
                 ToolbarItem(placement: .primaryAction) {
@@ -477,6 +483,21 @@ private struct AccountDetailQueryContent: View {
         }
     }
 
+    /// 是否在余额下面提示欠款填成了负数：启用中、能调整余额、欠款为负，且用户没有确认过「确实多还了」。
+    private func showsNegativeDebtHint(for account: Account, presentation: AccountDetailPresentation) -> Bool {
+        presentation.isActive
+            && account.supportsBookkeeping
+            && NegativeDebtHint.isNegativeDebt(accountType: account.accountType, balance: account.balance)
+            && !NegativeDebtHint.dismissedIDs(from: dismissedNegativeDebtIDs).contains(account.id)
+    }
+
+    /// 用户确认这个账户确实多还了钱，之后详情和列表都不再提示。
+    private func dismissNegativeDebtHint(for accountID: UUID) {
+        var ids = NegativeDebtHint.dismissedIDs(from: dismissedNegativeDebtIDs)
+        ids.insert(accountID)
+        dismissedNegativeDebtIDs = NegativeDebtHint.storedValue(for: ids)
+    }
+
     /// 能否从本账户发起转账：本账户可记账，且至少还有一个可转入的启用账户。
     private func canTransfer(from account: Account) -> Bool {
         account.supportsBookkeeping
@@ -528,12 +549,28 @@ private struct AccountDetailQueryContent: View {
                     .accessibilityIdentifier("account-detail-amount")
             }
 
+            if showsNegativeDebtHint(for: account, presentation: presentation) {
+                NegativeDebtDetailHint(
+                    formattedOwedAmount: (-account.balance).formattedCurrency(
+                        locale: locale,
+                        currencyCode: account.currencyCode
+                    ),
+                    onFix: {
+                        onAdjustBalance(BalanceAdjustmentSheetSeed(
+                            account: account,
+                            initialTargetBalance: -account.balance
+                        ))
+                    },
+                    onDismiss: { dismissNegativeDebtHint(for: account.id) }
+                )
+            }
+
             // 操作栏自带上下两道细线，同时把余额和下面的资料隔开；没有操作栏时只画一道。
             if presentation.isActive && account.supportsBookkeeping {
                 AccountDetailActionBar(
                     canTransfer: canTransfer(from: account),
                     onTransfer: { onTransfer(account.id) },
-                    onAdjustBalance: { onAdjustBalance(account.id, account.balance) }
+                    onAdjustBalance: { onAdjustBalance(BalanceAdjustmentSheetSeed(account: account)) }
                 )
             } else {
                 HandDrawnRule(seed: 29)
@@ -710,8 +747,76 @@ private struct BalanceAdjustmentSheetSeed: Identifiable {
     /// 被调整账户的稳定 UUID。
     let accountID: UUID
 
-    /// 打开 Sheet 时用于预填的账户总余额。
+    /// 打开 Sheet 时的账户总余额。
     let currentBalance: Decimal
+
+    /// 账户类型，决定调整页按余额还是按欠款来说。
+    let accountType: AccountType?
+
+    /// 预填的目标余额；为 `nil` 时预填当前余额。欠款填成了负数、一键改成正数时使用。
+    let initialTargetBalance: Decimal?
+
+    /// 按账户当前的余额和类型生成。
+    ///
+    /// - Parameters:
+    ///   - account: 被调整的账户。
+    ///   - initialTargetBalance: 预填的目标余额；默认预填当前余额。
+    init(account: Account, initialTargetBalance: Decimal? = nil) {
+        accountID = account.id
+        currentBalance = account.balance
+        accountType = account.accountType
+        self.initialTargetBalance = initialTargetBalance
+    }
+}
+
+/// 账户详情余额下的一条提示：欠款填成了负数，会被当成多还的钱算进资产。
+///
+/// 可以一键打开预填成正数的余额调整，也可以确认确实多还了，之后不再提示。
+private struct NegativeDebtDetailHint: View {
+    @Environment(\.locale) private var locale
+
+    /// 改成正数后的欠款金额文字，例如「¥5,000.00」。
+    let formattedOwedAmount: String
+
+    /// 打开预填成正数的余额调整。
+    let onFix: () -> Void
+
+    /// 确认确实多还了，不再提示。
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label {
+                Text(AccountLocalization.string("account.negative_debt.detail.message", locale: locale))
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "exclamationmark.circle")
+                    .foregroundStyle(Color(.ledgerRed))
+            }
+            .font(.footnote)
+
+            LedgerFlowLayout(spacing: 8) {
+                Button(
+                    AccountLocalization.formatted("account.negative_debt.fix", value: formattedOwedAmount, locale: locale),
+                    action: onFix
+                )
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .onAccentForeground()
+                .accessibilityIdentifier("account-detail-negative-debt-fix")
+
+                Button(AccountLocalization.string("account.negative_debt.dismiss", locale: locale), action: onDismiss)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("account-detail-negative-debt-dismiss")
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.ledgerRed).opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("account-detail-negative-debt-hint")
+    }
 }
 
 /// 每次打开账户资料编辑页时固定使用的账户 UUID 快照。
@@ -779,6 +884,7 @@ private struct AccountTransactionHistoryRow: View {
     NavigationStack {
         AccountDetailView(accountID: UUID())
     }
+    .environment(BalanceHistoryStore())
     .modelContainer(
         for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
         inMemory: true
@@ -793,6 +899,7 @@ private struct AccountTransactionHistoryRow: View {
         NavigationStack {
             AccountDetailView(accountID: account.id)
         }
+        .environment(BalanceHistoryStore())
         .modelContainer(container)
         .environment(\.locale, Locale(identifier: "zh-Hans"))
     }

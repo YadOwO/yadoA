@@ -58,8 +58,9 @@ struct VoiceBookkeepingDock: View {
                 VoiceSessionCard(
                     session: session,
                     input: input,
-                    onLocateChange: { voice.pendingLocate = $0 },
-                    onOpenTransaction: { voice.presentedTransaction = VoicePresentedTransaction(id: $0) },
+                    onOpenTransaction: {
+                        voice.presentedTransaction = VoicePresentedTransaction(id: $0.transactionID, locateChange: $0)
+                    },
                     onOpenAccount: { voice.presentedAccount = VoicePresentedAccount(id: $0) },
                     onManualEntry: { voice.manualEntryNote = VoiceManualEntryNote(text: $0) },
                     onSignIn: { signInPresentation.present(reason: .voiceBookkeeping) },
@@ -68,7 +69,9 @@ struct VoiceBookkeepingDock: View {
                     onEnd: { voice.closeCard() },
                     onOpenChat: { voice.openChat(isSignedIn: authStore.isAuthenticated) },
                     onCreateAccount: { voice.accountCreationTurn = $0 },
-                    onOpenRecurringRules: { voice.isRecurringRulesPresented = true }
+                    onOpenRecurringRules: { voice.isRecurringRulesPresented = true },
+                    isShowingDetail: voice.presentedTransaction != nil || voice.presentedAccount != nil
+                        || voice.isRecurringRulesPresented
                 )
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
@@ -339,6 +342,17 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 NavigationStack {
                     BookkeepingTransactionDetailView(transactionID: item.id)
                         .toolbar {
+                            // 卡片上点一行先看详情；想在记账页列表里看到这一笔，从这里去：关掉详情，切到记账页定位并标出来
+                            if let change = item.locateChange {
+                                ToolbarItem(placement: .topBarLeading) {
+                                    Button(text("voice.change.locate.action")) {
+                                        voice.presentedTransaction = nil
+                                        voice.pendingLocate = change
+                                    }
+                                    .accessibilityHint(Text(text("voice.change.locate.hint")))
+                                    .accessibilityIdentifier("voice-transaction-locate")
+                                }
+                            }
                             ToolbarItem(placement: .confirmationAction) {
                                 Button(text("common.done")) { voice.presentedTransaction = nil }
                             }
@@ -475,7 +489,7 @@ private struct VoiceInputAlertModifier: ViewModifier {
 
     private func alertTitle(for alert: VoiceInputAlert) -> String {
         switch alert {
-        case .signInRequired: text("voice.signIn.title")
+        case .signInRequired: text(SignInReason.voiceBookkeeping.promptTitleLocalizationKey)
         case .permissionDenied: text("voice.permission.title")
         case .unsupported: text("voice.error.unsupported")
         case .microphoneUnavailable: text("voice.error.microphoneUnavailable")
@@ -484,7 +498,7 @@ private struct VoiceInputAlertModifier: ViewModifier {
 
     private func alertMessage(for alert: VoiceInputAlert) -> String? {
         switch alert {
-        case .signInRequired: text("voice.signIn.message")
+        case .signInRequired: text(SignInReason.voiceBookkeeping.messageLocalizationKey)
         case .permissionDenied: text("voice.permission.message")
         case .unsupported, .microphoneUnavailable: nil
         }
@@ -533,6 +547,9 @@ extension View {
 struct VoicePresentedTransaction: Identifiable {
     /// 流水 UUID。
     let id: UUID
+
+    /// 卡片上被点的这次改动；有值时详情左上角可以去记账页定位这一笔。
+    var locateChange: VoiceEntryChange?
 }
 
 /// 从会话卡片打开详情的账户。

@@ -306,8 +306,8 @@ enum AccountTransactionHistoryPresentation {
         )
     }
 
-    /// 正数差额显式增加加号，负数沿用货币格式自身的负号。
-    private static func formattedSignedCurrency(
+    /// 正数差额显式增加加号，负数沿用货币格式自身的负号；余额走势的变化金额也用它。
+    static func formattedSignedCurrency(
         _ amount: Decimal,
         code: String,
         locale: Locale

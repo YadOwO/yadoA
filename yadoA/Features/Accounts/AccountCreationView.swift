@@ -344,6 +344,17 @@ private struct AccountFormView: View {
                 }
             }
 
+            // 信用卡、负债填的是欠款：说清楚填正数、会从净资产里扣，免得用户按习惯写成负数
+            if flow.draft.accountType.expenseBalanceEffect == .increaseDebt {
+                Text(text("account.creation.debt_hint"))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
+                    .accessibilityIdentifier("account-creation-debt-hint")
+            }
+
             if flow.hasSaveError {
                 Label(
                     text("account.creation.save_error.message"),

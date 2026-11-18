@@ -515,8 +515,8 @@ private struct ChartTrendCard: View {
 
 }
 
-private extension Decimal {
-    /// 将精确金额转换为图表绘制所需的 Double；金额本身仍以 Decimal 保存和展示。
+extension Decimal {
+    /// 将精确金额转换为图表绘制所需的 Double；金额本身仍以 Decimal 保存和展示。收支趋势和余额走势共用。
     var doubleValue: Double {
         NSDecimalNumber(decimal: self).doubleValue
     }
