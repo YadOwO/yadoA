@@ -339,6 +339,9 @@ private struct AccountDetailQueryContent: View {
                 }
             }
 
+            // 卡片和流水之间看余额（或欠款）怎么变过来的；没记过流水时不显示
+            AccountBalanceTrendSection(account: account, transactions: transactions)
+
             if days.isEmpty {
                 Section {
                     Text(

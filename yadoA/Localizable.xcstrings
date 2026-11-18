@@ -1,6 +1,258 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "account.trend.net_worth.title" : {
+      "comment" : "资产趋势页标题，从账户页汇总卡片进入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Net Worth Trend"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "资产趋势"
+          }
+        }
+      }
+    },
+    "account.trend.open_hint" : {
+      "comment" : "账户页汇总卡片的无障碍提示：点按进入资产趋势页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows how your net worth has changed."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看资产趋势"
+          }
+        }
+      }
+    },
+    "account.trend.since_format" : {
+      "comment" : "走势变化说明的起点，%@ 为日期，后面跟带符号的变化金额",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Since %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "较 %@"
+          }
+        }
+      }
+    },
+    "account.trend.range.threeMonths" : {
+      "comment" : "走势范围：最近三个月",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3M"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3个月"
+          }
+        }
+      }
+    },
+    "account.trend.range.oneYear" : {
+      "comment" : "走势范围：最近一年",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1Y"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1年"
+          }
+        }
+      }
+    },
+    "account.trend.range.all" : {
+      "comment" : "走势范围：全部",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
+          }
+        }
+      }
+    },
+    "account.trend.range.accessibility" : {
+      "comment" : "走势范围切换的无障碍名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time range"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时间范围"
+          }
+        }
+      }
+    },
+    "account.trend.metric.accessibility" : {
+      "comment" : "资产趋势页净资产、资产、负债切换的无障碍名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trend type"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "走势类型"
+          }
+        }
+      }
+    },
+    "account.trend.axis.date" : {
+      "comment" : "走势图横轴的无障碍名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日期"
+          }
+        }
+      }
+    },
+    "account.trend.axis.amount" : {
+      "comment" : "走势图纵轴的无障碍名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amount"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "金额"
+          }
+        }
+      }
+    },
+    "account.trend.title.balance" : {
+      "comment" : "账户详情里资产类账户的走势标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance Trend"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "余额走势"
+          }
+        }
+      }
+    },
+    "account.trend.title.debt" : {
+      "comment" : "账户详情里信用卡、负债账户的走势标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debt Trend"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欠款走势"
+          }
+        }
+      }
+    },
+    "account.trend.not_enough" : {
+      "comment" : "资产趋势页数据不足一天、画不出走势时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough records to draw a trend yet. Check back after a few days of bookkeeping."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有足够的记录画出走势，记几天账后再来看看。"
+          }
+        }
+      }
+    },
+    "account.trend.footnote" : {
+      "comment" : "资产趋势页底部的口径说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worked out day by day from each account's current balance and its records. Only active accounts are included. Each account counts from the day it was added, or from just before its earliest record if that is earlier. Credit cards and loans count toward liabilities as the amount owed."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按每个账户的当前余额和流水逐日倒推，只算启用中的账户。每个账户从建立那天起计入，补记了更早的流水时从那笔流水之前算起。信用卡、负债按欠款计入负债。"
+          }
+        }
+      }
+    },
     "account.list.more" : {
       "comment" : "账户页右上角「更多」菜单按钮",
       "extractionState" : "manual",

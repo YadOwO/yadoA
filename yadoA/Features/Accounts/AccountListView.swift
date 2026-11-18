@@ -12,6 +12,8 @@ struct AccountListView: View {
     @Environment(VoiceBookkeepingState.self) private var voice: VoiceBookkeepingState?
     @Query private var queriedAccounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
+    /// 全部流水，用来推算汇总卡片里的净资产走势。
+    @Query private var transactions: [AccountTransaction]
     @State private var isPresentingCreation = false
     @State private var isPresentingManagement = false
     @State private var isPresentingDeactivated = false
@@ -200,7 +202,7 @@ struct AccountListView: View {
 
         return ScrollViewReader { proxy in
             List {
-                AccountSummaryCard(presentation: summary)
+                summaryCard(summary, trend: netWorthTrend(of: accounts))
                     .listRowInsets(
                         EdgeInsets(top: 12, leading: 2, bottom: 8, trailing: 2)
                     )
@@ -244,6 +246,32 @@ struct AccountListView: View {
                 }
             }
         }
+    }
+
+    /// 汇总卡片；有净资产走势时整张卡片点进资产趋势页。
+    ///
+    /// - Parameters:
+    ///   - summary: 资产、负债和净资产汇总。
+    ///   - trend: 净资产近三个月的走势；还没记过账时为 `nil`。
+    @ViewBuilder
+    private func summaryCard(_ summary: AccountSummaryPresentation, trend: BalanceTrendSeries?) -> some View {
+        if let trend, trend.canDraw {
+            NavigationLink(value: AccountsRoute.netWorthTrend) {
+                AccountSummaryCard(presentation: summary, trend: trend)
+            }
+            .navigationLinkIndicatorVisibility(.hidden)
+        } else {
+            AccountSummaryCard(presentation: summary)
+        }
+    }
+
+    /// 启用账户合计的净资产近三个月走势，与汇总卡片同一口径；一笔流水都没有时不画。
+    ///
+    /// - Parameter accounts: 列表里的启用账户。
+    private func netWorthTrend(of accounts: [Account]) -> BalanceTrendSeries? {
+        let history = AccountBalanceHistory(accounts: accounts, transactions: transactions, calendar: calendar)
+        guard history.hasHistory() else { return nil }
+        return history.netWorthSeries(.netAssets, range: .threeMonths)
     }
 
     /// 构造具有稳定自动化标识的主要添加按钮。
