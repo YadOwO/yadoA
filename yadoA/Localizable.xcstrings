@@ -18387,7 +18387,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Entries, accounts and charts are stored only on this phone and work fully offline."
+            "value" : "By default, entries, accounts and charts are stored only on this phone and work fully offline."
           }
         },
         "zh-Hans" : {

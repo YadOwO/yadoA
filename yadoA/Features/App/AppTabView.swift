@@ -257,6 +257,8 @@ struct AppTabView: View {
         .id(startPage)
         // 会话、计时与弹层挂在 .id 外面，重排 Tab 时不会重建
         .voiceBookkeepingHost(voice)
+        // 走势缓存挂在语音弹层外面：账户 Tab 和语音卡片、AI 对话里弹出的账户详情都要读它
+        .environment(balanceHistory)
         // App 启动、回到前台、换账号或退出登录时刷新意见反馈的未读数；退出登录时清零
         .task(id: FeedbackUnreadTrigger(
             userID: authStore.userID,
@@ -368,7 +370,6 @@ struct AppTabView: View {
                         }
                     }
             }
-            .environment(balanceHistory)
         case .profile:
             NavigationStack(path: $profilePath) {
                 ProfileView()

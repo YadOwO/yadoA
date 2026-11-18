@@ -35,9 +35,18 @@ final class DeactivatedAccountNavigationUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(account.waitForExistence(timeout: 3))
         account.tap()
+        XCTAssertTrue(app.navigationBars["Account Details"].waitForExistence(timeout: 3))
         let transaction = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "account-transaction-detail-")
         ).firstMatch
+        // 详情里流水上方有余额走势，流水可能在首屏之外；走势图有左右拖动手势，不用 swipeUp，改从坐标上拖。
+        var attempts = 0
+        while !(transaction.exists && transaction.isHittable) && attempts < 6 {
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+            start.press(forDuration: 0.05, thenDragTo: end)
+            attempts += 1
+        }
         XCTAssertTrue(transaction.waitForExistence(timeout: 3))
         transaction.tap()
         XCTAssertTrue(app.navigationBars["Transaction Details"].waitForExistence(timeout: 3))
