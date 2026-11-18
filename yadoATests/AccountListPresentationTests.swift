@@ -336,7 +336,6 @@ struct AccountListPresentationTests {
         #expect(second.balance == Decimal(120))
     }
 
-    /// 构造已持久化形态的账户，用于隔离展示层边界。
     @Test("只有信用卡、负债的负数欠款算填错，资产透支和未知类型不提示")
     func negativeDebtOnlyForDebtTypes() {
         #expect(NegativeDebtHint.isNegativeDebt(accountType: .creditCard, balance: -1))
@@ -390,6 +389,7 @@ struct AccountListPresentationTests {
         #expect(message.hasPrefix("The amount owed on “Huabei”"))
     }
 
+    /// 构造已持久化形态的账户，用于隔离展示层边界。
     private func makeAccount(
         id: UUID = UUID(),
         typeRawValue: String = AccountType.cash.rawValue,

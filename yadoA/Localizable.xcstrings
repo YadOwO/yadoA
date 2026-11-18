@@ -12739,13 +12739,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This Phone Only"
+            "value" : "Off"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "仅存本机"
+            "value" : "未开启"
           }
         }
       }
@@ -13079,13 +13079,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your ledger is only on this phone right now. Sign in to sync your accounts and transactions, so they're there on a new phone or your other devices."
+            "value" : "While you're signed out, changes stay only on this phone. Sign in to sync your accounts and transactions, so they're there on a new phone or your other devices."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "现在账本只存在这台手机上。登录后可以把账户和流水同步到云端，换手机或在多台设备上都能用。"
+            "value" : "未登录时，账本的改动只保存在这台手机上。登录后可以把账户和流水同步到云端，换手机或在多台设备上都能用。"
           }
         }
       }
@@ -13147,13 +13147,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your ledger is only on this phone right now. Turn on sync to keep this device and the cloud up to date."
+            "value" : "While sync is off, changes stay only on this phone. Turn on sync to keep this device and the cloud up to date."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "现在账本只存在这台手机上。开启后，本机和云端的数据会保持一致。"
+            "value" : "同步关闭期间，账本的改动只保存在这台手机上。开启后，本机和云端的数据会保持一致。"
           }
         }
       }
