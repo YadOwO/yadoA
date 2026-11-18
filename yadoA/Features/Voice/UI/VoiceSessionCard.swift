@@ -42,6 +42,9 @@ struct VoiceSessionCard: View {
     /// 打开周期记账列表，查看语音改过的规则。
     var onOpenRecurringRules: () -> Void = {}
 
+    /// 卡片上是否正盖着流水、账户详情或周期记账列表；关掉时重新检查结果行的目标还在不在。
+    var isShowingDetail = false
+
     /// 滚动区域的最大高度，超出部分在卡片里滚动查看；一般一句话就能记完，不会用满。
     private static let maxScrollHeight: CGFloat = 300
 
@@ -199,7 +202,8 @@ struct VoiceSessionCard: View {
                         onSwitchModelTier: onSwitchModelTier,
                         onSelectOption: onSelectOption,
                         onCreateAccount: onCreateAccount,
-                        onOpenRecurringRules: onOpenRecurringRules
+                        onOpenRecurringRules: onOpenRecurringRules,
+                        isShowingDetail: isShowingDetail
                     )
                     .id(turn.id)
                 }
@@ -258,8 +262,22 @@ private struct VoiceSessionTurnView: View {
     /// 打开周期记账列表。
     let onOpenRecurringRules: () -> Void
 
+    /// 卡片上是否正盖着流水、账户详情或周期记账列表；关掉时重新检查结果行的目标还在不在。
+    let isShowingDetail: Bool
+
     /// 「点一下可以查看」的一次性提示状态。
     @State private var tapHint = VoiceResultTapHint.shared
+
+    /// 这一轮涉及的流水、账户和规则里当前仍然存在的那些；`nil` 表示还没查过。
+    @State private var existingTargetIDs: Set<UUID>?
+
+    /// 决定何时重新检查结果行目标是否还在的依赖：轮次增减、处理状态、撤销和详情弹层开关。
+    private struct RefreshKey: Equatable {
+        let turnCount: Int
+        let isProcessing: Bool
+        let isUndone: Bool
+        let isShowingDetail: Bool
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -276,7 +294,8 @@ private struct VoiceSessionTurnView: View {
                     snapshot: snapshot,
                     isFinished: turn.outcome != .processing,
                     animatesEntrance: false,
-                    existingTargetIDs: Set(snapshot.changes.compactMap(\.targetID)),
+                    // 还没查过时先当作都在，避免一闪变灰
+                    existingTargetIDs: existingTargetIDs ?? Set(snapshot.changes.compactMap(\.targetID)),
                     actions: slipActions,
                     onEntranceFinished: {}
                 )
@@ -322,6 +341,28 @@ private struct VoiceSessionTurnView: View {
             )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        // 后面的轮次或详情弹层里可能删掉这一轮写入的流水、账户或规则，这些时机重新查一次，已不在的行置灰
+        .task(
+            id: RefreshKey(
+                turnCount: session.turns.count,
+                isProcessing: session.isProcessing,
+                isUndone: turn.isUndone,
+                isShowingDetail: isShowingDetail
+            )
+        ) {
+            refreshExistingTargets()
+        }
+    }
+
+    /// 重新查这一轮涉及的流水、账户和规则当前还在不在；没有历史库时（测试、预览）都当作还在。
+    private func refreshExistingTargets() {
+        guard !turn.changes.isEmpty else { return }
+        let snapshot = AIChatTurnSnapshot(turn: turn, locale: locale)
+        if let history = session.history {
+            existingTargetIDs = history.existingTargetIDs(in: [snapshot])
+        } else {
+            existingTargetIDs = Set(snapshot.changes.compactMap(\.targetID))
+        }
     }
 
     /// 是否为最近一轮；追问候选项只对最近一轮有意义。
@@ -334,11 +375,15 @@ private struct VoiceSessionTurnView: View {
         isLatest && turn.outcome != .processing && hasTappableChange && tapHint.shouldShow(for: turn.id)
     }
 
-    /// 这一轮是否至少有一行结果可以点开；已撤销或只有删除时没有。
+    /// 这一轮是否至少有一行结果可以点开；已撤销、只有删除或目标都已不在时没有。
     private var hasTappableChange: Bool {
         guard !turn.isUndone else { return false }
         return turn.changes.contains { change in
-            VoiceChangeOpenTarget.resolve(AIChatChangeSnapshot(change: change), in: turn.changes) != nil
+            let row = AIChatChangeSnapshot(change: change)
+            guard VoiceChangeOpenTarget.resolve(row, in: turn.changes) != nil else { return false }
+            // 还没查过存在性时视为存在，和结果纸条一致
+            guard let existingTargetIDs else { return true }
+            return row.targetID.map { existingTargetIDs.contains($0) } == true
         }
     }
 

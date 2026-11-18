@@ -10594,6 +10594,60 @@
         }
       }
     },
+    "voice.change.transaction.hint" : {
+      "comment" : "VoiceOver hint on a transaction row of the result slip, shared by the chat page and the voice card: tapping opens the transaction's details.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the transaction details."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开这笔流水的详情。"
+          }
+        }
+      }
+    },
+    "voice.change.account.hint" : {
+      "comment" : "VoiceOver hint on an account change (balance adjustment, transfer, account edit) row of the result slip, shared by the chat page and the voice card: tapping opens the account's details.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the account details."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开账户详情。"
+          }
+        }
+      }
+    },
+    "voice.change.recurring.hint" : {
+      "comment" : "VoiceOver hint on a recurring-rule row of the result slip, shared by the chat page and the voice card: tapping opens the recurring list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the recurring list."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开周期记账列表。"
+          }
+        }
+      }
+    },
     "voice.change.inferred" : {
       "comment" : "Fields the AI guessed or filled with defaults. %@ is a list such as Account and Category.",
       "extractionState" : "manual",
