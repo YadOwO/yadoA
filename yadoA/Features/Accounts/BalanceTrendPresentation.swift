@@ -42,12 +42,12 @@ enum BalanceTrendRange: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
-/// 走势金额的方向语义，决定线的颜色和涨跌算好还是算坏。
+/// 走势金额的方向语义，决定线画在零的哪一侧和涨跌算好还是算坏。
 enum BalanceTrendDirection: Equatable, Sendable {
-    /// 资产余额或净资产：变多是好事，线用墨色。
+    /// 资产余额或净资产：从零往上画，变多是好事。
     case asset
 
-    /// 信用卡、负债的欠款：变多是坏事，线用与欠款金额相同的负向色。
+    /// 信用卡、负债的欠款：取负后从零往下画，变多是坏事。
     case debt
 }
 
@@ -135,9 +135,9 @@ struct BalanceTrendSeries: Equatable {
         AccountListPresentation.amountTone(isDebt: direction == .debt, balance: amount)
     }
 
-    /// 离给定日期最近的点，供点按图表时选中；没有点时为 `nil`。
+    /// 离给定日期最近的点，供点按、滑动图表时选中；没有点时为 `nil`。
     ///
-    /// - Parameter date: 点按位置对应的日期。
+    /// - Parameter date: 手指位置对应的日期。
     /// - Returns: 日期最接近的点；两边一样近时取较早的一个。
     func point(nearest date: Date) -> BalanceTrendPoint? {
         points.min { lhs, rhs in
@@ -145,14 +145,78 @@ struct BalanceTrendSeries: Equatable {
         }
     }
 
-    /// 纵轴范围：上下各留一点空白，让线不贴边；金额全都一样时围绕它展开。
+    /// 金额画在图上的位置：资产原样在零上方，欠款取负画在零下方。
     ///
-    /// 金额都不为负时下沿不低于零，都不为正时上沿不高于零，避免出现没有意义的负数或正数刻度。
-    var amountDomain: ClosedRange<Double> {
-        let amounts = points.map(\.amount.doubleValue)
-        guard let low = amounts.min(), let high = amounts.max() else { return 0...1 }
-        // 全是零（例如没有负债）：把线放在底部
-        if low == 0, high == 0 { return 0...1 }
+    /// 这样零以上都是撑起净资产的部分、零以下都是拉低净资产的部分，线按所在一侧取正向色或负向色。
+    ///
+    /// - Parameter amount: 走势上某一点的金额。
+    /// - Returns: 带符号的纵轴值。
+    func plotValue(of amount: Decimal) -> Decimal {
+        direction == .debt ? -amount : amount
+    }
+
+    /// 按零上、零下切开的几段线，供分段上色。
+    ///
+    /// 相邻两点一正一负时，在两点连线与零的交点补一个零点，前一段在这里收尾、后一段从这里开始，
+    /// 两段颜色在零处接上，不会出现一截线颜色画错一侧。值为零的点跟着前面的段走。
+    var segments: [BalanceTrendSegment] {
+        var result: [BalanceTrendSegment] = []
+        var current: [BalanceTrendPlotPoint] = []
+        // 当前段的正负号；段开头全是零时还没定下来，记为 0
+        var currentSign = 0
+
+        func closeSegment() {
+            guard !current.isEmpty else { return }
+            result.append(BalanceTrendSegment(id: result.count, isBelowZero: currentSign < 0, points: current))
+        }
+
+        for point in points {
+            let value = plotValue(of: point.amount).doubleValue
+            let sign = value > 0 ? 1 : (value < 0 ? -1 : 0)
+            if sign != 0, currentSign != 0, sign != currentSign, let previous = current.last {
+                let crossing: BalanceTrendPlotPoint
+                if previous.value == 0 {
+                    crossing = previous
+                } else {
+                    // 两点一正一负，比例一定落在 0 和 1 之间
+                    let fraction = previous.value / (previous.value - value)
+                    crossing = BalanceTrendPlotPoint(
+                        date: previous.date.addingTimeInterval(point.date.timeIntervalSince(previous.date) * fraction),
+                        value: 0,
+                        amount: nil
+                    )
+                    current.append(crossing)
+                }
+                closeSegment()
+                current = [crossing]
+                currentSign = sign
+            }
+            if currentSign == 0 { currentSign = sign }
+            current.append(BalanceTrendPlotPoint(date: point.date, value: value, amount: point.amount))
+        }
+        closeSegment()
+        return result
+    }
+
+    /// 完整走势的纵轴范围：总包含零，资产从零往上、欠款从零往下；远离零的一侧留一点空白。
+    ///
+    /// 全是零时按方向留出一格：资产线贴在底部，欠款线贴在顶部。
+    var valueDomain: ClosedRange<Double> {
+        let values = points.map { plotValue(of: $0.amount).doubleValue }
+        let low = min(values.min() ?? 0, 0)
+        let high = max(values.max() ?? 0, 0)
+        guard high > low else { return direction == .debt ? -1...0 : 0...1 }
+        let padding = (high - low) * 0.08
+        return (low < 0 ? low - padding : 0)...(high > 0 ? high + padding : 0)
+    }
+
+    /// 迷你走势的纵轴范围：只框住线本身，上下留一点空白，让小图也看得出起伏。
+    ///
+    /// 都不为负时下沿不低于零，都不为正时上沿不高于零；全是零时按方向留出一格。
+    var fittedDomain: ClosedRange<Double> {
+        let values = points.map { plotValue(of: $0.amount).doubleValue }
+        guard let low = values.min(), let high = values.max() else { return 0...1 }
+        if low == 0, high == 0 { return direction == .debt ? -1...0 : 0...1 }
         let padding = high > low ? (high - low) * 0.12 : max(abs(high) * 0.1, 1)
         var lower = low - padding
         var upper = high + padding
@@ -161,10 +225,34 @@ struct BalanceTrendSeries: Equatable {
         return lower...upper
     }
 
-    /// 金额是否有正有负；跨过零时在零处画一道淡线，看得出什么时候转正、转负。
+    /// 线是否同时有零上和零下的部分；迷你走势只在这时画零线。
     var crossesZero: Bool {
         points.contains { $0.amount < 0 } && points.contains { $0.amount > 0 }
     }
+}
+
+/// 画在图上的一个位置：日期和带符号的纵轴值。
+struct BalanceTrendPlotPoint: Equatable {
+    /// 横轴日期；跨零处补的点落在两天之间。
+    let date: Date
+
+    /// 纵轴值：零上为资产，零下为欠款。
+    let value: Double
+
+    /// 对应那一天的金额，供读屏播报；跨零处补的点不是某一天，为 `nil`。
+    let amount: Decimal?
+}
+
+/// 同在零上或同在零下的一段连续走势。
+struct BalanceTrendSegment: Identifiable, Equatable {
+    /// 段的序号，从早到晚递增。
+    let id: Int
+
+    /// 是否在零下方，决定用负向色还是正向色。
+    let isBelowZero: Bool
+
+    /// 段内按日期从早到晚排列的点。
+    let points: [BalanceTrendPlotPoint]
 }
 
 /// 按日推算账户余额的历史。

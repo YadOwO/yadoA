@@ -194,21 +194,40 @@ struct AccountBalanceHistoryTests {
         #expect(partial.map { $0.accountID } == [cashID])
     }
 
-    @Test("纵轴范围留白但不越过零；有正有负时标出零线；点按取最近的一天")
+    @Test("完整走势的纵轴从零起：资产往上、欠款往下；迷你走势只框住线；点按、滑动取最近的一天")
     func seriesHelpers() throws {
         let start = try day(20260810)
-        let positive = BalanceTrendSeries(
+        let asset = BalanceTrendSeries(
             points: [
-                BalanceTrendPoint(day: 20260810, date: start, amount: 10),
+                BalanceTrendPoint(day: 20260810, date: start, amount: 100),
                 BalanceTrendPoint(day: 20260811, date: start.addingTimeInterval(86_400), amount: 110)
             ],
             direction: .asset
         )
-        #expect(positive.amountDomain.lowerBound == 0)
-        #expect(positive.amountDomain.upperBound > 110)
-        #expect(!positive.crossesZero)
-        #expect(positive.point(nearest: start.addingTimeInterval(60_000))?.day == 20260811)
-        #expect(positive.point(nearest: start.addingTimeInterval(-60_000))?.day == 20260810)
+        #expect(asset.valueDomain.lowerBound == 0)
+        #expect(asset.valueDomain.upperBound > 110)
+        #expect(asset.fittedDomain.lowerBound > 0)
+        #expect(asset.fittedDomain.lowerBound < 100)
+        #expect(asset.fittedDomain.upperBound > 110)
+        #expect(!asset.crossesZero)
+        #expect(asset.point(nearest: start.addingTimeInterval(60_000))?.day == 20260811)
+        #expect(asset.point(nearest: start.addingTimeInterval(-60_000))?.day == 20260810)
+
+        // 欠款取负画在零下方，零在纵轴顶端
+        let debt = BalanceTrendSeries(
+            points: [
+                BalanceTrendPoint(day: 20260810, date: start, amount: 100),
+                BalanceTrendPoint(day: 20260811, date: start.addingTimeInterval(86_400), amount: 300)
+            ],
+            direction: .debt
+        )
+        #expect(debt.plotValue(of: 300) == -300)
+        #expect(debt.valueDomain.upperBound == 0)
+        #expect(debt.valueDomain.lowerBound < -300)
+        #expect(debt.fittedDomain.upperBound < 0)
+        #expect(debt.segments.count == 1)
+        #expect(debt.segments.first?.isBelowZero == true)
+        #expect(debt.segments.first?.points.map(\.value) == [-100, -300])
 
         let mixed = BalanceTrendSeries(
             points: [
@@ -218,13 +237,61 @@ struct AccountBalanceHistoryTests {
             direction: .asset
         )
         #expect(mixed.crossesZero)
-        #expect(mixed.amountDomain.contains(0))
+        #expect(mixed.valueDomain.contains(-50))
+        #expect(mixed.valueDomain.contains(50))
 
-        let zeros = BalanceTrendSeries(
+        let zeroAssets = BalanceTrendSeries(
+            points: [BalanceTrendPoint(day: 20260810, date: start, amount: 0)],
+            direction: .asset
+        )
+        #expect(zeroAssets.valueDomain == 0...1)
+        #expect(zeroAssets.fittedDomain == 0...1)
+
+        let zeroDebt = BalanceTrendSeries(
             points: [BalanceTrendPoint(day: 20260810, date: start, amount: 0)],
             direction: .debt
         )
-        #expect(zeros.amountDomain == 0...1)
+        #expect(zeroDebt.valueDomain == -1...0)
+        #expect(zeroDebt.fittedDomain == -1...0)
+    }
+
+    @Test("跨过零时在两点之间补一个零点，前后两段在零上接起来，分别算零下和零上")
+    func splitsSegmentsAtZero() throws {
+        let start = try day(20260810)
+        let series = BalanceTrendSeries(
+            points: [
+                BalanceTrendPoint(day: 20260810, date: start, amount: -50),
+                BalanceTrendPoint(day: 20260811, date: start.addingTimeInterval(86_400), amount: 50),
+                BalanceTrendPoint(day: 20260812, date: start.addingTimeInterval(172_800), amount: 80)
+            ],
+            direction: .asset
+        )
+        let segments = series.segments
+        #expect(segments.map(\.isBelowZero) == [true, false])
+        #expect(segments.map(\.id) == [0, 1])
+
+        let crossing = try #require(segments.first?.points.last)
+        #expect(crossing.value == 0)
+        #expect(crossing.amount == nil)
+        #expect(crossing.date == start.addingTimeInterval(43_200))
+        #expect(segments.last?.points.first == crossing)
+        #expect(segments.first?.points.map(\.value) == [-50, 0])
+        #expect(segments.last?.points.map(\.value) == [0, 50, 80])
+        #expect(segments.last?.points.last?.amount == 80)
+
+        // 正好落在零上的点直接当接头，不再另补
+        let touching = BalanceTrendSeries(
+            points: [
+                BalanceTrendPoint(day: 20260810, date: start, amount: 5),
+                BalanceTrendPoint(day: 20260811, date: start.addingTimeInterval(86_400), amount: 0),
+                BalanceTrendPoint(day: 20260812, date: start.addingTimeInterval(172_800), amount: -3)
+            ],
+            direction: .asset
+        )
+        #expect(touching.segments.map(\.isBelowZero) == [false, true])
+        #expect(touching.segments.first?.points.map(\.value) == [5, 0])
+        #expect(touching.segments.last?.points.map(\.value) == [0, -3])
+        #expect(touching.segments.last?.points.first?.amount == 0)
     }
 
     // MARK: - 辅助
