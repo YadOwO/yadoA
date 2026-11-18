@@ -97,7 +97,7 @@ struct AccountSummaryCard: View {
     ///   - since: 走势的第一天。
     private func sparkline(_ trend: BalanceTrendSeries, since: Date) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            BalanceTrendChart(series: trend, selectedDay: .constant(nil), style: .sparkline)
+            BalanceTrendChart(series: trend, style: .sparkline)
                 .frame(height: 44)
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {

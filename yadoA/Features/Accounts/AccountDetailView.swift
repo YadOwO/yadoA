@@ -342,7 +342,7 @@ private struct AccountDetailQueryContent: View {
             }
 
             // 卡片和流水之间看余额（或欠款）怎么变过来的；没记过流水时不显示
-            AccountBalanceTrendSection(account: account, transactions: transactions)
+            AccountBalanceTrendSection(account: account)
 
             if days.isEmpty {
                 Section {
@@ -386,6 +386,7 @@ private struct AccountDetailQueryContent: View {
         }
         .listSectionSpacing(18)
         .listStyle(.insetGrouped)
+        .refreshesBalanceHistory()
         .toolbar {
             if presentation.isActive {
                 ToolbarItem(placement: .primaryAction) {
@@ -883,6 +884,7 @@ private struct AccountTransactionHistoryRow: View {
     NavigationStack {
         AccountDetailView(accountID: UUID())
     }
+    .environment(BalanceHistoryStore())
     .modelContainer(
         for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
         inMemory: true
@@ -897,6 +899,7 @@ private struct AccountTransactionHistoryRow: View {
         NavigationStack {
             AccountDetailView(accountID: account.id)
         }
+        .environment(BalanceHistoryStore())
         .modelContainer(container)
         .environment(\.locale, Locale(identifier: "zh-Hans"))
     }

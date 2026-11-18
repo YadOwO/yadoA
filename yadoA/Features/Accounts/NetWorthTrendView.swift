@@ -4,11 +4,13 @@ import SwiftUI
 /// 资产趋势页：从账户页的汇总卡片点进来，看净资产、资产、负债逐日怎么变过来的。
 ///
 /// 与汇总卡片同一口径：只算启用中的账户，未知类型按资产算；金额由当前余额和流水倒推，最后一天总等于汇总卡片上的数。
+/// 流水用 `BalanceHistoryStore` 汇总好的材料，这一页不读流水，切换金额种类和范围只是重新取点。
 struct NetWorthTrendView: View {
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
     @Query private var accounts: [Account]
-    @Query private var transactions: [AccountTransaction]
+    /// 各账户每天余额变化的缓存。
+    @Environment(BalanceHistoryStore.self) private var balanceHistory
 
     /// 当前看的金额种类，默认净资产。
     @State private var metric: NetWorthTrendMetric = .netAssets
@@ -17,10 +19,10 @@ struct NetWorthTrendView: View {
     @State private var range: BalanceTrendRange = .threeMonths
 
     var body: some View {
-        let activeAccounts = accounts.filter(\.isActive)
+        let ledgers = balanceHistory.ledgers
         let history = AccountBalanceHistory(
-            accounts: activeAccounts,
-            transactions: transactions,
+            ledgers: ledgers ?? [:],
+            accountIDs: Set(accounts.filter(\.isActive).map(\.id)),
             calendar: calendar
         )
         let series = history.netWorthSeries(metric, range: range)
@@ -30,7 +32,11 @@ struct NetWorthTrendView: View {
                 filters
 
                 VStack(alignment: .leading, spacing: 14) {
-                    if series.canDraw {
+                    if ledgers == nil {
+                        // 第一次汇总流水还没完成：先占住图表的位置，不闪出「记录不够」的说明
+                        ProgressView()
+                            .frame(maxWidth: .infinity, minHeight: 200)
+                    } else if series.canDraw {
                         BalanceTrendPanel(title: metric.title(locale: locale), series: series, chartHeight: 200)
                     } else {
                         // 账户都是今天才建的：还画不出线，说明一下什么时候会有
@@ -63,6 +69,7 @@ struct NetWorthTrendView: View {
             .padding(.vertical, 16)
         }
         .paperPage()
+        .refreshesBalanceHistory()
         .navigationTitle(AccountLocalization.string("account.trend.net_worth.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -103,6 +110,7 @@ struct NetWorthTrendView: View {
     NavigationStack {
         NetWorthTrendView()
     }
+    .environment(BalanceHistoryStore())
     .modelContainer(
         for: [Account.self, AccountTransaction.self, BookkeepingPreference.self],
         inMemory: true
@@ -115,6 +123,7 @@ struct NetWorthTrendView: View {
         NavigationStack {
             NetWorthTrendView()
         }
+        .environment(BalanceHistoryStore())
         .modelContainer(container)
         .environment(\.locale, Locale(identifier: "zh-Hans"))
     }
