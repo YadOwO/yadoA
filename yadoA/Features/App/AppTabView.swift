@@ -98,6 +98,9 @@ enum AccountsRoute: Hashable {
 
     /// 账户历史中的统一收支详情入口。
     case transactionDetail(UUID)
+
+    /// 资产趋势：从账户页汇总卡片进入，看净资产、资产、负债的走势。
+    case netWorthTrend
 }
 
 /// “我的”导航栈支持的二级页面。
@@ -358,6 +361,8 @@ struct AppTabView: View {
                             AccountDetailView(accountID: accountID)
                         case let .transactionDetail(transactionID):
                             BookkeepingTransactionDetailView(transactionID: transactionID)
+                        case .netWorthTrend:
+                            NetWorthTrendView()
                         }
                     }
             }

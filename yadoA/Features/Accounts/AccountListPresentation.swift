@@ -230,7 +230,16 @@ enum AccountListPresentation {
     ///   - balance: 当前余额或欠款。
     /// - Returns: 负向或中性。
     static func amountTone(accountType: AccountType?, balance: Decimal) -> AmountTone {
-        let isDebt = accountType?.expenseBalanceEffect == .increaseDebt
+        amountTone(isDebt: accountType?.expenseBalanceEffect == .increaseDebt, balance: balance)
+    }
+
+    /// 同一条上色规则的按方向版本，余额走势里的金额也用它，与账户行保持一致。
+    ///
+    /// - Parameters:
+    ///   - isDebt: 金额是否表示欠款。
+    ///   - balance: 余额或欠款。
+    /// - Returns: 拉低净资产时为负向，否则中性。
+    static func amountTone(isDebt: Bool, balance: Decimal) -> AmountTone {
         let netAssetsEffect = isDebt ? -balance : balance
         return netAssetsEffect < 0 ? .negative : .neutral
     }

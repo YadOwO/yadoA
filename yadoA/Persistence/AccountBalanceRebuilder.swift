@@ -24,33 +24,58 @@ enum AccountBalanceRebuilder {
         accountTypes: [UUID: AccountType]
     ) throws -> [UUID: Decimal] {
         var effects = accountTypes.mapValues { _ in Decimal.zero }
+        for transaction in transactions {
+            for change in try balanceChanges(of: transaction, accountTypes: accountTypes) {
+                guard let current = effects[change.accountID] else { continue }
+                effects[change.accountID] = try adding(change.amount, to: current)
+            }
+        }
+        return effects
+    }
 
-        func apply(_ amount: Decimal, entryType: BookkeepingEntryType, to accountID: UUID) throws {
-            guard let type = accountTypes[accountID], let current = effects[accountID] else { return }
-            effects[accountID] = try LocalExpenseRepository.updatedBalance(
-                current,
+    /// 单笔流水对各账户余额的带符号影响；累计影响和账户余额走势都按它计算。
+    ///
+    /// 字段组合损坏的流水返回空；账户类型未知时无法判断方向，该账户不出现在结果里。
+    /// 转账依次给出转出账户（按支出）和转入账户（按收入）两条。
+    ///
+    /// - Parameters:
+    ///   - transaction: 一笔流水。
+    ///   - accountTypes: 账户 UUID 到已知账户类型的映射。
+    /// - Returns: 受影响的账户和余额变化，余额变化与 `Account.balance` 同号：资产类为余额增减，负债类为欠款增减。
+    /// - Throws: 精确十进制计算失败时抛出 `ExpenseRepositoryError.balanceCalculationFailed`。
+    static func balanceChanges(
+        of transaction: AccountTransaction,
+        accountTypes: [UUID: AccountType]
+    ) throws -> [(accountID: UUID, amount: Decimal)] {
+        guard let payload = try? transaction.validatedPayload() else { return [] }
+
+        func change(
+            _ amount: Decimal,
+            entryType: BookkeepingEntryType,
+            to accountID: UUID
+        ) throws -> [(accountID: UUID, amount: Decimal)] {
+            guard let type = accountTypes[accountID] else { return [] }
+            let signedAmount = try LocalExpenseRepository.updatedBalance(
+                .zero,
                 by: amount,
                 effect: type.expenseBalanceEffect,
                 entryType: entryType
             )
+            return [(accountID: accountID, amount: signedAmount)]
         }
 
-        for transaction in transactions {
-            guard let payload = try? transaction.validatedPayload() else { continue }
-            switch payload {
-            case let .expense(_, amount):
-                try apply(amount, entryType: .expense, to: transaction.accountID)
-            case let .income(_, amount):
-                try apply(amount, entryType: .income, to: transaction.accountID)
-            case let .transfer(toAccountID, amount):
-                try apply(amount, entryType: .expense, to: transaction.accountID)
-                try apply(amount, entryType: .income, to: toAccountID)
-            case let .balanceAdjustment(_, _, delta):
-                guard let current = effects[transaction.accountID] else { continue }
-                effects[transaction.accountID] = try adding(delta, to: current)
-            }
+        switch payload {
+        case let .expense(_, amount):
+            return try change(amount, entryType: .expense, to: transaction.accountID)
+        case let .income(_, amount):
+            return try change(amount, entryType: .income, to: transaction.accountID)
+        case let .transfer(toAccountID, amount):
+            return try change(amount, entryType: .expense, to: transaction.accountID)
+                + change(amount, entryType: .income, to: toAccountID)
+        case let .balanceAdjustment(_, _, delta):
+            guard accountTypes[transaction.accountID] != nil else { return [] }
+            return [(accountID: transaction.accountID, amount: delta)]
         }
-        return effects
     }
 
     /// 在调用方的 context 中把账户余额重算为期初余额加流水影响；不保存。
