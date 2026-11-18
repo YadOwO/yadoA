@@ -229,6 +229,10 @@ struct AIChatPresentationTests {
         for localeID in ["en", "zh-Hans"] {
             let value = AccountLocalization.string("voice.change.locate.action", locale: Locale(identifier: localeID))
             #expect(value != "voice.change.locate.action")
+            // 结果行的读屏提示：流水、账户、周期记账各一条
+            for key in ["voice.change.transaction.hint", "voice.change.account.hint", "voice.change.recurring.hint"] {
+                #expect(AccountLocalization.string(key, locale: Locale(identifier: localeID)) != key)
+            }
         }
     }
 

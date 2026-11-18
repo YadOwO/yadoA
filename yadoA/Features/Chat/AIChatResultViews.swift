@@ -314,6 +314,7 @@ private struct AIChatChangeRow: View {
                 mainLine
             }
             .buttonStyle(AIChatChangeRowButtonStyle(isEnabled: isAvailable))
+            .accessibilityHint(Text(verbatim: accessibilityHintText ?? ""))
             .disabled(!isAvailable)
             .overlay {
                 AIChatHandStrike()
@@ -411,6 +412,18 @@ private struct AIChatChangeRow: View {
         }
         .opacity(isUndone ? 0.45 : 1)
         .accessibilityElement(children: .combine)
+    }
+
+    /// 读屏提示：说明点这一行会打开流水详情、账户详情还是周期记账列表；不可用或已删除的行没有提示。
+    private var accessibilityHintText: String? {
+        guard isAvailable else { return nil }
+        let key: String? = switch change.kind {
+        case .created, .updated: "voice.change.transaction.hint"
+        case .account: "voice.change.account.hint"
+        case .recurring: "voice.change.recurring.hint"
+        case .deleted: nil
+        }
+        return key.map { AccountLocalization.string($0, locale: locale) }
     }
 
     /// 行首的动作；新增不写，纸条标题已经说了。

@@ -69,7 +69,9 @@ struct VoiceBookkeepingDock: View {
                     onEnd: { voice.closeCard() },
                     onOpenChat: { voice.openChat(isSignedIn: authStore.isAuthenticated) },
                     onCreateAccount: { voice.accountCreationTurn = $0 },
-                    onOpenRecurringRules: { voice.isRecurringRulesPresented = true }
+                    onOpenRecurringRules: { voice.isRecurringRulesPresented = true },
+                    isShowingDetail: voice.presentedTransaction != nil || voice.presentedAccount != nil
+                        || voice.isRecurringRulesPresented
                 )
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
