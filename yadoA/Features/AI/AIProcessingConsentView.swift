@@ -63,6 +63,9 @@ struct AIProcessingConsentSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // 页首落款：告诉用户是谁在请求同意
+                BrandLockup()
+                    .padding(.bottom, 4)
                 Text(text("ai.consent.title"))
                     .font(.system(.title, design: .serif, weight: .bold))
                     .foregroundStyle(.primary)

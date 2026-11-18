@@ -988,6 +988,24 @@
         }
       }
     },
+    "checkIn.signIn.title" : {
+      "comment" : "未登录点“我的”页签到时，询问是否去登录的弹窗标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign In to Check In?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录后才能签到"
+          }
+        }
+      }
+    },
     "checkIn.signIn.message" : {
       "comment" : "未登录点“我的”页签到时登录页上的说明",
       "extractionState" : "manual",
@@ -1002,6 +1020,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "登录后每天签到就能领 AI 点数，点数跟着账号走。"
+          }
+        }
+      }
+    },
+    "feedback.signIn.title" : {
+      "comment" : "未登录在“我的”页点意见反馈时，询问是否去登录的弹窗标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign In to Send Feedback?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录后才能发反馈"
           }
         }
       }
@@ -18088,42 +18124,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "云同步默认关闭，登录也不会自动上传。开启后全程加密传输，只用于同步，随时可以关掉、删除云端数据。"
-          }
-        }
-      }
-    },
-    "onboarding.privacy.noAds.title" : {
-      "comment" : "首次引导本地承诺第三条的标题",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No ads, no selling data"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "不卖数据，不投广告"
-          }
-        }
-      }
-    },
-    "onboarding.privacy.noAds.body" : {
-      "comment" : "首次引导本地承诺第三条的说明，与隐私政策「我们不做的事」一致",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No ad or third-party analytics SDKs, no tracking, and we never sell your information."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "不接入广告和第三方统计，不追踪你，也不出售你的信息。"
           }
         }
       }

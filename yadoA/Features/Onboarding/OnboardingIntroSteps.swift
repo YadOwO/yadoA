@@ -114,8 +114,6 @@ enum OnboardingPrivacyPromise: String, CaseIterable, Identifiable {
     case local
     /// 云同步默认关闭，开启后加密传输、只用于同步，可以随时关闭和删除。
     case sync
-    /// 不接广告和第三方统计，不追踪，不出售信息。
-    case noAds
 
     /// 稳定标识。
     var id: String { rawValue }
@@ -125,7 +123,6 @@ enum OnboardingPrivacyPromise: String, CaseIterable, Identifiable {
         switch self {
         case .local: "iphone"
         case .sync: "lock.icloud"
-        case .noAds: "hand.raised"
         }
     }
 
@@ -140,7 +137,7 @@ enum OnboardingPrivacyPromise: String, CaseIterable, Identifiable {
     }
 }
 
-/// 本地承诺：逐条写下账本存在哪、同步怎么处理、数据不拿去做什么，再用墨线画出一部手机把账本圈在里面，豆子落进圈里。
+/// 本地承诺：逐条写下账本存在哪、同步怎么处理，再用墨线画出一部手机把账本圈在里面，豆子落进圈里。
 struct OnboardingPrivacyStep: View {
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -190,7 +187,7 @@ struct OnboardingPrivacyStep: View {
         }
     }
 
-    /// 三条承诺：标题写完后图标一笔笔画出，文字跟着浮上来；与登录邀请里的权益列表同一种写法。
+    /// 两条承诺：标题写完后图标一笔笔画出，文字跟着浮上来；与登录邀请里的权益列表同一种写法。
     private var promises: some View {
         VStack(alignment: .leading, spacing: 16) {
             ForEach(Array(OnboardingPrivacyPromise.allCases.enumerated()), id: \.element) { index, promise in
@@ -256,7 +253,7 @@ struct OnboardingPrivacyStep: View {
                     .padding(.bottom, 26)
             }
         }
-        // 上面多了三条承诺，手机比原来小一圈，小屏上也能和按钮一起放下
+        // 上面有两条承诺，手机比原来小一圈，小屏上也能和按钮一起放下
         .frame(width: 112, height: 184)
         .accessibilityHidden(true)
     }

@@ -487,7 +487,7 @@ private struct VoiceInputAlertModifier: ViewModifier {
 
     private func alertTitle(for alert: VoiceInputAlert) -> String {
         switch alert {
-        case .signInRequired: text("voice.signIn.title")
+        case .signInRequired: text(SignInReason.voiceBookkeeping.promptTitleLocalizationKey)
         case .permissionDenied: text("voice.permission.title")
         case .unsupported: text("voice.error.unsupported")
         case .microphoneUnavailable: text("voice.error.microphoneUnavailable")
@@ -496,7 +496,7 @@ private struct VoiceInputAlertModifier: ViewModifier {
 
     private func alertMessage(for alert: VoiceInputAlert) -> String? {
         switch alert {
-        case .signInRequired: text("voice.signIn.message")
+        case .signInRequired: text(SignInReason.voiceBookkeeping.messageLocalizationKey)
         case .permissionDenied: text("voice.permission.message")
         case .unsupported, .microphoneUnavailable: nil
         }

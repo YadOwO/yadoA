@@ -182,18 +182,8 @@ struct SignInView: View {
 
     /// 导航栏标题位的品牌：产品标记加衬线产品名，横向排开，高度不超出导航栏。
     private var brand: some View {
-        HStack(spacing: 7) {
-            Image(.brandMark)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 26, height: 26)
-                .accessibilityHidden(true)
-            Text(text("app.name"))
-                .font(.system(size: 22, weight: .semibold, design: .serif))
-                .lineLimit(1)
-        }
-        .accessibilityAddTraits(.isHeader)
-        .accessibilityElement(children: .combine)
+        BrandLockup()
+            .accessibilityAddTraits(.isHeader)
     }
 
     /// 登录权益列表：每行一个图标加一句短文案，整块按最宽一行收拢后居中，行内左对齐。
