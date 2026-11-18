@@ -45,13 +45,14 @@ struct AIChatTurnResultView: View {
 
     /// 是否在结果下面标「由 AI 生成」。
     ///
-    /// 要同时满足：这一轮处理完、没有失败、界面上有 AI 写的内容（模型原话或查账卡片）。
+    /// 要同时满足：这一轮处理完、界面上有 AI 写的内容（模型原话，或查账卡片；查账卡片在失败轮次也会显示，同样要标）。
     /// 刚发生的一轮要等回复淡入或纸条逐行写完才出现：写完时聊天页会把这一轮从入场集合里移除，`animatesEntrance` 随之变为 `false`，不用另存状态。
-    /// 只有查账卡片、没有文字和改动的一轮不会触发入场结束回调，所以不等，标注和卡片一起出现。
+    /// 失败提示文字不播淡入、不会触发入场结束回调，所以不算在等待里。
+    /// 只有查账卡片、没有文字和改动的一轮同样不会触发入场结束回调，所以不等，标注和卡片一起出现。
     private var showsAIGeneratedLabel: Bool {
-        let waitsForEntrance = animatesEntrance && (!snapshot.changes.isEmpty || snapshot.resultText != nil)
+        let waitsForEntrance = animatesEntrance
+            && (!snapshot.changes.isEmpty || (snapshot.resultText != nil && !snapshot.isFailed))
         return isFinished
-            && !snapshot.isFailed
             && (AIChatCopy.showsModelText(in: snapshot, locale: locale) || snapshot.insight != nil)
             && !waitsForEntrance
     }

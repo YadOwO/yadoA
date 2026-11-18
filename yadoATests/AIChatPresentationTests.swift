@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import yadoA
 
-/// 聊天页的展示规则：下一步建议、状态、纸条标题和查账分布。
+/// 聊天页的展示规则：下一步建议、状态、纸条标题、AI 生成标注和查账分布。
 @Suite("聊天页展示规则")
 @MainActor
 struct AIChatPresentationTests {
@@ -173,6 +173,48 @@ struct AIChatPresentationTests {
         #expect(
             AIChatCopy.slipHeadline(for: snapshot(resultText: "已记 1 笔", isUndone: true, changes: [change(.created)]), locale: locale)
                 == AccountLocalization.string("voice.turn.undone", locale: locale)
+        )
+    }
+
+    // MARK: - AI 生成标注
+
+    /// 界面上显示的是模型写的话时要标：只有回复文字，或纸条用模型原话做标题。
+    @Test("显示模型原话时要标「由 AI 生成」：纯回复，以及用模型原话做标题的纸条")
+    func marksModelText() {
+        #expect(AIChatCopy.showsModelText(in: snapshot(resultText: "记好了"), locale: locale))
+        #expect(
+            AIChatCopy.showsModelText(
+                in: snapshot(resultText: "记好了，顺便提醒你预算快用完了", changes: [change(.created)]),
+                locale: locale
+            )
+        )
+    }
+
+    /// 失败提示、处理中、本机拼的短标题和已撤销的纸条都不是模型写的话，不标。
+    @Test("失败、处理中、本机短标题和已撤销都不标「由 AI 生成」")
+    func skipsNonModelText() {
+        // 处理中：还没有结果文字
+        #expect(!AIChatCopy.showsModelText(in: snapshot(), locale: locale))
+        // 失败提示是本机文案
+        #expect(!AIChatCopy.showsModelText(in: snapshot(resultText: "网络不可用", isFailed: true), locale: locale))
+
+        // 纸条用的是本机拼出的摘要，会换成短标题
+        let summary = VoiceSessionSummary.text(
+            forItems: [
+                .init(kind: .created, label: "午饭", formattedAmount: "¥28.00"),
+                .init(kind: .created, label: "打车", formattedAmount: "¥35.00"),
+            ],
+            locale: locale
+        )
+        let localChanges = [change(.created), change(.created, title: "打车", amount: "¥35.00")]
+        #expect(!AIChatCopy.showsModelText(in: snapshot(resultText: summary, changes: localChanges), locale: locale))
+
+        // 已撤销的纸条标题是「已撤销」
+        #expect(
+            !AIChatCopy.showsModelText(
+                in: snapshot(resultText: "已记 1 笔", isUndone: true, changes: [change(.created)]),
+                locale: locale
+            )
         )
     }
 
