@@ -211,33 +211,34 @@ struct VoiceMicAccessory: View {
 
 // MARK: - 结果展示
 
-/// 一轮中写入的一笔流水：分类图标、名称、金额、日期（不是今天时）、账户与待确认字段。
-struct VoiceEntryChangeRow: View {
-    @Environment(\.locale) private var locale
-    @Environment(\.calendar) private var calendar
+/// 会话卡片上点一行结果要打开的东西；行的样子和聊天页共用 `AIChatResultSlip`，打开的方式卡片自己定。
+enum VoiceChangeOpenTarget: Equatable {
+    /// 一笔流水的详情；带着这次改动，详情里还可以去记账页定位它。
+    case transaction(VoiceEntryChange)
 
-    /// 流水变更。
-    let change: VoiceEntryChange
+    /// 一个账户的详情；转账时是转出账户。
+    case account(UUID)
 
-    /// 所在轮次是否已撤销；已撤销时整行划掉、变淡。
-    var isUndone = false
+    /// 周期记账列表：规则不在记账页明细里，在列表里查看和编辑。
+    case recurringRules
 
-    var body: some View {
-        VoiceChangeRowLayout(
-            symbolName: change.row?.symbolName ?? "questionmark",
-            action: VoiceEntryChangeText.action(for: change.kind, locale: locale),
-            actionColor: change.kind == .deleted ? Color(.ledgerRed) : Color.secondary,
-            title: change.label,
-            detail: VoiceEntryChangeText.detail(
-                transactionDay: change.transactionDay,
-                accountName: change.accountName,
-                inferredFields: change.inferredFields.map(\.rawValue),
-                locale: locale,
-                calendar: calendar
-            ),
-            amount: change.formattedAmount,
-            isUndone: isUndone
-        )
+    /// 找出纸条上一行要打开的东西。
+    ///
+    /// - Parameters:
+    ///   - row: 纸条上被点的一行。
+    ///   - changes: 这一轮实际写入的改动，用来找回流水改动本身。
+    /// - Returns: 删除的流水、删掉的账户或规则、找不到对应改动时为 `nil`。
+    static func resolve(_ row: AIChatChangeSnapshot, in changes: [VoiceChange]) -> VoiceChangeOpenTarget? {
+        switch row.kind {
+        case .created, .updated:
+            return changes.lazy.compactMap(\.entryChange).first { $0.id == row.id }.map { .transaction($0) }
+        case .deleted:
+            return nil
+        case .account:
+            return row.targetID.map { .account($0) }
+        case .recurring:
+            return row.targetID == nil ? nil : .recurringRules
+        }
     }
 }
 
@@ -308,89 +309,6 @@ enum VoiceEntryChangeText {
             parts.append(inferred)
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
-}
-
-/// 一行改动的布局：图标、动作、名称、说明与金额；流水和账户改动共用。
-struct VoiceChangeRowLayout: View {
-    /// 行图标。
-    let symbolName: String
-
-    /// 动作文字，例如「新增」「调整余额」。
-    let action: String
-
-    /// 动作文字的颜色。
-    var actionColor: Color = .secondary
-
-    /// 流水的名称或账户名称。
-    let title: String
-
-    /// 补充说明。
-    let detail: String?
-
-    /// 行尾金额。
-    let amount: String?
-
-    /// 所在轮次是否已撤销；已撤销时整行划掉、变淡。
-    var isUndone = false
-
-    /// 是否变淡但不划掉：历史记录里对应的流水或账户已不存在。
-    var isDimmed = false
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: symbolName)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 28, height: 28)
-                .background(Color.accentColor.opacity(0.08), in: Circle())
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(action)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(actionColor)
-                    Text(title)
-                        .font(.subheadline.weight(.medium))
-                        .lineLimit(1)
-                }
-                if let detail {
-                    Text(detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if let amount {
-                Text(amount)
-                    .font(.system(.subheadline, design: .serif).monospacedDigit())
-                    .lineLimit(1)
-            }
-        }
-        .strikethrough(isUndone)
-        .opacity(isUndone || isDimmed ? 0.45 : 1)
-        .accessibilityElement(children: .combine)
-    }
-}
-
-/// 一轮中的一次账户相关改动：图标、动作、账户名称、说明与金额，样式与流水行一致。
-struct VoiceAccountChangeRow: View {
-    /// 账户相关改动。
-    let change: VoiceAccountChange
-
-    /// 所在轮次是否已撤销；已撤销时整行划掉、变淡。
-    var isUndone = false
-
-    var body: some View {
-        VoiceChangeRowLayout(
-            symbolName: change.symbolName,
-            action: change.actionText,
-            title: change.title,
-            detail: change.detail,
-            amount: change.formattedAmount,
-            isUndone: isUndone
-        )
     }
 }
 

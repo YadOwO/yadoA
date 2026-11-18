@@ -336,6 +336,59 @@ struct AccountListPresentationTests {
         #expect(second.balance == Decimal(120))
     }
 
+    @Test("只有信用卡、负债的负数欠款算填错，资产透支和未知类型不提示")
+    func negativeDebtOnlyForDebtTypes() {
+        #expect(NegativeDebtHint.isNegativeDebt(accountType: .creditCard, balance: -1))
+        #expect(NegativeDebtHint.isNegativeDebt(accountType: .liability, balance: Decimal(string: "-0.01")!))
+        #expect(!NegativeDebtHint.isNegativeDebt(accountType: .creditCard, balance: 0))
+        #expect(!NegativeDebtHint.isNegativeDebt(accountType: .liability, balance: 5000))
+        for assetType in AccountType.allCases where assetType.expenseBalanceEffect == .decreaseValue {
+            #expect(!NegativeDebtHint.isNegativeDebt(accountType: assetType, balance: -100))
+        }
+        #expect(!NegativeDebtHint.isNegativeDebt(accountType: nil, balance: -100))
+    }
+
+    @Test("提示只列启用中、欠款为负、没确认过的账户，并保持显示顺序")
+    func negativeDebtAccountsSkipInactiveAndDismissed() {
+        let huabei = makeAccount(typeRawValue: AccountType.creditCard.rawValue, name: "花呗", balance: -3000)
+        let loan = makeAccount(typeRawValue: AccountType.liability.rawValue, name: "房贷", balance: -200_000)
+        let dismissed = makeAccount(typeRawValue: AccountType.creditCard.rawValue, name: "溢缴的卡", balance: -50)
+        let inactive = makeAccount(typeRawValue: AccountType.liability.rawValue, name: "已停用", balance: -10)
+        inactive.deactivatedAt = Date(timeIntervalSince1970: 200)
+        let owed = makeAccount(typeRawValue: AccountType.creditCard.rawValue, name: "正常欠款", balance: 800)
+        let overdrawn = makeAccount(typeRawValue: AccountType.debitCard.rawValue, name: "透支的储蓄卡", balance: -20)
+
+        let result = NegativeDebtHint.accounts(
+            in: [loan, owed, dismissed, overdrawn, inactive, huabei],
+            dismissedIDs: [dismissed.id]
+        )
+        #expect(result.map(\.id) == [loan.id, huabei.id])
+    }
+
+    @Test("已确认账户的本机存储可以往返，坏片段被忽略，同一集合得到同一个值")
+    func dismissedIDsRoundTrip() {
+        let first = UUID()
+        let second = UUID()
+        let stored = NegativeDebtHint.storedValue(for: [first, second])
+        #expect(NegativeDebtHint.dismissedIDs(from: stored) == [first, second])
+        #expect(stored == NegativeDebtHint.storedValue(for: [second, first]))
+        #expect(NegativeDebtHint.dismissedIDs(from: "") == [])
+        #expect(NegativeDebtHint.dismissedIDs(from: "not-a-uuid,\(first.uuidString)") == [first])
+    }
+
+    @Test("列表提示里的账户名带引号，按语言连成一串")
+    func negativeDebtNamesAreQuotedAndJoined() {
+        let zh = NegativeDebtHint.quotedNames(["花呗", "招行信用卡"], locale: Locale(identifier: "zh-Hans"))
+        #expect(zh.contains("「花呗」"))
+        #expect(zh.contains("「招行信用卡」"))
+        let en = NegativeDebtHint.quotedNames(["Huabei"], locale: Locale(identifier: "en"))
+        #expect(en == "“Huabei”")
+        let message = AccountLocalization.formatted(
+            "account.negative_debt.list.message", value: en, locale: Locale(identifier: "en")
+        )
+        #expect(message.hasPrefix("The amount owed on “Huabei”"))
+    }
+
     /// 构造已持久化形态的账户，用于隔离展示层边界。
     private func makeAccount(
         id: UUID = UUID(),

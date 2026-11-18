@@ -165,7 +165,7 @@ struct ProfileView: View {
         ProfileRefreshTrigger(isAuthenticated: authStore.isAuthenticated, isNetworkAllowed: isNetworkAllowed)
     }
 
-    /// 意见反馈入口：已登录时进入对话页；未登录时直接打开登录页，说明反馈需要登录。
+    /// 意见反馈入口：已登录时进入对话页；未登录时先弹窗询问是否去登录，确认后打开登录页。
     @ViewBuilder
     private var feedbackEntry: some View {
         if authStore.isAuthenticated {
@@ -175,7 +175,7 @@ struct ProfileView: View {
             .accessibilityIdentifier("profile-feedback")
         } else {
             Button {
-                signInPresentation.present(reason: .feedback)
+                signInPresentation.requestSignIn(reason: .feedback)
             } label: {
                 feedbackRow
             }
@@ -302,10 +302,10 @@ struct ProfileView: View {
         .animation(.easeInOut(duration: 0.25), value: showsCheckInBadge)
     }
 
-    /// 点击签到气泡：未登录只打开登录页；已登录发起签到，动画结束前保持气泡显示。
+    /// 点击签到气泡：未登录先弹窗询问是否去登录；已登录发起签到，动画结束前保持气泡显示。
     private func handleCheckInTap() async -> CheckInTapOutcome {
         guard authStore.isAuthenticated, let aiPoints else {
-            signInPresentation.present(reason: .checkIn)
+            signInPresentation.requestSignIn(reason: .checkIn)
             return .signInRequired
         }
         isCheckInBadgeActive = true
