@@ -16,7 +16,12 @@ struct AIChatResultActions {
 }
 
 /// 一轮的结果：有改动时是一张纸条，查账时是大数字加分布图，其余是一段文字；模型说的话可以长按选中拷贝。
+///
+/// AI 写的内容（回复、追问、查账卡片、用模型原话做标题的纸条）下面会加一行「由 AI 生成」标注。
 struct AIChatTurnResultView: View {
+    @Environment(\.locale) private var locale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     /// 这一轮的展示内容。
     let snapshot: AIChatTurnSnapshot
 
@@ -37,6 +42,19 @@ struct AIChatTurnResultView: View {
 
     /// 入场动效播完。
     let onEntranceFinished: () -> Void
+
+    /// 是否在结果下面标「由 AI 生成」。
+    ///
+    /// 要同时满足：这一轮处理完、没有失败、界面上有 AI 写的内容（模型原话或查账卡片）。
+    /// 刚发生的一轮要等回复淡入或纸条逐行写完才出现：写完时聊天页会把这一轮从入场集合里移除，`animatesEntrance` 随之变为 `false`，不用另存状态。
+    /// 只有查账卡片、没有文字和改动的一轮不会触发入场结束回调，所以不等，标注和卡片一起出现。
+    private var showsAIGeneratedLabel: Bool {
+        let waitsForEntrance = animatesEntrance && (!snapshot.changes.isEmpty || snapshot.resultText != nil)
+        return isFinished
+            && !snapshot.isFailed
+            && (AIChatCopy.showsModelText(in: snapshot, locale: locale) || snapshot.insight != nil)
+            && !waitsForEntrance
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -63,7 +81,13 @@ struct AIChatTurnResultView: View {
             if isFinished, let insight = snapshot.insight {
                 AIChatInsightCard(insight: insight, animatesEntrance: animatesEntrance)
             }
+            // 标注放在正文、纸条和卡片之外：不进可选中的文字，也不放进卡片（卡片自带标识，会盖掉里面的标识）；有卡片时只在卡片下面出现一次
+            if showsAIGeneratedLabel {
+                AIGeneratedLabel()
+                    .transition(.opacity)
+            }
         }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: showsAIGeneratedLabel)
     }
 }
 

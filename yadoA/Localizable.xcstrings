@@ -16156,6 +16156,24 @@
         }
       }
     },
+    "ai.generated.label" : {
+      "comment" : "AI 写的回复、查账卡片下方的一行灰色小字，按《人工智能生成合成内容标识办法》标明内容由 AI 生成；失败提示和用户的话不加",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI-generated. Please double-check."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内容由 AI 生成，请核对"
+          }
+        }
+      }
+    },
     "ai.tier.turnsLeft" : {
       "comment" : "模型选择页每句点数后面按余额还能说几句，参数为句数",
       "extractionState" : "manual",

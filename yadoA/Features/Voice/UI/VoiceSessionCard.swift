@@ -308,6 +308,10 @@ private struct VoiceSessionTurnView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .conversationTextSelection()
             }
+            // 标注是正文的兄弟视图，不放进可选中的文字里；卡片的滚动区域关掉了动画，这里不加过渡
+            if showsAIGeneratedLabel {
+                AIGeneratedLabel()
+            }
             if turn.outcome == .processing {
                 HStack(spacing: 6) {
                     ProgressView().controlSize(.small)
@@ -371,6 +375,14 @@ private struct VoiceSessionTurnView: View {
     /// 是否为最近一轮；追问候选项只对最近一轮有意义。
     private var isLatest: Bool {
         session.latestTurn?.id == turn.id
+    }
+
+    /// 是否在这一轮结果下面标「由 AI 生成」：已经处理完，并且界面上显示的是模型写的话。
+    ///
+    /// 失败提示（`isFailed` 来自 `turn.failure`）和用短标题的纸条（含已撤销）不标；判断与聊天页共用 `AIChatCopy.showsModelText`。
+    private var showsAIGeneratedLabel: Bool {
+        guard turn.outcome != .processing else { return false }
+        return AIChatCopy.showsModelText(in: AIChatTurnSnapshot(turn: turn, locale: locale), locale: locale)
     }
 
     /// 是否在这一轮结果下面提示可以点开：最近一轮、已经处理完、至少有一行能点，并且用户还没学会。
