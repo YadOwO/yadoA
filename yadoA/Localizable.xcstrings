@@ -14419,6 +14419,159 @@
         }
       }
     },
+    "developer.section.checkIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check-in Testing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到测试"
+          }
+        }
+      }
+    },
+    "developer.checkIn.status" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check-in status"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到状态"
+          }
+        }
+      }
+    },
+    "developer.checkIn.resetGuide" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Check-in Guide"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置签到引导"
+          }
+        }
+      }
+    },
+    "developer.checkIn.clear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Check-ins"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清空签到记录"
+          }
+        }
+      }
+    },
+    "developer.checkIn.streak" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set Streak to %1$@ Days (%2$@ Today)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连签设为 %1$@ 天（今天签到得%2$@）"
+          }
+        }
+      }
+    },
+    "developer.checkIn.done.guide" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guide reset. It appears again on Profile while today's check-in bubble is showing."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已重置引导。回到“我的”页，今天的签到气泡出现时会再弹出。"
+          }
+        }
+      }
+    },
+    "developer.checkIn.done.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check-ins reset."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已重置签到。"
+          }
+        }
+      }
+    },
+    "developer.checkIn.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset failed: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置失败：%@"
+          }
+        }
+      }
+    },
+    "developer.checkIn.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dev environment only. The guide only appears while today's check-in bubble shows on Profile; to start over, reset the guide, then clear check-ins. Setting a streak replaces existing check-ins with consecutive days up to yesterday, so checking in today earns that gift. Points already granted are kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只有 dev 环境可用。引导只在“我的”页出现今天的签到气泡时弹出：想从头体验，先重置引导，再清空签到。设置连签会清掉现有签到，补出截至昨天的连续签到，今天一签就得到对应礼包。已经发的点数不收回。"
+          }
+        }
+      }
+    },
     "onboarding.landing.hint" : {
       "comment" : "首次引导结束时语音记账入口旁的提示",
       "extractionState" : "manual",

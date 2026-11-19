@@ -38,6 +38,9 @@ struct ProfileView: View {
     /// 是否正从签到气泡弹出签到引导。
     @State private var isCheckInGuidePresented = false
 
+    /// 本页是否正显示在屏幕上；推入二级页或切到别的 Tab 时为 false，签到引导只在本页可见时弹出。
+    @State private var isVisible = false
+
     /// 刚签到得到、等庆祝结束后要开的礼包。
     @State private var pendingGift: AICheckInGift?
 
@@ -165,7 +168,11 @@ struct ProfileView: View {
             // 进入页面或登录状态变化时拉一次最新资料，其他端改过昵称也能及时同步
             await authStore.refreshProfile()
         }
-        .onAppear { checkInPlacement = .random() }
+        .onAppear {
+            checkInPlacement = .random()
+            isVisible = true
+        }
+        .onDisappear { isVisible = false }
         .task(id: refreshTrigger) {
             // 每次回到“我的”都刷新一次余额，其他芽豆 App 用掉的点数也能及时反映
             await aiPoints?.refresh()
@@ -357,9 +364,12 @@ struct ProfileView: View {
         return !authStore.isAuthenticated || aiPoints?.shouldOfferCheckIn == true || isCheckInBadgeActive
     }
 
-    /// 是否该弹签到引导：已登录、气泡因今天还没签而出现，且这个账号在本机还没看过引导。
+    /// 是否该弹签到引导：本页正显示、已登录、气泡因今天还没签而出现，且这个账号在本机还没看过引导。
+    ///
+    /// 要求本页可见：在二级页（例如「开发」页重置引导和签到）里条件就已满足时，等回到本页再弹，
+    /// 不在看不见的页面上把引导标记成已看过。
     private var isCheckInGuideEligible: Bool {
-        isSignedInOnline && aiPoints?.shouldOfferCheckIn == true && aiPoints?.shouldShowCheckInGuide == true
+        isVisible && isSignedInOnline && aiPoints?.shouldOfferCheckIn == true && aiPoints?.shouldShowCheckInGuide == true
     }
 
     /// 浮在页头头像左侧或右侧空白里的签到气泡；位置只在头像所在的竖向带内取值，不压住头像、角标、名称和登录按钮。

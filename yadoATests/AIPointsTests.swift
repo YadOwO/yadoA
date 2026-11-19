@@ -513,6 +513,16 @@ struct AIPointsTests {
         #expect(open.value(forHTTPHeaderField: "Content-Type") == "application/json")
         let openBody = try #require(open.httpBody)
         #expect(try JSONDecoder().decode([String: Int].self, from: openBody) == ["seq": 2])
+
+        let reset = api.makeURLRequest(.devResetCheckIn(streak: 6), token: "abc")
+        #expect(reset.httpMethod == "POST")
+        #expect(reset.url?.absoluteString == "https://example.invalid/v1/billing/check-in/dev-reset")
+        #expect(reset.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        let resetBody = try #require(reset.httpBody)
+        let resetFields = try #require(try JSONSerialization.jsonObject(with: resetBody) as? [String: Any])
+        #expect(resetFields.count == 2)
+        #expect(resetFields["product"] as? String == "yadoa")
+        #expect(resetFields["streak"] as? Int == 6)
     }
 
     @Test("查询接口错误状态码映射")
@@ -1378,6 +1388,66 @@ struct AIPointsTests {
         #expect(store.shouldShowCheckInGuide)
     }
 
+    @Test("开发测试：重置签到引导只影响当前账号，重启后仍生效，未登录时不做任何事")
+    func resetCheckInGuideIsPerAccount() {
+        var userID: String? = "user-1"
+        let defaults = UserDefaults.isolated()
+        let store = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults) { userID }
+        store.markCheckInGuideShown()
+        userID = "user-2"
+        store.markCheckInGuideShown()
+
+        userID = "user-1"
+        store.resetCheckInGuide()
+        #expect(store.shouldShowCheckInGuide)
+        let restarted = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults) { userID }
+        #expect(restarted.shouldShowCheckInGuide)
+
+        userID = "user-2"
+        #expect(!store.shouldShowCheckInGuide)
+
+        userID = nil
+        store.resetCheckInGuide()
+        userID = "user-2"
+        #expect(!store.shouldShowCheckInGuide)
+    }
+
+    @Test("开发测试：重置签到成功时换上返回的状态并刷新余额，失败时状态不变，未登录或不允许联网时不发请求")
+    func resetCheckInForTesting() async {
+        let api = FakeAIBillingAPI()
+        var userID: String? = "user-1"
+        var isNetworkAllowed = true
+        let store = AIPointsStore(
+            api: api,
+            defaults: .isolated(),
+            currentUserID: { userID },
+            isNetworkAllowed: { isNetworkAllowed }
+        )
+        let weekly = Self.gift(id: "12", tier: .weekly, streak: 7)
+        api.checkInStatusResults = [.success(Self.pendingStatus(streak: 7, gifts: [weekly]))]
+        await store.refreshCheckInStatus()
+        api.walletResults = [.success(AIWallet(balance: 101))]
+
+        let reset = Self.pendingStatus(streak: 6)
+        api.resetResults = [.success(reset)]
+        #expect(await store.resetCheckInForTesting(streak: 6) == .success(reset))
+        #expect(api.resetRequests == [6])
+        #expect(store.checkInStatus == reset)
+        #expect(store.unopenedGifts.isEmpty)
+        #expect(store.balance == 101)
+
+        api.resetResults = [.failure(.invalidContract)]
+        #expect(await store.resetCheckInForTesting(streak: 0) == .failure(.invalidContract))
+        #expect(store.checkInStatus == reset)
+
+        isNetworkAllowed = false
+        #expect(await store.resetCheckInForTesting(streak: 0) == .failure(.network))
+        isNetworkAllowed = true
+        userID = nil
+        #expect(await store.resetCheckInForTesting(streak: 0) == .failure(.notSignedIn))
+        #expect(api.resetRequests == [6, 0])
+    }
+
     @Test("签到日历：按月查询，未登录或不允许联网时不发请求")
     func fetchesCheckInMonth() async {
         let api = FakeAIBillingAPI()
@@ -1567,6 +1637,12 @@ private final class FakeAIBillingAPI: AIBillingFetching {
     /// 依次打开过的礼包 id 与第几次。
     private(set) var openRequests: [(id: String, seq: Int)] = []
 
+    /// 依次返回的重置签到结果；用完后重复最后一个。
+    var resetResults: [Result<AICheckInStatus, AIBillingAPIError>] = [.failure(.invalidContract)]
+
+    /// 依次请求过的重置签到连签天数。
+    private(set) var resetRequests: [Int] = []
+
     /// 设置后查询余额时先挂起，直到用例恢复。
     var walletGate: AsyncSaveGate?
 
@@ -1625,6 +1701,12 @@ private final class FakeAIBillingAPI: AIBillingFetching {
         let index = min(openRequests.count, openResults.count - 1)
         openRequests.append((id: id, seq: seq))
         return try openResults[index].get()
+    }
+
+    func resetCheckInForTesting(streak: Int) async throws -> AICheckInStatus {
+        let index = min(resetRequests.count, resetResults.count - 1)
+        resetRequests.append(streak)
+        return try resetResults[index].get()
     }
 }
 

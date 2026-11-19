@@ -75,6 +75,15 @@ protocol AIBillingFetching {
     /// - Returns: 打开结果。
     /// - Throws: `AIBillingAPIError`；礼包不存在（404）或状态已变（409）时为 `.invalidContract`。
     func openCheckInGift(id: String, seq: Int) async throws -> AICheckInGiftOpenResult
+
+    /// 开发测试用：清空当前账号的签到、礼包和打开记录，再补出截至昨天的连签，已入账的点数保留。
+    ///
+    /// 只有 dev 环境的服务端开放这个接口，线上没有（返回 404），App 里只有 dev 包的「开发」页调用。
+    ///
+    /// - Parameter streak: 补到昨天的连签天数：0 为清空、像从没签过；N 为今天签到就是第 N+1 天。
+    /// - Returns: 重置后的签到状态。
+    /// - Throws: `AIBillingAPIError`；服务端没开放时为 `.invalidContract`。
+    func resetCheckInForTesting(streak: Int) async throws -> AICheckInStatus
 }
 
 /// 调用 yado_ai 点数与模型档位查询接口的网络客户端：查询、签到与打开签到礼包，不调用模型、不扣点。
@@ -102,6 +111,17 @@ final class AIBillingAPI: AIBillingFetching {
         /// `POST /v1/billing/check-in/gifts/{id}/open`：打开一次签到礼包。
         case openCheckInGift(id: String, seq: Int)
 
+        /// `POST /v1/billing/check-in/dev-reset`：开发测试用的重置签到，只有 dev 环境开放。
+        case devResetCheckIn(streak: Int)
+
+        /// 重置签到的请求体。
+        private nonisolated struct DevResetCheckInBody: Encodable, Sendable {
+            /// 本产品代号。
+            let product: String
+            /// 补到昨天的连签天数。
+            let streak: Int
+        }
+
         /// 接口路径。
         var path: String {
             switch self {
@@ -111,6 +131,7 @@ final class AIBillingAPI: AIBillingFetching {
             case .checkInStatus, .checkIn: "v1/billing/check-in"
             case .checkInHistory: "v1/billing/check-in/history"
             case let .openCheckInGift(id, _): "v1/billing/check-in/gifts/\(id)/open"
+            case .devResetCheckIn: "v1/billing/check-in/dev-reset"
             }
         }
 
@@ -133,24 +154,26 @@ final class AIBillingAPI: AIBillingFetching {
                     items.append(URLQueryItem(name: "cursor", value: cursor))
                 }
                 return items
-            case .models, .checkIn, .openCheckInGift:
+            case .models, .checkIn, .openCheckInGift, .devResetCheckIn:
                 return []
             }
         }
 
-        /// HTTP 方法；签到和打开礼包是 POST。
+        /// HTTP 方法；签到、打开礼包和重置签到是 POST。
         var httpMethod: String {
             switch self {
-            case .checkIn, .openCheckInGift: "POST"
+            case .checkIn, .openCheckInGift, .devResetCheckIn: "POST"
             default: "GET"
             }
         }
 
-        /// 请求体：签到带本产品代号，打开礼包带要开第几次；其余没有。
+        /// 请求体：签到带本产品代号，打开礼包带要开第几次，重置签到带本产品代号和连签天数；其余没有。
         var httpBody: Data? {
             switch self {
             case .checkIn: try? JSONEncoder().encode(["product": AIBillingAPI.product])
             case let .openCheckInGift(_, seq): try? JSONEncoder().encode(["seq": seq])
+            case let .devResetCheckIn(streak):
+                try? JSONEncoder().encode(DevResetCheckInBody(product: AIBillingAPI.product, streak: streak))
             default: nil
             }
         }
@@ -221,6 +244,10 @@ final class AIBillingAPI: AIBillingFetching {
 
     func openCheckInGift(id: String, seq: Int) async throws -> AICheckInGiftOpenResult {
         try await send(.openCheckInGift(id: id, seq: seq))
+    }
+
+    func resetCheckInForTesting(streak: Int) async throws -> AICheckInStatus {
+        try await send(.devResetCheckIn(streak: streak))
     }
 
     /// 构造接口请求。

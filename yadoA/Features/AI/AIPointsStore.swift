@@ -273,6 +273,14 @@ final class AIPointsStore {
         defaults.set(checkInGuideShownUserIDs.sorted(), forKey: Self.checkInGuideStorageKey)
     }
 
+    /// 开发测试用：让当前账号重新看一次签到引导，回到“我的”页、签到气泡出现时再弹出；未登录时不做任何事。
+    /// 只有 dev 包的「开发」页调用。
+    func resetCheckInGuide() {
+        guard let userID = currentUserID() else { return }
+        checkInGuideShownUserIDs.remove(userID)
+        defaults.set(checkInGuideShownUserIDs.sorted(), forKey: Self.checkInGuideStorageKey)
+    }
+
     /// 是否正在刷新余额。
     var isRefreshing: Bool {
         refreshRequest != nil
@@ -439,6 +447,29 @@ final class AIPointsStore {
                 await refreshCheckInStatus()
             }
             return .failure(apiError)
+        }
+    }
+
+    /// 开发测试用：在服务端清空当前账号的签到、礼包和打开记录，再补出截至昨天的连签；成功后换上重置后的签到状态并刷新余额。
+    ///
+    /// 只有 dev 环境的服务端开放这个接口，只有 dev 包的「开发」页调用。已入账的点数保留，补连签时服务端另发 1 点。
+    /// 正在签到或开礼包时不重置，免得动画中途状态被换掉。
+    ///
+    /// - Parameter streak: 补到昨天的连签天数：0 为清空、像从没签过；N 为今天签到就是第 N+1 天。
+    /// - Returns: 重置后的签到状态；失败时为对应错误，本机状态不变。
+    func resetCheckInForTesting(streak: Int) async -> Result<AICheckInStatus, AIBillingAPIError> {
+        guard isNetworkAllowed() else { return .failure(.network) }
+        guard let userID = currentUserID() else { return .failure(.notSignedIn) }
+        guard !isCheckingIn, !isOpeningGift else { return .failure(.invalidContract) }
+        adopt(userID)
+        do {
+            let status = try await api.resetCheckInForTesting(streak: streak)
+            guard isCurrentOwner(userID) else { return .success(status) }
+            checkInStatus = status
+            await refresh()
+            return .success(status)
+        } catch {
+            return .failure(error as? AIBillingAPIError ?? .network)
         }
     }
 
