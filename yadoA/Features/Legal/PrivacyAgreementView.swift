@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 中国大陆地区首次启动的隐私政策同意卡：全屏盖在界面最上层，用户做出选择之前不显示引导。
 ///
-/// 列出要联网的四项功能（登录、云同步、AI 记账、意见反馈），点「同意」后才会联网；点「不同意」进入完全离线的本地记账模式。
+/// 列出要联网的四项功能（登录、云同步、AI 记账、意见反馈），点「同意」后才会联网；点「不同意」先弹窗说明只能用基础的离线记账，确认后进入完全离线的本地记账模式。
 /// 卡片本身不发任何请求；用户主动点《用户协议》《隐私政策》链接时，会在 App 内用 Safari 打开网页，这是用户自己的操作。
 struct PrivacyAgreementView: View {
     @Environment(\.locale) private var locale
@@ -12,6 +12,9 @@ struct PrivacyAgreementView: View {
 
     /// 正在 App 内打开的法律文档。
     @State private var presentedDocument: LegalDocument?
+
+    /// 点了「不同意」后的确认弹窗是否显示；弹窗说明只能用基础的离线记账，用户确认后才真的不同意。
+    @State private var isDeclineAlertPresented = false
 
     var body: some View {
         ScrollView {
@@ -42,6 +45,16 @@ struct PrivacyAgreementView: View {
         .background(Color(.paperBackground).ignoresSafeArea())
         .safeAreaInset(edge: .bottom) { buttons }
         .legalDocumentSheet($presentedDocument)
+        .alert(text("privacy.agreement.decline.alert.title"), isPresented: $isDeclineAlertPresented) {
+            Button(text("privacy.agreement.decline.alert.cancel"), role: .cancel) {}
+                .accessibilityIdentifier("privacy-agreement-decline-cancel")
+            Button(text("privacy.agreement.decline.alert.confirm")) {
+                withAnimation(.easeOut(duration: 0.25)) { store.decline() }
+            }
+            .accessibilityIdentifier("privacy-agreement-decline-confirm")
+        } message: {
+            Text(text("privacy.agreement.decline.alert.message"))
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("privacy-agreement-card")
     }
@@ -103,7 +116,8 @@ struct PrivacyAgreementView: View {
             .accessibilityIdentifier("privacy-agreement-agree")
 
             Button {
-                withAnimation(.easeOut(duration: 0.25)) { store.decline() }
+                // 先说明不同意后只能用基础服务，确认后才进入离线模式
+                isDeclineAlertPresented = true
             } label: {
                 Text(text("privacy.agreement.decline"))
                     .font(.subheadline)

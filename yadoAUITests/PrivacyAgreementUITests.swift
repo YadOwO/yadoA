@@ -1,6 +1,6 @@
 import XCTest
 
-/// 验证中国大陆地区首次启动的隐私政策同意卡：先于引导出现、同意后进入引导且不再弹出、不同意进入离线模式、离线时可重新同意。
+/// 验证中国大陆地区首次启动的隐私政策同意卡：先于引导出现、同意后进入引导且不再弹出、不同意先弹窗说明再进入离线模式、离线时可重新同意。
 ///
 /// 中国大陆地区靠启动参数模拟（`--ui-testing-privacy-agreement`），不依赖系统地区；真机抓包验收「同意前没有任何请求」由人工完成。
 final class PrivacyAgreementUITests: XCTestCase {
@@ -71,7 +71,25 @@ final class PrivacyAgreementUITests: XCTestCase {
         XCTAssertFalse(app.buttons["profile-offline-agree"].exists)
     }
 
-    /// 在同意卡上点「不同意」，并等同意卡消失。
+    @MainActor
+    func testDeclineAlertGoBackKeepsAgreementCard() {
+        let app = launchPrivacyAgreementInEnglish(reset: true)
+        let decline = app.buttons["privacy-agreement-decline"]
+        XCTAssertTrue(decline.waitForExistence(timeout: 5))
+        decline.tap()
+
+        // 点「不同意」先弹窗说明只能用基础服务，点返回仍停在同意卡上
+        let goBack = app.buttons["privacy-agreement-decline-cancel"]
+        XCTAssertTrue(goBack.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.alerts["Basic Features Only"].exists)
+        goBack.tap()
+
+        waitForDisappearance(of: goBack)
+        XCTAssertTrue(app.buttons["privacy-agreement-agree"].exists)
+        XCTAssertTrue(app.buttons["privacy-agreement-decline"].exists)
+    }
+
+    /// 在同意卡上点「不同意」，在说明弹窗里确认，并等同意卡消失。
     ///
     /// - Parameter app: 已启动的应用。
     @MainActor
@@ -79,6 +97,9 @@ final class PrivacyAgreementUITests: XCTestCase {
         let decline = app.buttons["privacy-agreement-decline"]
         XCTAssertTrue(decline.waitForExistence(timeout: 5))
         decline.tap()
+        let confirm = app.buttons["privacy-agreement-decline-confirm"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        confirm.tap()
         waitForDisappearance(of: app.buttons["privacy-agreement-decline"])
     }
 

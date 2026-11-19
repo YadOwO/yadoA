@@ -466,6 +466,78 @@
         }
       }
     },
+    "privacy.agreement.decline.alert.cancel" : {
+      "comment" : "点「不同意」后确认弹窗里的返回按钮；回到同意卡",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go Back"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回"
+          }
+        }
+      }
+    },
+    "privacy.agreement.decline.alert.confirm" : {
+      "comment" : "点「不同意」后确认弹窗里的确认按钮；确认后进入离线模式",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disagree Anyway"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仍不同意"
+          }
+        }
+      }
+    },
+    "privacy.agreement.decline.alert.message" : {
+      "comment" : "点「不同意」后确认弹窗的说明：只能用基础的本地记账，哪些功能不能用，以及之后在哪里重新同意",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Without agreeing, Yado Assets can only offer basic offline bookkeeping. Entries, accounts and charts still work and stay on this phone, but sign-in, cloud sync, AI bookkeeping and feedback are unavailable.\n\nYou can review and agree any time from the Profile tab."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不同意的话，芽豆资产只能提供基础的离线记账服务：记账、账户和图表照常可用，数据只存在这台手机上；登录、云同步、AI 记账和意见反馈都不能用。\n\n之后可以随时在「我的」页查看并同意。"
+          }
+        }
+      }
+    },
+    "privacy.agreement.decline.alert.title" : {
+      "comment" : "点「不同意」后确认弹窗的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basic Features Only"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只能使用基础服务"
+          }
+        }
+      }
+    },
     "privacy.agreement.feature.ai.body" : {
       "comment" : "同意卡上 AI 记账一项的说明",
       "extractionState" : "manual",
@@ -5727,13 +5799,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alipay, WeChat"
+            "value" : "Other e-wallets"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "支付宝、微信"
+            "value" : "其他电子钱包，如云闪付"
           }
         }
       }

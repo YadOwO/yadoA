@@ -29,6 +29,58 @@ struct AccountPersistenceTests {
         #expect(try repository.account(id: draft.id)?.balance == Decimal(string: "100.01"))
     }
 
+    /// 余额不是必填项：没填或只有空白时按 0 建账户，填了非法金额仍拒绝。
+    @Test("创建账户时余额没填按 0 保存")
+    func blankOpeningBalanceSavesAsZero() throws {
+        let locale = Locale(identifier: "en_US")
+        let dataContainer = try AccountDataContainer.inMemory()
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let draft = AccountDraft(accountType: .cash, name: "现金", amountText: "  ")
+
+        #expect(draft.isFormValid(locale: locale))
+        try repository.save(draft, locale: locale)
+        let account = try #require(try repository.account(id: draft.id))
+        #expect(account.balance == 0)
+        #expect(account.openingBalance == 0)
+
+        #expect(AccountDraft.openingBalance(from: "", locale: locale) == 0)
+        #expect(AccountDraft.openingBalance(from: "12.5", locale: locale) == Decimal(string: "12.5"))
+        #expect(AccountDraft.openingBalance(from: "-1", locale: locale) == nil)
+    }
+
+    @Test("一个账户都没有时自动建现金账户并设为默认")
+    func createsStarterCashAccountWhenEmpty() throws {
+        let locale = Locale(identifier: "zh-Hans")
+        let dataContainer = try AccountDataContainer.inMemory()
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+
+        let starterID = try #require(try repository.createStarterAccountIfNeeded(locale: locale))
+        let account = try #require(try repository.account(id: starterID))
+        #expect(account.accountType == .cash)
+        #expect(account.name == AccountType.cash.title(locale: locale))
+        #expect(account.balance == 0)
+        #expect(try repository.defaultResolution() == .valid(starterID))
+
+        // 再调用一次不会重复建
+        #expect(try repository.createStarterAccountIfNeeded(locale: locale) == nil)
+        #expect(try repository.accounts().count == 1)
+    }
+
+    @Test("已有账户时不自动建现金账户")
+    func skipsStarterAccountWhenAccountsExist() throws {
+        let dataContainer = try AccountDataContainer.inMemory()
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let wechat = AccountDraft(
+            accountType: .virtualAccount,
+            template: AccountTemplate.virtualAccounts[1],
+            amountText: "10"
+        )
+        try repository.save(wechat, locale: Locale(identifier: "en_US"))
+
+        #expect(try repository.createStarterAccountIfNeeded() == nil)
+        #expect(try repository.accounts().map(\.id) == [wechat.id])
+    }
+
     @Test("内存存储显式保存并拒绝重复 UUID")
     func savesAndRejectsDuplicateID() throws {
         let dataContainer = try AccountDataContainer.inMemory()

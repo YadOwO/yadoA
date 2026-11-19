@@ -196,9 +196,12 @@ enum AccountType: String, CaseIterable, Identifiable, Hashable, Sendable {
         defaultAccountName(locale: .current)
     }
 
-    /// 指定语言环境下直接创建账户时预填的名称。
+    /// 指定语言环境下直接创建账户时预填的名称：现金和虚拟账户预填类型名，用户可以改。
     func defaultAccountName(locale: Locale) -> String {
-        self == .cash ? title(locale: locale) : ""
+        switch self {
+        case .cash, .virtualAccount: title(locale: locale)
+        default: ""
+        }
     }
 
     /// 表单是否展示所属机构。
@@ -233,8 +236,18 @@ enum AccountType: String, CaseIterable, Identifiable, Hashable, Sendable {
     }
 
     /// 创建该类型账户前是否必须选择模板。
+    ///
+    /// 这是数据上的约束：保存时账户必须带一个本类型的模板。创建页面上要不要列出模板让用户选，看 `directCreationTemplate`。
     var requiresTemplateSelection: Bool {
         !templates.isEmpty
+    }
+
+    /// 创建页面上点了类型后不列模板、直接进表单时自动带上的模板；需要用户选模板的类型为 `nil`。
+    ///
+    /// 虚拟账户里的微信、支付宝已经排到类型列表最前面，点「虚拟账户」就直接新建一个自己起名的账户，记为「其他虚拟账户」模板。
+    var directCreationTemplate: AccountTemplate? {
+        guard self == .virtualAccount else { return nil }
+        return templates.first { $0.id == "virtualAccount.other" }
     }
 }
 
@@ -321,6 +334,13 @@ struct AccountTemplate: Identifiable, Hashable, Sendable {
         AccountTemplate(id: "virtualAccount.other", accountType: .virtualAccount, nameLocalizationKey: "account.template.virtual.other", symbolName: "wallet.bifold.fill")
     ]
 
+    /// 创建账户时排在类型列表最前面的常用账户：微信、支付宝，点了直接进表单，不用先选「虚拟账户」。
+    ///
+    /// 虚拟账户的模板列表仍保留它们，保存校验、语音建账户和账户图标都靠这些模板；只是创建页面上不再在虚拟账户里列出来。
+    static let featured: [AccountTemplate] = ["virtualAccount.wechat", "virtualAccount.alipay"].compactMap { id in
+        virtualAccounts.first { $0.id == id }
+    }
+
     /// 投资账户可选模板。
     static let investments: [AccountTemplate] = [
         AccountTemplate(id: "investment.stock", accountType: .investment, nameLocalizationKey: "account.template.investment.stock", symbolName: "chart.xyaxis.line"),
@@ -366,24 +386,38 @@ struct AccountDraft: Identifiable, Equatable, Sendable {
         self.id = id
         self.accountType = accountType
         self.template = template
+        // 直接新建时自动带上的模板（如「其他虚拟账户」）不是用户选的，名字按类型预填
+        let templateName = template == accountType.directCreationTemplate ? nil : template?.name(locale: locale)
         self.name = name
-            ?? template?.name(locale: locale)
+            ?? templateName
             ?? accountType.defaultAccountName(locale: locale)
         self.note = note
         self.lastFourDigits = lastFourDigits
         self.amountText = amountText
     }
 
-    /// 名称非空且金额可解析为非负值时允许保存。
+    /// 名称非空且金额没填或可解析为非负值时允许保存。
     var isFormValid: Bool {
         isFormValid(locale: .current)
     }
 
-    /// 使用与最终持久化一致的语言环境校验名称和金额。
+    /// 使用与最终持久化一致的语言环境校验名称和金额；金额没填按 0 处理。
     func isFormValid(locale: Locale) -> Bool {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         return !trimmedName.isEmpty
-            && AccountAmountParser.amount(from: amountText, locale: locale) != nil
+            && Self.openingBalance(from: amountText, locale: locale) != nil
+    }
+
+    /// 解析新建账户的初始余额（或欠款、价值）：余额不是必填项，没填或只有空白时按 0 建。
+    ///
+    /// 账户创建表单、首次引导和持久化边界共用这条规则。
+    /// - Parameters:
+    ///   - amountText: 用户填的金额。
+    ///   - locale: 解析金额使用的语言环境。
+    /// - Returns: 初始金额；填了但不是合法的非负金额时返回 `nil`。
+    static func openingBalance(from amountText: String, locale: Locale) -> Decimal? {
+        let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? 0 : AccountAmountParser.amount(from: trimmed, locale: locale)
     }
 }
 

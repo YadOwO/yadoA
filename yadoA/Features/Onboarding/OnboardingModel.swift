@@ -89,11 +89,11 @@ enum OnboardingAccountOption: String, Codable, CaseIterable, Identifiable {
     ///   - locale: 解析金额与预填名称使用的语言环境。
     /// - Returns: 待保存的账户草稿。
     func accountDraft(amountText: String, locale: Locale) -> AccountDraft {
-        let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return AccountDraft(
+        // 没填的余额由 `AccountDraft.openingBalance` 统一按 0 处理
+        AccountDraft(
             accountType: accountType,
             template: template,
-            amountText: trimmed.isEmpty ? "0" : trimmed,
+            amountText: amountText.trimmingCharacters(in: .whitespacesAndNewlines),
             locale: locale
         )
     }
@@ -104,8 +104,7 @@ enum OnboardingAccountOption: String, Codable, CaseIterable, Identifiable {
     ///   - amountText: 用户填的余额或欠款。
     ///   - locale: 解析金额使用的语言环境。
     static func isValidAmount(_ amountText: String, locale: Locale) -> Bool {
-        let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty || AccountAmountParser.amount(from: trimmed, locale: locale) != nil
+        AccountDraft.openingBalance(from: amountText, locale: locale) != nil
     }
 }
 

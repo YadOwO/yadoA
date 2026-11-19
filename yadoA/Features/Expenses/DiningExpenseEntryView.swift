@@ -87,7 +87,20 @@ struct DiningExpenseEntryView: View {
     }
 
     /// 从当前查询快照解析一次 canonical 默认，不将偏好变化绑定到现有草稿。
+    ///
+    /// 一个账户都没有时先自动建一个「现金」账户并直接选上，用户不用先去建账户就能记第一笔。
     private func applyInitialDefaultIfNeeded() {
+        if accounts.isEmpty {
+            do {
+                let repository = LocalAccountRepository(container: modelContext.container)
+                if let starterID = try repository.createStarterAccountIfNeeded(locale: locale) {
+                    flow.applyInitialDefault(starterID)
+                    return
+                }
+            } catch {
+                // 建不成时退回原来的流程：不预选账户，用户在账户选择里自己建
+            }
+        }
         let preference = preferences.first { $0.id == BookkeepingPreference.singletonID }
         let defaultAccountID = BookkeepingPreference.resolvedAccountID(
             preference: preference,

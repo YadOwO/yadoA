@@ -112,18 +112,43 @@ struct yadoATests {
         #expect(otherBank.name(locale: Locale(identifier: "zh-Hans")) == "其他银行")
     }
 
-    @Test func draftUsesTemplateNameAndRequiresAnAmount() {
+    @Test func draftUsesTemplateNameAndTreatsBlankAmountAsZero() {
         let template = AccountTemplate.virtualAccounts[0]
         var draft = AccountDraft(accountType: .virtualAccount, template: template)
 
         #expect(draft.name == template.name)
-        #expect(draft.isFormValid == false)
+        // 余额不是必填项，没填按 0 建
+        #expect(draft.isFormValid)
 
         draft.amountText = "1234.56"
         #expect(draft.isFormValid)
 
         draft.amountText = "不是金额"
         #expect(draft.isFormValid == false)
+    }
+
+    @Test func featuredTemplatesAreWeChatThenAlipay() {
+        #expect(AccountTemplate.featured.map(\.id) == ["virtualAccount.wechat", "virtualAccount.alipay"])
+        #expect(AccountTemplate.featured.allSatisfy { $0.accountType == .virtualAccount })
+    }
+
+    /// 点「虚拟账户」直接进表单：自动带「其他虚拟账户」模板保证能通过保存校验，名字按类型预填。
+    @Test func virtualAccountCreatesDirectlyWithOtherTemplate() throws {
+        let locale = Locale(identifier: "zh-Hans")
+        let template = try #require(AccountType.virtualAccount.directCreationTemplate)
+        #expect(template.id == "virtualAccount.other")
+        // 微信、支付宝仍是合法模板，只是创建页面不在虚拟账户里列出
+        #expect(AccountType.virtualAccount.templates.map(\.id).contains("virtualAccount.wechat"))
+        #expect(AccountType.virtualAccount.requiresTemplateSelection)
+
+        let draft = AccountDraft(accountType: .virtualAccount, template: template, locale: locale)
+        #expect(draft.name == "虚拟账户")
+        let account = try Account.validating(draft: draft, locale: locale)
+        #expect(account.templateID == "virtualAccount.other")
+
+        for accountType in AccountType.allCases where accountType != .virtualAccount {
+            #expect(accountType.directCreationTemplate == nil)
+        }
     }
 
     @Test func directAccountDraftsUseTheExpectedDefaultName() {
