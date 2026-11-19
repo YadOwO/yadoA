@@ -48,20 +48,36 @@ protocol AIBillingFetching {
     /// - Throws: `AIBillingAPIError`。
     func fetchModelTiers() async throws -> AIModelTierList
 
-    /// 查询今天的签到状态。
+    /// 查询签到状态。
     ///
-    /// - Returns: 今天是否已签到及签到记录。
+    /// - Returns: 今天是否已签到、签到记录、当前连签天数、还没开完的礼包与各档礼包的规则。
     /// - Throws: `AIBillingAPIError`。
     func fetchCheckInStatus() async throws -> AICheckInStatus
 
-    /// 每日签到：服务端随机发放点数；今天已签过时不重复入账，返回当天那次的结果。
+    /// 每日签到：服务端随机发放点数，连签天数到了时同时发礼包；今天已签过时不重复入账，返回当天那次的结果。
     ///
     /// - Returns: 签到结果。
     /// - Throws: `AIBillingAPIError`。
     func checkIn() async throws -> AICheckInResult
+
+    /// 查询某个月的签到日历。
+    ///
+    /// - Parameter month: 月份，`YYYY-MM`。
+    /// - Returns: 这个月签过的日子，以及今天和第一次签到的日期。
+    /// - Throws: `AIBillingAPIError`。
+    func fetchCheckInHistory(month: String) async throws -> AICheckInMonth
+
+    /// 打开一次签到礼包。
+    ///
+    /// - Parameters:
+    ///   - id: 礼包 id。
+    ///   - seq: 要开第几次，应为已开次数 + 1；网络重发同一个 seq 时服务端返回那一次的结果，不重复入账。
+    /// - Returns: 打开结果。
+    /// - Throws: `AIBillingAPIError`；礼包不存在（404）或状态已变（409）时为 `.invalidContract`。
+    func openCheckInGift(id: String, seq: Int) async throws -> AICheckInGiftOpenResult
 }
 
-/// 调用 yado_ai 点数与模型档位查询接口的网络客户端：查询与签到，不调用模型、不扣点。
+/// 调用 yado_ai 点数与模型档位查询接口的网络客户端：查询、签到与打开签到礼包，不调用模型、不扣点。
 final class AIBillingAPI: AIBillingFetching {
     /// 客户端用到的接口。
     enum Route: Equatable {
@@ -80,6 +96,12 @@ final class AIBillingAPI: AIBillingFetching {
         /// `POST /v1/billing/check-in`：签到。
         case checkIn
 
+        /// `GET /v1/billing/check-in/history`：某个月的签到日历。
+        case checkInHistory(month: String)
+
+        /// `POST /v1/billing/check-in/gifts/{id}/open`：打开一次签到礼包。
+        case openCheckInGift(id: String, seq: Int)
+
         /// 接口路径。
         var path: String {
             switch self {
@@ -87,6 +109,8 @@ final class AIBillingAPI: AIBillingFetching {
             case .entries: "v1/billing/entries"
             case .models: "v1/models"
             case .checkInStatus, .checkIn: "v1/billing/check-in"
+            case .checkInHistory: "v1/billing/check-in/history"
+            case let .openCheckInGift(id, _): "v1/billing/check-in/gifts/\(id)/open"
             }
         }
 
@@ -95,6 +119,11 @@ final class AIBillingAPI: AIBillingFetching {
             switch self {
             case .wallet, .checkInStatus:
                 return [URLQueryItem(name: "product", value: AIBillingAPI.product)]
+            case let .checkInHistory(month):
+                return [
+                    URLQueryItem(name: "product", value: AIBillingAPI.product),
+                    URLQueryItem(name: "month", value: month)
+                ]
             case let .entries(cursor, limit):
                 var items = [
                     URLQueryItem(name: "product", value: AIBillingAPI.product),
@@ -104,23 +133,24 @@ final class AIBillingAPI: AIBillingFetching {
                     items.append(URLQueryItem(name: "cursor", value: cursor))
                 }
                 return items
-            case .models, .checkIn:
+            case .models, .checkIn, .openCheckInGift:
                 return []
             }
         }
 
-        /// HTTP 方法；只有签到是 POST。
+        /// HTTP 方法；签到和打开礼包是 POST。
         var httpMethod: String {
             switch self {
-            case .checkIn: "POST"
+            case .checkIn, .openCheckInGift: "POST"
             default: "GET"
             }
         }
 
-        /// 请求体；只有签到带 JSON，内容是本产品代号。
+        /// 请求体：签到带本产品代号，打开礼包带要开第几次；其余没有。
         var httpBody: Data? {
             switch self {
             case .checkIn: try? JSONEncoder().encode(["product": AIBillingAPI.product])
+            case let .openCheckInGift(_, seq): try? JSONEncoder().encode(["seq": seq])
             default: nil
             }
         }
@@ -183,6 +213,14 @@ final class AIBillingAPI: AIBillingFetching {
 
     func checkIn() async throws -> AICheckInResult {
         try await send(.checkIn)
+    }
+
+    func fetchCheckInHistory(month: String) async throws -> AICheckInMonth {
+        try await send(.checkInHistory(month: month))
+    }
+
+    func openCheckInGift(id: String, seq: Int) async throws -> AICheckInGiftOpenResult {
+        try await send(.openCheckInGift(id: id, seq: seq))
     }
 
     /// 构造接口请求。

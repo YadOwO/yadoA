@@ -163,6 +163,12 @@ struct AIPointsTests {
         #expect(pending.checkIn == nil)
         #expect(pending.minPoints == 10)
         #expect(pending.maxPoints == 50)
+        // 旧服务端不返回连签与礼包字段：取空值，不让解码失败
+        #expect(pending.streak == 0)
+        #expect(pending.validHours == nil)
+        #expect(pending.firstCheckInDate == nil)
+        #expect(pending.gifts.isEmpty)
+        #expect(pending.giftTiers.isEmpty)
 
         let doneJSON = """
         {"date":"2026-11-05","checkedIn":true,
@@ -185,6 +191,8 @@ struct AIPointsTests {
         #expect(result.balance == 142)
         #expect(result.createdAt == Date(timeIntervalSince1970: 1_793_154_720))
         #expect(result.expiresAt == Date(timeIntervalSince1970: 1_793_241_120))
+        #expect(result.streak == 0)
+        #expect(result.gifts.isEmpty)
 
         let badTime = """
         {"date":"2026-11-05","points":42,"isBonus":false,"isDuplicate":false,"balance":142,
@@ -192,6 +200,122 @@ struct AIPointsTests {
         """
         #expect(throws: DecodingError.self) {
             try JSONDecoder().decode(AICheckInResult.self, from: Data(badTime.utf8))
+        }
+    }
+
+    @Test("连签与礼包契约：解码连签天数、待开礼包、礼包规则、开礼包结果与签到日历；不认识的礼包档位兜底")
+    func decodesCheckInStreakAndGiftContract() throws {
+        let statusJSON = """
+        {"date":"2026-11-18","checkedIn":true,
+         "checkIn":{"points":12,"streak":7,"createdAt":"2026-11-18T02:32:00.000Z","expiresAt":"2026-11-19T02:32:00.000Z"},
+         "minPoints":1,"maxPoints":20,"validHours":24,"streak":7,"firstCheckInDate":"2026-10-03",
+         "gifts":[
+           {"id":"12","tier":"weekly","streak":7,"checkInDate":"2026-11-18","totalOpens":1,"openedCount":0,
+            "createdAt":"2026-11-18T02:32:00.000Z"},
+           {"id":"13","tier":"decade","streak":3650,"checkInDate":"2026-11-18","totalOpens":1,"openedCount":0,
+            "createdAt":"2026-11-18T02:32:00Z"}
+         ],
+         "giftTiers":[
+           {"tier":"weekly","everyDays":7,"openings":[{"minPoints":21,"maxPoints":50}],"validDays":7},
+           {"tier":"yearly","everyDays":365,
+            "openings":[{"minPoints":365,"maxPoints":365},{"minPoints":100,"maxPoints":365}],"validDays":365}
+         ]}
+        """
+        let status = try JSONDecoder().decode(AICheckInStatus.self, from: Data(statusJSON.utf8))
+        #expect(status.streak == 7)
+        #expect(status.checkIn?.streak == 7)
+        #expect(status.validHours == 24)
+        #expect(status.firstCheckInDate == "2026-10-03")
+        #expect(status.gifts.map(\.tier) == [.weekly, .unknown])
+        #expect(status.gifts[0].nextSeq == 1)
+        #expect(!status.gifts[0].isFinished)
+        #expect(status.rule(for: .yearly)?.openings.count == 2)
+        #expect(status.rule(for: .monthly) == nil)
+
+        let resultJSON = """
+        {"date":"2026-11-18","points":12,"isBonus":false,"isDuplicate":false,"balance":142,"streak":7,
+         "gifts":[{"id":"12","tier":"weekly","streak":7,"checkInDate":"2026-11-18","totalOpens":1,"openedCount":0,
+                   "createdAt":"2026-11-18T02:32:00.000Z"}],
+         "createdAt":"2026-11-18T02:32:00.000Z","expiresAt":"2026-11-19T02:32:00.000Z"}
+        """
+        let result = try JSONDecoder().decode(AICheckInResult.self, from: Data(resultJSON.utf8))
+        #expect(result.streak == 7)
+        #expect(result.newGifts.map(\.id) == ["12"])
+        // 当天重复签到带回的礼包不算新得到的，免得再弹一次开礼包
+        let duplicate = Self.checkInResult(points: 12, balance: 142, isDuplicate: true, streak: 7, gifts: result.gifts)
+        #expect(duplicate.newGifts.isEmpty)
+
+        let openJSON = """
+        {"gift":{"id":"20","tier":"yearly","streak":365,"checkInDate":"2026-11-18","totalOpens":2,"openedCount":1,
+                 "createdAt":"2026-11-18T02:32:00.000Z"},
+         "seq":1,"points":365,"isDuplicate":false,"balance":465,
+         "createdAt":"2026-11-18T02:40:00.000Z","expiresAt":"2027-11-18T02:40:00.000Z"}
+        """
+        let opened = try JSONDecoder().decode(AICheckInGiftOpenResult.self, from: Data(openJSON.utf8))
+        #expect(opened.points == 365)
+        #expect(opened.gift.remainingOpens == 1)
+        #expect(opened.gift.nextSeq == 2)
+        #expect(opened.expiresAt == Date(timeIntervalSince1970: 1_826_505_600))
+
+        let monthJSON = """
+        {"month":"2026-11","today":"2026-11-18","firstCheckInDate":"2026-10-03",
+         "days":[{"date":"2026-11-01","points":5,"streak":1,"giftTiers":[]},
+                 {"date":"2026-11-07","points":9,"streak":7,"giftTiers":["weekly"]}]}
+        """
+        let month = try JSONDecoder().decode(AICheckInMonth.self, from: Data(monthJSON.utf8))
+        #expect(month.today == "2026-11-18")
+        #expect(month.days.map(\.streak) == [1, 7])
+        #expect(month.days[1].giftTiers == [.weekly])
+    }
+
+    @Test("签到礼包的明细标题、进度与文案：三档礼包各有标题，离下一个礼包的天数含今天，点数范围用加号连起来")
+    func mapsCheckInGiftPresentation() {
+        let english = Locale(identifier: "en")
+        let simplifiedChinese = Locale(identifier: "zh-Hans")
+
+        #expect(AICheckInGiftTier(entryReason: "check_in_gift_weekly") == .weekly)
+        #expect(AICheckInGiftTier(entryReason: AICreditEntry.dailyCheckInReason) == nil)
+        #expect(AICheckInGiftTier.yearly.entryReason == "check_in_gift_yearly")
+        let entry = Self.entry(kind: .grant, points: 36, reason: "check_in_gift_monthly", product: "yadoa")
+        #expect(entry.titleKey == "ai.entry.grant.monthlyGift")
+        #expect(entry.symbol == "gift")
+        let lot = AICreditLot(points: 365, expiresAt: .distantFuture, kind: .grant, reason: "check_in_gift_yearly", product: "yadoa")
+        #expect(lot.titleKey == "ai.entry.grant.yearlyGift")
+        #expect(!lot.isDailyCheckIn)
+
+        let weekly = Self.weeklyRule
+        #expect(weekly.daysUntilNext(streak: 0) == 7)
+        #expect(weekly.daysUntilNext(streak: 6) == 1)
+        // 今天刚拿到周礼包：下一个要再签满 7 天
+        #expect(weekly.daysUntilNext(streak: 7) == 7)
+        #expect(weekly.daysUntilNext(streak: 10) == 4)
+        #expect(weekly.progress(streak: 7) == 0)
+        #expect(abs(weekly.progress(streak: 3) - 3.0 / 7.0) < 0.0001)
+        #expect(weekly.pointsText(locale: english) == "21–50")
+        #expect(Self.yearlyRule.pointsText(locale: english) == "365 + 100–365")
+
+        #expect(AccountLocalization.string("ai.entry.grant.weeklyGift", locale: simplifiedChinese) == "签到周礼包")
+        #expect(AccountLocalization.string("checkIn.gift.yearly", locale: simplifiedChinese) == "年度礼包")
+        #expect(AccountLocalization.formatted("checkIn.gift.earned", value: "7", locale: simplifiedChinese) == "连签 7 天获得")
+        let rule = AccountLocalization.string("checkIn.milestone.rule", locale: simplifiedChinese)
+        #expect(String(format: rule, locale: simplifiedChinese, "7", "21–50", "7") == "每连签 7 天 · 21–50 点 · 7 天有效")
+        let guide = AccountLocalization.string("checkIn.guide.message", locale: simplifiedChinese)
+        #expect(String(format: guide, locale: simplifiedChinese, "1", "20", "24") == "每天点一下芽豆，随机领 1–20 点 AI 点数，24 小时内有效。")
+        let keys = [
+            "checkIn.title", "checkIn.row.streak", "checkIn.row.gifts", "checkIn.streak.caption", "checkIn.today.done",
+            "checkIn.today.start", "checkIn.today.continue", "checkIn.gifts.section", "checkIn.gift.weekly",
+            "checkIn.gift.monthly", "checkIn.gift.yearly", "checkIn.gift.other", "checkIn.gift.open",
+            "checkIn.gift.opensLeft", "checkIn.milestones.section", "checkIn.milestone.rule", "checkIn.milestone.daysLeft",
+            "checkIn.milestone.today", "checkIn.milestone.tomorrow", "checkIn.calendar.section",
+            "checkIn.calendar.summary", "checkIn.calendar.empty", "checkIn.calendar.failed", "checkIn.rules.daily",
+            "checkIn.opening.open", "checkIn.opening.openAgain", "checkIn.opening.collect", "checkIn.opening.validUntil",
+            "checkIn.opening.announcement", "checkIn.guide.title", "checkIn.guide.message", "checkIn.guide.gifts",
+            "checkIn.guide.dismiss", "ai.entry.grant.monthlyGift", "ai.entry.grant.yearlyGift",
+        ]
+        for key in keys {
+            for locale in [english, simplifiedChinese] {
+                #expect(AccountLocalization.string(key, locale: locale) != key, "\(key) 缺少 \(locale.identifier) 文案")
+            }
         }
     }
 
@@ -376,6 +500,19 @@ struct AIPointsTests {
         // 钱包仍是 GET，也不带请求体
         #expect(wallet.httpMethod == "GET")
         #expect(wallet.httpBody == nil)
+
+        let history = api.makeURLRequest(.checkInHistory(month: "2026-11"), token: "abc")
+        #expect(history.httpMethod == "GET")
+        #expect(history.url?.path() == "/v1/billing/check-in/history")
+        #expect(history.url?.query() == "product=yadoa&month=2026-11")
+        #expect(history.httpBody == nil)
+
+        let open = api.makeURLRequest(.openCheckInGift(id: "12", seq: 2), token: "abc")
+        #expect(open.httpMethod == "POST")
+        #expect(open.url?.absoluteString == "https://example.invalid/v1/billing/check-in/gifts/12/open")
+        #expect(open.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        let openBody = try #require(open.httpBody)
+        #expect(try JSONDecoder().decode([String: Int].self, from: openBody) == ["seq": 2])
     }
 
     @Test("查询接口错误状态码映射")
@@ -1068,7 +1205,7 @@ struct AIPointsTests {
         #expect(!store.isCheckingIn)
     }
 
-    @Test("签到状态：刷新失败为 nil，未登录为 nil，换账号后清空")
+    @Test("签到状态：没拿到过时刷新失败为 nil，拿到过后刷新失败保留上一次的，未登录为 nil，换账号后清空")
     func checkInStatusLifecycle() async {
         let api = FakeAIBillingAPI()
         var userID: String? = "user-1"
@@ -1083,6 +1220,12 @@ struct AIPointsTests {
         await store.refreshCheckInStatus()
         #expect(store.shouldOfferCheckIn)
 
+        // 拿到过之后一次网络抖动：保留上一次的状态，签到页不整页清空
+        api.checkInStatusResults = [.failure(.network)]
+        await store.refreshCheckInStatus()
+        #expect(store.checkInStatus == Self.pendingCheckInStatus)
+        #expect(store.shouldOfferCheckIn)
+
         // 换账号：刷新余额时发现账号变了，先清空旧账号的状态
         userID = "user-2"
         await store.refresh()
@@ -1094,7 +1237,253 @@ struct AIPointsTests {
         #expect(await store.checkIn() == .failure(.notSignedIn))
     }
 
+    @Test("签到得到礼包：连签天数用返回值，礼包追加到待开列表，规则和首签日期沿用之前的状态，重复签到不重复追加、以返回的打开次数为准")
+    func checkInAddsEarnedGifts() async {
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(AIWallet(balance: 100))]
+        api.checkInStatusResults = [.success(Self.pendingStatus(streak: 6))]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        await store.refreshCheckInStatus()
+
+        let gift = Self.gift(id: "12", tier: .weekly, streak: 7)
+        api.checkInResult = .success(Self.checkInResult(points: 12, balance: 112, isDuplicate: false, streak: 7, gifts: [gift]))
+        let outcome = await store.checkIn()
+
+        #expect((try? outcome.get())?.newGifts == [gift])
+        #expect(store.checkInStatus?.streak == 7)
+        #expect(store.checkInStatus?.checkIn?.streak == 7)
+        #expect(store.checkInStatus?.giftTiers == Self.giftRules)
+        #expect(store.checkInStatus?.firstCheckInDate == "2026-10-01")
+        #expect(store.checkInStatus?.validHours == 24)
+        #expect(store.unopenedGifts == [gift])
+
+        api.checkInResult = .success(Self.checkInResult(points: 12, balance: 112, isDuplicate: true, streak: 7, gifts: [gift]))
+        _ = await store.checkIn()
+        #expect(store.unopenedGifts == [gift])
+
+        // 当天重复签到带回的礼包以返回的为准：已在别的设备上开完的从待开列表移除
+        let openedElsewhere = Self.gift(id: "12", tier: .weekly, streak: 7, openedCount: 1)
+        api.checkInResult = .success(
+            Self.checkInResult(points: 12, balance: 142, isDuplicate: true, streak: 7, gifts: [openedElsewhere])
+        )
+        _ = await store.checkIn()
+        #expect(store.unopenedGifts.isEmpty)
+    }
+
+    @Test("打开年度礼包：第一次后礼包留在待开列表，第二次后移除；余额用返回值，每次的点数按过期时间插入批次")
+    func openGiftTwiceForYearly() async {
+        let api = FakeAIBillingAPI()
+        let later = Date(timeIntervalSince1970: 1_900_000_000)
+        api.walletResults = [.success(AIWallet(balance: 100, lots: [AICreditLot(points: 100, expiresAt: later)]))]
+        let yearly = Self.gift(id: "20", tier: .yearly, streak: 365, totalOpens: 2)
+        api.checkInStatusResults = [.success(Self.pendingStatus(streak: 365, gifts: [yearly]))]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        await store.refreshCheckInStatus()
+
+        let afterFirst = Self.gift(id: "20", tier: .yearly, streak: 365, totalOpens: 2, openedCount: 1)
+        api.openResults = [.success(Self.openResult(gift: afterFirst, seq: 1, points: 365, balance: 465, validDays: 365))]
+        let first = await store.openGift(yearly)
+
+        #expect((try? first.get())?.points == 365)
+        #expect(api.openRequests.map { $0.seq } == [1])
+        #expect(store.balance == 465)
+        #expect(store.unopenedGifts == [afterFirst])
+        #expect(store.lots.first?.reason == "check_in_gift_yearly")
+        #expect(store.lots.map(\.expiresAt) == store.lots.map(\.expiresAt).sorted())
+
+        let afterSecond = Self.gift(id: "20", tier: .yearly, streak: 365, totalOpens: 2, openedCount: 2)
+        api.openResults = [.success(Self.openResult(gift: afterSecond, seq: 2, points: 233, balance: 698, validDays: 365))]
+        _ = await store.openGift(afterFirst)
+
+        #expect(api.openRequests.map { $0.seq } == [1, 2])
+        #expect(api.openRequests.map { $0.id } == ["20", "20"])
+        #expect(store.balance == 698)
+        #expect(store.unopenedGifts.isEmpty)
+        #expect(store.lots.filter { $0.reason == "check_in_gift_yearly" }.map(\.points).sorted() == [233, 365])
+        #expect(!store.isOpeningGift)
+        #expect(api.walletCalls == 1)
+
+        // 开完的礼包不再发请求
+        #expect(await store.openGift(afterSecond) == .failure(.invalidContract))
+        #expect(api.openRequests.count == 2)
+    }
+
+    @Test("开礼包重发：这一次早已开过时不在本机写余额和批次，重新拉一次钱包")
+    func openGiftDuplicateRefreshesWallet() async {
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(AIWallet(balance: 130))]
+        let weekly = Self.gift(id: "12", tier: .weekly, streak: 7)
+        api.checkInStatusResults = [.success(Self.pendingStatus(streak: 7, gifts: [weekly]))]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        await store.refreshCheckInStatus()
+
+        let opened = Self.gift(id: "12", tier: .weekly, streak: 7, openedCount: 1)
+        api.openResults = [.success(Self.openResult(gift: opened, seq: 1, points: 30, balance: 130, isDuplicate: true))]
+        _ = await store.openGift(weekly)
+
+        #expect(store.lots.isEmpty)
+        #expect(api.walletCalls == 2)
+        #expect(store.unopenedGifts.isEmpty)
+    }
+
+    @Test("开礼包失败：网络错误时待开列表不变、不重拉状态；礼包状态已变（404、409）时重拉签到状态")
+    func openGiftFailureHandling() async {
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(AIWallet(balance: 100))]
+        let weekly = Self.gift(id: "12", tier: .weekly, streak: 7)
+        api.checkInStatusResults = [
+            .success(Self.pendingStatus(streak: 7, gifts: [weekly])),
+            .success(Self.pendingStatus(streak: 7)),
+        ]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        await store.refreshCheckInStatus()
+
+        api.openResults = [.failure(.network)]
+        #expect(await store.openGift(weekly) == .failure(.network))
+        #expect(api.checkInStatusCalls == 1)
+        #expect(store.unopenedGifts == [weekly])
+        #expect(store.balance == 100)
+        #expect(!store.isOpeningGift)
+
+        api.openResults = [.failure(.invalidContract)]
+        #expect(await store.openGift(weekly) == .failure(.invalidContract))
+        #expect(api.checkInStatusCalls == 2)
+        #expect(store.unopenedGifts.isEmpty)
+    }
+
+    @Test("签到引导按账号只弹一次：看过后不再弹，重启后仍记得，换账号重新弹，未登录不弹")
+    func checkInGuideIsPerAccount() {
+        var userID: String? = "user-1"
+        let defaults = UserDefaults.isolated()
+        let store = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults) { userID }
+        #expect(store.shouldShowCheckInGuide)
+
+        store.markCheckInGuideShown()
+        #expect(!store.shouldShowCheckInGuide)
+
+        let restarted = AIPointsStore(api: FakeAIBillingAPI(), defaults: defaults) { userID }
+        #expect(!restarted.shouldShowCheckInGuide)
+
+        userID = "user-2"
+        #expect(store.shouldShowCheckInGuide)
+
+        userID = nil
+        #expect(!store.shouldShowCheckInGuide)
+        store.markCheckInGuideShown()
+        userID = "user-2"
+        #expect(store.shouldShowCheckInGuide)
+    }
+
+    @Test("签到日历：按月查询，未登录或不允许联网时不发请求")
+    func fetchesCheckInMonth() async {
+        let api = FakeAIBillingAPI()
+        var userID: String? = "user-1"
+        var isNetworkAllowed = true
+        let store = AIPointsStore(
+            api: api,
+            defaults: .isolated(),
+            currentUserID: { userID },
+            isNetworkAllowed: { isNetworkAllowed }
+        )
+        let month = AICheckInMonth(
+            month: "2026-11",
+            today: "2026-11-18",
+            firstCheckInDate: "2026-10-03",
+            days: [AICheckInDay(date: "2026-11-07", points: 9, streak: 7, giftTiers: [.weekly])]
+        )
+        api.historyResult = .success(month)
+
+        #expect(await store.fetchCheckInMonth("2026-11") == .success(month))
+        #expect(api.requestedMonths == ["2026-11"])
+
+        isNetworkAllowed = false
+        #expect(await store.fetchCheckInMonth("2026-10") == .failure(.network))
+        isNetworkAllowed = true
+        userID = nil
+        #expect(await store.fetchCheckInMonth("2026-10") == .failure(.notSignedIn))
+        #expect(api.requestedMonths == ["2026-11"])
+    }
+
     // MARK: - 辅助
+
+    /// 周礼包规则：每连签 7 天一个，21～50 点，7 天有效。
+    private static let weeklyRule = AICheckInGiftRule(
+        tier: .weekly,
+        everyDays: 7,
+        openings: [AICheckInGiftOpening(minPoints: 21, maxPoints: 50)],
+        validDays: 7
+    )
+
+    /// 年度礼包规则：每连签 365 天一个，开两次，365 天有效。
+    private static let yearlyRule = AICheckInGiftRule(
+        tier: .yearly,
+        everyDays: 365,
+        openings: [AICheckInGiftOpening(minPoints: 365, maxPoints: 365), AICheckInGiftOpening(minPoints: 100, maxPoints: 365)],
+        validDays: 365
+    )
+
+    /// 签到状态里带的礼包规则。
+    private static let giftRules = [weeklyRule, yearlyRule]
+
+    /// 今天还没签、带连签天数和待开礼包的状态。
+    private static func pendingStatus(streak: Int, gifts: [AICheckInGift] = []) -> AICheckInStatus {
+        AICheckInStatus(
+            date: "2026-11-18",
+            checkedIn: false,
+            checkIn: nil,
+            minPoints: 1,
+            maxPoints: 20,
+            validHours: 24,
+            streak: streak,
+            firstCheckInDate: "2026-10-01",
+            gifts: gifts,
+            giftTiers: giftRules
+        )
+    }
+
+    /// 构造一个礼包。
+    private static func gift(
+        id: String,
+        tier: AICheckInGiftTier,
+        streak: Int,
+        totalOpens: Int = 1,
+        openedCount: Int = 0
+    ) -> AICheckInGift {
+        AICheckInGift(
+            id: id,
+            tier: tier,
+            streak: streak,
+            checkInDate: "2026-11-18",
+            totalOpens: totalOpens,
+            openedCount: openedCount,
+            createdAt: Date(timeIntervalSince1970: 1_795_000_000)
+        )
+    }
+
+    /// 构造一次开礼包的结果。
+    private static func openResult(
+        gift: AICheckInGift,
+        seq: Int,
+        points: Int,
+        balance: Int,
+        isDuplicate: Bool = false,
+        validDays: Int = 7
+    ) -> AICheckInGiftOpenResult {
+        let createdAt = Date(timeIntervalSince1970: 1_795_000_000)
+        return AICheckInGiftOpenResult(
+            gift: gift,
+            seq: seq,
+            points: points,
+            isDuplicate: isDuplicate,
+            balance: balance,
+            createdAt: createdAt,
+            expiresAt: createdAt.addingTimeInterval(Double(validDays) * 86_400)
+        )
+    }
 
     /// 今天还没签到的状态。
     private static let pendingCheckInStatus = AICheckInStatus(
@@ -1102,7 +1491,13 @@ struct AIPointsTests {
     )
 
     /// 构造一次签到结果，24 小时后过期。
-    private static func checkInResult(points: Int, balance: Int, isDuplicate: Bool) -> AICheckInResult {
+    private static func checkInResult(
+        points: Int,
+        balance: Int,
+        isDuplicate: Bool,
+        streak: Int = 0,
+        gifts: [AICheckInGift] = []
+    ) -> AICheckInResult {
         let createdAt = Date(timeIntervalSince1970: 1_793_154_720)
         return AICheckInResult(
             date: "2026-11-05",
@@ -1110,6 +1505,8 @@ struct AIPointsTests {
             isBonus: points >= 40,
             isDuplicate: isDuplicate,
             balance: balance,
+            streak: streak,
+            gifts: gifts,
             createdAt: createdAt,
             expiresAt: createdAt.addingTimeInterval(24 * 3600)
         )
@@ -1158,6 +1555,18 @@ private final class FakeAIBillingAPI: AIBillingFetching {
     /// 签到结果。
     var checkInResult: Result<AICheckInResult, AIBillingAPIError> = .failure(.invalidContract)
 
+    /// 签到日历结果。
+    var historyResult: Result<AICheckInMonth, AIBillingAPIError> = .failure(.invalidContract)
+
+    /// 依次返回的开礼包结果；用完后重复最后一个。
+    var openResults: [Result<AICheckInGiftOpenResult, AIBillingAPIError>] = [.failure(.invalidContract)]
+
+    /// 依次查询过的签到日历月份。
+    private(set) var requestedMonths: [String] = []
+
+    /// 依次打开过的礼包 id 与第几次。
+    private(set) var openRequests: [(id: String, seq: Int)] = []
+
     /// 设置后查询余额时先挂起，直到用例恢复。
     var walletGate: AsyncSaveGate?
 
@@ -1205,6 +1614,17 @@ private final class FakeAIBillingAPI: AIBillingFetching {
     func checkIn() async throws -> AICheckInResult {
         checkInCalls += 1
         return try checkInResult.get()
+    }
+
+    func fetchCheckInHistory(month: String) async throws -> AICheckInMonth {
+        requestedMonths.append(month)
+        return try historyResult.get()
+    }
+
+    func openCheckInGift(id: String, seq: Int) async throws -> AICheckInGiftOpenResult {
+        let index = min(openRequests.count, openResults.count - 1)
+        openRequests.append((id: id, seq: seq))
+        return try openResults[index].get()
     }
 }
 

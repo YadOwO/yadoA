@@ -18775,6 +18775,1068 @@
           }
         }
       }
+    },
+    "checkIn.title" : {
+      "comment" : "每日签到页标题，也是“我的”页入口行的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily Check-in"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日签到"
+          }
+        }
+      }
+    },
+    "checkIn.row.streak" : {
+      "comment" : "“我的”页每日签到行尾：当前连签天数，%@ 为天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@-day streak"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已连签 %@ 天"
+          }
+        }
+      }
+    },
+    "checkIn.row.gifts" : {
+      "comment" : "“我的”页每日签到行尾：待开礼包个数，%@ 为个数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gifts to open: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 个礼包待开启"
+          }
+        }
+      }
+    },
+    "checkIn.streak.caption" : {
+      "comment" : "签到页大数字下的说明：连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Days in a row"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连续签到天数"
+          }
+        }
+      }
+    },
+    "checkIn.status.loading" : {
+      "comment" : "签到页正在加载签到状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载…"
+          }
+        }
+      }
+    },
+    "checkIn.status.failed" : {
+      "comment" : "签到页取不到签到状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load check-in info. Pull down to try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到信息暂时取不到，下拉重试"
+          }
+        }
+      }
+    },
+    "checkIn.today.done" : {
+      "comment" : "签到页：今天已签到，%@ 为今天得到的点数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checked in today · +%@ pts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天已签到 · +%@ 点"
+          }
+        }
+      }
+    },
+    "checkIn.today.start" : {
+      "comment" : "签到页：今天没签、也没有正在进行的连签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check in today to start a streak"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天签到，开始连签"
+          }
+        }
+      }
+    },
+    "checkIn.today.continue" : {
+      "comment" : "签到页：今天还没签，%@ 为签到后的连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check in today for day %@ of your streak"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天签到就是连签第 %@ 天"
+          }
+        }
+      }
+    },
+    "checkIn.stamp" : {
+      "comment" : "签到页今天已签到时的印章文字",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已签到"
+          }
+        }
+      }
+    },
+    "checkIn.gifts.section" : {
+      "comment" : "签到页待开礼包分组标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gifts to Open"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "待开启的礼包"
+          }
+        }
+      }
+    },
+    "checkIn.gift.weekly" : {
+      "comment" : "连签 7 天得到的礼包名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weekly Gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "周礼包"
+          }
+        }
+      }
+    },
+    "checkIn.gift.monthly" : {
+      "comment" : "连签 30 天得到的礼包名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monthly Gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "月礼包"
+          }
+        }
+      }
+    },
+    "checkIn.gift.yearly" : {
+      "comment" : "连签 365 天得到的礼包名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yearly Gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年度礼包"
+          }
+        }
+      }
+    },
+    "checkIn.gift.other" : {
+      "comment" : "客户端不认识的礼包档位的名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "礼包"
+          }
+        }
+      }
+    },
+    "checkIn.gift.earned" : {
+      "comment" : "礼包的来历，%@ 为得到礼包时的连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From your %@-day streak"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连签 %@ 天获得"
+          }
+        }
+      }
+    },
+    "checkIn.gift.open" : {
+      "comment" : "待开礼包行尾的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开启"
+          }
+        }
+      }
+    },
+    "checkIn.gift.opensLeft" : {
+      "comment" : "能开几次的礼包还剩几次，%@ 为次数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens left: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还能开 %@ 次"
+          }
+        }
+      }
+    },
+    "checkIn.milestones.section" : {
+      "comment" : "签到页各档礼包进度的分组标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streak Gifts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连签礼包"
+          }
+        }
+      }
+    },
+    "checkIn.milestone.rule" : {
+      "comment" : "一档礼包的规则，%1$@ 为每连签几天，%2$@ 为点数范围（例如 21–50），%3$@ 为点数有效天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every %1$@ days · %2$@ pts · valid %3$@ days"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每连签 %1$@ 天 · %2$@ 点 · %3$@ 天有效"
+          }
+        }
+      }
+    },
+    "checkIn.milestone.opens" : {
+      "comment" : "能开几次的礼包，%@ 为次数（大于 1）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens %@ times"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可开 %@ 次"
+          }
+        }
+      }
+    },
+    "checkIn.milestone.daysLeft" : {
+      "comment" : "离下一个礼包还要签几天，%@ 为天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ days to go"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再签 %@ 天"
+          }
+        }
+      }
+    },
+    "checkIn.milestone.today" : {
+      "comment" : "今天签到就能拿到这档礼包",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check in today to get it"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天签到就能拿到"
+          }
+        }
+      }
+    },
+    "checkIn.milestone.tomorrow" : {
+      "comment" : "今天已签，明天签到就能拿到这档礼包",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check in tomorrow to get it"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "明天签到就能拿到"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.section" : {
+      "comment" : "签到页日历分组标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check-in Calendar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到日历"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.previous" : {
+      "comment" : "签到日历翻到上个月按钮的 VoiceOver 标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous month"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上个月"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.next" : {
+      "comment" : "签到日历翻到下个月按钮的 VoiceOver 标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next month"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下个月"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.summary" : {
+      "comment" : "签到日历本月小结，%1$@ 为签到天数，%2$@ 为点数合计",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ days checked in this month · %2$@ pts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本月签到 %1$@ 天，共 %2$@ 点"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.empty" : {
+      "comment" : "签到日历这个月没有签到",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No check-ins this month"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个月还没有签到"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.failed" : {
+      "comment" : "签到日历这个月加载失败",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load this month. Tap to try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个月加载失败，点一下重试"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.today" : {
+      "comment" : "签到日历日期格的 VoiceOver 朗读：今天",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.day.checked" : {
+      "comment" : "签到日历日期格的 VoiceOver 朗读：已签到，%1$@ 为点数，%2$@ 为连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "checked in, +%1$@ pts, day %2$@ of streak"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已签到，+%1$@ 点，连签第 %2$@ 天"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.day.unchecked" : {
+      "comment" : "签到日历日期格的 VoiceOver 朗读：未签到",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "not checked in"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未签到"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.separator" : {
+      "comment" : "签到日历日期格 VoiceOver 朗读各部分之间的分隔",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : ", "
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "，"
+          }
+        }
+      }
+    },
+    "checkIn.rules.section" : {
+      "comment" : "签到页规则说明的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rules"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到规则"
+          }
+        }
+      }
+    },
+    "checkIn.rules.daily" : {
+      "comment" : "签到规则：每天签到的点数，%1$@、%2$@ 为点数上下限，%3$@ 为有效小时数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check in once a day for %1$@–%2$@ random AI points, valid for %3$@ hours."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天签到一次，随机领 %1$@–%2$@ 点 AI 点数，%3$@ 小时内有效。"
+          }
+        }
+      }
+    },
+    "checkIn.rules.streak" : {
+      "comment" : "签到规则：连签礼包与断签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep a streak to earn gifts. Missing a day restarts it from day 1."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连续签到满对应天数就送礼包；断签后从第 1 天重新算。"
+          }
+        }
+      }
+    },
+    "checkIn.rules.gifts" : {
+      "comment" : "签到规则：礼包不过期",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gifts never expire. Their points are valid from the moment you open them."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "礼包不会过期，什么时候开都行；点数的有效期从打开时算起。"
+          }
+        }
+      }
+    },
+    "checkIn.rules.timezone" : {
+      "comment" : "签到规则：换日时间",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A new day starts at midnight Beijing time."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天按北京时间 0 点换日。"
+          }
+        }
+      }
+    },
+    "checkIn.opening.close" : {
+      "comment" : "开礼包整屏的关闭按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭"
+          }
+        }
+      }
+    },
+    "checkIn.opening.round" : {
+      "comment" : "能开几次的礼包当前是第几次，%1$@ 为第几次，%2$@ 为总次数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open %1$@ of %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %1$@ 次，共 %2$@ 次"
+          }
+        }
+      }
+    },
+    "checkIn.opening.tapToOpen" : {
+      "comment" : "开礼包整屏：提示点礼盒打开",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the box to open it"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点一下礼盒打开"
+          }
+        }
+      }
+    },
+    "checkIn.opening.range" : {
+      "comment" : "开礼包前显示这次的点数范围，%@ 为范围，例如 21–50",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ points inside"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内含 %@ 点"
+          }
+        }
+      }
+    },
+    "checkIn.opening.pointsUnit" : {
+      "comment" : "开礼包后大数字下的单位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI points"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点 AI 点数"
+          }
+        }
+      }
+    },
+    "checkIn.opening.validUntil" : {
+      "comment" : "开礼包后点数的有效期，%@ 为到期时间",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valid until %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有效期至 %@"
+          }
+        }
+      }
+    },
+    "checkIn.opening.secondChance" : {
+      "comment" : "年度礼包开完第一次后的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One more open left!"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还能再开一次！"
+          }
+        }
+      }
+    },
+    "checkIn.opening.open" : {
+      "comment" : "开礼包整屏的主按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开礼包"
+          }
+        }
+      }
+    },
+    "checkIn.opening.openAgain" : {
+      "comment" : "年度礼包开完第一次后的主按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再开一次"
+          }
+        }
+      }
+    },
+    "checkIn.opening.collect" : {
+      "comment" : "礼包开完后的主按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collect"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收下"
+          }
+        }
+      }
+    },
+    "checkIn.opening.announcement" : {
+      "comment" : "开礼包成功的 VoiceOver 播报，%1$@ 为点数，%2$@ 为到期日期",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Got %1$@ points, valid until %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "获得 %1$@ 点，有效期至 %2$@"
+          }
+        }
+      }
+    },
+    "checkIn.guide.title" : {
+      "comment" : "第一次看到签到气泡时引导卡片的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check in daily for AI points"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日签到领 AI 点数"
+          }
+        }
+      }
+    },
+    "checkIn.guide.message" : {
+      "comment" : "签到引导：每天签到的点数，%1$@、%2$@ 为点数上下限，%3$@ 为有效小时数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the bean once a day to get %1$@–%2$@ random AI points, valid for %3$@ hours."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天点一下芽豆，随机领 %1$@–%2$@ 点 AI 点数，%3$@ 小时内有效。"
+          }
+        }
+      }
+    },
+    "checkIn.guide.gifts" : {
+      "comment" : "签到引导：连签礼包，%1$@、%2$@、%3$@ 为周、月、年礼包要连签的天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep a streak of %1$@, %2$@ or %3$@ days to open gifts."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连续签到满 %1$@、%2$@、%3$@ 天还能开礼包。"
+          }
+        }
+      }
+    },
+    "checkIn.guide.giftsGeneric" : {
+      "comment" : "签到引导：连签礼包，不知道具体天数时",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep your streak going to open gifts."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连续签到还能开礼包。"
+          }
+        }
+      }
+    },
+    "checkIn.guide.dismiss" : {
+      "comment" : "签到引导卡片的关闭按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Got It"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "知道了"
+          }
+        }
+      }
+    },
+    "ai.entry.grant.weeklyGift" : {
+      "comment" : "明细中打开签到周礼包的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weekly check-in gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到周礼包"
+          }
+        }
+      }
+    },
+    "ai.entry.grant.monthlyGift" : {
+      "comment" : "明细中打开签到月礼包的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monthly check-in gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到月礼包"
+          }
+        }
+      }
+    },
+    "ai.entry.grant.yearlyGift" : {
+      "comment" : "明细中打开签到年度礼包的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yearly check-in gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到年度礼包"
+          }
+        }
+      }
+    },
+    "checkIn.opening.failure.stale" : {
+      "comment" : "开礼包失败：礼包已不存在或已在别的设备上开过",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This gift has changed. Close and check your gift list."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个礼包的状态变了，关闭后看看礼包列表"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

@@ -138,6 +138,9 @@ enum ProfileRoute: Hashable {
     /// AI 记账说明：从 AI 点数页进入，查看发给 AI 的内容、撤回或重新同意。
     case aiProcessingConsent
 
+    /// 每日签到：连签天数、待开礼包、各档礼包进度和签到日历；登录后才有入口。
+    case checkIn
+
     /// 设置页面。
     case settings
 
@@ -178,6 +181,8 @@ enum ProfileRoute: Hashable {
             }
         case .aiProcessingConsent:
             AIProcessingConsentView()
+        case .checkIn:
+            CheckInView()
         case .settings:
             SettingsView()
         case .feedback:

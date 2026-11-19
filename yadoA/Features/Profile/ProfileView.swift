@@ -1,7 +1,10 @@
 import SwiftData
 import SwiftUI
 
-/// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、周期记账、分类）、AI 点数、云端同步、“设置”二级页、意见反馈和更多芽豆产品。
+/// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、周期记账、分类）、AI 点数与每日签到、云端同步、“设置”二级页、意见反馈和更多芽豆产品。
+///
+/// 页头的签到气泡登录后第一次出现时，从气泡弹出签到引导（`CheckInGuideCard`），每个账号只弹一次；
+/// 签到得到连签礼包时，庆祝动画结束后直接弹出开礼包的整屏（`CheckInGiftOpeningView`）。
 ///
 /// 语言、外观、默认账户、导入导出、退出登录等低频项统一收进 `SettingsView`，已停用账户由“账户”Tab 承载。
 /// 进入二级页面都走路径导航（见 `ProfileRoute`），根导航据此判断是否显示语音入口。
@@ -31,6 +34,15 @@ struct ProfileView: View {
 
     /// 签到庆祝或淡出动画进行中；store 已把状态改为已签，靠它让气泡留到动画结束。
     @State private var isCheckInBadgeActive = false
+
+    /// 是否正从签到气泡弹出签到引导。
+    @State private var isCheckInGuidePresented = false
+
+    /// 刚签到得到、等庆祝结束后要开的礼包。
+    @State private var pendingGift: AICheckInGift?
+
+    /// 正在开的礼包，非空时弹出开礼包的整屏。
+    @State private var openingGift: AICheckInGift?
 
     var body: some View {
         ScrollView {
@@ -75,6 +87,10 @@ struct ProfileView: View {
                         }
                         .animation(reduceMotion ? nil : .snappy, value: aiPoints?.balance)
                         .accessibilityIdentifier("profile-ai-points")
+
+                        ProfileSettingsRowDivider()
+
+                        checkInEntry
                     }
                 }
 
@@ -128,6 +144,22 @@ struct ProfileView: View {
         .sheet(item: $editingProfile) { profile in
             ProfileEditView(profile: profile)
         }
+        .fullScreenCover(item: $openingGift) { gift in
+            CheckInGiftOpeningView(
+                gift: gift,
+                rule: aiPoints?.checkInStatus?.rule(for: gift.tier),
+                onOpen: { await aiPoints?.openGift($0) ?? .failure(.notSignedIn) },
+                onClose: { openingGift = nil }
+            )
+        }
+        .task(id: isCheckInGuideEligible) {
+            // 签到状态刚拿到时气泡才淡入，稍等一下再弹引导，免得箭头指向还在动的气泡
+            guard isCheckInGuideEligible else { return }
+            try? await Task.sleep(for: .seconds(0.8))
+            guard !Task.isCancelled, isCheckInGuideEligible else { return }
+            aiPoints?.markCheckInGuideShown()
+            isCheckInGuidePresented = true
+        }
         // 登录状态或联网许可变化时重新刷新；同意隐私政策后立即触发，请求本身已在 store 层拦住
         .task(id: refreshTrigger) {
             // 进入页面或登录状态变化时拉一次最新资料，其他端改过昵称也能及时同步
@@ -163,6 +195,52 @@ struct ProfileView: View {
     /// 触发刷新资料、点数和未读数的条件。
     private var refreshTrigger: ProfileRefreshTrigger {
         ProfileRefreshTrigger(isAuthenticated: authStore.isAuthenticated, isNetworkAllowed: isNetworkAllowed)
+    }
+
+    /// 每日签到入口：已登录时进入签到页；未登录时先弹窗询问是否去登录，确认后打开登录页。
+    @ViewBuilder
+    private var checkInEntry: some View {
+        if authStore.isAuthenticated {
+            NavigationLink(value: ProfileRoute.checkIn) {
+                checkInRow
+            }
+            .accessibilityIdentifier("profile-check-in-entry")
+        } else {
+            Button {
+                signInPresentation.requestSignIn(reason: .checkIn)
+            } label: {
+                checkInRow
+            }
+            .accessibilityIdentifier("profile-check-in-entry")
+        }
+    }
+
+    /// 每日签到行：有待开的礼包时行尾用礼包主色提示，否则显示连签天数，未登录或还没签过时留空。
+    private var checkInRow: some View {
+        let gifts = authStore.isAuthenticated ? aiPoints?.unopenedGifts ?? [] : []
+        let streak = authStore.isAuthenticated ? aiPoints?.checkInStatus?.streak ?? 0 : 0
+        let value: String
+        if !gifts.isEmpty {
+            value = AccountLocalization.formatted(
+                "checkIn.row.gifts",
+                value: gifts.count.formatted(.number.locale(locale)),
+                locale: locale
+            )
+        } else if streak > 0 {
+            value = AccountLocalization.formatted(
+                "checkIn.row.streak",
+                value: streak.formatted(.number.locale(locale)),
+                locale: locale
+            )
+        } else {
+            value = ""
+        }
+        return ProfileSettingsRow(
+            titleKey: "checkIn.title",
+            symbol: "calendar.badge.checkmark",
+            value: value,
+            valueTint: gifts.first?.tier.tint
+        )
     }
 
     /// 意见反馈入口：已登录时进入对话页；未登录时先弹窗询问是否去登录，确认后打开登录页。
@@ -273,10 +351,15 @@ struct ProfileView: View {
         .overlay(alignment: .topLeading) { checkInOverlay }
     }
 
-    /// 是否显示签到气泡：未登录时总是显示；已登录时今天还没签才显示，状态没拿到或拿失败时不显示；动画进行中保持显示。
+    /// 是否显示签到气泡：未登录时总是显示；已登录时今天还没签才显示，状态还没拿到时不显示（刷新失败沿用上一次的状态）；动画进行中保持显示。
     private var showsCheckInBadge: Bool {
         guard isNetworkAllowed else { return false }
         return !authStore.isAuthenticated || aiPoints?.shouldOfferCheckIn == true || isCheckInBadgeActive
+    }
+
+    /// 是否该弹签到引导：已登录、气泡因今天还没签而出现，且这个账号在本机还没看过引导。
+    private var isCheckInGuideEligible: Bool {
+        isSignedInOnline && aiPoints?.shouldOfferCheckIn == true && aiPoints?.shouldShowCheckInGuide == true
     }
 
     /// 浮在页头头像左侧或右侧空白里的签到气泡；位置只在头像所在的竖向带内取值，不压住头像、角标、名称和登录按钮。
@@ -292,9 +375,15 @@ struct ProfileView: View {
                     placement: checkInPlacement,
                     messageWidth: sideGap,
                     onTap: handleCheckInTap,
-                    onFinished: { isCheckInBadgeActive = false }
+                    onFinished: finishCheckIn
                 )
                 .frame(width: 72, height: 72)
+                .popover(isPresented: $isCheckInGuidePresented, attachmentAnchor: .rect(.bounds)) {
+                    CheckInGuideCard(status: aiPoints?.checkInStatus) {
+                        isCheckInGuidePresented = false
+                    }
+                    .presentationCompactAdaptation(.popover)
+                }
                 .position(x: centerX, y: centerY)
                 .transition(.opacity)
             }
@@ -311,10 +400,22 @@ struct ProfileView: View {
         isCheckInBadgeActive = true
         switch await aiPoints.checkIn() {
         case let .success(result):
+            pendingGift = result.newGifts.first
             return .success(result)
         case let .failure(error):
             isCheckInBadgeActive = false
             return .failure(error)
+        }
+    }
+
+    /// 签到庆祝结束：收起气泡；这次签到得到了礼包就弹出开礼包的整屏，礼包以 store 里最新的为准，已开完时不再弹。
+    private func finishCheckIn() {
+        isCheckInBadgeActive = false
+        if let pending = pendingGift {
+            pendingGift = nil
+            if openingGift == nil, let latest = aiPoints?.unopenedGifts.first(where: { $0.id == pending.id }) {
+                openingGift = latest
+            }
         }
     }
 

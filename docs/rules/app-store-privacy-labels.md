@@ -24,7 +24,7 @@
 | 修改资料 | 昵称；头像图片（目前只有 Debug 构建能上传，Release 隐藏入口） | Logto；阿里云 OSS `yado-avatars` | 用户主动修改 | `Features/Profile/ProfileEditView.swift`、`Features/Profile/Avatar/` |
 | 云同步 | 账户（名称、备注、卡号后四位、期初余额、币种）、流水（金额、分类、备注、日期、对方账户）、分类、默认账户、周期规则；App 随机生成的设备 ID | yadoA_be（`yadoa-api.yado1225.top`），**明文 JSON，无端到端加密** | 默认关闭，用户开启后自动同步 | `Features/Sync/`、`Persistence/Sync/` |
 | AI 记账 | 说的话转成的文字或打的字、图片、账户列表（名称、类型、余额、是否停用）、分类列表、对话上下文（含查到的流水和周期规则）、当前时间和时区、App 语言 | yado_ai（`ai-api.yado1225.top`），再转发给 AI 服务商（见共享清单）；不转发账号 ID | 用户每次发起 | `Features/Voice/API/VoiceSessionContract.swift` |
-| AI 点数、签到 | 点数获得和消耗记录（时间、功能、模型档位、点数）、签到日期、每次请求的不可还原输入指纹 | yado_ai | 使用 AI、点签到时 | `Features/AI/AIBillingAPI.swift` |
+| AI 点数、签到 | 点数获得和消耗记录（时间、功能、模型档位、点数）、签到日期与连签天数、连签礼包的获得和打开记录、每次请求的不可还原输入指纹 | yado_ai | 使用 AI、点签到、开礼包时 | `Features/AI/AIBillingAPI.swift` |
 | 意见反馈 | 反馈文字；App 版本、系统版本、设备型号、App 语言；**用户打开开关时**附带最近最多 5 份 MetricKit 崩溃、卡顿、磁盘写入报告 | yado_hub（`hub-api.yado1225.top`） | 用户发送反馈 | `Features/Feedback/`、`Features/Diagnostics/` |
 | 服务器日志 | IP 地址、时间、接口、结果、耗时；部分服务记账号 ID 和设备 ID | 各后端 | 每次请求 | 各后端 |
 
