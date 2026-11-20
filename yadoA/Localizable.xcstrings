@@ -20224,6 +20224,1158 @@
           }
         }
       }
+    },
+    "auth.sign_in.email" : {
+      "comment" : "登录页邮箱登录按钮，打开 Logto 托管页的邮箱输入页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue with Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用邮箱继续"
+          }
+        }
+      }
+    },
+    "account.security.title" : {
+      "comment" : "设置 › 账号与安全页标题和入口",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account & Security"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账号与安全"
+          }
+        }
+      }
+    },
+    "account.security.shared_note" : {
+      "comment" : "账号与安全页说明：芽豆账号跨 App 通用",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Yado account works across all Yado apps. Changes here apply to every app."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆账号在芽豆系列 App 里通用，这里的修改各 App 都生效。"
+          }
+        }
+      }
+    },
+    "account.security.section.account" : {
+      "comment" : "账号与安全页分组标题：账号信息",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账号信息"
+          }
+        }
+      }
+    },
+    "account.security.section.sign_in" : {
+      "comment" : "账号与安全页分组标题：登录方式",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-In Methods"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录方式"
+          }
+        }
+      }
+    },
+    "account.security.apple" : {
+      "comment" : "账号与安全页 Apple 登录方式行标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple"
+          }
+        }
+      }
+    },
+    "account.security.apple.linked" : {
+      "comment" : "Apple 已关联",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已关联"
+          }
+        }
+      }
+    },
+    "account.security.apple.unlinked" : {
+      "comment" : "Apple 未关联",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Linked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未关联"
+          }
+        }
+      }
+    },
+    "account.security.password" : {
+      "comment" : "账号与安全页密码行标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码"
+          }
+        }
+      }
+    },
+    "account.security.password.set" : {
+      "comment" : "密码已设置",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已设置"
+          }
+        }
+      }
+    },
+    "account.security.password.unset" : {
+      "comment" : "密码未设置",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Set"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未设置"
+          }
+        }
+      }
+    },
+    "account.security.email" : {
+      "comment" : "账号与安全页邮箱行标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邮箱"
+          }
+        }
+      }
+    },
+    "account.security.email.change" : {
+      "comment" : "邮箱行行尾操作：更换邮箱",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更换"
+          }
+        }
+      }
+    },
+    "account.security.email.bind" : {
+      "comment" : "邮箱行行尾操作：绑定邮箱",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "绑定"
+          }
+        }
+      }
+    },
+    "account.security.email.bound" : {
+      "comment" : "邮箱已绑定但读不到地址时的值",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已绑定"
+          }
+        }
+      }
+    },
+    "account.security.email.unbound" : {
+      "comment" : "邮箱未绑定",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Added"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未绑定"
+          }
+        }
+      }
+    },
+    "account.security.value.unknown" : {
+      "comment" : "账号信息某项暂时读不到时的值",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时读不到"
+          }
+        }
+      }
+    },
+    "account.security.reauth.message" : {
+      "comment" : "老会话缺少新权限时，提示重新登录一次",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in again once to view and manage your email."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要重新登录一次，才能查看和管理邮箱。"
+          }
+        }
+      }
+    },
+    "account.security.reauth.action" : {
+      "comment" : "重新登录按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign In Again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登录"
+          }
+        }
+      }
+    },
+    "account.security.reauth.failed" : {
+      "comment" : "重新登录失败，后面换行跟错误详情",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't sign in again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登录失败"
+          }
+        }
+      }
+    },
+    "account.security.load_failed" : {
+      "comment" : "账号与安全页读取账号信息失败",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load account info"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账号信息加载失败"
+          }
+        }
+      }
+    },
+    "account.reauth.switched.title" : {
+      "comment" : "重新登录或验证时登了另一个账号、已退出登录的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signed In to a Different Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录的是另一个账号"
+          }
+        }
+      }
+    },
+    "account.reauth.switched.message" : {
+      "comment" : "重新登录或验证时登了另一个账号、已退出登录的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You signed in to a different Yado account. To keep the data on this device separate, you've been signed out. Please sign in again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你在登录页登录的不是当前芽豆账号。为了不让这台设备上的数据和别的账号混在一起，已退出登录，请重新登录。"
+          }
+        }
+      }
+    },
+    "account.email.bind.title" : {
+      "comment" : "绑定邮箱弹层标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "绑定邮箱"
+          }
+        }
+      }
+    },
+    "account.email.change.title" : {
+      "comment" : "更换邮箱弹层标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更换邮箱"
+          }
+        }
+      }
+    },
+    "account.email.identity.title" : {
+      "comment" : "绑定邮箱第一步标题：验证身份",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verify It's You"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先验证身份"
+          }
+        }
+      }
+    },
+    "account.email.identity.password.message" : {
+      "comment" : "用密码验证身份的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To keep your account safe, enter your Yado account password."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为了保护账号安全，请输入芽豆账号的密码。"
+          }
+        }
+      }
+    },
+    "account.email.identity.password.field" : {
+      "comment" : "密码输入框标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码"
+          }
+        }
+      }
+    },
+    "account.email.identity.password.placeholder" : {
+      "comment" : "密码输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入密码"
+          }
+        }
+      }
+    },
+    "account.email.identity.code.message" : {
+      "comment" : "用当前邮箱验证码验证身份的说明，%@ 为打码后的当前邮箱",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To keep your account safe, we'll send a code to your current email %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为了保护账号安全，我们会发送验证码到当前邮箱 %@。"
+          }
+        }
+      }
+    },
+    "account.email.identity.unavailable" : {
+      "comment" : "没有 App 能用的身份验证方式时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We can't verify your identity in the app right now. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时无法在 App 内验证你的身份，请稍后再试。"
+          }
+        }
+      }
+    },
+    "account.email.step_up.message" : {
+      "comment" : "只有 Apple 登录的账号需要在托管页重新验证的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Yado account currently uses only Sign in with Apple. To keep it safe, sign in with Apple again on the Yado account page and set up an email or password when prompted."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的芽豆账号目前只用 Apple 登录。为了保护账号，需要在芽豆账号页面重新用 Apple 登录一次，并按提示设置邮箱或密码。"
+          }
+        }
+      }
+    },
+    "account.email.step_up.action" : {
+      "comment" : "打开托管页重新验证的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续"
+          }
+        }
+      }
+    },
+    "account.email.step_up.failed" : {
+      "comment" : "托管页重新验证失败",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verification didn't finish. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证没有完成，请稍后再试。"
+          }
+        }
+      }
+    },
+    "account.email.step_up.incomplete" : {
+      "comment" : "托管页回来后仍没有邮箱或密码",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No email or password was set. Please verify again and follow the prompts."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有设置邮箱或密码，请重新验证并按提示设置。"
+          }
+        }
+      }
+    },
+    "account.email.next" : {
+      "comment" : "绑定邮箱流程的下一步按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一步"
+          }
+        }
+      }
+    },
+    "account.email.new.title.bind" : {
+      "comment" : "绑定邮箱第二步标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入邮箱"
+          }
+        }
+      }
+    },
+    "account.email.new.title.change" : {
+      "comment" : "更换邮箱第二步标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter New Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入新邮箱"
+          }
+        }
+      }
+    },
+    "account.email.new.message" : {
+      "comment" : "输入新邮箱的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We'll send a code to this email to confirm it's yours."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我们会发送验证码到这个邮箱，确认它属于你。"
+          }
+        }
+      }
+    },
+    "account.email.new.field" : {
+      "comment" : "新邮箱输入框标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邮箱"
+          }
+        }
+      }
+    },
+    "account.email.new.placeholder" : {
+      "comment" : "新邮箱输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "name@example.com"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "name@example.com"
+          }
+        }
+      }
+    },
+    "account.email.code.field" : {
+      "comment" : "验证码输入框标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verification Code"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码"
+          }
+        }
+      }
+    },
+    "account.email.code.placeholder" : {
+      "comment" : "验证码输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter code"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入验证码"
+          }
+        }
+      }
+    },
+    "account.email.code.send" : {
+      "comment" : "发送验证码按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send Code"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送验证码"
+          }
+        }
+      }
+    },
+    "account.email.code.sent" : {
+      "comment" : "验证码已发送的说明，%@ 为新邮箱",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We sent a code to %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码已发送到 %@，请查收。"
+          }
+        }
+      }
+    },
+    "account.email.code.resend" : {
+      "comment" : "重新发送验证码按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resend Code"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新发送验证码"
+          }
+        }
+      }
+    },
+    "account.email.code.resend_countdown" : {
+      "comment" : "重发验证码倒计时，%lld 为剩余秒数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resend in %llds"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 秒后可重新发送"
+          }
+        }
+      }
+    },
+    "account.email.save" : {
+      "comment" : "保存新邮箱按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存"
+          }
+        }
+      }
+    },
+    "account.email.finished.bound" : {
+      "comment" : "邮箱绑定成功",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email Added"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邮箱已绑定"
+          }
+        }
+      }
+    },
+    "account.email.finished.changed" : {
+      "comment" : "邮箱更换成功",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email Changed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邮箱已更换"
+          }
+        }
+      }
+    },
+    "account.email.finished.message" : {
+      "comment" : "邮箱绑定或更换成功后的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can now use this email to sign in to Yado apps."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以后可以用这个邮箱登录芽豆系列 App。"
+          }
+        }
+      }
+    },
+    "account.email.error.invalid_format" : {
+      "comment" : "新邮箱格式不正确",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a valid email address."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邮箱格式不正确。"
+          }
+        }
+      }
+    },
+    "account.email.error.same_as_current" : {
+      "comment" : "新邮箱和当前邮箱相同",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The new email is the same as your current one."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新邮箱和当前邮箱相同。"
+          }
+        }
+      }
+    },
+    "account.email.error.verification_required" : {
+      "comment" : "身份验证已过期，需要重新验证",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your verification has expired. Please verify again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "身份验证已过期，请重新验证。"
+          }
+        }
+      }
+    },
+    "account.email.error.in_use" : {
+      "comment" : "邮箱已被其他账号使用",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This email is already used by another Yado account."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个邮箱已被其他芽豆账号使用。"
+          }
+        }
+      }
+    },
+    "account.email.error.code_mismatch" : {
+      "comment" : "验证码不正确",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incorrect verification code."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码不正确。"
+          }
+        }
+      }
+    },
+    "account.email.error.code_expired" : {
+      "comment" : "验证码已过期",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The code has expired. Please request a new one."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码已过期，请重新获取。"
+          }
+        }
+      }
+    },
+    "account.email.error.code_too_many_attempts" : {
+      "comment" : "验证码尝试次数过多",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many attempts. Please request a new code."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码尝试次数过多，请重新获取。"
+          }
+        }
+      }
+    },
+    "account.email.error.code_invalid" : {
+      "comment" : "验证码记录失效（不存在、与邮箱不匹配或新邮箱验证记录无效）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This code is no longer valid. Please request a new one."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码已失效，请重新获取。"
+          }
+        }
+      }
+    },
+    "account.email.error.rate_limited" : {
+      "comment" : "验证码发送太频繁",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many requests. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送太频繁，请稍后再试。"
+          }
+        }
+      }
+    },
+    "account.email.error.service_unavailable" : {
+      "comment" : "Logto 没配邮件连接器（HTTP 501）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email service isn't available yet, so we can't send a code right now."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邮件服务暂未开通，暂时无法发送验证码。"
+          }
+        }
+      }
+    },
+    "account.security.load_failed.detail" : {
+      "comment" : "账号与安全页读取账号信息失败的说明（非网络原因）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account info is unavailable right now. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账号信息暂时读不到，请稍后再试。"
+          }
+        }
+      }
+    },
+    "account.delete.progress.title" : {
+      "comment" : "注销进行中的全屏阻断层标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleting your Yado account…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在注销芽豆账号…"
+          }
+        }
+      }
+    },
+    "account.delete.progress.message" : {
+      "comment" : "注销进行中的全屏阻断层说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please don't close the app."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请不要关闭 App"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

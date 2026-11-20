@@ -3,7 +3,7 @@ import Foundation
 /// 登录页上的第三方登录方式，每一种对应 Logto 里的一个社交连接器。
 ///
 /// 点击后通过 Logto 的 direct sign-in 跳过方式选择页，直接进入该连接器的授权流程；
-/// 账号密码登录不在此列，它始终显示在登录页按钮区的最后一个。
+/// 邮箱和账号密码登录不在此列（见 `AuthSignInMethod`），账号密码始终显示在登录页按钮区的最后一个。
 enum AuthSocialProvider: String, CaseIterable, Identifiable {
     /// 通过 Apple 登录。
     ///
@@ -44,6 +44,39 @@ enum AuthSocialProvider: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .apple: "apple.logo"
+        }
+    }
+}
+
+/// 登录页上的一种登录方式，决定打开 Logto 托管页时带什么参数。
+///
+/// 按钮顺序：第三方方式在前，邮箱（开关打开时）其次，账号密码收尾。
+enum AuthSignInMethod: Equatable {
+    /// 账号密码：打开托管页的默认首页。
+    case password
+
+    /// 邮箱：打开托管页并直接进入邮箱输入页，由 `AuthConfig.isEmailAccountAvailable` 控制是否显示。
+    case email
+
+    /// 第三方登录：通过 direct sign-in 直接进入对应连接器。
+    case social(AuthSocialProvider)
+
+    /// 第三方登录对应的方式；非第三方时为 nil。
+    var socialProvider: AuthSocialProvider? {
+        switch self {
+        case let .social(provider): provider
+        case .password, .email: nil
+        }
+    }
+
+    /// 打开托管页时附加的参数；nil 表示不附加。
+    ///
+    /// 邮箱登录让 Logto 首屏直接是登录页的标识输入步骤（`first_screen=identifier:sign_in`），
+    /// 且只接受邮箱（`identifier=email`）。
+    var extraParams: [String: String]? {
+        switch self {
+        case .email: ["first_screen": "identifier:sign_in", "identifier": "email"]
+        case .password, .social: nil
         }
     }
 }

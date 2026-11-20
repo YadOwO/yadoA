@@ -131,3 +131,39 @@ struct ProfileExportLabelStyle: LabelStyle {
             .contentShape(Rectangle())
     }
 }
+
+/// 资料类弹层（修改资料、绑定邮箱）的黑色胶囊主按钮外观；深色外观下自动反色，进行中在原位转圈、宽度不变。
+struct ProfilePrimaryButtonLabel: View {
+    /// 已本地化的按钮文字。
+    let title: String
+    /// 是否正在进行，显示转圈。
+    var isLoading = false
+
+    var body: some View {
+        ZStack {
+            Text(title)
+                .opacity(isLoading ? 0 : 1)
+            if isLoading {
+                ProgressView()
+                    .tint(Color(uiColor: .systemBackground))
+            }
+        }
+        .font(.body.weight(.semibold))
+        .foregroundStyle(Color(uiColor: .systemBackground))
+        .padding(.horizontal, 36)
+        .padding(.vertical, 16)
+        .background(Capsule().fill(Color.primary))
+        .contentShape(Capsule())
+    }
+}
+
+extension View {
+    /// 资料类弹层的胶囊输入框外观：浅灰底加细描边，浅色、深色外观都用系统语义色。
+    func profileCapsuleField() -> some View {
+        font(.title3)
+            .padding(.horizontal, 22)
+            .padding(.vertical, 16)
+            .background(Capsule().fill(Color(uiColor: .tertiarySystemFill)))
+            .overlay(Capsule().strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+    }
+}

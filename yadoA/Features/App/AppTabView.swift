@@ -144,6 +144,12 @@ enum ProfileRoute: Hashable {
     /// 设置页面。
     case settings
 
+    /// 账号与安全：从设置页「账号」分组进入，登录方式、绑定邮箱和注销芽豆账号；登录后才有入口。
+    ///
+    /// 必须走路径导航：退出登录后设置页的入口会消失，若用 `NavigationLink { }` 直接包页面，页面会随入口一起被移除，
+    /// 注销后本机清理失败、登录了另一个账号这些提示都来不及显示；走路径时页面留在栈里，由页面自己在提示看完后返回。
+    case accountSecurity
+
     /// 意见反馈：与芽豆团队的对话，登录后才有入口。
     case feedback
 
@@ -185,6 +191,8 @@ enum ProfileRoute: Hashable {
             CheckInView()
         case .settings:
             SettingsView()
+        case .accountSecurity:
+            AccountSecurityView()
         case .feedback:
             FeedbackView()
         case .moreProducts:
