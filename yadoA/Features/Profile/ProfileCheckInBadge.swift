@@ -30,6 +30,7 @@ enum CheckInTapOutcome {
 ///
 /// 待签到时缓慢上下漂浮并隔几秒轻晃一下；点击后下压、等待时轻抖，
 /// 成功时冒芽、点数从 0 滚到获得的数值再向上飘走，失败时摇头并在下方显示一句原因。
+/// 昨天漏签、今天可以用补签卡时，点击后先弹窗问用不用卡，用户选了再签到；用卡签到成功时在气泡下方说明保住了几天连签。
 /// 开启「减弱动态效果」时不漂浮、不晃、不抖、不滚数字，只做淡入淡出。
 /// 触感受设置里的触感开关控制；滚动与落定由 `CheckInHaptics` 编排。
 struct ProfileCheckInBadge: View {
@@ -54,14 +55,21 @@ struct ProfileCheckInBadge: View {
     /// 错误文案的最大宽度，即头像一侧的空白宽度。
     var messageWidth: CGFloat = 96
 
-    /// 点击后执行签到，由页面提供。
-    let onTap: () async -> CheckInTapOutcome
+    /// 今天可以用补签卡时的依据，点击后先弹窗问用不用；用不了时为 nil，点击直接签到。
+    var protectionOffer: AICheckInProtectionOffer?
+
+    /// 点击后执行签到，由页面提供；参数为用户是否选择用补签卡。
+    let onTap: (_ useCard: Bool) async -> CheckInTapOutcome
 
     /// 庆祝或淡出动画结束，页面可以移除气泡。
     let onFinished: () -> Void
 
     @State private var phase: Phase = .idle
     @State private var errorKey: String?
+    /// 用卡签到成功后显示在气泡下方的说明，例如“用掉 1 张补签卡，保住了 23 天连签”。
+    @State private var protectionNote: String?
+    /// 正在弹窗询问用不用补签卡时的依据。
+    @State private var presentedOffer: AICheckInProtectionOffer?
     @State private var shakeCount = 0
     @State private var bounceCount = 0
     @State private var sparkle: CGFloat = 0
@@ -93,7 +101,20 @@ struct ProfileCheckInBadge: View {
         }
         .offset(y: phase == .leaving && risesOnLeave && !reduceMotion ? -24 : 0)
         .opacity(phase == .leaving ? 0 : 1)
-        .overlay(alignment: .top) { errorMessage }
+        .overlay(alignment: .top) { messageLine }
+        .alert(
+            Text(text("checkIn.protection.prompt.title")),
+            isPresented: isOfferPresented,
+            presenting: presentedOffer
+        ) { _ in
+            Button(text("checkIn.protection.prompt.use")) { start(useCard: true) }
+                .accessibilityIdentifier("check-in-protection-use")
+            Button(text("checkIn.protection.prompt.skip")) { start(useCard: false) }
+                .accessibilityIdentifier("check-in-protection-skip")
+            Button(text("common.cancel"), role: .cancel) {}
+        } message: { offer in
+            Text(offerMessage(offer))
+        }
         .onAppear { haptics.start() }
         .onDisappear {
             flow?.cancel()
@@ -169,20 +190,49 @@ struct ProfileCheckInBadge: View {
         }
     }
 
-    /// 气泡下方的一行失败原因。
+    /// 气泡下方的一行字：失败原因，或者用卡签到成功时保住了几天连签。
     @ViewBuilder
-    private var errorMessage: some View {
+    private var messageLine: some View {
         if let errorKey {
-            Text(text(errorKey))
-                .font(.caption2)
+            belowBubble(Text(text(errorKey)))
                 .foregroundStyle(Color(.ledgerRed))
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(width: messageWidth)
-                .offset(y: 74)
-                .transition(.opacity)
                 .accessibilityIdentifier("profile-check-in-error")
+        } else if let protectionNote {
+            belowBubble(Text(protectionNote))
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("profile-check-in-protection-note")
         }
+    }
+
+    /// 摆在气泡正下方、不超过一侧空白宽度的小字。
+    private func belowBubble(_ content: Text) -> some View {
+        content
+            .font(.caption2)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(width: messageWidth)
+            .offset(y: 74)
+            .transition(.opacity)
+    }
+
+    /// 补签卡弹窗是否显示；弹窗关掉时清空依据。
+    private var isOfferPresented: Binding<Bool> {
+        Binding(
+            get: { presentedOffer != nil },
+            set: { isPresented in
+                if !isPresented { presentedOffer = nil }
+            }
+        )
+    }
+
+    /// 补签卡弹窗的说明，例如“用 1 张补签卡，今天接着算第 24 天；不用的话从第 1 天重新算。本月还剩 1 张。”
+    private func offerMessage(_ offer: AICheckInProtectionOffer) -> String {
+        String(
+            format: text("checkIn.protection.prompt.message"),
+            locale: locale,
+            offer.nextStreak.formatted(.number.locale(locale)),
+            offer.cardsLeft.formatted(.number.locale(locale))
+        )
     }
 
     // MARK: - 动态
@@ -215,14 +265,26 @@ struct ProfileCheckInBadge: View {
 
     // MARK: - 交互
 
-    /// 点击：清掉上次的错误，进入等待并执行签到。
+    /// 点击：今天可以用补签卡时先弹窗问用不用，否则直接签到。
     private func handleTap() {
+        guard phase == .idle else { return }
+        if let protectionOffer {
+            presentedOffer = protectionOffer
+        } else {
+            start(useCard: false)
+        }
+    }
+
+    /// 清掉上次的错误，进入等待并执行签到。
+    ///
+    /// - Parameter useCard: 是否用补签卡。
+    private func start(useCard: Bool) {
         guard phase == .idle else { return }
         errorClearing?.cancel()
         withAnimation(.easeOut(duration: 0.2)) { errorKey = nil }
         phase = .waiting
         flow = Task {
-            let outcome = await onTap()
+            let outcome = await onTap(useCard)
             guard !Task.isCancelled else { return }
             await handle(outcome)
         }
@@ -261,11 +323,15 @@ struct ProfileCheckInBadge: View {
         }
     }
 
-    /// 成功：冒芽，点数从 0 滚到 N，落定后停留片刻向上飘走。
+    /// 成功：冒芽，点数从 0 滚到 N，落定后停留片刻向上飘走；用了补签卡时气泡下方说明保住了几天连签，多停一会儿让人看完。
     private func celebrate(_ result: AICheckInResult) async {
         let points = result.points
         let isBonus = result.isBonus
+        let note = protectionNoteText(for: result)
         phase = .celebrating(points: points, isBonus: isBonus, shown: reduceMotion ? points : 0)
+        if let note {
+            withAnimation(.easeOut(duration: 0.2)) { protectionNote = note }
+        }
         if !reduceMotion {
             bounceCount += 1
             let steps = max(1, min(points, 15))
@@ -283,28 +349,45 @@ struct ProfileCheckInBadge: View {
         if isBonus && !reduceMotion {
             withAnimation(.easeOut(duration: 0.5)) { sparkle = 1 }
         }
-        announce(result)
+        announce(result, note: note)
 
-        try? await Task.sleep(for: .seconds(0.6))
+        try? await Task.sleep(for: .seconds(note == nil ? 0.6 : 2))
         guard !Task.isCancelled else { return }
         risesOnLeave = true
-        withAnimation(.easeOut(duration: 0.45)) { phase = .leaving }
+        withAnimation(.easeOut(duration: 0.45)) {
+            phase = .leaving
+            protectionNote = nil
+        }
         try? await Task.sleep(for: .seconds(0.45))
         guard !Task.isCancelled else { return }
         onFinished()
     }
 
-    /// VoiceOver 播报「获得 N 点，24 小时内有效」。
-    private func announce(_ result: AICheckInResult) {
+    /// VoiceOver 播报「获得 N 点，24 小时内有效」；用了补签卡时接着读保住了几天连签。
+    ///
+    /// - Parameters:
+    ///   - result: 签到结果。
+    ///   - note: 气泡下方的补签卡说明；没用卡时为 nil。
+    private func announce(_ result: AICheckInResult, note: String?) {
         let hours = max(1, Int((result.expiresAt.timeIntervalSince(result.createdAt) / 3600).rounded()))
-        AccessibilityNotification.Announcement(
-            String(
-                format: text("profile.checkIn.announcement"),
-                locale: locale,
-                result.points.formatted(.number.locale(locale)),
-                hours.formatted(.number.locale(locale))
-            )
-        ).post()
+        let gained = String(
+            format: text("profile.checkIn.announcement"),
+            locale: locale,
+            result.points.formatted(.number.locale(locale)),
+            hours.formatted(.number.locale(locale))
+        )
+        let message = [gained, note].compactMap { $0 }.joined(separator: text("checkIn.calendar.separator"))
+        AccessibilityNotification.Announcement(message).post()
+    }
+
+    /// 用卡签到时气泡下方的说明，例如“用掉 1 张补签卡，保住了 23 天连签”；没用卡时为 nil。
+    private func protectionNoteText(for result: AICheckInResult) -> String? {
+        guard let kept = result.keptStreak else { return nil }
+        return AccountLocalization.formatted(
+            "checkIn.protection.used",
+            value: kept.formatted(.number.locale(locale)),
+            locale: locale
+        )
     }
 
     /// 错误对应的文案 key。
@@ -320,6 +403,8 @@ struct ProfileCheckInBadge: View {
             "profile.checkIn.failure.unavailable"
         case .upgradeRequired:
             "appUpdate.inline"
+        case .checkInProtectionUnavailable:
+            "profile.checkIn.failure.protection"
         }
     }
 

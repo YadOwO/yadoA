@@ -384,6 +384,7 @@ struct ProfileView: View {
                 ProfileCheckInBadge(
                     placement: checkInPlacement,
                     messageWidth: sideGap,
+                    protectionOffer: authStore.isAuthenticated ? aiPoints?.checkInStatus?.protectionOffer : nil,
                     onTap: handleCheckInTap,
                     onFinished: finishCheckIn
                 )
@@ -402,13 +403,15 @@ struct ProfileView: View {
     }
 
     /// 点击签到气泡：未登录先弹窗询问是否去登录；已登录发起签到，动画结束前保持气泡显示。
-    private func handleCheckInTap() async -> CheckInTapOutcome {
+    ///
+    /// - Parameter useCard: 用户是否在弹窗里选了用补签卡。
+    private func handleCheckInTap(useCard: Bool) async -> CheckInTapOutcome {
         guard authStore.isAuthenticated, let aiPoints else {
             signInPresentation.requestSignIn(reason: .checkIn)
             return .signInRequired
         }
         isCheckInBadgeActive = true
-        switch await aiPoints.checkIn() {
+        switch await aiPoints.checkIn(useCard: useCard) {
         case let .success(result):
             pendingGift = result.newGifts.first
             return .success(result)

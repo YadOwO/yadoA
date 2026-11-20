@@ -185,9 +185,53 @@ nonisolated struct AICheckInRecord: Decodable, Equatable, Sendable {
     }
 }
 
-/// 签到状态，`GET /v1/billing/check-in` 的响应：今天签没签、当前连签天数、还没开完的礼包与各档礼包的规则。
+/// 补签卡的情况，签到状态里的 `protection`：每月几张、本月还剩几张、今天能不能用。
 ///
-/// 连签礼包相关的字段是后加的，服务端没有返回时取空值，界面按“没有礼包”显示。
+/// 能不能用、剩几张都由服务端算，App 只负责展示，并在签到时把用户“用不用卡”的选择告诉服务端。
+nonisolated struct AICheckInProtection: Decodable, Equatable, Sendable {
+    /// 每个自然月（北京时间）有几张，不累积，月初恢复；为 0 时服务端没开补签卡，界面不显示补签卡。
+    let cardsPerMonth: Int
+
+    /// 本月还剩几张。
+    let cardsLeft: Int
+
+    /// 今天签到时可以用卡保住的那天（昨天），`YYYY-MM-DD`；今天用不了卡时为 nil。
+    let pendingDate: String?
+
+    /// 补签卡是否开着：服务端每月给了卡才显示补签卡相关的内容。
+    var isEnabled: Bool {
+        cardsPerMonth > 0
+    }
+
+    /// 签到后的同一份情况：今天已经签了，不能再用卡；剩余张数换成签到结果带回的。
+    ///
+    /// - Parameter cardsLeft: 签到后本月还剩几张；服务端没有返回时沿用原来的。
+    /// - Returns: `pendingDate` 清空后的情况。
+    func afterCheckIn(cardsLeft: Int?) -> AICheckInProtection {
+        AICheckInProtection(cardsPerMonth: cardsPerMonth, cardsLeft: cardsLeft ?? self.cardsLeft, pendingDate: nil)
+    }
+}
+
+/// 点签到时问用户要不要用补签卡的依据：漏签的是哪天、能保住几天连签、本月还剩几张。
+nonisolated struct AICheckInProtectionOffer: Equatable, Sendable {
+    /// 漏签、可以用卡保住的那天，`YYYY-MM-DD`。
+    let missedDate: String
+
+    /// 能保住的连签天数，即前天的连签天数。
+    let keptStreak: Int
+
+    /// 本月还剩几张卡。
+    let cardsLeft: Int
+
+    /// 用卡签到后今天是连签的第几天。
+    var nextStreak: Int {
+        keptStreak + 1
+    }
+}
+
+/// 签到状态，`GET /v1/billing/check-in` 的响应：今天签没签、当前连签天数、还没开完的礼包、各档礼包的规则与补签卡。
+///
+/// 连签礼包和补签卡相关的字段是后加的，服务端没有返回时取空值，界面按“没有礼包”“没有补签卡”显示。
 nonisolated struct AICheckInStatus: Decodable, Equatable, Sendable {
     /// 服务端按配置时区算出的日期，`YYYY-MM-DD`。
     let date: String
@@ -207,7 +251,8 @@ nonisolated struct AICheckInStatus: Decodable, Equatable, Sendable {
     /// 签到点数的有效小时数；服务端没有返回时为 nil。
     let validHours: Int?
 
-    /// 当前连签天数：今天签了取今天的；今天没签但昨天签了取昨天的（今天签还能接上）；否则为 0。
+    /// 当前连签天数：今天签了取今天的；今天没签但昨天签了取昨天的（今天签还能接上）；
+    /// 昨天也没签、但今天可以用补签卡时取前天的（用卡签到还能接上）；否则为 0。
     let streak: Int
 
     /// 第一次签到的日期，`YYYY-MM-DD`；签到日历最早翻到这个月。从没签过时为 nil。
@@ -219,11 +264,15 @@ nonisolated struct AICheckInStatus: Decodable, Equatable, Sendable {
     /// 各档礼包的规则，按周、月、年排列；用来显示“再签几天开礼包”和礼包说明。
     let giftTiers: [AICheckInGiftRule]
 
+    /// 补签卡；服务端没有返回（还不支持补签卡）时为 nil。
+    let protection: AICheckInProtection?
+
     private enum CodingKeys: String, CodingKey {
         case date, checkedIn, checkIn, minPoints, maxPoints, validHours, streak, firstCheckInDate, gifts, giftTiers
+        case protection
     }
 
-    /// 逐字段创建；连签礼包相关的字段可以省略，供测试使用。
+    /// 逐字段创建；连签礼包和补签卡相关的字段可以省略，供测试使用。
     init(
         date: String,
         checkedIn: Bool,
@@ -234,7 +283,8 @@ nonisolated struct AICheckInStatus: Decodable, Equatable, Sendable {
         streak: Int = 0,
         firstCheckInDate: String? = nil,
         gifts: [AICheckInGift] = [],
-        giftTiers: [AICheckInGiftRule] = []
+        giftTiers: [AICheckInGiftRule] = [],
+        protection: AICheckInProtection? = nil
     ) {
         self.date = date
         self.checkedIn = checkedIn
@@ -246,6 +296,7 @@ nonisolated struct AICheckInStatus: Decodable, Equatable, Sendable {
         self.firstCheckInDate = firstCheckInDate
         self.gifts = gifts
         self.giftTiers = giftTiers
+        self.protection = protection
     }
 
     init(from decoder: Decoder) throws {
@@ -260,6 +311,16 @@ nonisolated struct AICheckInStatus: Decodable, Equatable, Sendable {
         firstCheckInDate = try container.decodeIfPresent(String.self, forKey: .firstCheckInDate)
         gifts = try container.decodeIfPresent([AICheckInGift].self, forKey: .gifts) ?? []
         giftTiers = try container.decodeIfPresent([AICheckInGiftRule].self, forKey: .giftTiers) ?? []
+        protection = try container.decodeIfPresent(AICheckInProtection.self, forKey: .protection)
+    }
+
+    /// 今天签到时可以用补签卡保住连签的情况：今天还没签、服务端给了要保住的日子、本月还有卡；用不了时为 nil。
+    ///
+    /// 有值时点签到先问用户用不用卡；连旧服务端拿不到补签卡信息时总是 nil，不问。
+    var protectionOffer: AICheckInProtectionOffer? {
+        guard !checkedIn, let protection, protection.isEnabled, protection.cardsLeft > 0,
+              let missedDate = protection.pendingDate else { return nil }
+        return AICheckInProtectionOffer(missedDate: missedDate, keptStreak: streak, cardsLeft: protection.cardsLeft)
     }
 
     /// 换掉礼包列表的同一份状态；开完的礼包不再列出。
@@ -277,7 +338,8 @@ nonisolated struct AICheckInStatus: Decodable, Equatable, Sendable {
             streak: streak,
             firstCheckInDate: firstCheckInDate,
             gifts: gifts.filter { !$0.isFinished },
-            giftTiers: giftTiers
+            giftTiers: giftTiers,
+            protection: protection
         )
     }
 
@@ -312,6 +374,12 @@ nonisolated struct AICheckInResult: Decodable, Equatable, Sendable {
     /// 这次签到得到的礼包，可能同时有几档；当天已签过时是当天得到的礼包（带最新的打开次数）。
     let gifts: [AICheckInGift]
 
+    /// 这次签到用补签卡保住的那天（昨天），`YYYY-MM-DD`；没用卡或服务端没有返回时为 nil。当天已签过时是当天那次的值。
+    let protectedDate: String?
+
+    /// 签到后本月还剩几张补签卡；服务端没有返回（还不支持补签卡）时为 nil。
+    let cardsLeft: Int?
+
     /// 签到时间。
     let createdAt: Date
 
@@ -319,7 +387,7 @@ nonisolated struct AICheckInResult: Decodable, Equatable, Sendable {
     let expiresAt: Date
 
     private enum CodingKeys: String, CodingKey {
-        case date, points, isBonus, isDuplicate, balance, streak, gifts, createdAt, expiresAt
+        case date, points, isBonus, isDuplicate, balance, streak, gifts, protectedDate, cardsLeft, createdAt, expiresAt
     }
 
     /// 逐字段创建，供测试使用。
@@ -331,6 +399,8 @@ nonisolated struct AICheckInResult: Decodable, Equatable, Sendable {
         balance: Int,
         streak: Int = 0,
         gifts: [AICheckInGift] = [],
+        protectedDate: String? = nil,
+        cardsLeft: Int? = nil,
         createdAt: Date,
         expiresAt: Date
     ) {
@@ -341,6 +411,8 @@ nonisolated struct AICheckInResult: Decodable, Equatable, Sendable {
         self.balance = balance
         self.streak = streak
         self.gifts = gifts
+        self.protectedDate = protectedDate
+        self.cardsLeft = cardsLeft
         self.createdAt = createdAt
         self.expiresAt = expiresAt
     }
@@ -354,6 +426,8 @@ nonisolated struct AICheckInResult: Decodable, Equatable, Sendable {
         balance = try container.decode(Int.self, forKey: .balance)
         streak = try container.decodeIfPresent(Int.self, forKey: .streak) ?? 0
         gifts = try container.decodeIfPresent([AICheckInGift].self, forKey: .gifts) ?? []
+        protectedDate = try container.decodeIfPresent(String.self, forKey: .protectedDate)
+        cardsLeft = try container.decodeIfPresent(Int.self, forKey: .cardsLeft)
         createdAt = try AICheckInTime.decode(.createdAt, in: container)
         expiresAt = try AICheckInTime.decode(.expiresAt, in: container)
     }
@@ -361,6 +435,12 @@ nonisolated struct AICheckInResult: Decodable, Equatable, Sendable {
     /// 这次签到新得到、还没开完的礼包；当天已签过时为空，免得重复弹出开礼包。
     var newGifts: [AICheckInGift] {
         isDuplicate ? [] : gifts.filter { !$0.isFinished }
+    }
+
+    /// 这次签到用补签卡保住的连签天数，即前天的连签天数；没用卡时为 nil。
+    var keptStreak: Int? {
+        guard protectedDate != nil else { return nil }
+        return max(streak - 1, 0)
     }
 }
 
@@ -649,6 +729,31 @@ nonisolated struct AICheckInMonth: Decodable, Equatable, Sendable {
 
     /// 这个月签过的日子，按日期排列。
     let days: [AICheckInDay]
+
+    /// 这个月里被补签卡保住的日子，`YYYY-MM-DD`，按日期排列；这些日子没有签到，只是连签没断。服务端没有返回时为空。
+    let protectedDates: [String]
+
+    private enum CodingKeys: String, CodingKey {
+        case month, today, firstCheckInDate, days, protectedDates
+    }
+
+    /// 逐字段创建；补签卡保住的日子可以省略，供测试使用。
+    init(month: String, today: String, firstCheckInDate: String?, days: [AICheckInDay], protectedDates: [String] = []) {
+        self.month = month
+        self.today = today
+        self.firstCheckInDate = firstCheckInDate
+        self.days = days
+        self.protectedDates = protectedDates
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        month = try container.decode(String.self, forKey: .month)
+        today = try container.decode(String.self, forKey: .today)
+        firstCheckInDate = try container.decodeIfPresent(String.self, forKey: .firstCheckInDate)
+        days = try container.decode([AICheckInDay].self, forKey: .days)
+        protectedDates = try container.decodeIfPresent([String].self, forKey: .protectedDates) ?? []
+    }
 }
 
 /// 签到模型共用的时间解码。

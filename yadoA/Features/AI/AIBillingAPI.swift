@@ -25,6 +25,9 @@ enum AIBillingAPIError: Error, Equatable {
 
     /// App 版本低于服务端要求，需要升级后才能查询点数。
     case upgradeRequired
+
+    /// 要用补签卡签到，但服务端说此刻用不了（409，例如另一台设备刚改了状态或已跨过零点），这次没有签到。
+    case checkInProtectionUnavailable
 }
 
 /// 查询点数余额、流水与模型档位的能力；测试注入假实现。
@@ -56,9 +59,10 @@ protocol AIBillingFetching {
 
     /// 每日签到：服务端随机发放点数，连签天数到了时同时发礼包；今天已签过时不重复入账，返回当天那次的结果。
     ///
+    /// - Parameter useCard: 是否用补签卡保住昨天，由用户在签到时选择；今天已签过时服务端忽略。
     /// - Returns: 签到结果。
-    /// - Throws: `AIBillingAPIError`。
-    func checkIn() async throws -> AICheckInResult
+    /// - Throws: `AIBillingAPIError`；要用卡但用不了（409）时为 `.checkInProtectionUnavailable`，这次没有签到。
+    func checkIn(useCard: Bool) async throws -> AICheckInResult
 
     /// 查询某个月的签到日历。
     ///
@@ -80,10 +84,22 @@ protocol AIBillingFetching {
     ///
     /// 只有 dev 环境的服务端开放这个接口，线上没有（返回 404），App 里只有 dev 包的「开发」页调用。
     ///
-    /// - Parameter streak: 补到昨天的连签天数：0 为清空、像从没签过；N 为今天签到就是第 N+1 天。
+    /// - Parameter options: 补几天连签、昨天是否漏签、本月的补签卡是否已用。
     /// - Returns: 重置后的签到状态。
-    /// - Throws: `AIBillingAPIError`；服务端没开放时为 `.invalidContract`。
-    func resetCheckInForTesting(streak: Int) async throws -> AICheckInStatus
+    /// - Throws: `AIBillingAPIError`；服务端没开放、或本月补出的签到里留不下补签卡的空档时为 `.invalidContract`。
+    func resetCheckInForTesting(_ options: AICheckInResetOptions) async throws -> AICheckInStatus
+}
+
+/// 开发测试用的重置签到选项，对应 `POST /v1/billing/check-in/dev-reset` 的请求体。
+nonisolated struct AICheckInResetOptions: Equatable, Sendable {
+    /// 补出的连签天数：0 为清空、像从没签过；N 为今天签到就是第 N+1 天。
+    var streak: Int
+
+    /// 为 true 时补出的连签只到前天、昨天空着，今天签到时可以用补签卡。
+    var missedYesterday = false
+
+    /// 为 true 时把本月的补签卡标记成已用，用来测卡用完时照常断签。
+    var cardUsed = false
 }
 
 /// 调用 yado_ai 点数与模型档位查询接口的网络客户端：查询、签到与打开签到礼包，不调用模型、不扣点。
@@ -102,8 +118,8 @@ final class AIBillingAPI: AIBillingFetching {
         /// `GET /v1/billing/check-in`：今天的签到状态。
         case checkInStatus
 
-        /// `POST /v1/billing/check-in`：签到。
-        case checkIn
+        /// `POST /v1/billing/check-in`：签到；`useCard` 为用户是否选择用补签卡。
+        case checkIn(useCard: Bool)
 
         /// `GET /v1/billing/check-in/history`：某个月的签到日历。
         case checkInHistory(month: String)
@@ -112,14 +128,26 @@ final class AIBillingAPI: AIBillingFetching {
         case openCheckInGift(id: String, seq: Int)
 
         /// `POST /v1/billing/check-in/dev-reset`：开发测试用的重置签到，只有 dev 环境开放。
-        case devResetCheckIn(streak: Int)
+        case devResetCheckIn(AICheckInResetOptions)
+
+        /// 签到的请求体。
+        private nonisolated struct CheckInBody: Encodable, Sendable {
+            /// 本产品代号。
+            let product: String
+            /// 是否用补签卡保住昨天；不支持补签卡的旧服务端会忽略这个字段。
+            let useCard: Bool
+        }
 
         /// 重置签到的请求体。
         private nonisolated struct DevResetCheckInBody: Encodable, Sendable {
             /// 本产品代号。
             let product: String
-            /// 补到昨天的连签天数。
+            /// 补出的连签天数。
             let streak: Int
+            /// 昨天是否漏签。
+            let missedYesterday: Bool
+            /// 本月的补签卡是否已用。
+            let cardUsed: Bool
         }
 
         /// 接口路径。
@@ -167,13 +195,21 @@ final class AIBillingAPI: AIBillingFetching {
             }
         }
 
-        /// 请求体：签到带本产品代号，打开礼包带要开第几次，重置签到带本产品代号和连签天数；其余没有。
+        /// 请求体：签到带本产品代号和是否用补签卡，打开礼包带要开第几次，重置签到带本产品代号和重置选项；其余没有。
         var httpBody: Data? {
             switch self {
-            case .checkIn: try? JSONEncoder().encode(["product": AIBillingAPI.product])
+            case let .checkIn(useCard):
+                try? JSONEncoder().encode(CheckInBody(product: AIBillingAPI.product, useCard: useCard))
             case let .openCheckInGift(_, seq): try? JSONEncoder().encode(["seq": seq])
-            case let .devResetCheckIn(streak):
-                try? JSONEncoder().encode(DevResetCheckInBody(product: AIBillingAPI.product, streak: streak))
+            case let .devResetCheckIn(options):
+                try? JSONEncoder().encode(
+                    DevResetCheckInBody(
+                        product: AIBillingAPI.product,
+                        streak: options.streak,
+                        missedYesterday: options.missedYesterday,
+                        cardUsed: options.cardUsed
+                    )
+                )
             default: nil
             }
         }
@@ -234,8 +270,8 @@ final class AIBillingAPI: AIBillingFetching {
         try await send(.checkInStatus)
     }
 
-    func checkIn() async throws -> AICheckInResult {
-        try await send(.checkIn)
+    func checkIn(useCard: Bool) async throws -> AICheckInResult {
+        try await send(.checkIn(useCard: useCard))
     }
 
     func fetchCheckInHistory(month: String) async throws -> AICheckInMonth {
@@ -246,8 +282,8 @@ final class AIBillingAPI: AIBillingFetching {
         try await send(.openCheckInGift(id: id, seq: seq))
     }
 
-    func resetCheckInForTesting(streak: Int) async throws -> AICheckInStatus {
-        try await send(.devResetCheckIn(streak: streak))
+    func resetCheckInForTesting(_ options: AICheckInResetOptions) async throws -> AICheckInStatus {
+        try await send(.devResetCheckIn(options))
     }
 
     /// 构造接口请求。
@@ -292,6 +328,19 @@ final class AIBillingAPI: AIBillingFetching {
         }
     }
 
+    /// 按接口把非 200 响应映射为错误：签到的 409 只会是补签卡用不了，单独区分出来；其余同 `error(statusCode:)`。
+    ///
+    /// - Parameters:
+    ///   - statusCode: HTTP 状态码。
+    ///   - route: 发出请求的接口。
+    /// - Returns: 对应的错误。
+    static func error(statusCode: Int, route: Route) -> AIBillingAPIError {
+        if statusCode == 409, case .checkIn = route {
+            return .checkInProtectionUnavailable
+        }
+        return error(statusCode: statusCode)
+    }
+
     /// 获取凭证、发出请求并解码 200 响应。
     ///
     /// - Parameter route: 接口。
@@ -325,7 +374,7 @@ final class AIBillingAPI: AIBillingFetching {
             throw AIBillingAPIError.upgradeRequired
         }
         guard httpResponse.statusCode == 200 else {
-            throw Self.error(statusCode: httpResponse.statusCode)
+            throw Self.error(statusCode: httpResponse.statusCode, route: route)
         }
         do {
             return try JSONDecoder().decode(Response.self, from: data)

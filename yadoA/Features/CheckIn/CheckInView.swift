@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// “我的 › 每日签到”：连签天数与今天的签到，待开的礼包，各档礼包还差几天，按月翻看的签到日历，以及签到规则。
+/// “我的 › 每日签到”：连签天数与今天的签到、本月补签卡，待开的礼包，各档礼包还差几天，按月翻看的签到日历，以及签到规则。
 ///
 /// 签到状态（连签天数、待开礼包、礼包规则）来自根部注入的 `AIPointsStore`，进入页面和下拉时刷新；
 /// 签到日历按月向服务端现查，查过的月份留在页面里，签到后重查当月。能翻到的月份最早是第一次签到的那个月，最晚是当前月份。
@@ -161,6 +161,10 @@ struct CheckInView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
                     .accessibilityIdentifier("check-in-today")
+
+                if let protection = status?.protection, protection.isEnabled {
+                    protectionCardsLine(protection)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
@@ -191,7 +195,8 @@ struct CheckInView: View {
         }
     }
 
-    /// 连签天数下面的一行：今天签了显示得了几点，没签时说明签到后是连签第几天；取不到状态时提示下拉重试。
+    /// 连签天数下面的一行：今天签了显示得了几点，没签时说明签到后是连签第几天；昨天漏签、今天能用补签卡时说明可以保住几天连签；
+    /// 取不到状态时提示下拉重试。
     private var todayLine: String {
         guard let status else {
             return text(isRefreshingStatus ? "checkIn.status.loading" : "checkIn.status.failed")
@@ -203,12 +208,40 @@ struct CheckInView: View {
                 locale: locale
             )
         }
+        if let offer = status.protectionOffer {
+            return AccountLocalization.formatted(
+                "checkIn.today.protectable",
+                value: offer.keptStreak.formatted(.number.locale(locale)),
+                locale: locale
+            )
+        }
         guard status.streak > 0 else { return text("checkIn.today.start") }
         return AccountLocalization.formatted(
             "checkIn.today.continue",
             value: (status.streak + 1).formatted(.number.locale(locale)),
             locale: locale
         )
+    }
+
+    /// 本月补签卡还剩几张的一行，例如“本月补签卡：1 张”，用完时“本月补签卡：已用完”。
+    private func protectionCardsLine(_ protection: AICheckInProtection) -> some View {
+        Label {
+            Text(
+                protection.cardsLeft > 0
+                    ? AccountLocalization.formatted(
+                        "checkIn.protection.cardsLeft",
+                        value: protection.cardsLeft.formatted(.number.locale(locale)),
+                        locale: locale
+                    )
+                    : text("checkIn.protection.cardsUsedUp")
+            )
+        } icon: {
+            Image(systemName: "shield.lefthalf.filled")
+                .foregroundStyle(Color(.ledgerGreen))
+        }
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .accessibilityIdentifier("check-in-protection-cards")
     }
 
     /// 右侧：今天还没签时是签到气泡，签过了是“已签到”的印章。
@@ -218,6 +251,7 @@ struct CheckInView: View {
             ProfileCheckInBadge(
                 placement: ProfileCheckInPlacement(isLeading: false, verticalFraction: 0.4),
                 messageWidth: 120,
+                protectionOffer: status?.protectionOffer,
                 onTap: handleCheckInTap,
                 onFinished: finishCheckIn
             )
@@ -246,10 +280,12 @@ struct CheckInView: View {
     }
 
     /// 点签到气泡：发起签到，动画结束前保持气泡显示；记下这次得到的礼包，庆祝结束后弹出开礼包。
-    private func handleCheckInTap() async -> CheckInTapOutcome {
+    ///
+    /// - Parameter useCard: 用户是否在弹窗里选了用补签卡。
+    private func handleCheckInTap(useCard: Bool) async -> CheckInTapOutcome {
         guard let points else { return .failure(.notSignedIn) }
         isCheckInBadgeActive = true
-        switch await points.checkIn() {
+        switch await points.checkIn(useCard: useCard) {
         case let .success(result):
             pendingGift = result.newGifts.first
             return .success(result)
@@ -445,7 +481,7 @@ struct CheckInView: View {
 
     // MARK: - 规则
 
-    /// 签到规则：每天的点数范围和有效期、断签、礼包不过期、按北京时间换日。
+    /// 签到规则：每天的点数范围和有效期、断签、礼包不过期、补签卡、按北京时间换日。
     private func rulesSection(_ status: AICheckInStatus) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(text("checkIn.rules.section"))
@@ -484,6 +520,15 @@ struct CheckInView: View {
         if !status.giftTiers.isEmpty {
             lines.append(text("checkIn.rules.streak"))
             lines.append(text("checkIn.rules.gifts"))
+        }
+        if let protection = status.protection, protection.isEnabled {
+            lines.append(
+                AccountLocalization.formatted(
+                    "checkIn.rules.protection",
+                    value: protection.cardsPerMonth.formatted(.number.locale(locale)),
+                    locale: locale
+                )
+            )
         }
         lines.append(text("checkIn.rules.timezone"))
         return lines

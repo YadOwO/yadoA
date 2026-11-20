@@ -347,17 +347,21 @@ final class AIPointsStore {
     }
 
     /// 每日签到。成功时用服务端返回的余额更新，并把新一批点数按过期时间插入批次；今天已签过时不追加批次，改为重新拉一次钱包。
-    /// 签到状态换成已签，连签天数取返回值，这次得到的礼包追加到待开列表。
+    /// 签到状态换成已签，连签天数取返回值，这次得到的礼包追加到待开列表；补签卡换成签到后剩的张数，今天不能再用。
     ///
+    /// 要用补签卡但服务端说用不了（另一台设备刚改了状态、跨过了零点）时这次没有签到：重新拉一次签到状态，
+    /// 界面按最新情况让用户再点一次，余额不变。
+    ///
+    /// - Parameter useCard: 是否用补签卡保住昨天，由用户在签到前的弹窗里选择。
     /// - Returns: 签到结果；失败时为对应错误，余额不变。
-    func checkIn() async -> Result<AICheckInResult, AIBillingAPIError> {
+    func checkIn(useCard: Bool = false) async -> Result<AICheckInResult, AIBillingAPIError> {
         guard let userID = currentUserID() else { return .failure(.notSignedIn) }
         guard !isCheckingIn else { return .failure(.invalidContract) }
         adopt(userID)
         isCheckingIn = true
         defer { isCheckingIn = false }
         do {
-            let result = try await api.checkIn()
+            let result = try await api.checkIn(useCard: useCard)
             guard isCurrentOwner(userID) else { return .success(result) }
             noteAppliedWrite(beginWrite())
             balance = result.balance
@@ -393,14 +397,19 @@ final class AIPointsStore {
                 streak: result.streak,
                 firstCheckInDate: previous?.firstCheckInDate ?? result.date,
                 gifts: gifts.filter { !$0.isFinished },
-                giftTiers: previous?.giftTiers ?? []
+                giftTiers: previous?.giftTiers ?? [],
+                protection: previous?.protection?.afterCheckIn(cardsLeft: result.cardsLeft)
             )
             if result.isDuplicate {
                 await refresh()
             }
             return .success(result)
         } catch {
-            return .failure(error as? AIBillingAPIError ?? .network)
+            let apiError = error as? AIBillingAPIError ?? .network
+            if apiError == .checkInProtectionUnavailable, isCurrentOwner(userID) {
+                await refreshCheckInStatus()
+            }
+            return .failure(apiError)
         }
     }
 
@@ -455,15 +464,15 @@ final class AIPointsStore {
     /// 只有 dev 环境的服务端开放这个接口，只有 dev 包的「开发」页调用。已入账的点数保留，补连签时服务端另发 1 点。
     /// 正在签到或开礼包时不重置，免得动画中途状态被换掉。
     ///
-    /// - Parameter streak: 补到昨天的连签天数：0 为清空、像从没签过；N 为今天签到就是第 N+1 天。
+    /// - Parameter options: 补几天连签（0 为清空、像从没签过；N 为今天签到就是第 N+1 天）、昨天是否漏签、本月的补签卡是否已用。
     /// - Returns: 重置后的签到状态；失败时为对应错误，本机状态不变。
-    func resetCheckInForTesting(streak: Int) async -> Result<AICheckInStatus, AIBillingAPIError> {
+    func resetCheckInForTesting(_ options: AICheckInResetOptions) async -> Result<AICheckInStatus, AIBillingAPIError> {
         guard isNetworkAllowed() else { return .failure(.network) }
         guard let userID = currentUserID() else { return .failure(.notSignedIn) }
         guard !isCheckingIn, !isOpeningGift else { return .failure(.invalidContract) }
         adopt(userID)
         do {
-            let status = try await api.resetCheckInForTesting(streak: streak)
+            let status = try await api.resetCheckInForTesting(options)
             guard isCurrentOwner(userID) else { return .success(status) }
             checkInStatus = status
             await refresh()

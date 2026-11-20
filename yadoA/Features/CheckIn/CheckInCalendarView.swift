@@ -2,7 +2,8 @@ import SwiftUI
 
 /// 签到页里一个月的签到日历：月份标题和前后切换、星期行、按日排开的格子，最后一行是本月小结。
 ///
-/// 签过的日子垫一块账本绿的手绘色块，今天加一圈墨线，得到礼包的那天右上角带一个礼盒小图标；还没到的日子用浅灰。
+/// 签过的日子垫一块账本绿的手绘色块，今天加一圈墨线，得到礼包的那天右上角带一个礼盒小图标；
+/// 被补签卡保住的那天（没签到，只是连签没断）画一圈虚线，右上角带一个小盾牌；还没到的日子用浅灰。
 /// 数据由签到页按月查询后传入，这里只负责画。
 struct CheckInCalendarView: View {
     @Environment(\.locale) private var locale
@@ -161,6 +162,7 @@ struct CheckInCalendarView: View {
     private func dayCell(_ day: Int) -> some View {
         let dateText = month.dateText(day: day)
         let record = data?.days.first { $0.date == dateText }
+        let isProtected = record == nil && data?.protectedDates.contains(dateText) == true
         let isToday = dateText == today
         let isFuture = today.map { dateText > $0 } ?? false
         let seed = dateText.handDrawnSeed
@@ -169,6 +171,14 @@ struct CheckInCalendarView: View {
             if record != nil {
                 HandDrawnBlob(seed: seed)
                     .fill(Color(.ledgerGreen).opacity(0.26))
+                    .padding(3)
+            }
+            if isProtected {
+                HandDrawnBlob(seed: seed)
+                    .stroke(
+                        Color(.ledgerGreen),
+                        style: StrokeStyle(lineWidth: 1.3, lineCap: .round, lineJoin: .round, dash: [3, 3])
+                    )
                     .padding(3)
             }
             if isToday {
@@ -189,14 +199,20 @@ struct CheckInCalendarView: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(tier.tint)
                     .offset(x: -2, y: 1)
+            } else if isProtected {
+                Image(systemName: "shield.fill")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Color(.ledgerGreen))
+                    .offset(x: -2, y: 1)
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel(day: day, record: record, isToday: isToday))
+        .accessibilityLabel(accessibilityLabel(day: day, record: record, isProtected: isProtected, isToday: isToday))
     }
 
-    /// 某一天的朗读文本，例如“2026年11月5日，已签到，+12 点，连签第 3 天，获得周礼包”。
-    private func accessibilityLabel(day: Int, record: AICheckInDay?, isToday: Bool) -> String {
+    /// 某一天的朗读文本，例如“2026年11月5日，已签到，+12 点，连签第 3 天，获得周礼包”；
+    /// 被补签卡保住的那天读作“2026年11月18日，补签卡保住了连签”。
+    private func accessibilityLabel(day: Int, record: AICheckInDay?, isProtected: Bool, isToday: Bool) -> String {
         var parts = [month.spokenDate(day: day, locale: locale)]
         if isToday {
             parts.append(text("checkIn.calendar.today"))
@@ -211,6 +227,8 @@ struct CheckInCalendarView: View {
                 )
             )
             parts += record.giftTiers.map { text($0.titleKey) }
+        } else if isProtected {
+            parts.append(text("checkIn.calendar.day.protected"))
         } else {
             parts.append(text("checkIn.calendar.day.unchecked"))
         }

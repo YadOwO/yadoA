@@ -1294,6 +1294,24 @@
         }
       }
     },
+    "profile.checkIn.failure.protection" : {
+      "comment" : "签到气泡下的错误：要用补签卡但此刻用不了，这次没有签到",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streak saver isn't available now. Please check in again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "补签卡现在用不了，请再签一次"
+          }
+        }
+      }
+    },
     "profile.checkIn.failure.signIn" : {
       "comment" : "签到失败：登录失效",
       "extractionState" : "manual",
@@ -14419,6 +14437,42 @@
         }
       }
     },
+    "developer.checkIn.missedYesterday" : {
+      "comment" : "开发页签到测试：补出连签但昨天空着，今天签到可以用补签卡；%@ 为连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@-Day Streak, Missed Yesterday (Saver Available)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连签 %@ 天、昨天漏签（今天可用补签卡）"
+          }
+        }
+      }
+    },
+    "developer.checkIn.cardUsed" : {
+      "comment" : "开发页签到测试：昨天漏签且本月补签卡已用；%@ 为连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@-Day Streak, Missed Yesterday, Saver Used"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连签 %@ 天、昨天漏签、本月补签卡已用"
+          }
+        }
+      }
+    },
     "developer.section.checkIn" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -19091,6 +19145,150 @@
         }
       }
     },
+    "checkIn.today.protectable" : {
+      "comment" : "签到页：昨天漏签、今天可以用补签卡，%@ 为能保住的连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You missed yesterday. Use a streak saver when you check in to keep your %@-day streak."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨天漏签了，签到时可以用补签卡保住 %@ 天连签"
+          }
+        }
+      }
+    },
+    "checkIn.protection.prompt.title" : {
+      "comment" : "点签到时询问是否用补签卡的弹窗标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You Missed Yesterday"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨天漏签了"
+          }
+        }
+      }
+    },
+    "checkIn.protection.prompt.message" : {
+      "comment" : "补签卡弹窗说明：%1$@ 为用卡后今天的连签天数，%2$@ 为本月剩余张数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use 1 streak saver and today counts as day %1$@. Without it, your streak restarts at day 1. Streak savers left this month: %2$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用 1 张补签卡，今天接着算第 %1$@ 天；不用的话从第 1 天重新算。本月还剩 %2$@ 张。"
+          }
+        }
+      }
+    },
+    "checkIn.protection.prompt.use" : {
+      "comment" : "补签卡弹窗：用卡签到",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Streak Saver"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用补签卡签到"
+          }
+        }
+      }
+    },
+    "checkIn.protection.prompt.skip" : {
+      "comment" : "补签卡弹窗：不用卡，直接签到（连签从第 1 天重新算）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check In Without It"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不用，直接签到"
+          }
+        }
+      }
+    },
+    "checkIn.protection.used" : {
+      "comment" : "用卡签到成功后气泡下方的说明，%@ 为保住的连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used a streak saver to keep your %@-day streak"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用掉 1 张补签卡，保住了 %@ 天连签"
+          }
+        }
+      }
+    },
+    "checkIn.protection.cardsLeft" : {
+      "comment" : "签到页：本月补签卡还剩几张，%@ 为张数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streak savers this month: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本月补签卡：%@ 张"
+          }
+        }
+      }
+    },
+    "checkIn.protection.cardsUsedUp" : {
+      "comment" : "签到页：本月补签卡已用完",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streak savers this month: all used"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本月补签卡：已用完"
+          }
+        }
+      }
+    },
     "checkIn.stamp" : {
       "comment" : "签到页今天已签到时的印章文字",
       "extractionState" : "manual",
@@ -19523,6 +19721,24 @@
         }
       }
     },
+    "checkIn.calendar.day.protected" : {
+      "comment" : "签到日历朗读：这天被补签卡保住了连签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "streak kept by a streak saver"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "补签卡保住了连签"
+          }
+        }
+      }
+    },
     "checkIn.calendar.separator" : {
       "comment" : "签到日历日期格 VoiceOver 朗读各部分之间的分隔",
       "extractionState" : "manual",
@@ -19609,6 +19825,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "礼包不会过期，什么时候开都行；点数的有效期从打开时算起。"
+          }
+        }
+      }
+    },
+    "checkIn.rules.protection" : {
+      "comment" : "签到规则：补签卡，%@ 为每月张数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streak savers per month: %@ (they don't carry over). If you miss one day, use one when you check in the next day to keep your streak. The missed day earns no points and doesn't count toward the streak."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每月送 %@ 张补签卡，不累积：漏签 1 天时，第二天签到可以用它保住连签；被保住的那天不给点数、不算天数。"
           }
         }
       }

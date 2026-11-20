@@ -2,7 +2,8 @@
 import SwiftUI
 
 /// 「我的 → 头像右上角 → 开发」：集中查看开发调试信息（AI 耗时、AI 服务、云端同步状态、构建信息），
-/// 以及尚未接入正式流程的线条头像选择原型。dev 包另有签到测试：重置签到引导、清空签到、把连签设成差一天拿礼包。
+/// 以及尚未接入正式流程的线条头像选择原型。dev 包另有签到测试：重置签到引导、清空签到、把连签设成差一天拿礼包、
+/// 昨天漏签（测补签卡）。
 ///
 /// 只在 DEBUG 包存在，入口由 `DeveloperTools.isEnabled` 控制。数值是给开发者看的原始值，不做本地化。
 struct DeveloperView: View {
@@ -126,17 +127,33 @@ struct DeveloperView: View {
             .accessibilityIdentifier("developer-check-in-reset-guide")
 
             Button(text("developer.checkIn.clear"), role: .destructive) {
-                resetCheckIn(aiPoints, streak: 0)
+                resetCheckIn(aiPoints, AICheckInResetOptions(streak: 0))
             }
             .disabled(!isSignedIn || isResettingCheckIn)
             .accessibilityIdentifier("developer-check-in-clear")
 
             ForEach(aiPoints.checkInStatus?.giftTiers ?? [], id: \.self) { rule in
                 Button(streakTitle(for: rule)) {
-                    resetCheckIn(aiPoints, streak: max(rule.everyDays - 1, 0))
+                    resetCheckIn(aiPoints, AICheckInResetOptions(streak: max(rule.everyDays - 1, 0)))
                 }
                 .disabled(!isSignedIn || isResettingCheckIn)
                 .accessibilityIdentifier("developer-check-in-streak-\(rule.tier.rawValue)")
+            }
+
+            // 服务端开了补签卡才有：昨天漏签，今天签到时用不用卡；再加上本月的卡已用，测卡用完时照常断签
+            if aiPoints.checkInStatus?.protection?.isEnabled == true {
+                let streak = protectionTestStreak(aiPoints)
+                Button(protectionTitle("developer.checkIn.missedYesterday", streak: streak)) {
+                    resetCheckIn(aiPoints, AICheckInResetOptions(streak: streak, missedYesterday: true))
+                }
+                .disabled(!isSignedIn || isResettingCheckIn)
+                .accessibilityIdentifier("developer-check-in-missed-yesterday")
+
+                Button(protectionTitle("developer.checkIn.cardUsed", streak: streak)) {
+                    resetCheckIn(aiPoints, AICheckInResetOptions(streak: streak, missedYesterday: true, cardUsed: true))
+                }
+                .disabled(!isSignedIn || isResettingCheckIn)
+                .accessibilityIdentifier("developer-check-in-card-used")
             }
         } header: {
             Text(text("developer.section.checkIn"))
@@ -153,12 +170,32 @@ struct DeveloperView: View {
         .task { await aiPoints.refreshCheckInStatus() }
     }
 
-    /// 签到状态的原始描述：今天是否已签、连签天数、待开礼包数。
+    /// 签到状态的原始描述：今天是否已签、连签天数、待开礼包数；服务端开了补签卡时再加剩余张数和今天能保住的日子。
     ///
     /// - Parameter aiPoints: 当前账号的 AI 点数与签到状态。
     private func checkInStatusDescription(_ aiPoints: AIPointsStore) -> String {
         guard let status = aiPoints.checkInStatus else { return "—" }
-        return "checkedIn: \(status.checkedIn), streak: \(status.streak), gifts: \(aiPoints.unopenedGifts.count)"
+        var description = "checkedIn: \(status.checkedIn), streak: \(status.streak), gifts: \(aiPoints.unopenedGifts.count)"
+        if let protection = status.protection {
+            description += ", cards: \(protection.cardsLeft)/\(protection.cardsPerMonth), pending: \(protection.pendingDate ?? "—")"
+        }
+        return description
+    }
+
+    /// 测补签卡时补出的连签天数：差一天拿周礼包，用卡签到就能顺带看到礼包；没拿到周礼包规则时按 6 天。
+    ///
+    /// - Parameter aiPoints: 当前账号的 AI 点数与签到状态。
+    private func protectionTestStreak(_ aiPoints: AIPointsStore) -> Int {
+        max((aiPoints.checkInStatus?.rule(for: .weekly)?.everyDays ?? 7) - 1, 1)
+    }
+
+    /// 补签卡测试按钮的文案，例如“连签 6 天、昨天漏签（今天可用补签卡）”。
+    ///
+    /// - Parameters:
+    ///   - key: 文案的本地化键。
+    ///   - streak: 补出的连签天数。
+    private func protectionTitle(_ key: String, streak: Int) -> String {
+        AccountLocalization.formatted(key, value: streak.formatted(.number.locale(locale)), locale: locale)
     }
 
     /// 把连签设成差一天拿到这档礼包的按钮文案，例如“连签设为 6 天（今天签到得周礼包）”。
@@ -177,12 +214,12 @@ struct DeveloperView: View {
     ///
     /// - Parameters:
     ///   - aiPoints: 当前账号的 AI 点数与签到状态。
-    ///   - streak: 补到昨天的连签天数，0 为清空。
-    private func resetCheckIn(_ aiPoints: AIPointsStore, streak: Int) {
+    ///   - options: 补几天连签（0 为清空）、昨天是否漏签、本月的补签卡是否已用。
+    private func resetCheckIn(_ aiPoints: AIPointsStore, _ options: AICheckInResetOptions) {
         isResettingCheckIn = true
         checkInToolResult = nil
         Task {
-            let result = await aiPoints.resetCheckInForTesting(streak: streak)
+            let result = await aiPoints.resetCheckInForTesting(options)
             isResettingCheckIn = false
             switch result {
             case .success:

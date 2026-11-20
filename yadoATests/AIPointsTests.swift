@@ -169,6 +169,9 @@ struct AIPointsTests {
         #expect(pending.firstCheckInDate == nil)
         #expect(pending.gifts.isEmpty)
         #expect(pending.giftTiers.isEmpty)
+        // 旧服务端不返回补签卡：不弹窗，也不显示补签卡
+        #expect(pending.protection == nil)
+        #expect(pending.protectionOffer == nil)
 
         let doneJSON = """
         {"date":"2026-11-05","checkedIn":true,
@@ -193,6 +196,9 @@ struct AIPointsTests {
         #expect(result.expiresAt == Date(timeIntervalSince1970: 1_793_241_120))
         #expect(result.streak == 0)
         #expect(result.gifts.isEmpty)
+        #expect(result.protectedDate == nil)
+        #expect(result.cardsLeft == nil)
+        #expect(result.keptStreak == nil)
 
         let badTime = """
         {"date":"2026-11-05","points":42,"isBonus":false,"isDuplicate":false,"balance":142,
@@ -266,6 +272,111 @@ struct AIPointsTests {
         #expect(month.today == "2026-11-18")
         #expect(month.days.map(\.streak) == [1, 7])
         #expect(month.days[1].giftTiers == [.weekly])
+        // 旧服务端不返回被补签卡保住的日子
+        #expect(month.protectedDates.isEmpty)
+    }
+
+    @Test("补签卡契约：解码状态里的补签卡、签到结果的保住日子和剩余张数、日历里被保住的日子；今天能不能用卡")
+    func decodesCheckInProtectionContract() throws {
+        let statusJSON = """
+        {"date":"2026-11-19","checkedIn":false,"checkIn":null,"minPoints":1,"maxPoints":20,"streak":23,
+         "protection":{"cardsPerMonth":1,"cardsLeft":1,"pendingDate":"2026-11-18"}}
+        """
+        let status = try JSONDecoder().decode(AICheckInStatus.self, from: Data(statusJSON.utf8))
+        #expect(status.protection == AICheckInProtection(cardsPerMonth: 1, cardsLeft: 1, pendingDate: "2026-11-18"))
+        let offer = try #require(status.protectionOffer)
+        #expect(offer == AICheckInProtectionOffer(missedDate: "2026-11-18", keptStreak: 23, cardsLeft: 1))
+        #expect(offer.nextStreak == 24)
+        // 换礼包列表时补签卡跟着保留
+        #expect(status.replacingGifts([]).protection == status.protection)
+
+        let noPending = #"{"date":"2026-11-19","checkedIn":false,"checkIn":null,"minPoints":1,"maxPoints":20,"protection":{"cardsPerMonth":1,"cardsLeft":0,"pendingDate":null}}"#
+        let usedUp = try JSONDecoder().decode(AICheckInStatus.self, from: Data(noPending.utf8))
+        #expect(usedUp.protection?.pendingDate == nil)
+        #expect(usedUp.protection?.isEnabled == true)
+        #expect(usedUp.protectionOffer == nil)
+
+        // 服务端给了日子但卡已用完、关了补签卡，或今天已经签了，都不问
+        let withoutCards = AICheckInStatus(
+            date: "2026-11-19", checkedIn: false, checkIn: nil, minPoints: 1, maxPoints: 20, streak: 23,
+            protection: AICheckInProtection(cardsPerMonth: 1, cardsLeft: 0, pendingDate: "2026-11-18")
+        )
+        #expect(withoutCards.protectionOffer == nil)
+        let disabled = AICheckInStatus(
+            date: "2026-11-19", checkedIn: false, checkIn: nil, minPoints: 1, maxPoints: 20, streak: 23,
+            protection: AICheckInProtection(cardsPerMonth: 0, cardsLeft: 0, pendingDate: nil)
+        )
+        #expect(disabled.protection?.isEnabled == false)
+        #expect(disabled.protectionOffer == nil)
+        let checked = AICheckInStatus(
+            date: "2026-11-19", checkedIn: true, checkIn: nil, minPoints: 1, maxPoints: 20, streak: 24,
+            protection: AICheckInProtection(cardsPerMonth: 1, cardsLeft: 1, pendingDate: "2026-11-18")
+        )
+        #expect(checked.protectionOffer == nil)
+
+        let resultJSON = """
+        {"date":"2026-11-19","points":12,"isBonus":false,"isDuplicate":false,"balance":142,"streak":24,"gifts":[],
+         "protectedDate":"2026-11-18","cardsLeft":0,
+         "createdAt":"2026-11-19T02:32:00.000Z","expiresAt":"2026-11-20T02:32:00.000Z"}
+        """
+        let result = try JSONDecoder().decode(AICheckInResult.self, from: Data(resultJSON.utf8))
+        #expect(result.protectedDate == "2026-11-18")
+        #expect(result.cardsLeft == 0)
+        #expect(result.keptStreak == 23)
+
+        let notUsedJSON = """
+        {"date":"2026-11-19","points":12,"isBonus":false,"isDuplicate":false,"balance":142,"streak":1,"gifts":[],
+         "protectedDate":null,"cardsLeft":1,
+         "createdAt":"2026-11-19T02:32:00.000Z","expiresAt":"2026-11-20T02:32:00.000Z"}
+        """
+        let notUsed = try JSONDecoder().decode(AICheckInResult.self, from: Data(notUsedJSON.utf8))
+        #expect(notUsed.protectedDate == nil)
+        #expect(notUsed.keptStreak == nil)
+        #expect(notUsed.cardsLeft == 1)
+
+        let monthJSON = """
+        {"month":"2026-11","today":"2026-11-19","firstCheckInDate":"2026-11-12",
+         "days":[{"date":"2026-11-17","points":5,"streak":6,"giftTiers":[]},
+                 {"date":"2026-11-19","points":9,"streak":7,"giftTiers":["weekly"]}],
+         "protectedDates":["2026-11-18"]}
+        """
+        let month = try JSONDecoder().decode(AICheckInMonth.self, from: Data(monthJSON.utf8))
+        #expect(month.protectedDates == ["2026-11-18"])
+        #expect(month.days.map(\.date) == ["2026-11-17", "2026-11-19"])
+
+        // 签到后今天不能再用卡，剩余张数取签到结果；结果里没有时沿用原来的
+        let protection = AICheckInProtection(cardsPerMonth: 1, cardsLeft: 1, pendingDate: "2026-11-18")
+        #expect(protection.afterCheckIn(cardsLeft: 0) == AICheckInProtection(cardsPerMonth: 1, cardsLeft: 0, pendingDate: nil))
+        #expect(protection.afterCheckIn(cardsLeft: nil) == AICheckInProtection(cardsPerMonth: 1, cardsLeft: 1, pendingDate: nil))
+    }
+
+    @Test("补签卡文案：弹窗、庆祝、签到页、日历朗读、错误与开发页都有中英文，弹窗说明按天数和张数格式化")
+    func localizesCheckInProtection() {
+        let english = Locale(identifier: "en")
+        let simplifiedChinese = Locale(identifier: "zh-Hans")
+        let keys = [
+            "checkIn.protection.prompt.title", "checkIn.protection.prompt.message", "checkIn.protection.prompt.use",
+            "checkIn.protection.prompt.skip", "checkIn.protection.used", "checkIn.protection.cardsLeft",
+            "checkIn.protection.cardsUsedUp", "checkIn.today.protectable", "checkIn.rules.protection",
+            "checkIn.calendar.day.protected", "profile.checkIn.failure.protection",
+            "developer.checkIn.missedYesterday", "developer.checkIn.cardUsed",
+        ]
+        for key in keys {
+            for locale in [english, simplifiedChinese] {
+                // 缺文案时返回 key 本身
+                #expect(AccountLocalization.string(key, locale: locale) != key, "\(key) 缺少 \(locale.identifier) 文案")
+            }
+        }
+        let message = AccountLocalization.string("checkIn.protection.prompt.message", locale: simplifiedChinese)
+        #expect(
+            String(format: message, locale: simplifiedChinese, "24", "1")
+                == "用 1 张补签卡，今天接着算第 24 天；不用的话从第 1 天重新算。本月还剩 1 张。"
+        )
+        #expect(
+            AccountLocalization.formatted("checkIn.protection.used", value: "23", locale: simplifiedChinese)
+                == "用掉 1 张补签卡，保住了 23 天连签"
+        )
+        #expect(ProfileCheckInBadge.failureKey(for: .checkInProtectionUnavailable) == "profile.checkIn.failure.protection")
     }
 
     @Test("签到礼包的明细标题、进度与文案：三档礼包各有标题，离下一个礼包的天数含今天，点数范围用加号连起来")
@@ -488,7 +599,7 @@ struct AIPointsTests {
         #expect(checkInStatus.url?.absoluteString == "https://example.invalid/v1/billing/check-in?product=yadoa")
         #expect(checkInStatus.httpBody == nil)
 
-        let checkIn = api.makeURLRequest(.checkIn, token: "abc")
+        let checkIn = api.makeURLRequest(.checkIn(useCard: false), token: "abc")
         #expect(checkIn.httpMethod == "POST")
         #expect(checkIn.url?.absoluteString == "https://example.invalid/v1/billing/check-in")
         #expect(checkIn.url?.query() == nil)
@@ -496,7 +607,16 @@ struct AIPointsTests {
         #expect(checkIn.value(forHTTPHeaderField: "Authorization") == "Bearer abc")
         #expect(checkIn.value(forHTTPHeaderField: AppVersion.headerName) == AppVersion.current)
         let body = try #require(checkIn.httpBody)
-        #expect(try JSONDecoder().decode([String: String].self, from: body) == ["product": "yadoa"])
+        let fields = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(fields.count == 2)
+        #expect(fields["product"] as? String == "yadoa")
+        #expect(fields["useCard"] as? Bool == false)
+        // 用补签卡签到：同一个接口，请求体带 useCard
+        let withCard = api.makeURLRequest(.checkIn(useCard: true), token: "abc")
+        #expect(withCard.url?.absoluteString == "https://example.invalid/v1/billing/check-in")
+        let withCardBody = try #require(withCard.httpBody)
+        let withCardFields = try #require(try JSONSerialization.jsonObject(with: withCardBody) as? [String: Any])
+        #expect(withCardFields["useCard"] as? Bool == true)
         // 钱包仍是 GET，也不带请求体
         #expect(wallet.httpMethod == "GET")
         #expect(wallet.httpBody == nil)
@@ -514,15 +634,20 @@ struct AIPointsTests {
         let openBody = try #require(open.httpBody)
         #expect(try JSONDecoder().decode([String: Int].self, from: openBody) == ["seq": 2])
 
-        let reset = api.makeURLRequest(.devResetCheckIn(streak: 6), token: "abc")
+        let reset = api.makeURLRequest(
+            .devResetCheckIn(AICheckInResetOptions(streak: 6, missedYesterday: true, cardUsed: false)),
+            token: "abc"
+        )
         #expect(reset.httpMethod == "POST")
         #expect(reset.url?.absoluteString == "https://example.invalid/v1/billing/check-in/dev-reset")
         #expect(reset.value(forHTTPHeaderField: "Content-Type") == "application/json")
         let resetBody = try #require(reset.httpBody)
         let resetFields = try #require(try JSONSerialization.jsonObject(with: resetBody) as? [String: Any])
-        #expect(resetFields.count == 2)
+        #expect(resetFields.count == 4)
         #expect(resetFields["product"] as? String == "yadoa")
         #expect(resetFields["streak"] as? Int == 6)
+        #expect(resetFields["missedYesterday"] as? Bool == true)
+        #expect(resetFields["cardUsed"] as? Bool == false)
     }
 
     @Test("查询接口错误状态码映射")
@@ -532,6 +657,11 @@ struct AIPointsTests {
         #expect(AIBillingAPI.error(statusCode: 429) == .serviceUnavailable)
         #expect(AIBillingAPI.error(statusCode: 503) == .serviceUnavailable)
         #expect(AIBillingAPI.error(statusCode: 400) == .invalidContract)
+        // 签到的 409 只会是补签卡用不了；开礼包的 409 仍按状态已变处理
+        #expect(AIBillingAPI.error(statusCode: 409, route: .checkIn(useCard: true)) == .checkInProtectionUnavailable)
+        #expect(AIBillingAPI.error(statusCode: 409, route: .openCheckInGift(id: "12", seq: 1)) == .invalidContract)
+        #expect(AIBillingAPI.error(statusCode: 400, route: .checkIn(useCard: true)) == .invalidContract)
+        #expect(AIBillingAPI.error(statusCode: 503, route: .checkIn(useCard: false)) == .serviceUnavailable)
     }
 
     @Test("语音记账响应带回余额：200 读响应头，402 读错误详情，其余不读")
@@ -1173,6 +1303,8 @@ struct AIPointsTests {
         #expect(!store.shouldOfferCheckIn)
         #expect(!store.isCheckingIn)
         #expect(api.checkInCalls == 1)
+        // 不传时不用补签卡
+        #expect(api.checkInRequests == [false])
         #expect(api.walletCalls == 1)
     }
 
@@ -1279,6 +1411,79 @@ struct AIPointsTests {
         )
         _ = await store.checkIn()
         #expect(store.unopenedGifts.isEmpty)
+    }
+
+    @Test("用补签卡签到：请求带 useCard，连签取返回值，补签卡换成剩余张数、今天不能再用；不用卡时卡留着")
+    func checkInWithProtectionCard() async {
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(AIWallet(balance: 100))]
+        let protection = AICheckInProtection(cardsPerMonth: 1, cardsLeft: 1, pendingDate: "2026-11-17")
+        api.checkInStatusResults = [.success(Self.pendingStatus(streak: 6, protection: protection))]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        await store.refreshCheckInStatus()
+        #expect(store.checkInStatus?.protectionOffer == AICheckInProtectionOffer(missedDate: "2026-11-17", keptStreak: 6, cardsLeft: 1))
+
+        let gift = Self.gift(id: "12", tier: .weekly, streak: 7)
+        api.checkInResult = .success(
+            Self.checkInResult(
+                points: 12, balance: 112, isDuplicate: false, streak: 7, gifts: [gift],
+                protectedDate: "2026-11-17", cardsLeft: 0
+            )
+        )
+        let outcome = await store.checkIn(useCard: true)
+
+        #expect((try? outcome.get())?.keptStreak == 6)
+        #expect(api.checkInRequests == [true])
+        #expect(store.balance == 112)
+        #expect(store.checkInStatus?.streak == 7)
+        #expect(store.checkInStatus?.protection == AICheckInProtection(cardsPerMonth: 1, cardsLeft: 0, pendingDate: nil))
+        #expect(store.checkInStatus?.protectionOffer == nil)
+        #expect(store.unopenedGifts == [gift])
+
+        // 不用卡：连签从 1 算，卡留着，今天也不能再用
+        let other = FakeAIBillingAPI()
+        other.walletResults = [.success(AIWallet(balance: 100))]
+        other.checkInStatusResults = [.success(Self.pendingStatus(streak: 6, protection: protection))]
+        let skipping = AIPointsStore(api: other, defaults: .isolated()) { "user-1" }
+        await skipping.refresh()
+        await skipping.refreshCheckInStatus()
+        other.checkInResult = .success(Self.checkInResult(points: 5, balance: 105, isDuplicate: false, streak: 1, cardsLeft: 1))
+        _ = await skipping.checkIn(useCard: false)
+        #expect(other.checkInRequests == [false])
+        #expect(skipping.checkInStatus?.streak == 1)
+        #expect(skipping.checkInStatus?.protection == AICheckInProtection(cardsPerMonth: 1, cardsLeft: 1, pendingDate: nil))
+        #expect(skipping.checkInStatus?.protectionOffer == nil)
+    }
+
+    @Test("补签卡用不了（409）：没有签到，余额和批次不变，重拉签到状态按最新情况显示；网络错误不重拉")
+    func checkInProtectionUnavailableRefreshesStatus() async {
+        let api = FakeAIBillingAPI()
+        let later = Date(timeIntervalSince1970: 1_900_000_000)
+        api.walletResults = [.success(AIWallet(balance: 100, lots: [AICreditLot(points: 100, expiresAt: later)]))]
+        let protection = AICheckInProtection(cardsPerMonth: 1, cardsLeft: 1, pendingDate: "2026-11-17")
+        // 第二次查询：已跨过零点，连漏两天，卡用不上了
+        let refreshed = Self.pendingStatus(streak: 0, protection: AICheckInProtection(cardsPerMonth: 1, cardsLeft: 1, pendingDate: nil))
+        api.checkInStatusResults = [.success(Self.pendingStatus(streak: 6, protection: protection)), .success(refreshed)]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        await store.refreshCheckInStatus()
+
+        api.checkInResult = .failure(.network)
+        #expect(await store.checkIn(useCard: true) == .failure(.network))
+        #expect(api.checkInStatusCalls == 1)
+        #expect(store.checkInStatus?.protectionOffer != nil)
+
+        api.checkInResult = .failure(.checkInProtectionUnavailable)
+        #expect(await store.checkIn(useCard: true) == .failure(.checkInProtectionUnavailable))
+        #expect(api.checkInRequests == [true, true])
+        #expect(api.checkInStatusCalls == 2)
+        #expect(store.checkInStatus == refreshed)
+        #expect(store.checkInStatus?.protectionOffer == nil)
+        #expect(store.shouldOfferCheckIn)
+        #expect(store.balance == 100)
+        #expect(store.lots.count == 1)
+        #expect(!store.isCheckingIn)
     }
 
     @Test("打开年度礼包：第一次后礼包留在待开列表，第二次后移除；余额用返回值，每次的点数按过期时间插入批次")
@@ -1430,22 +1635,26 @@ struct AIPointsTests {
 
         let reset = Self.pendingStatus(streak: 6)
         api.resetResults = [.success(reset)]
-        #expect(await store.resetCheckInForTesting(streak: 6) == .success(reset))
-        #expect(api.resetRequests == [6])
+        #expect(await store.resetCheckInForTesting(AICheckInResetOptions(streak: 6)) == .success(reset))
+        #expect(api.resetRequests == [AICheckInResetOptions(streak: 6)])
         #expect(store.checkInStatus == reset)
         #expect(store.unopenedGifts.isEmpty)
         #expect(store.balance == 101)
 
+        // 补签卡的测试选项原样传给服务端
+        let missed = AICheckInResetOptions(streak: 6, missedYesterday: true, cardUsed: true)
+        #expect(await store.resetCheckInForTesting(missed) == .success(reset))
+
         api.resetResults = [.failure(.invalidContract)]
-        #expect(await store.resetCheckInForTesting(streak: 0) == .failure(.invalidContract))
+        #expect(await store.resetCheckInForTesting(AICheckInResetOptions(streak: 0)) == .failure(.invalidContract))
         #expect(store.checkInStatus == reset)
 
         isNetworkAllowed = false
-        #expect(await store.resetCheckInForTesting(streak: 0) == .failure(.network))
+        #expect(await store.resetCheckInForTesting(AICheckInResetOptions(streak: 0)) == .failure(.network))
         isNetworkAllowed = true
         userID = nil
-        #expect(await store.resetCheckInForTesting(streak: 0) == .failure(.notSignedIn))
-        #expect(api.resetRequests == [6, 0])
+        #expect(await store.resetCheckInForTesting(AICheckInResetOptions(streak: 0)) == .failure(.notSignedIn))
+        #expect(api.resetRequests == [AICheckInResetOptions(streak: 6), missed, AICheckInResetOptions(streak: 0)])
     }
 
     @Test("签到日历：按月查询，未登录或不允许联网时不发请求")
@@ -1463,7 +1672,8 @@ struct AIPointsTests {
             month: "2026-11",
             today: "2026-11-18",
             firstCheckInDate: "2026-10-03",
-            days: [AICheckInDay(date: "2026-11-07", points: 9, streak: 7, giftTiers: [.weekly])]
+            days: [AICheckInDay(date: "2026-11-07", points: 9, streak: 7, giftTiers: [.weekly])],
+            protectedDates: ["2026-11-06"]
         )
         api.historyResult = .success(month)
 
@@ -1499,8 +1709,12 @@ struct AIPointsTests {
     /// 签到状态里带的礼包规则。
     private static let giftRules = [weeklyRule, yearlyRule]
 
-    /// 今天还没签、带连签天数和待开礼包的状态。
-    private static func pendingStatus(streak: Int, gifts: [AICheckInGift] = []) -> AICheckInStatus {
+    /// 今天还没签、带连签天数、待开礼包和补签卡的状态。
+    private static func pendingStatus(
+        streak: Int,
+        gifts: [AICheckInGift] = [],
+        protection: AICheckInProtection? = nil
+    ) -> AICheckInStatus {
         AICheckInStatus(
             date: "2026-11-18",
             checkedIn: false,
@@ -1511,7 +1725,8 @@ struct AIPointsTests {
             streak: streak,
             firstCheckInDate: "2026-10-01",
             gifts: gifts,
-            giftTiers: giftRules
+            giftTiers: giftRules,
+            protection: protection
         )
     }
 
@@ -1566,7 +1781,9 @@ struct AIPointsTests {
         balance: Int,
         isDuplicate: Bool,
         streak: Int = 0,
-        gifts: [AICheckInGift] = []
+        gifts: [AICheckInGift] = [],
+        protectedDate: String? = nil,
+        cardsLeft: Int? = nil
     ) -> AICheckInResult {
         let createdAt = Date(timeIntervalSince1970: 1_793_154_720)
         return AICheckInResult(
@@ -1577,6 +1794,8 @@ struct AIPointsTests {
             balance: balance,
             streak: streak,
             gifts: gifts,
+            protectedDate: protectedDate,
+            cardsLeft: cardsLeft,
             createdAt: createdAt,
             expiresAt: createdAt.addingTimeInterval(24 * 3600)
         )
@@ -1640,8 +1859,8 @@ private final class FakeAIBillingAPI: AIBillingFetching {
     /// 依次返回的重置签到结果；用完后重复最后一个。
     var resetResults: [Result<AICheckInStatus, AIBillingAPIError>] = [.failure(.invalidContract)]
 
-    /// 依次请求过的重置签到连签天数。
-    private(set) var resetRequests: [Int] = []
+    /// 依次请求过的重置签到选项。
+    private(set) var resetRequests: [AICheckInResetOptions] = []
 
     /// 设置后查询余额时先挂起，直到用例恢复。
     var walletGate: AsyncSaveGate?
@@ -1657,6 +1876,9 @@ private final class FakeAIBillingAPI: AIBillingFetching {
 
     /// 签到的次数。
     private(set) var checkInCalls = 0
+
+    /// 依次签到时是否用补签卡。
+    private(set) var checkInRequests: [Bool] = []
 
     /// 依次请求过的流水游标。
     private(set) var requestedCursors: [String?] = []
@@ -1687,8 +1909,9 @@ private final class FakeAIBillingAPI: AIBillingFetching {
         return try checkInStatusResults[index].get()
     }
 
-    func checkIn() async throws -> AICheckInResult {
+    func checkIn(useCard: Bool) async throws -> AICheckInResult {
         checkInCalls += 1
+        checkInRequests.append(useCard)
         return try checkInResult.get()
     }
 
@@ -1703,9 +1926,9 @@ private final class FakeAIBillingAPI: AIBillingFetching {
         return try openResults[index].get()
     }
 
-    func resetCheckInForTesting(streak: Int) async throws -> AICheckInStatus {
+    func resetCheckInForTesting(_ options: AICheckInResetOptions) async throws -> AICheckInStatus {
         let index = min(resetRequests.count, resetResults.count - 1)
-        resetRequests.append(streak)
+        resetRequests.append(options)
         return try resetResults[index].get()
     }
 }
