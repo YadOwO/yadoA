@@ -48,15 +48,17 @@ topic: auth-profile
     - 登录页在 Apple 和「账号密码」之间加「邮箱登录」，直接进入托管页的邮箱输入页。
     - 登录额外申请 `email`、`identities` scope；之前登录的会话在「账号与安全」页提示重新登录一次。step-up 或重新登录时在托管页登了别的账号，直接退出登录（本机账本和同步绑定保留，不会同步到新账号）。
   - 待办：dev 按下面的「Logto 后台配置清单」配好后真机走一遍；线上要先升级 Logto（线上 OIDC discovery 没有 `acr_values_supported`，不支持 step-up）、配好清单，再把 `AuthConfig.prod.isEmailAccountAvailable` 改为 true。
-- [ ] **修改密码入口**：Account API 支持，成本较低。
+- [ ] **修改密码入口**：「账号与安全」的密码行可设置 / 修改密码（`AccountCredentialChangeFlow` 的 `.password`），dev 已开（`AuthConfig.isPasswordChangeAvailable`）。
+  - 待办：dev 真机走一遍；线上账户中心 password 改为 Edit 后再把 prod 打开。
 
 ## Logto 后台配置清单
 
 邮箱登录和绑定邮箱依赖下面这些配置。dev 先配；线上要先升级 Logto（支持 `acr_values` step-up），再按同样的清单配，最后打开 `AuthConfig.prod.isEmailAccountAvailable`。
 
-- [ ] **邮件连接器**：配一个邮件连接器（阿里云邮件推送或 SMTP），模板覆盖 SignIn / Register / ForgotPassword / BindNewIdentifier / UserPermissionValidation。没配时发验证码返回 501，App 提示「邮件服务暂未开通」。
-- [ ] **登录体验**：开启邮箱 + 验证码登录（登录页「邮箱登录」按钮、只有 Apple 的用户 step-up 后设置邮箱都靠它）。
-- [ ] **账户中心字段**：email = Edit，social = ReadOnly，password = ReadOnly，username = ReadOnly，name / avatar 保持 Edit。
+- [ ] **邮件连接器**：配一个邮件连接器（阿里云邮件推送或 SMTP），模板覆盖 SignIn / Register / ForgotPassword / BindNewIdentifier / UserPermissionValidation。没配时发验证码返回 501，App 提示「邮件服务暂未开通」。dev 已配（2026-11-19，阿里云邮件推送 SMTP，见 mini 上 `~/yado-dev/scripts/logto-setup.mjs`）；Gmail 会进垃圾箱，线上上线前要处理发信信誉。
+- [ ] **登录体验**：开启邮箱 + 验证码登录（登录页「邮箱登录」按钮、只有 Apple 的用户 step-up 后设置邮箱都靠它），注册允许用户名或邮箱（`signUp.identifiers = [username, email]`，`verify = true`，`password = true`：邮箱注册收完验证码还要设密码），邮箱找回密码。dev 已配（2026-11-19）。
+- [ ] **账户中心字段**：email = Edit，password = Edit（App 内设置 / 修改密码），social = Edit（App 内关联 Apple），username = ReadOnly，name / avatar 保持 Edit。dev 已配（2026-11-19）。
+- [ ] **关联 Apple 的回程**：Apple 授权完 form_post 到 Logto 的 `/callback/<连接器 ID>`，Logto 转成同路径的 GET，但不会跳回 App。云服务器 nginx 接住 `state` 以 `yadoa_` 开头的这个 GET，302 到 App 的 `<scheme>://apple-link?<原参数>`。dev 已配（Air 上 `~/yado-dev-tools/server/install-dev-proxy.sh`）；线上要在 `accounts.yado1225.top` 加同样的规则（跳 `com.yado.yadoa://apple-link`）。Apple 开发者后台的 Services ID `top.yado1225.auth` 要登记 Return URL `https://<Logto 域名>/callback/<连接器 ID>`。
 
 ## 用户名修改（远期）
 

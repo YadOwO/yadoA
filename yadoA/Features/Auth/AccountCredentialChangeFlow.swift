@@ -1,16 +1,28 @@
 import Foundation
 import Observation
 
-/// 绑定 / 更换邮箱的流程状态：先验证身份，再给新邮箱发验证码、校验并保存。
+/// 修改登录方式（绑定 / 更换邮箱、设置 / 修改密码、关联 Apple）的流程状态：先验证身份，再输入新邮箱、新密码，
+/// 或打开 Apple 授权页，保存。
 ///
-/// 身份验证方式由 `AccountIdentityVerificationMethod.select(for:)` 选出：密码 → 当前邮箱验证码 → step-up。
+/// 身份验证方式由 `AccountIdentityVerificationMethod.select(for:)` 选出：当前邮箱验证码 → 密码 → step-up。
+/// 例外：没有任何验证方式（只有 Apple 等第三方登录）的账号设置密码、关联第三方账号时，Logto 不要求验证身份，直接进入下一步。
 /// 通过后得到的身份验证记录只存在内存里，10 分钟后过期（`AccountIdentityVerification`）：密码从验证通过时算，
 /// 当前邮箱验证码按发码接口返回的 `expiresAt` 算（记录在发码时就已创建）；
 /// 过期或保存时 Logto 返回 `verification_record.permission_denied`，都回到验证身份这一步。
 /// 由「账号与安全」页创建，每次打开弹层新建一个。
 @MainActor
 @Observable
-final class EmailChangeFlow: Identifiable {
+final class AccountCredentialChangeFlow: Identifiable {
+    /// 要修改的登录凭证。
+    enum Target: Equatable {
+        /// 绑定或更换邮箱。
+        case email
+        /// 设置或修改密码。
+        case password
+        /// 关联 Apple（只在还没关联时打开）。
+        case apple
+    }
+
     /// 流程所处的步骤。
     enum Step: Equatable {
         /// 验证身份，附带验证方式。
@@ -19,7 +31,13 @@ final class EmailChangeFlow: Identifiable {
         /// 输入新邮箱、收验证码并保存。
         case newEmail
 
-        /// 已保存，附带新邮箱地址；step-up 时在 Logto 托管页里设置、读不到地址时为 nil。
+        /// 输入并确认新密码，保存。
+        case newPassword
+
+        /// 打开 Apple 授权页完成关联。
+        case linkApple
+
+        /// 已保存。改邮箱时附带新邮箱地址（step-up 时在 Logto 托管页里设置、读不到地址时为 nil）；改密码、关联 Apple 时为 nil。
         case finished(String?)
 
         /// step-up 时在托管页里登录了另一个账号，已退出登录，流程结束。
@@ -34,7 +52,10 @@ final class EmailChangeFlow: Identifiable {
         let recordID: String
     }
 
-    /// 本次是更换（原来已绑定邮箱）还是绑定。
+    /// 要修改的登录凭证。
+    let target: Target
+
+    /// 本次是更换 / 修改（原来已绑定邮箱、已设置密码），还是第一次绑定 / 设置。
     let isChanging: Bool
 
     /// 最新的账号信息；step-up 回来后会刷新。
@@ -57,6 +78,12 @@ final class EmailChangeFlow: Identifiable {
 
     /// 发到新邮箱的验证码输入。
     var newEmailCode = ""
+
+    /// 新密码输入；保存成功后清空。
+    var newPassword = ""
+
+    /// 再次输入的新密码，必须和 `newPassword` 一致；保存成功后清空。
+    var confirmPassword = ""
 
     /// 新邮箱的验证码发到了哪个地址；没发过、或之后改了输入时为 nil。
     private(set) var codeSentEmail: String?
@@ -94,23 +121,42 @@ final class EmailChangeFlow: Identifiable {
     /// 当前时间，测试时可注入。
     private let now: () -> Date
 
+    /// Logto 里 Apple 连接器的 ID；nil 时不能关联 Apple。
+    private let appleConnectorID: String?
+
+    /// Logto 服务地址，用来拼关联 Apple 的回程地址。
+    private let logtoEndpoint: String
+
     /// - Parameters:
+    ///   - target: 要修改邮箱还是密码。
     ///   - account: 打开弹层时的账号信息。
     ///   - service: Account API。
     ///   - reauthenticate: 发起 step-up 的动作。
     ///   - now: 当前时间。
+    ///   - appleConnectorID: Logto 里 Apple 连接器的 ID，默认取当前环境的 `AuthConfig.appleSocialConnectorID`。
+    ///   - logtoEndpoint: Logto 服务地址，默认取当前环境的 `AuthConfig.endpoint`。
     init(
+        target: Target,
         account: AccountSecurityInfo,
         service: any AccountSecurityServing,
         reauthenticate: @escaping () async -> AccountReauthenticationResult,
-        now: @escaping () -> Date = { Date() }
+        now: @escaping () -> Date = { Date() },
+        appleConnectorID: String? = AuthConfig.appleSocialConnectorID,
+        logtoEndpoint: String = AuthConfig.endpoint
     ) {
+        self.target = target
         self.account = account
         self.service = service
         self.reauthenticate = reauthenticate
         self.now = now
-        isChanging = account.isEmailBound == true
-        step = .identity(AccountIdentityVerificationMethod.select(for: account))
+        self.appleConnectorID = appleConnectorID
+        self.logtoEndpoint = logtoEndpoint
+        switch target {
+        case .email: isChanging = account.isEmailBound == true
+        case .password: isChanging = account.hasPassword == true
+        case .apple: isChanging = false
+        }
+        step = Self.entryStep(target: target, account: account)
     }
 
     // MARK: - 状态
@@ -130,9 +176,43 @@ final class EmailChangeFlow: Identifiable {
         identityCodeRecord != nil
     }
 
+    /// 当前邮箱的验证码是否已填满 `codeLength` 位，没填满时不能提交。
+    var isIdentityCodeComplete: Bool {
+        Self.sanitizedCode(identityCode).count == Self.codeLength
+    }
+
+    /// 新邮箱的验证码是否已填满 `codeLength` 位，没填满时不能提交。
+    var isNewEmailCodeComplete: Bool {
+        Self.sanitizedCode(newEmailCode).count == Self.codeLength
+    }
+
+    /// 两次输入的新密码都填了且一致，可以保存。
+    var isNewPasswordReady: Bool {
+        !newPassword.isEmpty && newPassword == confirmPassword
+    }
+
+    /// 已经输入了确认密码，但和新密码不一致；界面据此在输入框下方提示。
+    var isConfirmPasswordMismatched: Bool {
+        !confirmPassword.isEmpty && newPassword != confirmPassword
+    }
+
+    // MARK: - 验证码输入
+
+    /// Logto 邮箱验证码的位数：固定为 6 位数字。
+    static let codeLength = 6
+
+    /// 整理验证码输入：只留半角数字，最多 `codeLength` 位。
+    ///
+    /// 输入框每次变化都用它过滤，粘贴「123 456」或带说明文字的整段内容时只取前 6 位数字；提交前也再过一遍。
+    /// - Parameter input: 输入框里的原始文本。
+    /// - Returns: 不超过 `codeLength` 位的数字串。
+    static func sanitizedCode(_ input: String) -> String {
+        String(input.filter { $0.isASCII && $0.isNumber }.prefix(codeLength))
+    }
+
     // MARK: - 验证身份
 
-    /// 用密码验证身份，通过后进入输入新邮箱。
+    /// 用密码验证身份，通过后进入下一步。
     func submitPassword() async {
         guard step == .identity(.password), !password.isEmpty else { return }
         let password = password
@@ -156,7 +236,7 @@ final class EmailChangeFlow: Identifiable {
         }
     }
 
-    /// 校验当前邮箱收到的验证码，通过后进入输入新邮箱；身份验证的有效期按发码时的记录算。
+    /// 校验当前邮箱收到的验证码，通过后进入下一步；身份验证的有效期按发码时的记录算。
     func submitIdentityCode() async {
         let code = Self.normalizedCode(identityCode)
         guard case let .identity(.currentEmailCode(email)) = step,
@@ -172,7 +252,8 @@ final class EmailChangeFlow: Identifiable {
 
     /// 只有 Apple 的账号：重新走一遍 Logto 托管页做 step-up，回来后刷新账号信息。
     ///
-    /// 托管页里设置了邮箱时直接完成；设置了密码时转为用密码验证身份；登了另一个账号时流程结束。
+    /// 改邮箱时用到（改密码时只有 Apple 的账号不用验证身份，不会走到这里）：托管页里设置了邮箱时直接完成；
+    /// 设置了密码时转为用密码验证身份；登了另一个账号时流程结束。
     func startStepUp() async {
         guard step == .identity(.stepUp), !isWorking else { return }
         isWorking = true
@@ -195,13 +276,12 @@ final class EmailChangeFlow: Identifiable {
         do {
             let refreshed = try await service.fetchAccount()
             account = refreshed
-            if refreshed.isEmailBound == true {
+            if target == .email, refreshed.isEmailBound == true {
                 step = .finished(refreshed.trimmedPrimaryEmail)
                 return
             }
-            let method = AccountIdentityVerificationMethod.select(for: refreshed)
-            step = .identity(method)
-            if method == .stepUp {
+            step = Self.entryStep(target: target, account: refreshed)
+            if step == .identity(.stepUp) {
                 messageKey = "account.email.step_up.incomplete"
             }
         } catch {
@@ -264,7 +344,104 @@ final class EmailChangeFlow: Identifiable {
         }
     }
 
+    // MARK: - 新密码
+
+    /// 保存新密码：两次输入一致才提交；需要验证身份时带上仍有效的身份验证记录。
+    ///
+    /// 密码规则（长度、复杂度）只由 Logto 判断，不符合时提示 `password.rejected` 对应的文案，输入保留可以接着改。
+    func saveNewPassword() async {
+        guard step == .newPassword, !newPassword.isEmpty else { return }
+        guard newPassword == confirmPassword else {
+            messageKey = "account.password.error.mismatch"
+            return
+        }
+        let identityRecordID: String?
+        if requiresIdentityVerification {
+            guard let identity = validIdentityVerification() else { return }
+            identityRecordID = identity.recordID
+        } else {
+            identityRecordID = nil
+        }
+        let password = newPassword
+        await run {
+            try await service.setPassword(password, identityVerificationID: identityRecordID)
+            newPassword = ""
+            confirmPassword = ""
+            step = .finished(nil)
+        }
+    }
+
+    // MARK: - 关联 Apple
+
+    /// 关联 Apple：创建 Logto 的社交验证记录，在浏览器里打开 Apple 授权页，回程交给 Logto 校验后关联到当前账号。
+    ///
+    /// 用户在浏览器或 Apple 页面上取消时不提示；回程的 `state` 对不上、授权失败时提示「没有完成关联」。
+    /// 这个 Apple 账号已关联其他芽豆账号时提示换一个；身份验证过期时回到验证身份这一步。
+    ///
+    /// - Parameter authorize: 在浏览器里打开授权页并等回程，返回跳回 App 的地址；用户关掉浏览器时返回 nil。
+    ///   界面用 `WebAuthenticationSession` 实现，测试时替换。
+    func linkApple(authorize: @MainActor (URL) async throws -> URL?) async {
+        guard step == .linkApple, let connectorID = appleConnectorID else { return }
+        let identityRecordID: String?
+        if requiresIdentityVerification {
+            guard let identity = validIdentityVerification() else { return }
+            identityRecordID = identity.recordID
+        } else {
+            identityRecordID = nil
+        }
+        let state = SocialLink.makeState()
+        let redirectURI = SocialLink.redirectURI(endpoint: logtoEndpoint, connectorID: connectorID)
+        await run {
+            let start = try await service.startSocialVerification(
+                connectorID: connectorID,
+                state: state,
+                redirectURI: redirectURI
+            )
+            guard let callbackURL = try await authorize(start.authorizationURL) else { return }
+            switch SocialLink.parseCallback(callbackURL, expectedState: state) {
+            case .cancelled:
+                return
+            case .invalid:
+                messageKey = "account.apple.error.failed"
+            case var .authorized(connectorData):
+                // 与 Logto 自带账户中心的做法一致：回程参数原样带上，再加上回程地址
+                connectorData["redirectUri"] = redirectURI
+                let verifiedID = try await service.verifySocial(recordID: start.recordID, connectorData: connectorData)
+                try await service.linkSocialIdentity(verificationRecordID: verifiedID, identityVerificationID: identityRecordID)
+                step = .finished(nil)
+            }
+        }
+    }
+
     // MARK: - 私有方法
+
+    /// 保存前是否要先验证身份：改邮箱总要；改密码、关联 Apple 时只有账号有验证方式（密码、邮箱或手机号）才要，与 Logto 一致。
+    private var requiresIdentityVerification: Bool {
+        target == .email || account.hasSecurityVerificationMethod
+    }
+
+    /// 打开弹层（或 step-up 回来）时的第一步：不用验证身份时直接进入下一步，否则按账号情况选验证方式。
+    ///
+    /// - Parameters:
+    ///   - target: 要修改的登录方式。
+    ///   - account: 最新的账号信息。
+    private static func entryStep(target: Target, account: AccountSecurityInfo) -> Step {
+        if target != .email, !account.hasSecurityVerificationMethod {
+            return nextStep(after: target)
+        }
+        return .identity(AccountIdentityVerificationMethod.select(for: account))
+    }
+
+    /// 验证完身份之后的那一步。
+    ///
+    /// - Parameter target: 要修改的登录方式。
+    private static func nextStep(after target: Target) -> Step {
+        switch target {
+        case .email: .newEmail
+        case .password: .newPassword
+        case .apple: .linkApple
+        }
+    }
 
     /// 执行一次请求：期间标记为忙，失败时按错误类型处理。
     private func run(_ operation: () async throws -> Void) async {
@@ -281,6 +458,18 @@ final class EmailChangeFlow: Identifiable {
 
     /// 按错误类型更新状态和提示。
     private func handle(_ error: AccountProfileError) {
+        if step == .linkApple {
+            switch error {
+            case .verificationRequired:
+                returnToIdentityVerification()
+            case .socialIdentityInUse, .network, .notAllowed, .reauthenticationRequired:
+                messageKey = error.localizationKey
+            default:
+                // 校验回程失败（如 id_token 不对、验证记录过期）等，统一提示没有完成关联，可以再试一次
+                messageKey = "account.apple.error.failed"
+            }
+            return
+        }
         switch error {
         case .verificationRequired:
             returnToIdentityVerification()
@@ -297,12 +486,12 @@ final class EmailChangeFlow: Identifiable {
         }
     }
 
-    /// 身份验证通过：记下验证记录和失效时刻，进入输入新邮箱。
+    /// 身份验证通过：记下验证记录和失效时刻，进入下一步（输入新邮箱、新密码，或关联 Apple）。
     private func identityVerified(_ verification: AccountIdentityVerification) {
         identityVerification = verification
         password = ""
         resetIdentityCode()
-        step = .newEmail
+        step = Self.nextStep(after: target)
     }
 
     /// 返回仍有效的身份验证；已过期或没有时回到验证身份这一步并返回 nil。
@@ -314,7 +503,7 @@ final class EmailChangeFlow: Identifiable {
         return nil
     }
 
-    /// 回到验证身份这一步；已输入的新邮箱和已校验的新邮箱记录保留，验证完身份后可以直接保存。
+    /// 回到验证身份这一步；已输入的新邮箱、新密码和已校验的新邮箱记录保留，验证完身份后可以直接保存。
     private func returnToIdentityVerification() {
         identityVerification = nil
         password = ""
@@ -353,9 +542,10 @@ final class EmailChangeFlow: Identifiable {
         verifiedNewEmail = nil
     }
 
-    /// 去掉验证码里的空白。
+    /// 提交前整理验证码；不足 `codeLength` 位时返回空串，调用方据此不提交。
     private static func normalizedCode(_ code: String) -> String {
-        code.filter { !$0.isWhitespace }
+        let sanitized = sanitizedCode(code)
+        return sanitized.count == codeLength ? sanitized : ""
     }
 
     /// 把错误统一成 `AccountProfileError`。

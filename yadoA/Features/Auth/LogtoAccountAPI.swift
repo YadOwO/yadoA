@@ -37,7 +37,7 @@ struct AccountProfile: Equatable, Identifiable {
     }
 }
 
-/// 调用 Logto Account API（修改资料、验证身份、绑定邮箱）失败的原因，界面按类型展示本地化文案。
+/// 调用 Logto Account API（修改资料、验证身份、绑定邮箱、设置密码、关联 Apple）失败的原因，界面按类型展示本地化文案。
 ///
 /// Logto 的错误码只在 `from(logtoCode:)` / `from(statusCode:logtoCode:)` 这一处归类。
 enum AccountProfileError: Error, Equatable {
@@ -71,6 +71,12 @@ enum AccountProfileError: Error, Equatable {
     case emailServiceUnavailable
     /// 新邮箱的验证记录无效（`verification_record.not_found`），需要重新获取验证码。
     case newEmailVerificationInvalid
+    /// 新密码不符合 Logto 的密码规则（`password.rejected`，如太短、太简单）。
+    case passwordRejected
+    /// 新密码和当前密码相同（`user.same_password`）。
+    case samePassword
+    /// 要关联的社交账号（如 Apple）已经关联了其他芽豆账号，或当前账号已关联过（`user.identity_already_in_use`）。
+    case socialIdentityInUse
     /// 网络不可用或请求超时。
     case network
     /// 其他未归类错误，附带服务器返回的错误码便于排查。
@@ -93,6 +99,9 @@ enum AccountProfileError: Error, Equatable {
         case .codeInvalid, .newEmailVerificationInvalid: "account.email.error.code_invalid"
         case .rateLimited: "account.email.error.rate_limited"
         case .emailServiceUnavailable: "account.email.error.service_unavailable"
+        case .passwordRejected: "account.password.error.rejected"
+        case .samePassword: "account.password.error.same_as_current"
+        case .socialIdentityInUse: "account.apple.error.in_use"
         case .network: "profile.edit.error.network"
         case .unknown: "profile.edit.error.unknown"
         }
@@ -127,6 +136,12 @@ enum AccountProfileError: Error, Equatable {
             .codeInvalid
         case "request.message_rate_limited":
             .rateLimited
+        case "password.rejected":
+            .passwordRejected
+        case "user.same_password":
+            .samePassword
+        case "user.identity_already_in_use":
+            .socialIdentityInUse
         case "guard.invalid_input":
             .invalidUsername
         case let code? where code.hasPrefix("user.username_"):
@@ -152,7 +167,7 @@ enum AccountProfileError: Error, Equatable {
     }
 }
 
-/// Logto Account API 的最小封装：用户以自己的登录凭证读取账号信息、修改资料和绑定邮箱，无需自有后端。
+/// Logto Account API 的最小封装：用户以自己的登录凭证读取账号信息、修改资料、绑定邮箱、设置密码和关联 Apple，无需自有后端。
 ///
 /// 前提是服务器已在 Account Center 中开启对应字段的读取 / 编辑权限；
 /// 调用方传入不指定资源的 access token（`getAccessToken(for: nil)`）。
@@ -294,6 +309,86 @@ struct LogtoAccountAPI {
         try await perform(request)
     }
 
+    /// 设置新密码（`POST /api/my-account/password`），第一次设置和修改都走它；成功时返回 204，没有响应体。
+    ///
+    /// 需要账户中心的 password 字段为 Edit。账号有验证方式（密码、邮箱或手机号）时必须带身份验证记录；
+    /// 只有 Apple 等第三方登录的账号 Logto 不要求，这时传 nil、不带请求头。
+    ///
+    /// - Parameters:
+    ///   - password: 新密码。
+    ///   - identityVerificationID: 身份验证记录 ID，放进 `logto-verification-id` 请求头；不需要时为 nil。
+    /// - Throws: `AccountProfileError`；不符合密码规则时为 `.passwordRejected`，和当前密码相同时为 `.samePassword`。
+    func setPassword(_ password: String, identityVerificationID: String?, accessToken: String) async throws {
+        let request = try makeSetPasswordRequest(
+            password: password,
+            identityVerificationID: identityVerificationID,
+            accessToken: accessToken
+        )
+        try await perform(request)
+    }
+
+    /// 创建社交验证记录（`POST /api/verifications/social`），返回记录 ID 和要打开的授权页地址。
+    ///
+    /// Logto 不校验 `redirectURI`，原样作为 Apple 的 `redirect_uri`，所以它必须是 Services ID 里登记过的地址。
+    ///
+    /// - Parameters:
+    ///   - connectorID: Logto 里社交连接器的 ID。
+    ///   - state: 本次关联的 `state`，Logto 不校验，回程时由 App 自己比对。
+    ///   - redirectURI: 授权完的回程地址。
+    /// - Throws: `AccountProfileError`；授权页地址不合法时为 `.unknown("decode")`。
+    func startSocialVerification(
+        connectorID: String,
+        state: String,
+        redirectURI: String,
+        accessToken: String
+    ) async throws -> SocialVerificationStart {
+        let request = try makeStartSocialVerificationRequest(
+            connectorID: connectorID,
+            state: state,
+            redirectURI: redirectURI,
+            accessToken: accessToken
+        )
+        let response: SocialVerificationResponse = try await send(request)
+        guard let url = URL(string: response.authorizationUri) else {
+            throw AccountProfileError.unknown("decode")
+        }
+        return SocialVerificationStart(recordID: response.verificationRecordId, authorizationURL: url)
+    }
+
+    /// 把授权回程交给 Logto 校验（`POST /api/verifications/social/verify`），返回校验通过的记录 ID。
+    ///
+    /// - Parameters:
+    ///   - recordID: 创建时返回的记录 ID。
+    ///   - connectorData: 回程里的查询参数，外加 `redirectUri`；Apple 连接器只用其中的 `id_token`（和首次授权的 `user`）。
+    /// - Throws: `AccountProfileError`。
+    func verifySocial(recordID: String, connectorData: [String: String], accessToken: String) async throws -> String {
+        let request = try makeVerifySocialRequest(recordID: recordID, connectorData: connectorData, accessToken: accessToken)
+        let response: VerificationRecordResponse = try await send(request)
+        return response.verificationRecordId
+    }
+
+    /// 关联社交账号（`POST /api/my-account/identities`）；成功时返回 204，没有响应体。
+    ///
+    /// 需要账户中心的 social 字段为 Edit、登录时申请了 `identities` scope；账号有验证方式时必须带身份验证记录。
+    /// 用 POST 而不是 PUT：已经关联过 Apple 时报错，不会悄悄换成另一个 Apple 账号。
+    ///
+    /// - Parameters:
+    ///   - verificationRecordID: 校验通过的社交验证记录 ID。
+    ///   - identityVerificationID: 身份验证记录 ID，放进 `logto-verification-id` 请求头；不需要时为 nil。
+    /// - Throws: `AccountProfileError`；这个 Apple 账号已关联其他账号时为 `.socialIdentityInUse`。
+    func linkSocialIdentity(
+        verificationRecordID: String,
+        identityVerificationID: String?,
+        accessToken: String
+    ) async throws {
+        let request = try makeLinkSocialIdentityRequest(
+            verificationRecordID: verificationRecordID,
+            identityVerificationID: identityVerificationID,
+            accessToken: accessToken
+        )
+        try await perform(request)
+    }
+
     // MARK: - 请求构造（模块内可见，供测试断言）
 
     /// `GET /api/my-account`，没有请求体。
@@ -355,6 +450,71 @@ struct LogtoAccountAPI {
         return request
     }
 
+    /// 设置新密码的请求；有身份验证记录时放在 `logto-verification-id` 请求头。
+    func makeSetPasswordRequest(
+        password: String,
+        identityVerificationID: String?,
+        accessToken: String
+    ) throws -> URLRequest {
+        var request = try makeRequest(
+            path: "api/my-account/password",
+            method: "POST",
+            body: ["password": password],
+            accessToken: accessToken
+        )
+        if let identityVerificationID {
+            request.setValue(identityVerificationID, forHTTPHeaderField: Self.verificationHeaderName)
+        }
+        return request
+    }
+
+    /// 创建社交验证记录的请求。
+    func makeStartSocialVerificationRequest(
+        connectorID: String,
+        state: String,
+        redirectURI: String,
+        accessToken: String
+    ) throws -> URLRequest {
+        try makeRequest(
+            path: "api/verifications/social",
+            method: "POST",
+            body: ["connectorId": connectorID, "state": state, "redirectUri": redirectURI],
+            accessToken: accessToken
+        )
+    }
+
+    /// 校验社交授权回程的请求；字段名是 `verificationRecordId`（Logto 的 OpenAPI 文档写成 `verificationId`，以服务端校验为准）。
+    func makeVerifySocialRequest(
+        recordID: String,
+        connectorData: [String: String],
+        accessToken: String
+    ) throws -> URLRequest {
+        try makeRequest(
+            path: "api/verifications/social/verify",
+            method: "POST",
+            body: ["verificationRecordId": recordID, "connectorData": connectorData],
+            accessToken: accessToken
+        )
+    }
+
+    /// 关联社交账号的请求；有身份验证记录时放在 `logto-verification-id` 请求头。
+    func makeLinkSocialIdentityRequest(
+        verificationRecordID: String,
+        identityVerificationID: String?,
+        accessToken: String
+    ) throws -> URLRequest {
+        var request = try makeRequest(
+            path: "api/my-account/identities",
+            method: "POST",
+            body: ["newIdentifierVerificationRecordId": verificationRecordID],
+            accessToken: accessToken
+        )
+        if let identityVerificationID {
+            request.setValue(identityVerificationID, forHTTPHeaderField: Self.verificationHeaderName)
+        }
+        return request
+    }
+
     /// 携带身份验证记录 ID 的请求头。
     static let verificationHeaderName = "logto-verification-id"
 
@@ -386,6 +546,12 @@ struct LogtoAccountAPI {
     /// 校验验证码接口返回的记录 ID。
     private struct VerificationRecordResponse: Decodable {
         let verificationRecordId: String
+    }
+
+    /// 创建社交验证记录接口返回的记录 ID 和授权页地址。
+    private struct SocialVerificationResponse: Decodable {
+        let verificationRecordId: String
+        let authorizationUri: String
     }
 
     /// 发验证码接口返回的记录 ID 和失效时刻（ISO 8601 文本）。

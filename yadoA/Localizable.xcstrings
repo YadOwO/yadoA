@@ -20351,6 +20351,150 @@
         }
       }
     },
+    "account.security.apple.link" : {
+      "comment" : "Apple 行的动作：关联 Apple",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关联"
+          }
+        }
+      }
+    },
+    "account.apple.link.title" : {
+      "comment" : "关联 Apple 弹层标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link Apple Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关联 Apple 账号"
+          }
+        }
+      }
+    },
+    "account.apple.link.message" : {
+      "comment" : "关联 Apple 这一步的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After linking, you can sign in to this Yado account with Apple. We'll open Apple's sign-in page. Sign in with the Apple Account you want to link."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关联后可以用 Apple 登录这个芽豆账号。接下来会打开 Apple 的登录页面，请用要关联的 Apple 账号登录并授权。"
+          }
+        }
+      }
+    },
+    "account.apple.link.action" : {
+      "comment" : "打开 Apple 授权页的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue with Apple"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用 Apple 继续"
+          }
+        }
+      }
+    },
+    "account.apple.finished.title" : {
+      "comment" : "关联 Apple 完成页标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Account Linked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已关联 Apple"
+          }
+        }
+      }
+    },
+    "account.apple.finished.message" : {
+      "comment" : "关联 Apple 完成页说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can now sign in to this Yado account with Apple."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以后可以用 Apple 登录这个芽豆账号。"
+          }
+        }
+      }
+    },
+    "account.apple.error.in_use" : {
+      "comment" : "这个 Apple 账号已关联其他芽豆账号（user.identity_already_in_use）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Apple Account is already linked to another Yado account."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个 Apple 账号已经关联了其他芽豆账号。"
+          }
+        }
+      }
+    },
+    "account.apple.error.failed" : {
+      "comment" : "关联 Apple 没有完成（授权回程不对或校验失败）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't link your Apple Account. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有完成关联，请稍后再试。"
+          }
+        }
+      }
+    },
     "account.security.password" : {
       "comment" : "账号与安全页密码行标题",
       "extractionState" : "manual",
@@ -20401,6 +20545,312 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未设置"
+          }
+        }
+      }
+    },
+    "account.security.password.change" : {
+      "comment" : "密码行的动作：修改密码",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修改"
+          }
+        }
+      }
+    },
+    "account.security.password.set_action" : {
+      "comment" : "密码行的动作：第一次设置密码",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set Up"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置"
+          }
+        }
+      }
+    },
+    "account.password.change.title" : {
+      "comment" : "修改密码弹层标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修改密码"
+          }
+        }
+      }
+    },
+    "account.password.set.title" : {
+      "comment" : "设置密码弹层标题（原来没有密码）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置密码"
+          }
+        }
+      }
+    },
+    "account.password.new.title.change" : {
+      "comment" : "输入新密码这一步的标题（修改）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a New Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入新密码"
+          }
+        }
+      }
+    },
+    "account.password.new.title.set" : {
+      "comment" : "输入新密码这一步的标题（第一次设置）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create a Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置登录密码"
+          }
+        }
+      }
+    },
+    "account.password.new.message" : {
+      "comment" : "输入新密码这一步的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use this password with your username or email to sign in to Yado apps."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置后可以用用户名或邮箱加这个密码登录芽豆系列 App。"
+          }
+        }
+      }
+    },
+    "account.password.new.field" : {
+      "comment" : "新密码输入框标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新密码"
+          }
+        }
+      }
+    },
+    "account.password.new.placeholder" : {
+      "comment" : "新密码输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter new password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入新密码"
+          }
+        }
+      }
+    },
+    "account.password.confirm.field" : {
+      "comment" : "确认密码输入框标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确认新密码"
+          }
+        }
+      }
+    },
+    "account.password.confirm.placeholder" : {
+      "comment" : "确认密码输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter it again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再输入一次"
+          }
+        }
+      }
+    },
+    "account.password.error.mismatch" : {
+      "comment" : "两次输入的新密码不一致",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The passwords don't match."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "两次输入的密码不一致。"
+          }
+        }
+      }
+    },
+    "account.password.error.rejected" : {
+      "comment" : "新密码不符合 Logto 的密码规则（password.rejected）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This password is too short or too simple. Try a stronger one."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码太短或太简单，请换一个更安全的密码。"
+          }
+        }
+      }
+    },
+    "account.password.error.same_as_current" : {
+      "comment" : "新密码和当前密码相同（user.same_password）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The new password is the same as your current one."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新密码和当前密码相同。"
+          }
+        }
+      }
+    },
+    "account.password.finished.changed" : {
+      "comment" : "修改密码完成页标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password Changed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码已修改"
+          }
+        }
+      }
+    },
+    "account.password.finished.set" : {
+      "comment" : "设置密码完成页标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password Set"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码已设置"
+          }
+        }
+      }
+    },
+    "account.password.finished.message" : {
+      "comment" : "设置 / 修改密码完成页说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can now use this password to sign in to Yado apps."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以后可以用这个密码登录芽豆系列 App。"
           }
         }
       }
@@ -20964,19 +21414,19 @@
       }
     },
     "account.email.code.placeholder" : {
-      "comment" : "验证码输入框占位",
+      "comment" : "验证码输入框占位，Logto 验证码固定 6 位数字",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enter code"
+            "value" : "6-digit code"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "输入验证码"
+            "value" : "输入 6 位数字验证码"
           }
         }
       }

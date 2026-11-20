@@ -3,8 +3,9 @@ import SwiftUI
 
 /// “我的 › 设置 › 账号与安全”：芽豆账号的用户名、登录方式（Apple、邮箱、密码），以及注销芽豆账号。
 ///
-/// 账号信息来自 Logto Account API（`GET /api/my-account`），进入页面时读取，绑定 / 更换邮箱的弹层关闭后再读一次。
-/// 邮箱行在 `AuthConfig.isEmailAccountAvailable` 打开时可点，进入 `EmailChangeView`；关闭时只读显示。
+/// 账号信息来自 Logto Account API（`GET /api/my-account`），进入页面时读取，改邮箱、改密码、关联 Apple 的弹层关闭后再读一次。
+/// 邮箱行在 `AuthConfig.isEmailAccountAvailable` 打开时可点、密码行在 `AuthConfig.isPasswordChangeAvailable` 打开时可点、
+/// Apple 行在未关联且 `AuthConfig.isAppleLinkAvailable` 时可点，都进入 `AccountCredentialChangeView`；否则只读显示。
 /// 新增 `email` / `identities` scope 之前登录的会话读不到邮箱，页面顶部提示重新登录一次（同一账号回来后刷新）。
 /// 注销流程从设置页原样搬来：两步确认、保留 / 清除本机数据、失败提示和进度都不变；退出登录仍在设置页。
 /// 退出登录后（注销完成、重新登录时换了账号、凭证失效）自动返回设置页；要先给用户看的提示关掉后再返回。
@@ -24,8 +25,8 @@ struct AccountSecurityView: View {
 
     /// 账号信息的加载状态。
     @State private var loadState: LoadState = .loading
-    /// 正在进行的绑定 / 更换邮箱流程；非 nil 时弹出弹层。
-    @State private var emailFlow: EmailChangeFlow?
+    /// 正在进行的改邮箱 / 改密码 / 关联 Apple 流程；非 nil 时弹出弹层。
+    @State private var credentialFlow: AccountCredentialChangeFlow?
     /// 正在重新登录（补 scope）。
     @State private var isReauthenticating = false
     /// 重新登录失败的提示，显示在重新登录卡片里。
@@ -102,8 +103,8 @@ struct AccountSecurityView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .task { await load() }
-        .sheet(item: $emailFlow, onDismiss: emailFlowDidDismiss) { flow in
-            EmailChangeView(flow: flow)
+        .sheet(item: $credentialFlow, onDismiss: credentialFlowDidDismiss) { flow in
+            AccountCredentialChangeView(flow: flow)
         }
         .alert(text("account.reauth.switched.title"), isPresented: $isAccountSwitchedAlertPresented) {
             Button(text("common.close"), role: .cancel) {}
@@ -186,18 +187,13 @@ struct AccountSecurityView: View {
         }
     }
 
-    /// 登录方式：Apple 是否已关联、邮箱（可绑定 / 更换）、是否设置了密码。
+    /// 登录方式：Apple（未关联时可关联）、邮箱（可绑定 / 更换）、密码（可设置 / 修改）。
     ///
     /// Apple 和密码读不到（账户中心没开放对应字段）时不显示，避免把「读不到」显示成「未关联」「未设置」。
     private func signInMethodsSection(_ info: AccountSecurityInfo) -> some View {
         ProfileSettingsSection("account.security.section.sign_in") {
             if let isAppleLinked = info.isSocialLinked(AuthSocialProvider.apple.connectorTarget) {
-                statusRow(
-                    titleKey: "account.security.apple",
-                    symbol: AuthSocialProvider.apple.systemImage,
-                    value: text(isAppleLinked ? "account.security.apple.linked" : "account.security.apple.unlinked")
-                )
-                .accessibilityIdentifier("account-security-apple")
+                appleRow(info, isLinked: isAppleLinked)
 
                 ProfileSettingsRowDivider()
             }
@@ -207,12 +203,7 @@ struct AccountSecurityView: View {
             if let hasPassword = info.hasPassword {
                 ProfileSettingsRowDivider()
 
-                statusRow(
-                    titleKey: "account.security.password",
-                    symbol: "key",
-                    value: text(hasPassword ? "account.security.password.set" : "account.security.password.unset")
-                )
-                .accessibilityIdentifier("account-security-password")
+                passwordRow(info, hasPassword: hasPassword)
             }
         }
     }
@@ -222,35 +213,68 @@ struct AccountSecurityView: View {
     private func emailRow(_ info: AccountSecurityInfo) -> some View {
         let value = emailValue(info)
         if canChangeEmail(info) {
-            Button {
-                openEmailChange(info)
-            } label: {
-                HStack(spacing: 12) {
-                    Label(text("account.security.email"), systemImage: "envelope")
-                        .labelStyle(ProfileSettingsLabelStyle())
-                    Spacer(minLength: 4)
-                    Text(value)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    Text(text(info.isEmailBound == true ? "account.security.email.change" : "account.security.email.bind"))
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                        .accessibilityHidden(true)
-                }
-                .font(.body)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 18)
-                .frame(minHeight: 60)
-                .contentShape(Rectangle())
+            actionRow(
+                titleKey: "account.security.email",
+                symbol: "envelope",
+                value: value,
+                actionKey: info.isEmailBound == true ? "account.security.email.change" : "account.security.email.bind"
+            ) {
+                openCredentialChange(.email, info)
             }
-            .disabled(authStore.isBusy || authStore.isDeletingAccount)
             .accessibilityIdentifier("account-security-email")
         } else {
             statusRow(titleKey: "account.security.email", symbol: "envelope", value: value)
                 .accessibilityIdentifier("account-security-email")
+        }
+    }
+
+    /// Apple 行：未关联、且当前环境开放 App 内关联时整行可点，行尾是「关联」；已关联或不开放时只读。
+    ///
+    /// 已关联的不提供解除或更换，避免误操作让账号失去登录方式。
+    ///
+    /// - Parameters:
+    ///   - info: 账号信息。
+    ///   - isLinked: 是否已关联 Apple（读得到时才显示这一行）。
+    @ViewBuilder
+    private func appleRow(_ info: AccountSecurityInfo, isLinked: Bool) -> some View {
+        let value = text(isLinked ? "account.security.apple.linked" : "account.security.apple.unlinked")
+        if !isLinked, AuthConfig.isAppleLinkAvailable {
+            actionRow(
+                titleKey: "account.security.apple",
+                symbol: AuthSocialProvider.apple.systemImage,
+                value: value,
+                actionKey: "account.security.apple.link"
+            ) {
+                openCredentialChange(.apple, info)
+            }
+            .accessibilityIdentifier("account-security-apple")
+        } else {
+            statusRow(titleKey: "account.security.apple", symbol: AuthSocialProvider.apple.systemImage, value: value)
+                .accessibilityIdentifier("account-security-apple")
+        }
+    }
+
+    /// 密码行：可修改时整行可点，行尾是「修改」或「设置」；不可修改时只读显示「已设置」「未设置」。
+    ///
+    /// - Parameters:
+    ///   - info: 账号信息。
+    ///   - hasPassword: 是否已设置密码（读得到时才显示这一行）。
+    @ViewBuilder
+    private func passwordRow(_ info: AccountSecurityInfo, hasPassword: Bool) -> some View {
+        let value = text(hasPassword ? "account.security.password.set" : "account.security.password.unset")
+        if AuthConfig.isPasswordChangeAvailable {
+            actionRow(
+                titleKey: "account.security.password",
+                symbol: "key",
+                value: value,
+                actionKey: hasPassword ? "account.security.password.change" : "account.security.password.set_action"
+            ) {
+                openCredentialChange(.password, info)
+            }
+            .accessibilityIdentifier("account-security-password")
+        } else {
+            statusRow(titleKey: "account.security.password", symbol: "key", value: value)
+                .accessibilityIdentifier("account-security-password")
         }
     }
 
@@ -337,6 +361,48 @@ struct AccountSecurityView: View {
         }
     }
 
+    /// 可点的一行：图标、标题、当前状态，行尾是强调色的动作文字（如「更换」「设置」）和箭头。
+    ///
+    /// 账号正在登录 / 注销时不可点。
+    ///
+    /// - Parameters:
+    ///   - titleKey: 标题文案键。
+    ///   - symbol: 左侧的系统图标。
+    ///   - value: 当前状态（已本地化）。
+    ///   - actionKey: 行尾动作的文案键。
+    ///   - action: 点击后执行的动作。
+    private func actionRow(
+        titleKey: String,
+        symbol: String,
+        value: String,
+        actionKey: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Label(text(titleKey), systemImage: symbol)
+                    .labelStyle(ProfileSettingsLabelStyle())
+                Spacer(minLength: 4)
+                Text(value)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(text(actionKey))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+            .font(.body)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 18)
+            .frame(minHeight: 60)
+            .contentShape(Rectangle())
+        }
+        .disabled(authStore.isBusy || authStore.isDeletingAccount)
+    }
+
     /// 只读的一行：图标、标题和行尾的状态，没有箭头。
     private func statusRow(titleKey: String, symbol: String, value: String) -> some View {
         HStack(spacing: 12) {
@@ -402,18 +468,23 @@ struct AccountSecurityView: View {
         }
     }
 
-    /// 打开绑定 / 更换邮箱弹层，每次新建流程。
-    private func openEmailChange(_ info: AccountSecurityInfo) {
+    /// 打开改邮箱、改密码或关联 Apple 的弹层，每次新建流程。
+    ///
+    /// - Parameters:
+    ///   - target: 要修改的登录方式。
+    ///   - info: 当前的账号信息。
+    private func openCredentialChange(_ target: AccountCredentialChangeFlow.Target, _ info: AccountSecurityInfo) {
         let authStore = authStore
-        emailFlow = EmailChangeFlow(
+        credentialFlow = AccountCredentialChangeFlow(
+            target: target,
             account: info,
             service: authStore.makeAccountSecurityClient(),
             reauthenticate: { await authStore.reauthenticate(requiringStepUp: true) }
         )
     }
 
-    /// 邮箱弹层关闭：已退出登录（step-up 时换了账号）时返回设置页，否则重新读取账号信息。
-    private func emailFlowDidDismiss() {
+    /// 改邮箱、改密码、关联 Apple 的弹层关闭：已退出登录（step-up 时换了账号）时返回设置页，否则重新读取账号信息。
+    private func credentialFlowDidDismiss() {
         dismissIfSignedOut()
         guard authStore.isAuthenticated else { return }
         Task { await load() }
@@ -444,7 +515,7 @@ struct AccountSecurityView: View {
               !isDeletionCoverPresented,
               pendingDeletionOutcome == nil,
               !isReauthenticating,
-              emailFlow == nil,
+              credentialFlow == nil,
               !isAccountSwitchedAlertPresented,
               !isDeleteAccountLocalCleanupFailurePresented
         else { return }

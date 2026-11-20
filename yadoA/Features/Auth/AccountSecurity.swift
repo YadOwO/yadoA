@@ -158,7 +158,7 @@ nonisolated enum AccountEmail {
 
 // MARK: - 身份验证
 
-/// 修改邮箱前验证身份的方式，按 `select(for:)` 的顺序选出一种。
+/// 修改邮箱、密码，关联 Apple 前验证身份的方式，按 `select(for:)` 的顺序选出一种。
 nonisolated enum AccountIdentityVerificationMethod: Equatable, Sendable {
     /// 输入当前密码。
     case password
@@ -173,19 +173,20 @@ nonisolated enum AccountIdentityVerificationMethod: Equatable, Sendable {
     /// 有验证方式但 App 用不上（例如只有手机号，或邮箱地址读不到），暂时无法在 App 内验证身份。
     case unavailable
 
-    /// 按「密码 → 当前邮箱验证码 → step-up」的顺序选择验证方式。
+    /// 按「当前邮箱验证码 → 密码 → step-up」的顺序选择验证方式。
     ///
+    /// 绑定了邮箱时优先用邮箱：忘了密码也能验证，改密码时尤其需要。
     /// Logto 的身份验证记录只认密码和发到当前邮箱 / 手机号的验证码，不认 Apple 等社交验证；
     /// 只有完全没有这些方式（`hasSecurityVerificationMethod == false`）时才走 step-up，
     /// 否则 step-up 回来也拿不到能用的方式，会一直绕圈。
     ///
     /// - Parameter info: 最新的账号信息。
     static func select(for info: AccountSecurityInfo) -> AccountIdentityVerificationMethod {
-        if info.hasPassword == true {
-            return .password
-        }
         if let email = info.trimmedPrimaryEmail {
             return .currentEmailCode(email)
+        }
+        if info.hasPassword == true {
+            return .password
         }
         if !info.hasSecurityVerificationMethod {
             return .stepUp
@@ -194,7 +195,7 @@ nonisolated enum AccountIdentityVerificationMethod: Equatable, Sendable {
     }
 }
 
-/// 一次通过的身份验证：Logto 的验证记录 ID，修改邮箱时放进 `logto-verification-id` 请求头。
+/// 一次通过的身份验证：Logto 的验证记录 ID，修改邮箱、密码时放进 `logto-verification-id` 请求头。
 ///
 /// Logto 的身份验证记录固定 10 分钟有效，从记录创建时算起：密码记录在验证时创建，
 /// 验证码记录在发码时就创建了（发码接口返回 `expiresAt`）。只存在内存里，过期后要重新验证。
@@ -297,6 +298,76 @@ nonisolated enum EmailCodeCooldown {
     }
 }
 
+// MARK: - 关联第三方账号
+
+/// 在「账号与安全」里关联 Apple 的回程约定，和云服务器 nginx 的跳转规则一一对应。
+///
+/// 流程：App 用 `state`（以 `statePrefix` 开头）和 `redirectURI(endpoint:connectorID:)` 创建 Logto 的社交验证记录，
+/// 在 `ASWebAuthenticationSession` 里打开 Apple 授权页；Apple 授权完把结果 form_post 到 Logto 的 `/callback/<连接器 ID>`，
+/// Logto 转成同路径的 GET，nginx 再 302 到 `<登录回调 scheme>://apple-link?<原参数>`，回到 App 后由 `parseCallback` 解析。
+nonisolated enum SocialLink {
+    /// `state` 的前缀：nginx 只把这个前缀的回程跳回 App，正常的 Apple 登录（Logto 自己生成的 state）不受影响。
+    static let statePrefix = "yadoa_"
+
+    /// 跳回 App 时自定义 scheme 后面的 host。
+    static let callbackHost = "apple-link"
+
+    /// 生成一次关联用的 `state`：前缀加随机串，回程时比对，防止拿别的授权结果来关联。
+    static func makeState() -> String {
+        statePrefix + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+    }
+
+    /// 交给 Apple 的回程地址：Logto 的 `/callback/<连接器 ID>`，必须在 Apple 开发者后台的 Services ID 里登记。
+    ///
+    /// - Parameters:
+    ///   - endpoint: Logto 服务地址（不含路径）。
+    ///   - connectorID: Logto 里 Apple 连接器的 ID。
+    static func redirectURI(endpoint: String, connectorID: String) -> String {
+        "\(endpoint)/callback/\(connectorID)"
+    }
+
+    /// 回程的解析结果。
+    enum CallbackResult: Equatable {
+        /// 授权成功，附带回程里的全部查询参数（`state`、`code`、`id_token`，首次授权还有 `user`），原样交给 Logto 校验。
+        case authorized([String: String])
+        /// 用户在 Apple 页面上取消了授权。
+        case cancelled
+        /// 回程不对：不是关联的回程地址、`state` 对不上，或缺少授权结果。
+        case invalid
+    }
+
+    /// 解析跳回 App 的地址。
+    ///
+    /// - Parameters:
+    ///   - url: `ASWebAuthenticationSession` 收到的回程地址。
+    ///   - expectedState: 创建验证记录时用的 `state`。
+    static func parseCallback(_ url: URL, expectedState: String) -> CallbackResult {
+        guard url.host() == callbackHost,
+              let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        else { return .invalid }
+        var parameters: [String: String] = [:]
+        for item in items {
+            parameters[item.name] = item.value ?? ""
+        }
+        if let error = parameters["error"] {
+            return error == "user_cancelled_authorize" ? .cancelled : .invalid
+        }
+        guard parameters["state"] == expectedState,
+              parameters["id_token"] != nil || parameters["code"] != nil
+        else { return .invalid }
+        return .authorized(parameters)
+    }
+}
+
+/// 创建社交验证记录的结果。
+nonisolated struct SocialVerificationStart: Equatable, Sendable {
+    /// 验证记录 ID，校验回程和关联时带上。
+    let recordID: String
+
+    /// 要在浏览器里打开的授权页地址（Apple 的授权页）。
+    let authorizationURL: URL
+}
+
 // MARK: - 重新登录
 
 /// 重新走一遍 Logto 托管页（补 scope 或 step-up）的结果。
@@ -325,7 +396,7 @@ nonisolated enum AccountReauthenticationResult: Equatable, Sendable {
 
 // MARK: - 接口
 
-/// 「账号与安全」和绑定邮箱流程用到的 Logto Account API；测试时替换成假实现。
+/// 「账号与安全」和改邮箱、改密码、关联 Apple 流程用到的 Logto Account API；测试时替换成假实现。
 protocol AccountSecurityServing {
     /// 读取当前账号的安全信息。
     func fetchAccount() async throws -> AccountSecurityInfo
@@ -341,6 +412,35 @@ protocol AccountSecurityServing {
 
     /// 设置主邮箱（新增和更换都走它）。
     func setPrimaryEmail(_ email: String, newEmailVerificationID: String, identityVerificationID: String) async throws
+
+    /// 设置新密码（第一次设置和修改都走它）。
+    ///
+    /// - Parameters:
+    ///   - password: 新密码。
+    ///   - identityVerificationID: 身份验证记录 ID；账号没有任何验证方式（只有 Apple）时 Logto 不要求，传 nil。
+    func setPassword(_ password: String, identityVerificationID: String?) async throws
+
+    /// 创建社交验证记录，拿到要打开的授权页地址。
+    ///
+    /// - Parameters:
+    ///   - connectorID: Logto 里社交连接器的 ID。
+    ///   - state: 本次关联的 `state`，见 `SocialLink.makeState()`。
+    ///   - redirectURI: 授权完的回程地址，见 `SocialLink.redirectURI(endpoint:connectorID:)`。
+    func startSocialVerification(connectorID: String, state: String, redirectURI: String) async throws -> SocialVerificationStart
+
+    /// 把授权回程交给 Logto 校验，返回校验通过的验证记录 ID。
+    ///
+    /// - Parameters:
+    ///   - recordID: `startSocialVerification` 返回的记录 ID。
+    ///   - connectorData: 回程里的查询参数，外加 `redirectUri`。
+    func verifySocial(recordID: String, connectorData: [String: String]) async throws -> String
+
+    /// 把校验通过的社交账号关联到当前账号。
+    ///
+    /// - Parameters:
+    ///   - verificationRecordID: `verifySocial` 返回的记录 ID。
+    ///   - identityVerificationID: 身份验证记录 ID；账号没有任何验证方式时 Logto 不要求，传 nil。
+    func linkSocialIdentity(verificationRecordID: String, identityVerificationID: String?) async throws
 }
 
 /// 用当前登录凭证调用 `LogtoAccountAPI` 的实现，由 `AuthStore.makeAccountSecurityClient()` 创建。
@@ -373,6 +473,31 @@ struct AccountSecurityClient: AccountSecurityServing {
         try await api.setPrimaryEmail(
             email,
             newEmailVerificationID: newEmailVerificationID,
+            identityVerificationID: identityVerificationID,
+            accessToken: accessToken()
+        )
+    }
+
+    func setPassword(_ password: String, identityVerificationID: String?) async throws {
+        try await api.setPassword(password, identityVerificationID: identityVerificationID, accessToken: accessToken())
+    }
+
+    func startSocialVerification(connectorID: String, state: String, redirectURI: String) async throws -> SocialVerificationStart {
+        try await api.startSocialVerification(
+            connectorID: connectorID,
+            state: state,
+            redirectURI: redirectURI,
+            accessToken: accessToken()
+        )
+    }
+
+    func verifySocial(recordID: String, connectorData: [String: String]) async throws -> String {
+        try await api.verifySocial(recordID: recordID, connectorData: connectorData, accessToken: accessToken())
+    }
+
+    func linkSocialIdentity(verificationRecordID: String, identityVerificationID: String?) async throws {
+        try await api.linkSocialIdentity(
+            verificationRecordID: verificationRecordID,
             identityVerificationID: identityVerificationID,
             accessToken: accessToken()
         )

@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import yadoA
 
-/// 覆盖「账号与安全」和绑定邮箱用到的 Logto Account API：请求构造、响应解码、错误码映射，以及邮箱打码、
+/// 覆盖「账号与安全」和改邮箱、改密码、关联 Apple 用到的 Logto Account API：请求构造、响应解码、错误码映射，以及邮箱打码、
 /// 身份验证方式选择、验证记录有效期、重发倒计时、环境开关和登录参数；不发真实网络请求。
 @Suite("账号与安全")
 @MainActor
@@ -88,6 +88,92 @@ struct AccountSecurityTests {
         #expect(body["email"] as? String == "new@example.com")
         #expect(body["newIdentifierVerificationRecordId"] as? String == "new-record")
         #expect(body.count == 2)
+    }
+
+    @Test("设置密码：POST /api/my-account/password；有身份验证记录时放在请求头，没有时不带")
+    func buildsSetPasswordRequest() throws {
+        let api = LogtoAccountAPI(endpoint: endpoint)
+        let request = try api.makeSetPasswordRequest(
+            password: "new-secret",
+            identityVerificationID: "identity-record",
+            accessToken: "token"
+        )
+
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.absoluteString == "https://logto.example.invalid/api/my-account/password")
+        #expect(request.value(forHTTPHeaderField: "logto-verification-id") == "identity-record")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer token")
+        let body = try jsonObject(request.httpBody)
+        #expect(body["password"] as? String == "new-secret")
+        #expect(body.count == 1)
+
+        // 只有 Apple 的账号：Logto 不要求身份验证，不带请求头
+        let withoutVerification = try api.makeSetPasswordRequest(
+            password: "new-secret",
+            identityVerificationID: nil,
+            accessToken: "token"
+        )
+        #expect(withoutVerification.value(forHTTPHeaderField: "logto-verification-id") == nil)
+    }
+
+    @Test("关联 Apple：创建社交验证记录带连接器 ID、state 和回程地址")
+    func buildsStartSocialVerificationRequest() throws {
+        let request = try LogtoAccountAPI(endpoint: endpoint).makeStartSocialVerificationRequest(
+            connectorID: "apple-connector",
+            state: "yadoa_abc",
+            redirectURI: "https://logto.example.invalid/callback/apple-connector",
+            accessToken: "token"
+        )
+
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.absoluteString == "https://logto.example.invalid/api/verifications/social")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer token")
+        let body = try jsonObject(request.httpBody)
+        #expect(body["connectorId"] as? String == "apple-connector")
+        #expect(body["state"] as? String == "yadoa_abc")
+        #expect(body["redirectUri"] as? String == "https://logto.example.invalid/callback/apple-connector")
+        #expect(body.count == 3)
+    }
+
+    @Test("关联 Apple：校验回程用 verificationRecordId，回程参数放在 connectorData")
+    func buildsVerifySocialRequest() throws {
+        let request = try LogtoAccountAPI(endpoint: endpoint).makeVerifySocialRequest(
+            recordID: "social-record",
+            connectorData: ["state": "yadoa_abc", "id_token": "jwt", "redirectUri": "https://x/callback/c"],
+            accessToken: "token"
+        )
+
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.absoluteString == "https://logto.example.invalid/api/verifications/social/verify")
+        let body = try jsonObject(request.httpBody)
+        #expect(body["verificationRecordId"] as? String == "social-record")
+        let connectorData = try #require(body["connectorData"] as? [String: String])
+        #expect(connectorData == ["state": "yadoa_abc", "id_token": "jwt", "redirectUri": "https://x/callback/c"])
+        #expect(body.count == 2)
+    }
+
+    @Test("关联 Apple：POST /api/my-account/identities；有身份验证记录时放在请求头，没有时不带")
+    func buildsLinkSocialIdentityRequest() throws {
+        let api = LogtoAccountAPI(endpoint: endpoint)
+        let request = try api.makeLinkSocialIdentityRequest(
+            verificationRecordID: "social-record",
+            identityVerificationID: "identity-record",
+            accessToken: "token"
+        )
+
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.absoluteString == "https://logto.example.invalid/api/my-account/identities")
+        #expect(request.value(forHTTPHeaderField: "logto-verification-id") == "identity-record")
+        let body = try jsonObject(request.httpBody)
+        #expect(body["newIdentifierVerificationRecordId"] as? String == "social-record")
+        #expect(body.count == 1)
+
+        let withoutVerification = try api.makeLinkSocialIdentityRequest(
+            verificationRecordID: "social-record",
+            identityVerificationID: nil,
+            accessToken: "token"
+        )
+        #expect(withoutVerification.value(forHTTPHeaderField: "logto-verification-id") == nil)
     }
 
     // MARK: - 网络往返（假 URLProtocol）
@@ -252,7 +338,7 @@ struct AccountSecurityTests {
 
     // MARK: - 错误码映射
 
-    @Test("绑定邮箱相关的 Logto 错误码归类")
+    @Test("绑定邮箱、设置密码相关的 Logto 错误码归类")
     func mapsEmailErrorCodes() {
         let cases: [(code: String, expected: AccountProfileError)] = [
             ("user.email_already_in_use", .emailInUse),
@@ -269,6 +355,9 @@ struct AccountSecurityTests {
             ("auth.unauthorized", .reauthenticationRequired),
             ("session.invalid_credentials", .wrongPassword),
             ("session.verification_blocked_too_many_attempts", .tooManyAttempts),
+            ("password.rejected", .passwordRejected),
+            ("user.same_password", .samePassword),
+            ("user.identity_already_in_use", .socialIdentityInUse),
         ]
         for (code, expected) in cases {
             #expect(AccountProfileError.from(logtoCode: code) == expected, "\(code)")
@@ -313,6 +402,7 @@ struct AccountSecurityTests {
         let errors: [AccountProfileError] = [
             .reauthenticationRequired, .verificationRequired, .emailInUse, .codeMismatch, .codeExpired,
             .codeTooManyAttempts, .codeInvalid, .rateLimited, .emailServiceUnavailable, .newEmailVerificationInvalid,
+            .passwordRejected, .samePassword, .socialIdentityInUse,
         ]
         let keys = errors.map(\.localizationKey) + [
             "auth.sign_in.email",
@@ -331,6 +421,28 @@ struct AccountSecurityTests {
             "account.email.step_up.failed",
             "account.email.step_up.incomplete",
             "account.reauth.switched.message",
+            "account.security.password.change",
+            "account.security.password.set_action",
+            "account.password.change.title",
+            "account.password.set.title",
+            "account.password.new.title.change",
+            "account.password.new.title.set",
+            "account.password.new.message",
+            "account.password.new.field",
+            "account.password.new.placeholder",
+            "account.password.confirm.field",
+            "account.password.confirm.placeholder",
+            "account.password.error.mismatch",
+            "account.password.finished.changed",
+            "account.password.finished.set",
+            "account.password.finished.message",
+            "account.security.apple.link",
+            "account.apple.link.title",
+            "account.apple.link.message",
+            "account.apple.link.action",
+            "account.apple.finished.title",
+            "account.apple.finished.message",
+            "account.apple.error.failed",
         ]
         for key in keys {
             #expect(AccountLocalization.string(key, locale: Locale(identifier: "en")) != key)
@@ -367,13 +479,18 @@ struct AccountSecurityTests {
 
     // MARK: - 身份验证
 
-    @Test("身份验证方式：有密码先用密码，其次当前邮箱验证码，完全没有方式时 step-up")
+    @Test("身份验证方式：绑定了邮箱先用邮箱验证码，其次密码，完全没有方式时 step-up")
     func selectsIdentityVerificationMethod() {
         let passwordAndEmail = AccountSecurityInfo(
             userID: "u", primaryEmail: "a@b.co", hasPrimaryEmail: true, hasPassword: true,
             hasSecurityVerificationMethod: true
         )
-        #expect(AccountIdentityVerificationMethod.select(for: passwordAndEmail) == .password)
+        #expect(AccountIdentityVerificationMethod.select(for: passwordAndEmail) == .currentEmailCode("a@b.co"))
+
+        let passwordOnly = AccountSecurityInfo(
+            userID: "u", hasPrimaryEmail: false, hasPassword: true, hasSecurityVerificationMethod: true
+        )
+        #expect(AccountIdentityVerificationMethod.select(for: passwordOnly) == .password)
 
         let emailOnly = AccountSecurityInfo(
             userID: "u", primaryEmail: " a@b.co ", hasPrimaryEmail: true, hasPassword: false,
@@ -466,6 +583,56 @@ struct AccountSecurityTests {
     func emailAccountOnlyInDev() {
         #expect(AuthConfig.dev.isEmailAccountAvailable)
         #expect(!AuthConfig.prod.isEmailAccountAvailable)
+    }
+
+    @Test("设置 / 修改密码只在 dev 开放，线上关闭")
+    func passwordChangeOnlyInDev() {
+        #expect(AuthConfig.dev.isPasswordChangeAvailable)
+        #expect(!AuthConfig.prod.isPasswordChangeAvailable)
+    }
+
+    @Test("App 内关联 Apple 只在 dev 开放（有连接器 ID），线上没有")
+    func appleLinkOnlyInDev() {
+        #expect(AuthConfig.dev.appleSocialConnectorID?.isEmpty == false)
+        #expect(AuthConfig.prod.appleSocialConnectorID == nil)
+    }
+
+    // MARK: - 关联 Apple 的回程
+
+    @Test("关联 Apple 的 state 以 yadoa_ 开头（与云服务器 nginx 的规则一致），每次不同；回程地址是 Logto 的 /callback/<连接器 ID>")
+    func socialLinkStateAndRedirect() {
+        let first = SocialLink.makeState()
+        let second = SocialLink.makeState()
+        #expect(first.hasPrefix("yadoa_"))
+        #expect(first.count > "yadoa_".count + 16)
+        #expect(first != second)
+        #expect(SocialLink.redirectURI(endpoint: "https://dev-accounts.yado1225.top", connectorID: "abc")
+            == "https://dev-accounts.yado1225.top/callback/abc")
+    }
+
+    @Test("解析回程：state 对得上且有授权结果时原样返回全部参数")
+    func parsesAuthorizedCallback() throws {
+        let url = try #require(URL(string: "com.yado.yadoa.dev://apple-link?state=yadoa_1&code=c&id_token=jwt&user=%7B%7D"))
+        #expect(SocialLink.parseCallback(url, expectedState: "yadoa_1")
+            == .authorized(["state": "yadoa_1", "code": "c", "id_token": "jwt", "user": "{}"]))
+    }
+
+    @Test("解析回程：用户取消为取消；state 对不上、缺授权结果、别的地址或其他错误都不接受")
+    func rejectsBadCallbacks() throws {
+        let cancelled = try #require(URL(string: "com.yado.yadoa.dev://apple-link?error=user_cancelled_authorize&state=yadoa_1"))
+        #expect(SocialLink.parseCallback(cancelled, expectedState: "yadoa_1") == .cancelled)
+
+        let otherError = try #require(URL(string: "com.yado.yadoa.dev://apple-link?error=invalid_request&state=yadoa_1"))
+        #expect(SocialLink.parseCallback(otherError, expectedState: "yadoa_1") == .invalid)
+
+        let wrongState = try #require(URL(string: "com.yado.yadoa.dev://apple-link?state=yadoa_2&id_token=jwt"))
+        #expect(SocialLink.parseCallback(wrongState, expectedState: "yadoa_1") == .invalid)
+
+        let noResult = try #require(URL(string: "com.yado.yadoa.dev://apple-link?state=yadoa_1"))
+        #expect(SocialLink.parseCallback(noResult, expectedState: "yadoa_1") == .invalid)
+
+        let loginCallback = try #require(URL(string: "com.yado.yadoa.dev://callback?state=yadoa_1&code=c"))
+        #expect(SocialLink.parseCallback(loginCallback, expectedState: "yadoa_1") == .invalid)
     }
 
     @Test("邮箱登录直接进入托管页的邮箱输入页；其他方式不附加参数")

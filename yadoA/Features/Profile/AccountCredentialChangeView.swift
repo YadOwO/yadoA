@@ -1,16 +1,22 @@
+import AuthenticationServices
 import SwiftUI
 
-/// 绑定 / 更换邮箱的弹层：先验证身份，再输入新邮箱、收验证码并保存。
+/// 修改登录方式的弹层：绑定 / 更换邮箱、设置 / 修改密码，或关联 Apple。先验证身份，再输入新邮箱（收验证码）、新密码，
+/// 或打开 Apple 授权页，保存。
 ///
-/// 从「账号与安全」页的邮箱行打开，流程状态全在 `EmailChangeFlow`；关闭后由「账号与安全」页重新读取账号信息。
-/// 验证身份按账号情况三选一：输密码、给当前邮箱发验证码、只有 Apple 时重新走一遍 Logto 托管页（step-up）。
+/// 从「账号与安全」页的邮箱行、密码行、Apple 行打开，流程状态全在 `AccountCredentialChangeFlow`；关闭后由「账号与安全」页重新读取账号信息。
+/// 验证身份按账号情况三选一：给当前邮箱发验证码、输密码、只有 Apple 时重新走一遍 Logto 托管页（step-up）；
+/// 只有 Apple 的账号设置密码时不用验证身份，直接输入新密码。
+/// 关联 Apple 时用系统的 `WebAuthenticationSession` 打开 Apple 授权页，回程由云服务器跳回登录回调的 scheme。
 /// 重发验证码有 60 秒倒计时，验证码输入框用 `.oneTimeCode`，可以直接填入短信 / 邮件里的验证码建议。
-struct EmailChangeView: View {
+struct AccountCredentialChangeView: View {
     @Environment(\.locale) private var locale
     @Environment(\.dismiss) private var dismiss
+    /// 关联 Apple 时打开 Apple 授权页的系统浏览器会话。
+    @Environment(\.webAuthenticationSession) private var webAuthenticationSession
 
     /// 流程状态。
-    @State private var flow: EmailChangeFlow
+    @State private var flow: AccountCredentialChangeFlow
 
     /// 当前聚焦的输入框。
     @FocusState private var focusedField: Field?
@@ -21,10 +27,12 @@ struct EmailChangeView: View {
         case identityCode
         case newEmail
         case newEmailCode
+        case newPassword
+        case confirmPassword
     }
 
     /// - Parameter flow: 本次打开弹层新建的流程。
-    init(flow: EmailChangeFlow) {
+    init(flow: AccountCredentialChangeFlow) {
         _flow = State(initialValue: flow)
     }
 
@@ -41,7 +49,7 @@ struct EmailChangeView: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .multilineTextAlignment(.center)
-                            .accessibilityIdentifier("email-change-message")
+                            .accessibilityIdentifier(controlID("message"))
                     }
                 }
                 .padding(.horizontal, 24)
@@ -52,7 +60,7 @@ struct EmailChangeView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .paperPage()
-            .navigationTitle(text(flow.isChanging ? "account.email.change.title" : "account.email.bind.title"))
+            .navigationTitle(text(navigationTitleKey))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if !isFinished {
@@ -61,7 +69,7 @@ struct EmailChangeView: View {
                             dismiss()
                         }
                         .disabled(flow.isWorking)
-                        .accessibilityIdentifier("email-change-cancel")
+                        .accessibilityIdentifier(controlID("cancel"))
                     }
                 }
             }
@@ -71,7 +79,7 @@ struct EmailChangeView: View {
             flow.newEmailDidChange()
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("email-change")
+        .accessibilityIdentifier(idPrefix)
     }
 
     // MARK: - 步骤
@@ -84,13 +92,34 @@ struct EmailChangeView: View {
             identityContent(method)
         case .newEmail:
             newEmailContent
+        case .newPassword:
+            newPasswordContent
+        case .linkApple:
+            linkAppleContent
         case let .finished(email):
-            resultContent(
-                symbol: "checkmark.circle",
-                titleKey: flow.isChanging ? "account.email.finished.changed" : "account.email.finished.bound",
-                detail: email,
-                messageKey: "account.email.finished.message"
-            )
+            switch flow.target {
+            case .email:
+                resultContent(
+                    symbol: "checkmark.circle",
+                    titleKey: flow.isChanging ? "account.email.finished.changed" : "account.email.finished.bound",
+                    detail: email,
+                    messageKey: "account.email.finished.message"
+                )
+            case .password:
+                resultContent(
+                    symbol: "checkmark.circle",
+                    titleKey: flow.isChanging ? "account.password.finished.changed" : "account.password.finished.set",
+                    detail: nil,
+                    messageKey: "account.password.finished.message"
+                )
+            case .apple:
+                resultContent(
+                    symbol: "checkmark.circle",
+                    titleKey: "account.apple.finished.title",
+                    detail: nil,
+                    messageKey: "account.apple.finished.message"
+                )
+            }
         case .accountSwitched:
             resultContent(
                 symbol: "person.crop.circle.badge.exclamationmark",
@@ -116,19 +145,19 @@ struct EmailChangeView: View {
                     .submitLabel(.continue)
                     .focused($focusedField, equals: .password)
                     .onSubmit { Task { await flow.submitPassword() } }
-                    .accessibilityIdentifier("email-change-password")
+                    .accessibilityIdentifier(controlID("password"))
             }
 
             primaryButton("account.email.next", isEnabled: !flow.password.isEmpty) {
                 await flow.submitPassword()
             }
-            .accessibilityIdentifier("email-change-password-submit")
+            .accessibilityIdentifier(controlID("password-submit"))
 
         case let .currentEmailCode(email):
             explanation(format("account.email.identity.code.message", AccountEmail.masked(email)))
 
             if flow.isIdentityCodeSent {
-                codeField($flow.identityCode, focus: .identityCode, identifier: "email-change-identity-code") {
+                codeField($flow.identityCode, focus: .identityCode, identifier: controlID("identity-code")) {
                     Task { await flow.submitIdentityCode() }
                 }
 
@@ -136,10 +165,10 @@ struct EmailChangeView: View {
                     await flow.sendIdentityCode()
                 }
 
-                primaryButton("account.email.next", isEnabled: !flow.identityCode.isEmpty) {
+                primaryButton("account.email.next", isEnabled: flow.isIdentityCodeComplete) {
                     await flow.submitIdentityCode()
                 }
-                .accessibilityIdentifier("email-change-identity-code-submit")
+                .accessibilityIdentifier(controlID("identity-code-submit"))
             } else {
                 primaryButton("account.email.code.send", isEnabled: true) {
                     await flow.sendIdentityCode()
@@ -147,7 +176,7 @@ struct EmailChangeView: View {
                         focusedField = .identityCode
                     }
                 }
-                .accessibilityIdentifier("email-change-identity-code-send")
+                .accessibilityIdentifier(controlID("identity-code-send"))
             }
 
         case .stepUp:
@@ -156,7 +185,7 @@ struct EmailChangeView: View {
             primaryButton("account.email.step_up.action", isEnabled: true) {
                 await flow.startStepUp()
             }
-            .accessibilityIdentifier("email-change-step-up")
+            .accessibilityIdentifier(controlID("step-up"))
 
         case .unavailable:
             explanation(text("account.email.identity.unavailable"))
@@ -178,13 +207,13 @@ struct EmailChangeView: View {
                 .submitLabel(.send)
                 .focused($focusedField, equals: .newEmail)
                 .onSubmit { Task { await sendNewEmailCode() } }
-                .accessibilityIdentifier("email-change-new-email")
+                .accessibilityIdentifier(controlID("new-email"))
         }
 
         if flow.isNewEmailCodeSent {
             explanation(format("account.email.code.sent", flow.normalizedNewEmail))
 
-            codeField($flow.newEmailCode, focus: .newEmailCode, identifier: "email-change-new-email-code") {
+            codeField($flow.newEmailCode, focus: .newEmailCode, identifier: controlID("new-email-code")) {
                 Task { await flow.saveNewEmail() }
             }
 
@@ -192,16 +221,66 @@ struct EmailChangeView: View {
                 await flow.sendNewEmailCode()
             }
 
-            primaryButton("account.email.save", isEnabled: !flow.newEmailCode.isEmpty) {
+            primaryButton("account.email.save", isEnabled: flow.isNewEmailCodeComplete) {
                 await flow.saveNewEmail()
             }
-            .accessibilityIdentifier("email-change-save")
+            .accessibilityIdentifier(controlID("save"))
         } else {
             primaryButton("account.email.code.send", isEnabled: !flow.normalizedNewEmail.isEmpty) {
                 await sendNewEmailCode()
             }
-            .accessibilityIdentifier("email-change-new-email-send")
+            .accessibilityIdentifier(controlID("new-email-send"))
         }
+    }
+
+    /// 输入并确认新密码这一步：两个密码框，确认不一致时在下方提示，一致后才能保存。
+    @ViewBuilder
+    private var newPasswordContent: some View {
+        heading(flow.isChanging ? "account.password.new.title.change" : "account.password.new.title.set")
+        explanation(text("account.password.new.message"))
+
+        field("account.password.new.field") {
+            SecureField(text("account.password.new.placeholder"), text: $flow.newPassword)
+                .textContentType(.newPassword)
+                .submitLabel(.next)
+                .focused($focusedField, equals: .newPassword)
+                .onSubmit { focusedField = .confirmPassword }
+                .accessibilityIdentifier(controlID("new-password"))
+        }
+
+        field("account.password.confirm.field") {
+            SecureField(text("account.password.confirm.placeholder"), text: $flow.confirmPassword)
+                .textContentType(.newPassword)
+                .submitLabel(.done)
+                .focused($focusedField, equals: .confirmPassword)
+                .onSubmit { Task { await flow.saveNewPassword() } }
+                .accessibilityIdentifier(controlID("confirm-password"))
+        }
+
+        if flow.isConfirmPasswordMismatched {
+            Text(text("account.password.error.mismatch"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.leading, 20)
+                .accessibilityIdentifier(controlID("mismatch"))
+        }
+
+        primaryButton("account.email.save", isEnabled: flow.isNewPasswordReady) {
+            await flow.saveNewPassword()
+        }
+        .accessibilityIdentifier(controlID("save"))
+    }
+
+    /// 关联 Apple 这一步：说明会打开 Apple 授权页，点继续后打开，授权完自动关联。
+    @ViewBuilder
+    private var linkAppleContent: some View {
+        heading("account.apple.link.title")
+        explanation(text("account.apple.link.message"))
+
+        primaryButton("account.apple.link.action", isEnabled: true) {
+            await flow.linkApple(authorize: authorizeInBrowser)
+        }
+        .accessibilityIdentifier(controlID("authorize"))
     }
 
     /// 结束页：图标、标题、可选的邮箱地址和说明，底部一个关闭弹层的按钮。
@@ -238,7 +317,7 @@ struct EmailChangeView: View {
             }
             .buttonStyle(.plain)
             .padding(.top, 10)
-            .accessibilityIdentifier("email-change-done")
+            .accessibilityIdentifier(controlID("done"))
         }
         .frame(maxWidth: .infinity)
     }
@@ -276,6 +355,9 @@ struct EmailChangeView: View {
 
     /// 验证码输入框：数字键盘，`.oneTimeCode` 让系统建议邮件里的验证码。
     ///
+    /// 只能输入 6 位数字：每次变化都经 `AccountCredentialChangeFlow.sanitizedCode` 过滤，多出的位数和非数字字符直接丢掉；
+    /// 数字等宽、拉开字距，方便和邮件里的验证码逐位对照。
+    ///
     /// - Parameters:
     ///   - code: 绑定的输入。
     ///   - focus: 对应的聚焦标识。
@@ -291,6 +373,16 @@ struct EmailChangeView: View {
             TextField(text("account.email.code.placeholder"), text: code)
                 .keyboardType(.numberPad)
                 .textContentType(.oneTimeCode)
+                .autocorrectionDisabled()
+                .monospacedDigit()
+                // 占位文字保持正常字距，只给输入的数字拉开
+                .kerning(code.wrappedValue.isEmpty ? 0 : 4)
+                .onChange(of: code.wrappedValue) { _, newValue in
+                    let sanitized = AccountCredentialChangeFlow.sanitizedCode(newValue)
+                    if sanitized != newValue {
+                        code.wrappedValue = sanitized
+                    }
+                }
                 .focused($focusedField, equals: focus)
                 .onSubmit(onSubmit)
                 .accessibilityIdentifier(identifier)
@@ -319,7 +411,7 @@ struct EmailChangeView: View {
             }
             .buttonStyle(.plain)
             .disabled(remaining > 0 || flow.isWorking)
-            .accessibilityIdentifier("email-change-resend")
+            .accessibilityIdentifier(controlID("resend"))
         }
     }
 
@@ -358,8 +450,46 @@ struct EmailChangeView: View {
     private var isFinished: Bool {
         switch flow.step {
         case .finished, .accountSwitched: true
-        case .identity, .newEmail: false
+        case .identity, .newEmail, .newPassword, .linkApple: false
         }
+    }
+
+    /// 导航栏标题：按改邮箱 / 改密码 / 关联 Apple、第一次设置还是更换区分。
+    private var navigationTitleKey: String {
+        switch flow.target {
+        case .email: flow.isChanging ? "account.email.change.title" : "account.email.bind.title"
+        case .password: flow.isChanging ? "account.password.change.title" : "account.password.set.title"
+        case .apple: "account.apple.link.title"
+        }
+    }
+
+    /// 无障碍标识的前缀，供 UI 测试区分几种弹层：改邮箱沿用 `email-change`，改密码为 `password-change`，关联 Apple 为 `apple-link`。
+    private var idPrefix: String {
+        switch flow.target {
+        case .email: "email-change"
+        case .password: "password-change"
+        case .apple: "apple-link"
+        }
+    }
+
+    /// 在系统浏览器会话里打开 Apple 授权页，等云服务器把回程跳回登录回调的 scheme。
+    ///
+    /// - Parameter url: Logto 返回的授权页地址。
+    /// - Returns: 跳回 App 的地址；用户关掉浏览器时返回 nil。
+    /// - Throws: 浏览器会话打不开等其他错误。
+    private func authorizeInBrowser(_ url: URL) async throws -> URL? {
+        do {
+            return try await webAuthenticationSession.authenticate(using: url, callbackURLScheme: AuthConfig.callbackScheme)
+        } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+            return nil
+        }
+    }
+
+    /// 弹层里某个控件的无障碍标识：`<前缀>-<名字>`。
+    ///
+    /// - Parameter name: 控件名，如 `save`、`identity-code`。
+    private func controlID(_ name: String) -> String {
+        "\(idPrefix)-\(name)"
     }
 
     /// 按应用当前语言解析 String Catalog 文案。
@@ -373,16 +503,35 @@ struct EmailChangeView: View {
     }
 }
 
-#Preview("用密码验证后绑定") {
+#Preview("用密码验证后绑定邮箱") {
     Color.clear
         .sheet(isPresented: .constant(true)) {
-            EmailChangeView(flow: EmailChangeFlow(
+            AccountCredentialChangeView(flow: AccountCredentialChangeFlow(
+                target: .email,
                 account: AccountSecurityInfo(
                     userID: "preview",
                     username: "yado",
                     hasPrimaryEmail: false,
                     hasPassword: true,
                     hasSecurityVerificationMethod: true
+                ),
+                service: AuthStore().makeAccountSecurityClient(),
+                reauthenticate: { .cancelled }
+            ))
+        }
+}
+
+#Preview("只有 Apple 时直接设置密码") {
+    Color.clear
+        .sheet(isPresented: .constant(true)) {
+            AccountCredentialChangeView(flow: AccountCredentialChangeFlow(
+                target: .password,
+                account: AccountSecurityInfo(
+                    userID: "preview",
+                    hasPrimaryEmail: false,
+                    hasPassword: false,
+                    hasSecurityVerificationMethod: false,
+                    socialTargets: ["apple"]
                 ),
                 service: AuthStore().makeAccountSecurityClient(),
                 reauthenticate: { .cancelled }
