@@ -161,6 +161,8 @@ struct AccountCredentialChangeView: View {
                     Task { await flow.submitIdentityCode() }
                 }
 
+                codeNotReceivedHint
+
                 resendButton(sentAt: flow.identityCodeSentAt) {
                     await flow.sendIdentityCode()
                 }
@@ -216,6 +218,8 @@ struct AccountCredentialChangeView: View {
             codeField($flow.newEmailCode, focus: .newEmailCode, identifier: controlID("new-email-code")) {
                 Task { await flow.saveNewEmail() }
             }
+
+            codeNotReceivedHint
 
             resendButton(sentAt: flow.newEmailCodeSentAt) {
                 await flow.sendNewEmailCode()
@@ -387,6 +391,16 @@ struct AccountCredentialChangeView: View {
                 .onSubmit(onSubmit)
                 .accessibilityIdentifier(identifier)
         }
+    }
+
+    /// 发出验证码后的提示：没收到先看垃圾邮件箱。Gmail 等邮箱可能把验证码邮件归进垃圾箱，
+    /// Apple 隐藏邮箱的转发也可能晚几分钟。
+    private var codeNotReceivedHint: some View {
+        Text(text("account.email.code.spam_hint"))
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier(controlID("spam-hint"))
     }
 
     /// 重发验证码的按钮，冷却中显示剩余秒数并禁用；每秒刷新一次。

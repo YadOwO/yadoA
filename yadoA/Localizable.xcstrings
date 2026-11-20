@@ -21637,6 +21637,24 @@
         }
       }
     },
+    "account.email.code.spam_hint" : {
+      "comment" : "发出验证码后的提示：没收到先看垃圾邮件箱",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Didn't get it? Check your spam folder. It can take a few minutes to arrive."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没收到的话，看看垃圾邮件箱，邮件也可能晚几分钟到。"
+          }
+        }
+      }
+    },
     "account.email.code.resend" : {
       "comment" : "重新发送验证码按钮",
       "extractionState" : "manual",
