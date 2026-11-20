@@ -300,18 +300,20 @@ struct VoiceSessionTests {
         #expect(fixture.session.undoableTurn?.id == turn.id)
     }
 
-    @Test("闲置 2 分钟只收起卡片，上下文保留；闲置 30 分钟才结束对话段")
+    @Test("回复后闲置 10 秒只收起卡片，上下文保留；闲置 30 分钟才结束对话段")
     func hidesCardThenEndsWhenIdle() async throws {
         let fixture = try Fixture()
         fixture.api.responses = [.success(.reply(text: "我只能帮你记账"))]
         await fixture.session.send("你好")
         #expect(fixture.session.isActive)
+        #expect(!fixture.session.isCardAwaitingUser)
+        #expect(fixture.session.currentCardIdleTimeout(isVoiceOverRunning: false) == VoiceSession.cardIdleTimeout)
 
-        fixture.clock.date = fixture.clock.date.addingTimeInterval(60)
+        fixture.clock.date = fixture.clock.date.addingTimeInterval(VoiceSession.cardIdleTimeout - 1)
         fixture.session.hideCardIfIdle()
         #expect(fixture.session.isActive)
 
-        fixture.clock.date = fixture.clock.date.addingTimeInterval(VoiceSession.cardIdleTimeout)
+        fixture.clock.date = fixture.clock.date.addingTimeInterval(1)
         fixture.session.hideCardIfIdle()
         fixture.session.endIfIdle()
         #expect(!fixture.session.isActive)
@@ -322,6 +324,71 @@ struct VoiceSessionTests {
         fixture.session.endIfIdle()
         #expect(fixture.session.events.isEmpty)
         #expect(fixture.session.turns.isEmpty)
+    }
+
+    @Test("追问还没回答时卡片按 2 分钟收起")
+    func keepsCardLongerWhileAsking() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [.success(.ask(question: "打车花了多少钱？", options: []))]
+        await fixture.session.send("打车")
+        #expect(fixture.session.isCardAwaitingUser)
+        #expect(
+            fixture.session.currentCardIdleTimeout(isVoiceOverRunning: false) == VoiceSession.cardExtendedIdleTimeout
+        )
+
+        fixture.clock.date = fixture.clock.date.addingTimeInterval(VoiceSession.cardIdleTimeout)
+        fixture.session.hideCardIfIdle()
+        #expect(fixture.session.isActive)
+
+        fixture.clock.date = fixture.clock.date.addingTimeInterval(
+            VoiceSession.cardExtendedIdleTimeout - VoiceSession.cardIdleTimeout
+        )
+        fixture.session.hideCardIfIdle()
+        #expect(!fixture.session.isActive)
+    }
+
+    @Test("没能完成的一轮要用户处理，卡片按 2 分钟收起")
+    func keepsCardLongerAfterFailure() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [.failure(.insufficientPoints)]
+        await fixture.session.send("午饭 28")
+        #expect(fixture.session.isCardAwaitingUser)
+
+        fixture.clock.date = fixture.clock.date.addingTimeInterval(VoiceSession.cardIdleTimeout)
+        fixture.session.hideCardIfIdle()
+        #expect(fixture.session.isActive)
+    }
+
+    @Test("账户待确认不延长卡片，仍按 10 秒收起")
+    func inferredAccountUsesShortCardTimeout() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [.success(.toolCalls([
+            fixture.createCall("c1", amount: "28", inferredFields: [.account]),
+        ], canFinishLocally: true))]
+        await fixture.session.send("午饭 28")
+        #expect(fixture.session.latestTurn?.changes.first?.entryChange?.inferredFields == [.account])
+        #expect(!fixture.session.isCardAwaitingUser)
+
+        fixture.clock.date = fixture.clock.date.addingTimeInterval(VoiceSession.cardIdleTimeout)
+        fixture.session.hideCardIfIdle()
+        #expect(!fixture.session.isActive)
+    }
+
+    @Test("开着读屏时卡片按 2 分钟收起")
+    func keepsCardLongerWithVoiceOver() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [.success(.reply(text: "我只能帮你记账"))]
+        await fixture.session.send("你好")
+        #expect(
+            fixture.session.currentCardIdleTimeout(isVoiceOverRunning: true) == VoiceSession.cardExtendedIdleTimeout
+        )
+
+        fixture.clock.date = fixture.clock.date.addingTimeInterval(VoiceSession.cardIdleTimeout)
+        fixture.session.hideCardIfIdle(isVoiceOverRunning: true)
+        #expect(fixture.session.isActive)
+
+        fixture.session.hideCardIfIdle(isVoiceOverRunning: false)
+        #expect(!fixture.session.isActive)
     }
 
     @Test("关闭卡片后接着说，卡片只显示新的一轮，模型仍能看到之前的内容")

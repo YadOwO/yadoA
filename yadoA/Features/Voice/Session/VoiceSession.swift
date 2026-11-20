@@ -117,8 +117,14 @@ final class VoiceSession {
         }
     }
 
-    /// 超过该时长没有新的一轮，首页的会话卡片收起；对话段不结束，接着说还能引用刚才的内容。
-    static let cardIdleTimeout: TimeInterval = 120
+    /// 卡片上的结果不用用户再做什么时，闲置这么久就收起首页卡片；对话段不结束，接着说还能引用刚才的内容。
+    ///
+    /// 够读完一两行结果、决定要不要撤销；收起后对话和撤销在聊天页里都还在。闲置从最近一轮结束（或撤销、确认账户）算起，
+    /// 界面上开着弹层、按着麦克风或手指在卡片上时暂停，恢复后重新计时。
+    static let cardIdleTimeout: TimeInterval = 10
+
+    /// 卡片还在等用户回应（见 `isCardAwaitingUser`）或开着读屏时，收起卡片前闲置的时长。
+    static let cardExtendedIdleTimeout: TimeInterval = 120
 
     /// 超过该时长没有新的一轮，当前对话段结束，模型上下文和撤销都清掉；对话记录保留在聊天页。
     static let contextIdleTimeout: TimeInterval = 30 * 60
@@ -505,9 +511,32 @@ final class VoiceSession {
         hasUndoFailure = false
     }
 
-    /// 闲置超过 `cardIdleTimeout` 时收起首页卡片。
-    func hideCardIfIdle() {
-        guard !isProcessing, let lastActivityAt, now().timeIntervalSince(lastActivityAt) >= Self.cardIdleTimeout
+    /// 卡片上是否还有等用户回应的内容：最近一轮在追问、因为没有账户没记上，或者没能完成。
+    ///
+    /// 这时用户多半还在想怎么回答，或者要去点登录、新建账户、手动记账，卡片按 `cardExtendedIdleTimeout` 收起。
+    /// 账户待确认不算：没说账户就按默认账户记，几乎每笔都标待确认，算进来短时长就用不上了；收起后也能在聊天页改。
+    var isCardAwaitingUser: Bool {
+        guard let latest = cardTurns.last, !latest.isUndone else { return false }
+        switch latest.outcome {
+        case .ask, .accountRequired, .failed: return true
+        case .processing, .reply: return false
+        }
+    }
+
+    /// 首页卡片现在闲置多久后收起。
+    ///
+    /// - Parameter isVoiceOverRunning: 是否开着读屏；读屏念完结果、再找到撤销按钮要更久。
+    /// - Returns: 还在等用户回应或开着读屏时为 `cardExtendedIdleTimeout`，其余为 `cardIdleTimeout`。
+    func currentCardIdleTimeout(isVoiceOverRunning: Bool) -> TimeInterval {
+        isVoiceOverRunning || isCardAwaitingUser ? Self.cardExtendedIdleTimeout : Self.cardIdleTimeout
+    }
+
+    /// 闲置超过 `currentCardIdleTimeout(isVoiceOverRunning:)` 时收起首页卡片。
+    ///
+    /// - Parameter isVoiceOverRunning: 是否开着读屏。
+    func hideCardIfIdle(isVoiceOverRunning: Bool = false) {
+        guard !isProcessing, let lastActivityAt,
+              now().timeIntervalSince(lastActivityAt) >= currentCardIdleTimeout(isVoiceOverRunning: isVoiceOverRunning)
         else { return }
         cardStartIndex = turns.count
     }
