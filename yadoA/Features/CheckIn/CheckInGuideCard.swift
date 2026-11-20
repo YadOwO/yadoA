@@ -52,14 +52,12 @@ struct CheckInGuideCard: View {
         .accessibilityIdentifier("check-in-guide")
     }
 
-    /// “每天点一下芽豆，随机领 1–20 点 AI 点数，24 小时内有效。”
+    /// “每天点一下芽豆，领取随机 AI 点数，24 小时内有效。”；不写具体能领多少点。
     private var message: String {
-        String(
-            format: text("checkIn.guide.message"),
-            locale: locale,
-            (status?.minPoints ?? 1).formatted(.number.locale(locale)),
-            (status?.maxPoints ?? 20).formatted(.number.locale(locale)),
-            (status?.validHours ?? 24).formatted(.number.locale(locale))
+        AccountLocalization.formatted(
+            "checkIn.guide.message",
+            value: (status?.validHours ?? 24).formatted(.number.locale(locale)),
+            locale: locale
         )
     }
 

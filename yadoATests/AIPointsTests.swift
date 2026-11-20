@@ -402,16 +402,25 @@ struct AIPointsTests {
         #expect(weekly.daysUntilNext(streak: 10) == 4)
         #expect(weekly.progress(streak: 7) == 0)
         #expect(abs(weekly.progress(streak: 3) - 3.0 / 7.0) < 0.0001)
-        #expect(weekly.pointsText(locale: english) == "21–50")
-        #expect(Self.yearlyRule.pointsText(locale: english) == "365 + 100–365")
 
         #expect(AccountLocalization.string("ai.entry.grant.weeklyGift", locale: simplifiedChinese) == "签到周礼包")
         #expect(AccountLocalization.string("checkIn.gift.yearly", locale: simplifiedChinese) == "年度礼包")
         #expect(AccountLocalization.formatted("checkIn.gift.earned", value: "7", locale: simplifiedChinese) == "连签 7 天获得")
+        // 签到和礼包都不写具体能领多少点，只说是随机点数
         let rule = AccountLocalization.string("checkIn.milestone.rule", locale: simplifiedChinese)
-        #expect(String(format: rule, locale: simplifiedChinese, "7", "21–50", "7") == "每连签 7 天 · 21–50 点 · 7 天有效")
-        let guide = AccountLocalization.string("checkIn.guide.message", locale: simplifiedChinese)
-        #expect(String(format: guide, locale: simplifiedChinese, "1", "20", "24") == "每天点一下芽豆，随机领 1–20 点 AI 点数，24 小时内有效。")
+        #expect(String(format: rule, locale: simplifiedChinese, "7", "7") == "每连签 7 天 · 随机点数 · 7 天有效")
+        #expect(
+            AccountLocalization.formatted("checkIn.guide.message", value: "24", locale: simplifiedChinese)
+                == "每天点一下芽豆，领取随机 AI 点数，24 小时内有效。"
+        )
+        #expect(
+            AccountLocalization.formatted("checkIn.rules.daily", value: "24", locale: simplifiedChinese)
+                == "每天签到一次，领取随机 AI 点数，24 小时内有效。"
+        )
+        #expect(
+            AccountLocalization.formatted("checkIn.rules.daily", value: "24", locale: english)
+                == "Check in once a day for random AI points, valid for 24 hours."
+        )
         let keys = [
             "checkIn.title", "checkIn.row.streak", "checkIn.row.gifts", "checkIn.streak.caption", "checkIn.today.done",
             "checkIn.today.start", "checkIn.today.continue", "checkIn.gifts.section", "checkIn.gift.weekly",

@@ -19470,19 +19470,19 @@
       }
     },
     "checkIn.milestone.rule" : {
-      "comment" : "一档礼包的规则，%1$@ 为每连签几天，%2$@ 为点数范围（例如 21–50），%3$@ 为点数有效天数",
+      "comment" : "一档礼包的规则，%1$@ 为每连签几天，%2$@ 为点数有效天数；不写具体点数，只说是随机点数",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Every %1$@ days · %2$@ pts · valid %3$@ days"
+            "value" : "Every %1$@ days · random points · valid %2$@ days"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "每连签 %1$@ 天 · %2$@ 点 · %3$@ 天有效"
+            "value" : "每连签 %1$@ 天 · 随机点数 · %2$@ 天有效"
           }
         }
       }
@@ -19776,19 +19776,19 @@
       }
     },
     "checkIn.rules.daily" : {
-      "comment" : "签到规则：每天签到的点数，%1$@、%2$@ 为点数上下限，%3$@ 为有效小时数",
+      "comment" : "签到规则：每天签到领随机点数，不写具体范围；%@ 为有效小时数",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Check in once a day for %1$@–%2$@ random AI points, valid for %3$@ hours."
+            "value" : "Check in once a day for random AI points, valid for %@ hours."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "每天签到一次，随机领 %1$@–%2$@ 点 AI 点数，%3$@ 小时内有效。"
+            "value" : "每天签到一次，领取随机 AI 点数，%@ 小时内有效。"
           }
         }
       }
@@ -19915,24 +19915,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "点一下礼盒打开"
-          }
-        }
-      }
-    },
-    "checkIn.opening.range" : {
-      "comment" : "开礼包前显示这次的点数范围，%@ 为范围，例如 21–50",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ points inside"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "内含 %@ 点"
           }
         }
       }
@@ -20082,19 +20064,19 @@
       }
     },
     "checkIn.guide.message" : {
-      "comment" : "签到引导：每天签到的点数，%1$@、%2$@ 为点数上下限，%3$@ 为有效小时数",
+      "comment" : "签到引导：每天签到领随机点数，不写具体范围；%@ 为有效小时数",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap the bean once a day to get %1$@–%2$@ random AI points, valid for %3$@ hours."
+            "value" : "Tap the bean once a day for random AI points, valid for %@ hours."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "每天点一下芽豆，随机领 %1$@–%2$@ 点 AI 点数，%3$@ 小时内有效。"
+            "value" : "每天点一下芽豆，领取随机 AI 点数，%@ 小时内有效。"
           }
         }
       }

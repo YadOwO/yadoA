@@ -150,7 +150,6 @@ struct ProfileView: View {
         .fullScreenCover(item: $openingGift) { gift in
             CheckInGiftOpeningView(
                 gift: gift,
-                rule: aiPoints?.checkInStatus?.rule(for: gift.tier),
                 onOpen: { await aiPoints?.openGift($0) ?? .failure(.notSignedIn) },
                 onClose: { openingGift = nil }
             )

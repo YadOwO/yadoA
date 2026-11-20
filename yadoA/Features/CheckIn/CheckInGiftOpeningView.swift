@@ -27,9 +27,6 @@ struct CheckInGiftOpeningView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityDimFlashingLights) private var dimFlashingLights
 
-    /// 这档礼包的规则，用来在打开前显示“内含多少点”；服务端没有返回时为 nil，不显示。
-    let rule: AICheckInGiftRule?
-
     /// 打开一次，由页面交给 `AIPointsStore.openGift(_:)`。
     let onOpen: (AICheckInGift) async -> Result<AICheckInGiftOpenResult, AIBillingAPIError>
 
@@ -66,17 +63,14 @@ struct CheckInGiftOpeningView: View {
     ///
     /// - Parameters:
     ///   - gift: 要开的礼包。
-    ///   - rule: 这档礼包的规则。
     ///   - onOpen: 打开一次的动作。
     ///   - onClose: 关闭整屏的动作。
     init(
         gift: AICheckInGift,
-        rule: AICheckInGiftRule?,
         onOpen: @escaping (AICheckInGift) async -> Result<AICheckInGiftOpenResult, AIBillingAPIError>,
         onClose: @escaping () -> Void
     ) {
         _gift = State(initialValue: gift)
-        self.rule = rule
         self.onOpen = onOpen
         self.onClose = onClose
     }
@@ -396,7 +390,7 @@ struct CheckInGiftOpeningView: View {
         .accessibilityHidden(true)
     }
 
-    /// 礼盒下方：打开前写“内含多少点”和操作提示，揭晓后是滚动的点数和有效期。
+    /// 礼盒下方：打开前只有操作提示，不写能开出多少点；揭晓后是滚动的点数和有效期。
     @ViewBuilder
     private var resultBlock: some View {
         if case let .revealed(result, shown) = phase {
@@ -443,25 +437,12 @@ struct CheckInGiftOpeningView: View {
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("check-in-gift-result")
         } else {
-            VStack(spacing: 6) {
-                if let range = nextOpeningRange {
-                    Text(AccountLocalization.formatted("checkIn.opening.range", value: range, locale: locale))
-                        .font(.headline)
-                }
-                Text(text("checkIn.opening.tapToOpen"))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .opacity(phase == .ready && !isStale ? 1 : 0)
-            }
-            .multilineTextAlignment(.center)
+            Text(text("checkIn.opening.tapToOpen"))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .opacity(phase == .ready && !isStale ? 1 : 0)
         }
-    }
-
-    /// 下一次打开的点数范围，例如“21–50”；不知道规则时为 nil。
-    private var nextOpeningRange: String? {
-        guard let rule, !rule.openings.isEmpty else { return nil }
-        let index = min(gift.openedCount, rule.openings.count - 1)
-        return rule.openings[index].rangeText(locale: locale)
     }
 
     /// 底部的按钮和失败原因。
@@ -726,7 +707,6 @@ private func previewOpening(
             id: "preview", tier: tier, streak: streak, checkInDate: "2026-11-18",
             totalOpens: openings.count, openedCount: 0, createdAt: .now
         ),
-        rule: AICheckInGiftRule(tier: tier, everyDays: streak, openings: openings, validDays: 30),
         onOpen: { gift in
             try? await Task.sleep(for: .seconds(0.5))
             let opened = AICheckInGift(

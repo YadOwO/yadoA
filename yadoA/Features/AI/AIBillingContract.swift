@@ -588,15 +588,6 @@ nonisolated struct AICheckInGiftOpening: Decodable, Equatable, Hashable, Sendabl
 
     /// 最多送的点数。
     let maxPoints: Int
-
-    /// 范围文本：上下限相同时只写一个数，例如 `365`；否则写成 `21–50`。
-    ///
-    /// - Parameter locale: 数字格式使用的语言环境。
-    func rangeText(locale: Locale) -> String {
-        let lower = minPoints.formatted(.number.locale(locale))
-        guard minPoints != maxPoints else { return lower }
-        return "\(lower)–\(maxPoints.formatted(.number.locale(locale)))"
-    }
 }
 
 /// 一档礼包的规则：每连签几天发一个、每次打开的点数范围、点数有效期。
@@ -631,13 +622,6 @@ nonisolated struct AICheckInGiftRule: Decodable, Equatable, Hashable, Sendable {
     func progress(streak: Int) -> Double {
         guard everyDays > 0 else { return 0 }
         return Double(max(streak, 0) % everyDays) / Double(everyDays)
-    }
-
-    /// 点数文本：各次打开的范围用加号连起来，例如 `21–50`、`365 + 100–365`。
-    ///
-    /// - Parameter locale: 数字格式使用的语言环境。
-    func pointsText(locale: Locale) -> String {
-        openings.map { $0.rangeText(locale: locale) }.joined(separator: " + ")
     }
 }
 

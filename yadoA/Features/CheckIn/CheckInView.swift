@@ -73,7 +73,6 @@ struct CheckInView: View {
         .fullScreenCover(item: $openingGift) { gift in
             CheckInGiftOpeningView(
                 gift: gift,
-                rule: status?.rule(for: gift.tier),
                 onOpen: { await points?.openGift($0) ?? .failure(.notSignedIn) },
                 onClose: { openingGift = nil }
             )
@@ -437,13 +436,14 @@ struct CheckInView: View {
         )
     }
 
-    /// 一档礼包的规则文字，例如“每连签 7 天 · 21–50 点 · 7 天有效”；能开几次的再加上“可开 2 次”。
+    /// 一档礼包的规则文字，例如“每连签 7 天 · 随机点数 · 7 天有效”；能开几次的再加上“可开 2 次”。
+    ///
+    /// 不写具体能开出多少点，开出来才知道。
     private func ruleText(_ rule: AICheckInGiftRule) -> String {
         let base = String(
             format: text("checkIn.milestone.rule"),
             locale: locale,
             rule.everyDays.formatted(.number.locale(locale)),
-            rule.pointsText(locale: locale),
             rule.validDays.formatted(.number.locale(locale))
         )
         guard rule.openings.count > 1 else { return base }
@@ -505,15 +505,13 @@ struct CheckInView: View {
         .padding(.horizontal, 20)
     }
 
-    /// 规则的各行文字。
+    /// 规则的各行文字；每天签到只说领随机点数，不写具体范围。
     private func ruleLines(_ status: AICheckInStatus) -> [String] {
         var lines = [
-            String(
-                format: text("checkIn.rules.daily"),
-                locale: locale,
-                status.minPoints.formatted(.number.locale(locale)),
-                status.maxPoints.formatted(.number.locale(locale)),
-                (status.validHours ?? 24).formatted(.number.locale(locale))
+            AccountLocalization.formatted(
+                "checkIn.rules.daily",
+                value: (status.validHours ?? 24).formatted(.number.locale(locale)),
+                locale: locale
             )
         ]
         if !status.giftTiers.isEmpty {
