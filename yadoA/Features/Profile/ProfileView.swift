@@ -159,7 +159,7 @@ struct ProfileView: View {
             guard isCheckInGuideEligible else { return }
             try? await Task.sleep(for: .seconds(0.8))
             guard !Task.isCancelled, isCheckInGuideEligible else { return }
-            aiPoints?.markCheckInGuideShown()
+            // 这里只请求弹出；等引导卡片真正出现时再记成已看过，弹不出来下次还有机会
             isCheckInGuidePresented = true
         }
         // 登录状态或联网许可变化时重新刷新；同意隐私政策后立即触发，请求本身已在 store 层拦住
@@ -392,6 +392,7 @@ struct ProfileView: View {
                     CheckInGuideCard(status: aiPoints?.checkInStatus) {
                         isCheckInGuidePresented = false
                     }
+                    .onAppear { aiPoints?.markCheckInGuideShown() }
                     .presentationCompactAdaptation(.popover)
                 }
                 .position(x: centerX, y: centerY)

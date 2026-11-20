@@ -53,6 +53,9 @@ final class AIPointsStore {
     /// 是否正在打开礼包；用来拦住重复点击，免得年度礼包一次点击开掉两次。
     private(set) var isOpeningGift = false
 
+    /// 签到状态被本机签到、开礼包或重置改写的次数；用来丢弃改写之前发出、改写之后才回来的刷新结果。刷新自己写入时不递增。
+    private var checkInStatusVersion = 0
+
     /// 在本机看过签到引导的账号。按账号保存：换个账号登录，第一次看到签到气泡时再说明一次。
     private var checkInGuideShownUserIDs: Set<String>
 
@@ -336,9 +339,11 @@ final class AIPointsStore {
             return
         }
         adopt(userID)
+        let version = checkInStatusVersion
         do {
             let status = try await api.fetchCheckInStatus()
-            if isCurrentOwner(userID) {
+            // 请求期间本机签到、开礼包或重置改写过状态时，这份结果是改写之前的，丢掉
+            if isCurrentOwner(userID), checkInStatusVersion == version {
                 checkInStatus = status
             }
         } catch {
@@ -382,6 +387,7 @@ final class AIPointsStore {
             for gift in result.gifts where !gifts.contains(where: { $0.id == gift.id }) {
                 gifts.append(gift)
             }
+            checkInStatusVersion += 1
             checkInStatus = AICheckInStatus(
                 date: result.date,
                 checkedIn: true,
@@ -431,6 +437,7 @@ final class AIPointsStore {
             guard isCurrentOwner(userID) else { return .success(result) }
             if let checkInStatus {
                 let gifts = checkInStatus.gifts.map { $0.id == result.gift.id ? result.gift : $0 }
+                checkInStatusVersion += 1
                 self.checkInStatus = checkInStatus.replacingGifts(gifts)
             }
             if result.isDuplicate {
@@ -474,6 +481,7 @@ final class AIPointsStore {
         do {
             let status = try await api.resetCheckInForTesting(options)
             guard isCurrentOwner(userID) else { return .success(status) }
+            checkInStatusVersion += 1
             checkInStatus = status
             await refresh()
             return .success(status)

@@ -1422,6 +1422,36 @@ struct AIPointsTests {
         #expect(store.unopenedGifts.isEmpty)
     }
 
+    @Test("刷新签到状态进行中用户签到了：晚到的刷新结果是签到之前的，不能把已签状态和新礼包盖回去")
+    func staleCheckInStatusRefreshDoesNotOverwriteCheckIn() async {
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(AIWallet(balance: 100))]
+        api.checkInStatusResults = [.success(Self.pendingStatus(streak: 6))]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        await store.refreshCheckInStatus()
+        #expect(store.checkInStatus?.checkedIn == false)
+
+        // 再发起一次刷新并挂起，它拿到的仍是“今天未签”的旧状态
+        let gate = AsyncSaveGate()
+        api.checkInStatusGate = gate
+        let staleRefresh = Task { await store.refreshCheckInStatus() }
+        while !gate.hasStarted {
+            await Task.yield()
+        }
+
+        // 刷新挂起期间用户签到成功，得到一个新礼包
+        let gift = Self.gift(id: "12", tier: .weekly, streak: 7)
+        api.checkInResult = .success(Self.checkInResult(points: 12, balance: 112, isDuplicate: false, streak: 7, gifts: [gift]))
+        _ = await store.checkIn()
+        #expect(store.checkInStatus?.checkedIn == true)
+
+        gate.resume()
+        await staleRefresh.value
+        #expect(store.checkInStatus?.checkedIn == true)
+        #expect(store.unopenedGifts == [gift])
+    }
+
     @Test("用补签卡签到：请求带 useCard，连签取返回值，补签卡换成剩余张数、今天不能再用；不用卡时卡留着")
     func checkInWithProtectionCard() async {
         let api = FakeAIBillingAPI()
@@ -1874,6 +1904,9 @@ private final class FakeAIBillingAPI: AIBillingFetching {
     /// 设置后查询余额时先挂起，直到用例恢复。
     var walletGate: AsyncSaveGate?
 
+    /// 设置后查询签到状态时先挂起，直到用例恢复。
+    var checkInStatusGate: AsyncSaveGate?
+
     /// 查询余额的次数。
     private(set) var walletCalls = 0
 
@@ -1915,6 +1948,9 @@ private final class FakeAIBillingAPI: AIBillingFetching {
     func fetchCheckInStatus() async throws -> AICheckInStatus {
         let index = min(checkInStatusCalls, checkInStatusResults.count - 1)
         checkInStatusCalls += 1
+        if let checkInStatusGate {
+            await checkInStatusGate.wait()
+        }
         return try checkInStatusResults[index].get()
     }
 

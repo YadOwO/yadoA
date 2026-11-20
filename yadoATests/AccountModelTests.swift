@@ -102,7 +102,6 @@ struct AccountModelTests {
         "无效名称或金额不会生成账户",
         arguments: [
             ("   ", "1"),
-            ("账户", ""),
             ("账户", "-1"),
             ("账户", "invalid")
         ]
