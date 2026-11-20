@@ -13179,6 +13179,24 @@
         }
       }
     },
+    "sync.now.succeeded" : {
+      "comment" : "点「立即同步」并同步完一轮后顶部弹出的轻提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync complete"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步完成"
+          }
+        }
+      }
+    },
     "sync.section.cloudData" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13277,6 +13295,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "删除"
+          }
+        }
+      }
+    },
+    "sync.delete.succeeded" : {
+      "comment" : "删除云端数据成功后顶部弹出的轻提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloud data deleted"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "云端数据已删除"
           }
         }
       }
@@ -21187,6 +21223,24 @@
         }
       }
     },
+    "account.security.reauth.succeeded" : {
+      "comment" : "「账号与安全」页重新登录成功后顶部弹出的轻提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signed in again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已重新登录"
+          }
+        }
+      }
+    },
     "account.security.load_failed" : {
       "comment" : "账号与安全页读取账号信息失败",
       "extractionState" : "manual",
@@ -21633,6 +21687,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "验证码已发送到 %@，请查收。"
+          }
+        }
+      }
+    },
+    "account.toast.identity_verified" : {
+      "comment" : "验证身份通过、进入下一步时顶部弹出的轻提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identity verified"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "身份已验证"
+          }
+        }
+      }
+    },
+    "account.toast.code_sent" : {
+      "comment" : "验证码发出后（首次发送和重发）顶部弹出的轻提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code sent"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码已发送"
           }
         }
       }

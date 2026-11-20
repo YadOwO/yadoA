@@ -637,6 +637,14 @@ struct AccountSecurityTests {
         #expect(AuthConfig.prod.appleSocialConnectorID == "iyxaim1nvvp792xmq1fjr")
     }
 
+    @Test("设置页的「重看引导」「截图记账」只在 dev 显示，线上暂时隐藏")
+    func onboardingReplayAndScreenshotShortcutOnlyInDev() {
+        #expect(AuthConfig.dev.isOnboardingReplayAvailable)
+        #expect(!AuthConfig.prod.isOnboardingReplayAvailable)
+        #expect(AuthConfig.dev.isScreenshotShortcutAvailable)
+        #expect(!AuthConfig.prod.isScreenshotShortcutAvailable)
+    }
+
     // MARK: - 关联 Apple 的回程
 
     @Test("关联 Apple 的 state 以 yadoa_ 开头（与云服务器 nginx 的规则一致），每次不同；回程地址是 Logto 的 /callback/<连接器 ID>")

@@ -9,6 +9,7 @@ import SwiftUI
 /// 只有 Apple 的账号设置密码时不用验证身份，直接输入新密码。
 /// 关联 Apple 时用系统的 `WebAuthenticationSession` 打开 Apple 授权页，回程由云服务器跳回登录回调的 scheme。
 /// 重发验证码有 60 秒倒计时，验证码输入框用 `.oneTimeCode`，可以直接填入短信 / 邮件里的验证码建议。
+/// 身份验证通过、验证码发出（含重发）时在顶部弹出轻提示（`AppToast`）；验证通过后焦点直接落到下一步的输入框。
 struct AccountCredentialChangeView: View {
     @Environment(\.locale) private var locale
     @Environment(\.dismiss) private var dismiss
@@ -20,6 +21,9 @@ struct AccountCredentialChangeView: View {
 
     /// 当前聚焦的输入框。
     @FocusState private var focusedField: Field?
+
+    /// 顶部的轻提示：身份验证通过、验证码已发出时弹出，由 `flow.notice` 驱动。
+    @State private var toast: AppToast?
 
     /// 弹层里的输入框。
     private enum Field: Hashable {
@@ -60,6 +64,7 @@ struct AccountCredentialChangeView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .paperPage()
+            .appToast($toast)
             .navigationTitle(text(navigationTitleKey))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -77,6 +82,17 @@ struct AccountCredentialChangeView: View {
         .interactiveDismissDisabled(flow.isWorking)
         .onChange(of: flow.newEmail) {
             flow.newEmailDidChange()
+        }
+        .onChange(of: flow.notice) { _, notice in
+            guard let notice else { return }
+            toast = .success(
+                text(notice.localizationKey),
+                systemImage: notice.kind == .codeSent ? "paperplane.fill" : "checkmark.circle.fill",
+                accessibilityIdentifier: controlID("toast")
+            )
+        }
+        .onChange(of: flow.step) { _, step in
+            focusFirstField(of: step)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(idPrefix)
@@ -457,6 +473,17 @@ struct AccountCredentialChangeView: View {
         await flow.sendNewEmailCode()
         if flow.isNewEmailCodeSent {
             focusedField = .newEmailCode
+        }
+    }
+
+    /// 验证完身份进入下一步时，把焦点放到这一步的第一个输入框，不用再点一下才能输入。
+    ///
+    /// - Parameter step: 刚进入的步骤；只处理输入新邮箱、新密码，其余步骤不动焦点。
+    private func focusFirstField(of step: AccountCredentialChangeFlow.Step) {
+        switch step {
+        case .newEmail: focusedField = .newEmail
+        case .newPassword: focusedField = .newPassword
+        case .identity, .linkApple, .finished, .accountSwitched: break
         }
     }
 

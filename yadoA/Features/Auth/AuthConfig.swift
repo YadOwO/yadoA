@@ -1,6 +1,6 @@
 import Foundation
 
-/// 登录（Logto）与各后端的配置，按环境取值，见 `AppEnvironment`。
+/// 登录（Logto）与各后端的配置，以及只在部分环境开放的功能入口，按环境取值，见 `AppEnvironment`。
 ///
 /// 每套环境有自己的 Logto：线上的与 yadoI 共用同一租户（同一账号两个 App 通用）；dev 的部署在 Mac mini 上，
 /// 账号、应用都与线上无关。业务代码只读 `AuthConfig.endpoint` 这类当前环境的值，不要自己按环境分支。
@@ -54,6 +54,17 @@ nonisolated enum AuthConfig {
         /// 线上的规则在云服务器 `/opt/yado/nginx/conf.d/accounts.yado1225.top.conf`。
         /// dev 清空 Logto 数据后连接器 ID 会变，要跟着改。
         let appleSocialConnectorID: String?
+
+        /// 这套环境的设置页「关于」里是否显示「重看引导」。
+        ///
+        /// 线上暂时只藏入口，首次引导和重看模式（`OnboardingStore(mode: .replay)`）的代码都保留；要放回来时把 prod 改为 true。
+        let isOnboardingReplayAvailable: Bool
+
+        /// 这套环境的设置页「记账」里是否显示「截图记账」（进入 `ScreenshotShortcutSetupView` 添加快捷指令）。
+        ///
+        /// 线上暂时只藏设置页的入口：截图记账的 App Intent 由系统在编译时索引，不随这个开关变，
+        /// 已经装好快捷指令的用户照常能用。要放回来时把 prod 改为 true。
+        let isScreenshotShortcutAvailable: Bool
     }
 
     // 两套取值对模块内可见（而非 private），测试可以同时断言两套环境；业务代码只读下面的当前值。
@@ -70,7 +81,9 @@ nonisolated enum AuthConfig {
         isAITraceConsentAvailable: true,
         isEmailAccountAvailable: true,
         isPasswordChangeAvailable: true,
-        appleSocialConnectorID: "5h6hh92rverfc70a38tk8"
+        appleSocialConnectorID: "5h6hh92rverfc70a38tk8",
+        isOnboardingReplayAvailable: true,
+        isScreenshotShortcutAvailable: true
     )
 
     /// 线上环境。
@@ -84,7 +97,9 @@ nonisolated enum AuthConfig {
         isAITraceConsentAvailable: false,
         isEmailAccountAvailable: true,
         isPasswordChangeAvailable: true,
-        appleSocialConnectorID: "iyxaim1nvvp792xmq1fjr"
+        appleSocialConnectorID: "iyxaim1nvvp792xmq1fjr",
+        isOnboardingReplayAvailable: false,
+        isScreenshotShortcutAvailable: false
     )
 
     /// 当前环境的取值。
@@ -154,6 +169,12 @@ nonisolated enum AuthConfig {
 
     /// 当前环境是否开放在 App 内关联 Apple。
     static var isAppleLinkAvailable: Bool { appleSocialConnectorID != nil }
+
+    /// 当前环境的设置页是否显示「重看引导」。
+    static var isOnboardingReplayAvailable: Bool { current.isOnboardingReplayAvailable }
+
+    /// 当前环境的设置页是否显示「截图记账」。
+    static var isScreenshotShortcutAvailable: Bool { current.isScreenshotShortcutAvailable }
 
     /// 登录回调地址的 scheme（如 `com.yado.yadoa.dev`）；关联 Apple 时云服务器 nginx 也跳回这个 scheme，
     /// `ASWebAuthenticationSession` 据此识别回程。

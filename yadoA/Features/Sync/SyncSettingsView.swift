@@ -19,6 +19,9 @@ struct SyncSettingsView: View {
     /// 操作失败时的文案键。
     @State private var errorKey: String?
 
+    /// 顶部的轻提示：立即同步完成、删除云端数据完成时弹出。
+    @State private var toast: AppToast?
+
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
@@ -68,6 +71,7 @@ struct SyncSettingsView: View {
             .padding(.bottom, 32)
         }
         .paperPage()
+        .appToast($toast)
         .navigationTitle(text("sync.title"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { lifecycle?.refreshState() }
@@ -258,12 +262,19 @@ struct SyncSettingsView: View {
         }
     }
 
-    /// 用户点「立即同步」：等这一轮结束，成功或失败各震一下；后台自动同步不走这里，不会震。
+    /// 用户点「立即同步」：等这一轮结束，成功或失败各震一下；失败原因看状态卡片。
+    /// 真的同步完一轮（最近同步时间更新了）才弹「同步完成」，同步被暂停、没跑起来时不提示。
+    /// 后台自动同步不走这里，不会震也不提示。
     private func synchronizeNow() async {
         guard let engine else { return }
+        let previousSyncedAt = engine.lastSyncedAt
         await engine.synchronize()
         switch engine.status {
-        case .idle: AppHaptics.play(.success)
+        case .idle:
+            AppHaptics.play(.success)
+            if engine.lastSyncedAt != previousSyncedAt {
+                toast = .success(text("sync.now.succeeded"), accessibilityIdentifier: "sync-toast")
+            }
         case .failed, .epochMismatch: AppHaptics.play(.error)
         case .syncing: break
         }
@@ -277,6 +288,7 @@ struct SyncSettingsView: View {
         do {
             try await lifecycle.deleteCloudData()
             AppHaptics.play(.destructive)
+            toast = .success(text("sync.delete.succeeded"), accessibilityIdentifier: "sync-toast")
         } catch {
             errorKey = SyncMessages.localizationKey(forLifecycleError: error)
         }

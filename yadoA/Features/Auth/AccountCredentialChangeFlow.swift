@@ -44,6 +44,32 @@ final class AccountCredentialChangeFlow: Identifiable {
         case accountSwitched
     }
 
+    /// 操作成功后给用户的一条轻提示，界面每收到一条新的就弹出一次（`AppToast`）。
+    struct Notice: Equatable {
+        /// 发生了什么。
+        enum Kind: Equatable {
+            /// 身份验证通过（密码或当前邮箱验证码），进入下一步。
+            case identityVerified
+
+            /// 验证码已发出（发到当前邮箱或新邮箱，首次发送和重发都算）。
+            case codeSent
+        }
+
+        /// 发生了什么。
+        let kind: Kind
+
+        /// 区分连续两条相同的提示（如连着重发验证码），界面据此每次都弹出。
+        let id = UUID()
+
+        /// 提示文案键。
+        var localizationKey: String {
+            switch kind {
+            case .identityVerified: "account.toast.identity_verified"
+            case .codeSent: "account.toast.code_sent"
+            }
+        }
+    }
+
     /// 新邮箱校验通过的验证记录；保存失败（如身份验证过期）后重试时直接复用，不用再输一次验证码。
     private struct VerifiedEmail: Equatable {
         /// 校验时的邮箱地址。
@@ -96,6 +122,9 @@ final class AccountCredentialChangeFlow: Identifiable {
 
     /// 要显示的提示文案键（错误或说明）；没有时为 nil。
     private(set) var messageKey: String?
+
+    /// 最近一次操作成功的轻提示；还没有过时为 nil。出错时不清空，界面只在它换成新的一条时弹出。
+    private(set) var notice: Notice?
 
     /// 当前邮箱验证码的记录（ID 和失效时刻）。
     private var identityCodeRecord: EmailVerificationCodeRecord?
@@ -233,6 +262,7 @@ final class AccountCredentialChangeFlow: Identifiable {
             identityCodeRequestedAt = requestedAt
             identityCodeSentAt = now()
             identityCode = ""
+            notice = Notice(kind: .codeSent)
         }
     }
 
@@ -313,6 +343,7 @@ final class AccountCredentialChangeFlow: Identifiable {
             newEmailCodeSentAt = now()
             newEmailCode = ""
             verifiedNewEmail = nil
+            notice = Notice(kind: .codeSent)
         }
     }
 
@@ -486,12 +517,13 @@ final class AccountCredentialChangeFlow: Identifiable {
         }
     }
 
-    /// 身份验证通过：记下验证记录和失效时刻，进入下一步（输入新邮箱、新密码，或关联 Apple）。
+    /// 身份验证通过：记下验证记录和失效时刻，进入下一步（输入新邮箱、新密码，或关联 Apple），并提示已验证。
     private func identityVerified(_ verification: AccountIdentityVerification) {
         identityVerification = verification
         password = ""
         resetIdentityCode()
         step = Self.nextStep(after: target)
+        notice = Notice(kind: .identityVerified)
     }
 
     /// 返回仍有效的身份验证；已过期或没有时回到验证身份这一步并返回 nil。

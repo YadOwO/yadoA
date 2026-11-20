@@ -6,6 +6,7 @@ import UIKit
 ///
 /// 分组顺序为通用、隐私与安全、记账、数据、关于、危险操作、账号；重置数据单独成卡，避免与导入导出相邻误触。
 /// 账号分组第一行进入「账号与安全」（登录方式、绑定邮箱、注销芽豆账号），第二行退出登录。
+/// 「截图记账」和「重看引导」按环境开关显示，线上暂时隐藏（`AuthConfig.isScreenshotShortcutAvailable` / `isOnboardingReplayAvailable`）。
 struct SettingsView: View {
     @Environment(\.locale) private var locale
     @Environment(\.colorScheme) private var colorScheme
@@ -119,14 +120,17 @@ struct SettingsView: View {
 
                     ProfileSettingsRowDivider()
 
-                    NavigationLink {
-                        ScreenshotShortcutSetupView()
-                    } label: {
-                        ProfileSettingsRow(titleKey: "shortcut.screenshot.title", symbol: "viewfinder")
-                    }
-                    .accessibilityIdentifier("profile-screenshot-shortcut")
+                    // 线上暂时藏起截图记账的设置入口，见 `AuthConfig.isScreenshotShortcutAvailable`
+                    if AuthConfig.isScreenshotShortcutAvailable {
+                        NavigationLink {
+                            ScreenshotShortcutSetupView()
+                        } label: {
+                            ProfileSettingsRow(titleKey: "shortcut.screenshot.title", symbol: "viewfinder")
+                        }
+                        .accessibilityIdentifier("profile-screenshot-shortcut")
 
-                    ProfileSettingsRowDivider()
+                        ProfileSettingsRowDivider()
+                    }
 
                     reminderRows
                 }
@@ -145,15 +149,21 @@ struct SettingsView: View {
                 }
 
                 ProfileSettingsSection("settings.section.about") {
-                    Button {
-                        onboardingReplay = OnboardingStore(mode: .replay)
-                    } label: {
-                        ProfileSettingsRow(titleKey: "settings.onboarding.replay", symbol: "leaf")
+                    // 线上暂时藏起重看引导，见 `AuthConfig.isOnboardingReplayAvailable`
+                    if AuthConfig.isOnboardingReplayAvailable {
+                        Button {
+                            onboardingReplay = OnboardingStore(mode: .replay)
+                        } label: {
+                            ProfileSettingsRow(titleKey: "settings.onboarding.replay", symbol: "leaf")
+                        }
+                        .accessibilityIdentifier("settings-onboarding-replay")
                     }
-                    .accessibilityIdentifier("settings-onboarding-replay")
 
                     ForEach(LegalDocument.allCases) { document in
-                        ProfileSettingsRowDivider()
+                        // 分隔线只画在两行之间：没有重看引导时，第一份协议上方不画
+                        if AuthConfig.isOnboardingReplayAvailable || document != LegalDocument.allCases.first {
+                            ProfileSettingsRowDivider()
+                        }
 
                         Button {
                             presentedLegalDocument = document
