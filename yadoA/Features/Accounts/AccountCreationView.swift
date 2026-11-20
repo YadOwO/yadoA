@@ -104,6 +104,20 @@ struct AccountCreationView: View {
         NavigationStack(path: $path) {
             LedgerFormPage {
                 LedgerCard(seed: 111) {
+                    // 微信、支付宝最常用，不用先点进「虚拟账户」再选，直接排在最前面
+                    ForEach(AccountTemplate.featured) { template in
+                        NavigationLink(value: AccountCreationRoute.form(template.accountType, template)) {
+                            HStack(spacing: 12) {
+                                FeaturedTemplateRow(template: template)
+                                Spacer(minLength: 8)
+                                LedgerChevron()
+                            }
+                            .ledgerCardRow()
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("account-creation-featured-\(template.id)")
+                    }
+
                     ForEach(AccountType.allCases) { accountType in
                         NavigationLink(value: accountType.nextRoute) {
                             HStack(spacing: 12) {
@@ -168,7 +182,10 @@ private enum AccountCreationRoute: Hashable {
 
 private extension AccountType {
     var nextRoute: AccountCreationRoute {
-        requiresTemplateSelection ? .templates(self) : .form(self, nil)
+        if let directCreationTemplate {
+            return .form(self, directCreationTemplate)
+        }
+        return requiresTemplateSelection ? .templates(self) : .form(self, nil)
     }
 }
 
@@ -194,6 +211,23 @@ private struct AccountTypeRow: View {
         } icon: {
             Image(systemName: accountType.symbolName)
                 .foregroundStyle(accountType.tint)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+/// 类型列表最前面的常用账户行（微信、支付宝），点了直接进表单。
+private struct FeaturedTemplateRow: View {
+    @Environment(\.locale) private var locale
+
+    /// 常用账户模板。
+    let template: AccountTemplate
+
+    var body: some View {
+        Label {
+            Text(template.name(locale: locale))
+        } icon: {
+            AccountTemplateIcon(template: template, size: 24)
         }
         .padding(.vertical, 4)
     }
@@ -234,6 +268,9 @@ private struct AccountTemplateListView: View {
 private struct AccountTemplateIcon: View {
     let template: AccountTemplate
 
+    /// 图标边长。
+    var size: CGFloat = 28
+
     var body: some View {
         Group {
             if let brandImageName = template.brandImageName {
@@ -249,7 +286,7 @@ private struct AccountTemplateIcon: View {
                     .foregroundStyle(.tint)
             }
         }
-        .frame(width: 28, height: 28)
+        .frame(width: size, height: size)
         .accessibilityHidden(true)
     }
 }
@@ -386,12 +423,17 @@ private struct AccountFormView: View {
         .navigationTitle(
             AccountLocalization.formatted(
                 "account.creation.navigation.title_format",
-                value: flow.draft.template?.name(locale: locale)
+                value: titleTemplate?.name(locale: locale)
                     ?? flow.draft.accountType.title(locale: locale),
                 locale: locale
             )
         )
         .navigationBarBackButtonHidden(flow.isSaving)
+    }
+
+    /// 标题里显示的模板：直接新建时自动带上的模板不是用户选的，标题只写类型，如「添加虚拟账户」。
+    private var titleTemplate: AccountTemplate? {
+        flow.draft.template == flow.draft.accountType.directCreationTemplate ? nil : flow.draft.template
     }
 
     /// 按表单使用的语言环境解析 String Catalog 文案。

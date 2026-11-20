@@ -26,13 +26,14 @@ final class yadoAUITests: XCTestCase {
 
         let saveButton = app.buttons["account-creation-save"]
         XCTAssertTrue(saveButton.waitForExistence(timeout: 2))
-        XCTAssertFalse(saveButton.isEnabled)
+        // 余额不是必填项，没填也能保存（按 0 建）
+        XCTAssertTrue(saveButton.isEnabled)
 
         let amountField = app.textFields["account-creation-amount"]
         XCTAssertTrue(amountField.waitForExistence(timeout: 2))
         amountField.tap()
-        amountField.typeText("40")
-        XCTAssertTrue(saveButton.isEnabled)
+        amountField.typeText("1.234")
+        XCTAssertFalse(saveButton.isEnabled)
 
         app.navigationBars.buttons["Add Account"].tap()
         XCTAssertTrue(cashType.waitForExistence(timeout: 2))

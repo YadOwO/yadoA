@@ -8,7 +8,9 @@ import Observation
 ///
 /// 余额以服务端为准，只保存在内存里：进入“我的”或 AI 点数页时刷新，语音记账得到响应后用服务端带回的余额就地更新。
 /// 余额记着所属账号；刷新和语音回报都核对账号，换账号或退出登录后不会把旧账号的余额记到当前账号上。
-/// 每日签到的状态也在这里：进入“我的”时刷新，签到成功后直接用服务端返回的余额和批次更新，不再多发请求。
+/// 每日签到的状态也在这里：进入“我的”或签到页时刷新，签到、打开礼包成功后直接用服务端返回的余额和批次更新，不再多发请求。
+/// 签到状态里带着当前连签天数和还没开完的礼包；签到日历按月现查，不存在这里。
+/// 签到引导（第一次在“我的”看到签到气泡时的说明）是否看过，按账号保存在本机。
 /// 余额写入都编号：刷新在发起时取号，语音回报在响应回来时取号，晚到的旧刷新结果不再覆盖更新的余额。
 ///
 /// “AI 记账说明”的同意状态也按账号保存在本机（见 `isAIProcessingConsented`），没同意的账号不能把内容发给 AI；
@@ -42,11 +44,17 @@ final class AIPointsStore {
     /// 在本机同意过“AI 记账说明”的账号。按账号保存：同一台设备换账号时，新账号要重新同意。
     private var aiProcessingConsentedUserIDs: Set<String>
 
-    /// 今天的签到状态；未登录、还没拿到或拿失败时为 nil。
+    /// 签到状态；未登录或还没拿到时为 nil。刷新失败时保留上一次拿到的，签到页不会因为一次网络抖动整页清空。
     private(set) var checkInStatus: AICheckInStatus?
 
     /// 是否正在签到；用来拦住重复点击。
     private(set) var isCheckingIn = false
+
+    /// 是否正在打开礼包；用来拦住重复点击，免得年度礼包一次点击开掉两次。
+    private(set) var isOpeningGift = false
+
+    /// 在本机看过签到引导的账号。按账号保存：换个账号登录，第一次看到签到气泡时再说明一次。
+    private var checkInGuideShownUserIDs: Set<String>
 
     /// 最近一次刷新余额失败的原因；刷新成功后清空。
     private(set) var failure: AIBillingAPIError?
@@ -103,6 +111,7 @@ final class AIPointsStore {
         }
         traceConsentedUserIDs = Set(defaults.stringArray(forKey: Self.traceConsentStorageKey) ?? [])
         aiProcessingConsentedUserIDs = Set(defaults.stringArray(forKey: Self.aiProcessingConsentStorageKey) ?? [])
+        checkInGuideShownUserIDs = Set(defaults.stringArray(forKey: Self.checkInGuideStorageKey) ?? [])
     }
 
     /// 用登录状态创建：凭证取自 AI 服务的 access token，账号取 Logto 用户 ID。
@@ -243,6 +252,35 @@ final class AIPointsStore {
         checkInStatus.map { !$0.checkedIn } ?? false
     }
 
+    /// 还没开完的礼包，按发放先后；状态没拿到时为空。
+    var unopenedGifts: [AICheckInGift] {
+        checkInStatus?.gifts.filter { !$0.isFinished } ?? []
+    }
+
+    /// 保存看过签到引导的账号的本机偏好键。
+    private static let checkInGuideStorageKey = "ai.checkInGuideShownUserIDs"
+
+    /// 当前账号是否还没看过签到引导；未登录时为 false。
+    var shouldShowCheckInGuide: Bool {
+        guard let userID = currentUserID() else { return false }
+        return !checkInGuideShownUserIDs.contains(userID)
+    }
+
+    /// 记下当前账号已看过签到引导，之后不再弹出；未登录时不做任何事。
+    func markCheckInGuideShown() {
+        guard let userID = currentUserID() else { return }
+        checkInGuideShownUserIDs.insert(userID)
+        defaults.set(checkInGuideShownUserIDs.sorted(), forKey: Self.checkInGuideStorageKey)
+    }
+
+    /// 开发测试用：让当前账号重新看一次签到引导，回到“我的”页、签到气泡出现时再弹出；未登录时不做任何事。
+    /// 只有 dev 包的「开发」页调用。
+    func resetCheckInGuide() {
+        guard let userID = currentUserID() else { return }
+        checkInGuideShownUserIDs.remove(userID)
+        defaults.set(checkInGuideShownUserIDs.sorted(), forKey: Self.checkInGuideStorageKey)
+    }
+
     /// 是否正在刷新余额。
     var isRefreshing: Bool {
         refreshRequest != nil
@@ -290,7 +328,7 @@ final class AIPointsStore {
         }
     }
 
-    /// 刷新今天的签到状态；未登录时清空。失败时状态置空，不影响余额和 `failure`。
+    /// 刷新签到状态；未登录时清空。失败时保留上一次拿到的状态，不影响余额和 `failure`。
     func refreshCheckInStatus() async {
         guard isNetworkAllowed() else { return }
         guard let userID = currentUserID() else {
@@ -304,51 +342,155 @@ final class AIPointsStore {
                 checkInStatus = status
             }
         } catch {
-            if isCurrentOwner(userID) {
-                checkInStatus = nil
-            }
+            // 失败时保留上一次的状态；换账号时 adopt 已经清空过，不会留下别人的
         }
     }
 
     /// 每日签到。成功时用服务端返回的余额更新，并把新一批点数按过期时间插入批次；今天已签过时不追加批次，改为重新拉一次钱包。
+    /// 签到状态换成已签，连签天数取返回值，这次得到的礼包追加到待开列表；补签卡换成签到后剩的张数，今天不能再用。
     ///
+    /// 要用补签卡但服务端说用不了（另一台设备刚改了状态、跨过了零点）时这次没有签到：重新拉一次签到状态，
+    /// 界面按最新情况让用户再点一次，余额不变。
+    ///
+    /// - Parameter useCard: 是否用补签卡保住昨天，由用户在签到前的弹窗里选择。
     /// - Returns: 签到结果；失败时为对应错误，余额不变。
-    func checkIn() async -> Result<AICheckInResult, AIBillingAPIError> {
+    func checkIn(useCard: Bool = false) async -> Result<AICheckInResult, AIBillingAPIError> {
         guard let userID = currentUserID() else { return .failure(.notSignedIn) }
         guard !isCheckingIn else { return .failure(.invalidContract) }
         adopt(userID)
         isCheckingIn = true
         defer { isCheckingIn = false }
         do {
-            let result = try await api.checkIn()
+            let result = try await api.checkIn(useCard: useCard)
             guard isCurrentOwner(userID) else { return .success(result) }
             noteAppliedWrite(beginWrite())
             balance = result.balance
             failure = nil
             if !result.isDuplicate {
-                let lot = AICreditLot(
+                insertGrantLot(
                     points: result.points,
-                    expiresAt: result.expiresAt,
-                    originalPoints: result.points,
-                    kind: .grant,
                     reason: AICreditEntry.dailyCheckInReason,
-                    product: AIBillingAPI.product,
-                    createdAt: result.createdAt
+                    createdAt: result.createdAt,
+                    expiresAt: result.expiresAt
                 )
-                let index = lots.firstIndex { $0.expiresAt > lot.expiresAt } ?? lots.endIndex
-                lots.insert(lot, at: index)
+            }
+            let previous = checkInStatus
+            // 同一个礼包以返回的为准（当天重复签到带回的打开次数是最新的），新得到的追加在后面
+            var gifts = (previous?.gifts ?? []).map { gift in
+                result.gifts.first { $0.id == gift.id } ?? gift
+            }
+            for gift in result.gifts where !gifts.contains(where: { $0.id == gift.id }) {
+                gifts.append(gift)
             }
             checkInStatus = AICheckInStatus(
                 date: result.date,
                 checkedIn: true,
-                checkIn: AICheckInRecord(points: result.points, createdAt: result.createdAt, expiresAt: result.expiresAt),
-                minPoints: checkInStatus?.minPoints ?? result.points,
-                maxPoints: checkInStatus?.maxPoints ?? result.points
+                checkIn: AICheckInRecord(
+                    points: result.points,
+                    streak: result.streak,
+                    createdAt: result.createdAt,
+                    expiresAt: result.expiresAt
+                ),
+                minPoints: previous?.minPoints ?? result.points,
+                maxPoints: previous?.maxPoints ?? result.points,
+                validHours: previous?.validHours,
+                streak: result.streak,
+                firstCheckInDate: previous?.firstCheckInDate ?? result.date,
+                gifts: gifts.filter { !$0.isFinished },
+                giftTiers: previous?.giftTiers ?? [],
+                protection: previous?.protection?.afterCheckIn(cardsLeft: result.cardsLeft)
             )
             if result.isDuplicate {
                 await refresh()
             }
             return .success(result)
+        } catch {
+            let apiError = error as? AIBillingAPIError ?? .network
+            if apiError == .checkInProtectionUnavailable, isCurrentOwner(userID) {
+                await refreshCheckInStatus()
+            }
+            return .failure(apiError)
+        }
+    }
+
+    /// 打开一次签到礼包，开的是它的下一次（`nextSeq`）。
+    ///
+    /// 成功时用服务端返回的余额更新，把这次的点数按过期时间插入批次，并更新待开列表（开完的移除，年度礼包开过一次的留着）。
+    /// 这一次早已开过（网络重发）时不在本机写余额和批次，改为重新拉一次钱包。礼包不存在或状态已变时重新拉签到状态，界面按最新列表显示。
+    ///
+    /// - Parameter gift: 要打开的礼包。
+    /// - Returns: 打开结果；失败时为对应错误，余额不变。
+    func openGift(_ gift: AICheckInGift) async -> Result<AICheckInGiftOpenResult, AIBillingAPIError> {
+        guard let userID = currentUserID() else { return .failure(.notSignedIn) }
+        guard !isOpeningGift, !gift.isFinished else { return .failure(.invalidContract) }
+        adopt(userID)
+        isOpeningGift = true
+        defer { isOpeningGift = false }
+        do {
+            let result = try await api.openCheckInGift(id: gift.id, seq: gift.nextSeq)
+            guard isCurrentOwner(userID) else { return .success(result) }
+            if let checkInStatus {
+                let gifts = checkInStatus.gifts.map { $0.id == result.gift.id ? result.gift : $0 }
+                self.checkInStatus = checkInStatus.replacingGifts(gifts)
+            }
+            if result.isDuplicate {
+                // 这一次早就入过账：本机批次里有没有它说不准，余额和批次都交给刷新；
+                // 这里不登记写入，免得把正在进行的刷新当成过期结果丢掉
+                await refresh()
+            } else {
+                noteAppliedWrite(beginWrite())
+                balance = result.balance
+                failure = nil
+                insertGrantLot(
+                    points: result.points,
+                    reason: result.gift.tier.entryReason,
+                    createdAt: result.createdAt,
+                    expiresAt: result.expiresAt
+                )
+            }
+            return .success(result)
+        } catch {
+            let apiError = error as? AIBillingAPIError ?? .network
+            // 404、409 都映射成 invalidContract：礼包已被别的设备开过或不存在，重新拉一次列表；网络错误不拉，免得把列表清空
+            if apiError == .invalidContract, isCurrentOwner(userID) {
+                await refreshCheckInStatus()
+            }
+            return .failure(apiError)
+        }
+    }
+
+    /// 开发测试用：在服务端清空当前账号的签到、礼包和打开记录，再补出截至昨天的连签；成功后换上重置后的签到状态并刷新余额。
+    ///
+    /// 只有 dev 环境的服务端开放这个接口，只有 dev 包的「开发」页调用。已入账的点数保留，补连签时服务端另发 1 点。
+    /// 正在签到或开礼包时不重置，免得动画中途状态被换掉。
+    ///
+    /// - Parameter options: 补几天连签（0 为清空、像从没签过；N 为今天签到就是第 N+1 天）、昨天是否漏签、本月的补签卡是否已用。
+    /// - Returns: 重置后的签到状态；失败时为对应错误，本机状态不变。
+    func resetCheckInForTesting(_ options: AICheckInResetOptions) async -> Result<AICheckInStatus, AIBillingAPIError> {
+        guard isNetworkAllowed() else { return .failure(.network) }
+        guard let userID = currentUserID() else { return .failure(.notSignedIn) }
+        guard !isCheckingIn, !isOpeningGift else { return .failure(.invalidContract) }
+        adopt(userID)
+        do {
+            let status = try await api.resetCheckInForTesting(options)
+            guard isCurrentOwner(userID) else { return .success(status) }
+            checkInStatus = status
+            await refresh()
+            return .success(status)
+        } catch {
+            return .failure(error as? AIBillingAPIError ?? .network)
+        }
+    }
+
+    /// 查询某个月的签到日历；签到页按月现查，不缓存在这里。
+    ///
+    /// - Parameter month: 月份，`YYYY-MM`。
+    /// - Returns: 这个月的签到日历；不允许联网、未登录或查询失败时为对应错误。
+    func fetchCheckInMonth(_ month: String) async -> Result<AICheckInMonth, AIBillingAPIError> {
+        guard isNetworkAllowed() else { return .failure(.network) }
+        guard currentUserID() != nil else { return .failure(.notSignedIn) }
+        do {
+            return .success(try await api.fetchCheckInHistory(month: month))
         } catch {
             return .failure(error as? AIBillingAPIError ?? .network)
         }
@@ -410,6 +552,27 @@ final class AIPointsStore {
     /// - Returns: 档位列表；查询失败时为 nil。
     private func fetchTierList() async -> AIModelTierList? {
         try? await api.fetchModelTiers()
+    }
+
+    /// 把签到或礼包新入账的一批点数按过期时间插入批次，与服务端钱包的排序一致；下次刷新再以服务端为准。
+    ///
+    /// - Parameters:
+    ///   - points: 入账点数。
+    ///   - reason: 流水的原因标签，例如每日签到、某档礼包。
+    ///   - createdAt: 入账时刻。
+    ///   - expiresAt: 过期时刻。
+    private func insertGrantLot(points: Int, reason: String?, createdAt: Date, expiresAt: Date) {
+        let lot = AICreditLot(
+            points: points,
+            expiresAt: expiresAt,
+            originalPoints: points,
+            kind: .grant,
+            reason: reason,
+            product: AIBillingAPI.product,
+            createdAt: createdAt
+        )
+        let index = lots.firstIndex { $0.expiresAt > lot.expiresAt } ?? lots.endIndex
+        lots.insert(lot, at: index)
     }
 
     /// 用语音记账带回的余额更新；余额减少时按服务端“先用最早过期的”规则同步扣减各批点数，下次刷新再以服务端为准。
@@ -475,6 +638,7 @@ final class AIPointsStore {
         failure = nil
         checkInStatus = nil
         isCheckingIn = false
+        isOpeningGift = false
         ownerUserID = nil
     }
 }

@@ -42,6 +42,9 @@ struct VoiceSessionCard: View {
     /// 打开周期记账列表，查看语音改过的规则。
     var onOpenRecurringRules: () -> Void = {}
 
+    /// 用户开始或停止碰卡片时回调：手指按着（点、拖动、长按选字）或内容还在惯性滚动算在碰；碰着时卡片不因闲置收起。
+    var onTouchingChange: (Bool) -> Void = { _ in }
+
     /// 卡片上是否正盖着流水、账户详情或周期记账列表；关掉时重新检查结果行的目标还在不在。
     var isShowingDetail = false
 
@@ -59,6 +62,9 @@ struct VoiceSessionCard: View {
 
     /// 是否跟随最新内容；手动翻阅时暂停，任何内容或布局更新都会恢复，拖动期间等停手再执行。
     @State private var followsLatestContent = true
+
+    /// 是否有手指按在卡片上，包括按钮、结果行和可选中的文字。
+    @State private var isFingerDown = false
 
     /// 内容末尾的稳定锚点，放在明细、操作按钮和底部留白之后。
     private enum ScrollTarget: Hashable {
@@ -126,6 +132,13 @@ struct VoiceSessionCard: View {
         }
         .padding(.top, 6)
         .floatingGlassSurface(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        // 碰着卡片时闲置计时暂停，松手、滚动停下后重新计时
+        .gesture(VoiceCardTouchObserver { isFingerDown = $0 })
+        .onChange(of: isFingerDown || isUserScrolling) { _, isTouching in
+            onTouchingChange(isTouching)
+        }
+        // 收起时可能来不及收到松手，按没在碰处理，免得计时一直停着
+        .onDisappear { onTouchingChange(false) }
     }
 
     /// 布局完成后滚到真正的内容末尾；已经贴底就不再发出请求，避免滚动反馈循环。

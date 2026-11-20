@@ -466,6 +466,78 @@
         }
       }
     },
+    "privacy.agreement.decline.alert.cancel" : {
+      "comment" : "点「不同意」后确认弹窗里的返回按钮；回到同意卡",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go Back"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回"
+          }
+        }
+      }
+    },
+    "privacy.agreement.decline.alert.confirm" : {
+      "comment" : "点「不同意」后确认弹窗里的确认按钮；确认后进入离线模式",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disagree Anyway"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仍不同意"
+          }
+        }
+      }
+    },
+    "privacy.agreement.decline.alert.message" : {
+      "comment" : "点「不同意」后确认弹窗的说明：只能用基础的本地记账，哪些功能不能用，以及之后在哪里重新同意",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Without agreeing, Yado Assets can only offer basic offline bookkeeping. Entries, accounts and charts still work and stay on this phone, but sign-in, cloud sync, AI bookkeeping and feedback are unavailable.\n\nYou can review and agree any time from the Profile tab."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不同意的话，芽豆资产只能提供基础的离线记账服务：记账、账户和图表照常可用，数据只存在这台手机上；登录、云同步、AI 记账和意见反馈都不能用。\n\n之后可以随时在「我的」页查看并同意。"
+          }
+        }
+      }
+    },
+    "privacy.agreement.decline.alert.title" : {
+      "comment" : "点「不同意」后确认弹窗的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basic Features Only"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只能使用基础服务"
+          }
+        }
+      }
+    },
     "privacy.agreement.feature.ai.body" : {
       "comment" : "同意卡上 AI 记账一项的说明",
       "extractionState" : "manual",
@@ -1218,6 +1290,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "签到暂时不可用，请稍后再试"
+          }
+        }
+      }
+    },
+    "profile.checkIn.failure.protection" : {
+      "comment" : "签到气泡下的错误：要用补签卡但此刻用不了，这次没有签到",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streak saver isn't available now. Please check in again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "补签卡现在用不了，请再签一次"
           }
         }
       }
@@ -5727,13 +5817,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alipay, WeChat"
+            "value" : "Other e-wallets"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "支付宝、微信"
+            "value" : "其他电子钱包，如云闪付"
           }
         }
       }
@@ -13803,6 +13893,23 @@
         }
       }
     },
+    "account.delete.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试注销"
+          }
+        }
+      }
+    },
     "account.delete.warning.message" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13820,19 +13927,87 @@
         }
       }
     },
-    "account.delete.warning.continue" : {
+    "account.delete.choice.erase.detail" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Continue"
+            "value" : "Erase the ledger from this device too."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "继续注销"
+            "value" : "这台设备上的账本也一并清除。"
+          }
+        }
+      }
+    },
+    "account.delete.choice.erase.option" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erase Local Data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除本机账本"
+          }
+        }
+      }
+    },
+    "account.delete.choice.keep.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep the ledger on this device and keep using it. It won't sync anymore."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账本留在这台设备上继续使用，不再同步。"
+          }
+        }
+      }
+    },
+    "account.delete.choice.keep.option" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep Local Data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留本机账本"
+          }
+        }
+      }
+    },
+    "account.delete.choice.required" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose what to do with data on this device first."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先选好本机账本怎么处理，才能注销。"
           }
         }
       }
@@ -13854,53 +14029,19 @@
         }
       }
     },
-    "account.delete.choice.message" : {
+    "account.delete.confirm" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your Yado account and the cloud data of every Yado app will be deleted. You can keep the ledger on this device and keep using it (it will no longer sync), or erase it too."
+            "value" : "Delete Account"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "芽豆账号和所有芽豆 App 的云端数据都会删除。本机账本可以保留在这台设备上继续使用（不再同步），也可以一并清除。"
-          }
-        }
-      }
-    },
-    "account.delete.choice.keep" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete Account, Keep Local Data"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "注销并保留本机账本"
-          }
-        }
-      }
-    },
-    "account.delete.choice.erase" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete Account and Local Data"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "注销并清除本机账本"
+            "value" : "注销芽豆账号"
           }
         }
       }
@@ -13911,13 +14052,132 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your account deletion didn't finish. Some data may already be deleted, and AI features may be unavailable for now. Please try again later to finish."
+            "value" : "Some data may already be deleted, and AI features may be unavailable for now. Try again to finish deleting your account."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "注销没有完成，部分数据可能已经删除，AI 功能可能暂时无法使用。请稍后重试，完成注销。"
+            "value" : "部分数据可能已经删除，AI 功能可能暂时无法使用；重试即可完成注销。"
+          }
+        }
+      }
+    },
+    "account.delete.failed.network" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check your connection and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网络连接有问题，请检查网络后重试。"
+          }
+        }
+      }
+    },
+    "account.delete.failed.service" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado's service couldn't finish the deletion right now. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆服务暂时无法完成注销，请稍后重试。"
+          }
+        }
+      }
+    },
+    "account.delete.failed.session" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your sign-in has expired. Sign in again, then delete your account."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录已失效，请重新登录后再注销。"
+          }
+        }
+      }
+    },
+    "account.delete.failed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account deletion didn't finish"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "注销没有完成"
+          }
+        }
+      }
+    },
+    "account.delete.failed.upgrade" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update the app to the latest version, then try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先把 App 更新到最新版本，再注销。"
+          }
+        }
+      }
+    },
+    "account.delete.finished.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You've been signed out. Data on this device was handled as you chose."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已退出登录，本机账本已按你的选择处理。"
+          }
+        }
+      }
+    },
+    "account.delete.finished.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Yado account has been deleted"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆账号已注销"
           }
         }
       }
@@ -13928,13 +14188,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your Yado account was deleted, but data on this device couldn't be erased. You can reset it in Settings."
+            "value" : "You've been signed out, but data on this device couldn't be erased. You can reset it in Settings."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "芽豆账号已注销，但本机数据没能清除，可以在设置里重置数据。"
+            "value" : "已退出登录，但本机账本没能清除，可以在设置里重置数据。"
           }
         }
       }
@@ -14343,6 +14603,195 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "环境"
+          }
+        }
+      }
+    },
+    "developer.checkIn.missedYesterday" : {
+      "comment" : "开发页签到测试：补出连签但昨天空着，今天签到可以用补签卡；%@ 为连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@-Day Streak, Missed Yesterday (Saver Available)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连签 %@ 天、昨天漏签（今天可用补签卡）"
+          }
+        }
+      }
+    },
+    "developer.checkIn.cardUsed" : {
+      "comment" : "开发页签到测试：昨天漏签且本月补签卡已用；%@ 为连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@-Day Streak, Missed Yesterday, Saver Used"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连签 %@ 天、昨天漏签、本月补签卡已用"
+          }
+        }
+      }
+    },
+    "developer.section.checkIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check-in Testing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到测试"
+          }
+        }
+      }
+    },
+    "developer.checkIn.status" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check-in status"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到状态"
+          }
+        }
+      }
+    },
+    "developer.checkIn.resetGuide" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Check-in Guide"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置签到引导"
+          }
+        }
+      }
+    },
+    "developer.checkIn.clear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Check-ins"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清空签到记录"
+          }
+        }
+      }
+    },
+    "developer.checkIn.streak" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set Streak to %1$@ Days (%2$@ Today)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连签设为 %1$@ 天（今天签到得%2$@）"
+          }
+        }
+      }
+    },
+    "developer.checkIn.done.guide" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guide reset. It appears again on Profile while today's check-in bubble is showing."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已重置引导。回到“我的”页，今天的签到气泡出现时会再弹出。"
+          }
+        }
+      }
+    },
+    "developer.checkIn.done.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check-ins reset."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已重置签到。"
+          }
+        }
+      }
+    },
+    "developer.checkIn.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset failed: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置失败：%@"
+          }
+        }
+      }
+    },
+    "developer.checkIn.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dev environment only. The guide only appears while today's check-in bubble shows on Profile; to start over, reset the guide, then clear check-ins. Setting a streak replaces existing check-ins with consecutive days up to yesterday, so checking in today earns that gift. Points already granted are kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只有 dev 环境可用。引导只在“我的”页出现今天的签到气泡时弹出：想从头体验，先重置引导，再清空签到。设置连签会清掉现有签到，补出截至昨天的连续签到，今天一签就得到对应礼包。已经发的点数不收回。"
           }
         }
       }
@@ -18700,6 +19149,2832 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在记账页定位"
+          }
+        }
+      }
+    },
+    "checkIn.title" : {
+      "comment" : "每日签到页标题，也是“我的”页入口行的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily Check-in"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日签到"
+          }
+        }
+      }
+    },
+    "checkIn.row.streak" : {
+      "comment" : "“我的”页每日签到行尾：当前连签天数，%@ 为天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@-day streak"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已连签 %@ 天"
+          }
+        }
+      }
+    },
+    "checkIn.row.gifts" : {
+      "comment" : "“我的”页每日签到行尾：待开礼包个数，%@ 为个数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gifts to open: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 个礼包待开启"
+          }
+        }
+      }
+    },
+    "checkIn.streak.caption" : {
+      "comment" : "签到页大数字下的说明：连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Days in a row"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连续签到天数"
+          }
+        }
+      }
+    },
+    "checkIn.status.loading" : {
+      "comment" : "签到页正在加载签到状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载…"
+          }
+        }
+      }
+    },
+    "checkIn.status.failed" : {
+      "comment" : "签到页取不到签到状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load check-in info. Pull down to try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到信息暂时取不到，下拉重试"
+          }
+        }
+      }
+    },
+    "checkIn.today.done" : {
+      "comment" : "签到页：今天已签到，%@ 为今天得到的点数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checked in today · +%@ pts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天已签到 · +%@ 点"
+          }
+        }
+      }
+    },
+    "checkIn.today.start" : {
+      "comment" : "签到页：今天没签、也没有正在进行的连签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check in today to start a streak"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天签到，开始连签"
+          }
+        }
+      }
+    },
+    "checkIn.today.continue" : {
+      "comment" : "签到页：今天还没签，%@ 为签到后的连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check in today for day %@ of your streak"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天签到就是连签第 %@ 天"
+          }
+        }
+      }
+    },
+    "checkIn.today.protectable" : {
+      "comment" : "签到页：昨天漏签、今天可以用补签卡，%@ 为能保住的连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You missed yesterday. Use a streak saver when you check in to keep your %@-day streak."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨天漏签了，签到时可以用补签卡保住 %@ 天连签"
+          }
+        }
+      }
+    },
+    "checkIn.protection.prompt.title" : {
+      "comment" : "点签到时询问是否用补签卡的弹窗标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You Missed Yesterday"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨天漏签了"
+          }
+        }
+      }
+    },
+    "checkIn.protection.prompt.message" : {
+      "comment" : "补签卡弹窗说明：%1$@ 为用卡后今天的连签天数，%2$@ 为本月剩余张数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use 1 streak saver and today counts as day %1$@. Without it, your streak restarts at day 1. Streak savers left this month: %2$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用 1 张补签卡，今天接着算第 %1$@ 天；不用的话从第 1 天重新算。本月还剩 %2$@ 张。"
+          }
+        }
+      }
+    },
+    "checkIn.protection.prompt.use" : {
+      "comment" : "补签卡弹窗：用卡签到",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Streak Saver"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用补签卡签到"
+          }
+        }
+      }
+    },
+    "checkIn.protection.prompt.skip" : {
+      "comment" : "补签卡弹窗：不用卡，直接签到（连签从第 1 天重新算）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check In Without It"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不用，直接签到"
+          }
+        }
+      }
+    },
+    "checkIn.protection.used" : {
+      "comment" : "用卡签到成功后气泡下方的说明，%@ 为保住的连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used a streak saver to keep your %@-day streak"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用掉 1 张补签卡，保住了 %@ 天连签"
+          }
+        }
+      }
+    },
+    "checkIn.protection.cardsLeft" : {
+      "comment" : "签到页：本月补签卡还剩几张，%@ 为张数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streak savers this month: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本月补签卡：%@ 张"
+          }
+        }
+      }
+    },
+    "checkIn.protection.cardsUsedUp" : {
+      "comment" : "签到页：本月补签卡已用完",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streak savers this month: all used"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本月补签卡：已用完"
+          }
+        }
+      }
+    },
+    "checkIn.stamp" : {
+      "comment" : "签到页今天已签到时的印章文字",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已签到"
+          }
+        }
+      }
+    },
+    "checkIn.gifts.section" : {
+      "comment" : "签到页待开礼包分组标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gifts to Open"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "待开启的礼包"
+          }
+        }
+      }
+    },
+    "checkIn.gift.weekly" : {
+      "comment" : "连签 7 天得到的礼包名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weekly Gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "周礼包"
+          }
+        }
+      }
+    },
+    "checkIn.gift.monthly" : {
+      "comment" : "连签 30 天得到的礼包名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monthly Gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "月礼包"
+          }
+        }
+      }
+    },
+    "checkIn.gift.yearly" : {
+      "comment" : "连签 365 天得到的礼包名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yearly Gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年度礼包"
+          }
+        }
+      }
+    },
+    "checkIn.gift.other" : {
+      "comment" : "客户端不认识的礼包档位的名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "礼包"
+          }
+        }
+      }
+    },
+    "checkIn.gift.earned" : {
+      "comment" : "礼包的来历，%@ 为得到礼包时的连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From your %@-day streak"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连签 %@ 天获得"
+          }
+        }
+      }
+    },
+    "checkIn.gift.open" : {
+      "comment" : "待开礼包行尾的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开启"
+          }
+        }
+      }
+    },
+    "checkIn.gift.opensLeft" : {
+      "comment" : "能开几次的礼包还剩几次，%@ 为次数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens left: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还能开 %@ 次"
+          }
+        }
+      }
+    },
+    "checkIn.milestones.section" : {
+      "comment" : "签到页各档礼包进度的分组标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streak Gifts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连签礼包"
+          }
+        }
+      }
+    },
+    "checkIn.milestone.rule" : {
+      "comment" : "一档礼包的规则，%1$@ 为每连签几天，%2$@ 为点数有效天数；不写具体点数，只说是随机点数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every %1$@ days · random points · valid %2$@ days"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每连签 %1$@ 天 · 随机点数 · %2$@ 天有效"
+          }
+        }
+      }
+    },
+    "checkIn.milestone.opens" : {
+      "comment" : "能开几次的礼包，%@ 为次数（大于 1）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens %@ times"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可开 %@ 次"
+          }
+        }
+      }
+    },
+    "checkIn.milestone.daysLeft" : {
+      "comment" : "离下一个礼包还要签几天，%@ 为天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ days to go"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再签 %@ 天"
+          }
+        }
+      }
+    },
+    "checkIn.milestone.today" : {
+      "comment" : "今天签到就能拿到这档礼包",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check in today to get it"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天签到就能拿到"
+          }
+        }
+      }
+    },
+    "checkIn.milestone.tomorrow" : {
+      "comment" : "今天已签，明天签到就能拿到这档礼包",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check in tomorrow to get it"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "明天签到就能拿到"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.section" : {
+      "comment" : "签到页日历分组标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check-in Calendar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到日历"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.previous" : {
+      "comment" : "签到日历翻到上个月按钮的 VoiceOver 标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous month"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上个月"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.next" : {
+      "comment" : "签到日历翻到下个月按钮的 VoiceOver 标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next month"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下个月"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.summary" : {
+      "comment" : "签到日历本月小结，%1$@ 为签到天数，%2$@ 为点数合计",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ days checked in this month · %2$@ pts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本月签到 %1$@ 天，共 %2$@ 点"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.empty" : {
+      "comment" : "签到日历这个月没有签到",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No check-ins this month"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个月还没有签到"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.failed" : {
+      "comment" : "签到日历这个月加载失败",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load this month. Tap to try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个月加载失败，点一下重试"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.today" : {
+      "comment" : "签到日历日期格的 VoiceOver 朗读：今天",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.day.checked" : {
+      "comment" : "签到日历日期格的 VoiceOver 朗读：已签到，%1$@ 为点数，%2$@ 为连签天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "checked in, +%1$@ pts, day %2$@ of streak"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已签到，+%1$@ 点，连签第 %2$@ 天"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.day.unchecked" : {
+      "comment" : "签到日历日期格的 VoiceOver 朗读：未签到",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "not checked in"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未签到"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.day.protected" : {
+      "comment" : "签到日历朗读：这天被补签卡保住了连签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "streak kept by a streak saver"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "补签卡保住了连签"
+          }
+        }
+      }
+    },
+    "checkIn.calendar.separator" : {
+      "comment" : "签到日历日期格 VoiceOver 朗读各部分之间的分隔",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : ", "
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "，"
+          }
+        }
+      }
+    },
+    "checkIn.rules.section" : {
+      "comment" : "签到页规则说明的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rules"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到规则"
+          }
+        }
+      }
+    },
+    "checkIn.rules.daily" : {
+      "comment" : "签到规则：每天签到领随机点数，不写具体范围；%@ 为有效小时数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check in once a day for random AI points, valid for %@ hours."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天签到一次，领取随机 AI 点数，%@ 小时内有效。"
+          }
+        }
+      }
+    },
+    "checkIn.rules.streak" : {
+      "comment" : "签到规则：连签礼包与断签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep a streak to earn gifts. Missing a day restarts it from day 1."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连续签到满对应天数就送礼包；断签后从第 1 天重新算。"
+          }
+        }
+      }
+    },
+    "checkIn.rules.gifts" : {
+      "comment" : "签到规则：礼包不过期",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gifts never expire. Their points are valid from the moment you open them."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "礼包不会过期，什么时候开都行；点数的有效期从打开时算起。"
+          }
+        }
+      }
+    },
+    "checkIn.rules.protection" : {
+      "comment" : "签到规则：补签卡，%@ 为每月张数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streak savers per month: %@ (they don't carry over). If you miss one day, use one when you check in the next day to keep your streak. The missed day earns no points and doesn't count toward the streak."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每月送 %@ 张补签卡，不累积：漏签 1 天时，第二天签到可以用它保住连签；被保住的那天不给点数、不算天数。"
+          }
+        }
+      }
+    },
+    "checkIn.rules.timezone" : {
+      "comment" : "签到规则：换日时间",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A new day starts at midnight Beijing time."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天按北京时间 0 点换日。"
+          }
+        }
+      }
+    },
+    "checkIn.opening.close" : {
+      "comment" : "开礼包整屏的关闭按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭"
+          }
+        }
+      }
+    },
+    "checkIn.opening.round" : {
+      "comment" : "能开几次的礼包当前是第几次，%1$@ 为第几次，%2$@ 为总次数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open %1$@ of %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %1$@ 次，共 %2$@ 次"
+          }
+        }
+      }
+    },
+    "checkIn.opening.tapToOpen" : {
+      "comment" : "开礼包整屏：提示点礼盒打开",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the box to open it"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点一下礼盒打开"
+          }
+        }
+      }
+    },
+    "checkIn.opening.pointsUnit" : {
+      "comment" : "开礼包后大数字下的单位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI points"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点 AI 点数"
+          }
+        }
+      }
+    },
+    "checkIn.opening.validUntil" : {
+      "comment" : "开礼包后点数的有效期，%@ 为到期时间",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valid until %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有效期至 %@"
+          }
+        }
+      }
+    },
+    "checkIn.opening.secondChance" : {
+      "comment" : "年度礼包开完第一次后的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One more open left!"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还能再开一次！"
+          }
+        }
+      }
+    },
+    "checkIn.opening.open" : {
+      "comment" : "开礼包整屏的主按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开礼包"
+          }
+        }
+      }
+    },
+    "checkIn.opening.openAgain" : {
+      "comment" : "年度礼包开完第一次后的主按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再开一次"
+          }
+        }
+      }
+    },
+    "checkIn.opening.collect" : {
+      "comment" : "礼包开完后的主按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collect"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收下"
+          }
+        }
+      }
+    },
+    "checkIn.opening.announcement" : {
+      "comment" : "开礼包成功的 VoiceOver 播报，%1$@ 为点数，%2$@ 为到期日期",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Got %1$@ points, valid until %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "获得 %1$@ 点，有效期至 %2$@"
+          }
+        }
+      }
+    },
+    "checkIn.guide.title" : {
+      "comment" : "第一次看到签到气泡时引导卡片的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check in daily for AI points"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日签到领 AI 点数"
+          }
+        }
+      }
+    },
+    "checkIn.guide.message" : {
+      "comment" : "签到引导：每天签到领随机点数，不写具体范围；%@ 为有效小时数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the bean once a day for random AI points, valid for %@ hours."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天点一下芽豆，领取随机 AI 点数，%@ 小时内有效。"
+          }
+        }
+      }
+    },
+    "checkIn.guide.gifts" : {
+      "comment" : "签到引导：连签礼包，%1$@、%2$@、%3$@ 为周、月、年礼包要连签的天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep a streak of %1$@, %2$@ or %3$@ days to open gifts."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连续签到满 %1$@、%2$@、%3$@ 天还能开礼包。"
+          }
+        }
+      }
+    },
+    "checkIn.guide.giftsGeneric" : {
+      "comment" : "签到引导：连签礼包，不知道具体天数时",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep your streak going to open gifts."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连续签到还能开礼包。"
+          }
+        }
+      }
+    },
+    "checkIn.guide.dismiss" : {
+      "comment" : "签到引导卡片的关闭按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Got It"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "知道了"
+          }
+        }
+      }
+    },
+    "ai.entry.grant.weeklyGift" : {
+      "comment" : "明细中打开签到周礼包的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weekly check-in gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到周礼包"
+          }
+        }
+      }
+    },
+    "ai.entry.grant.monthlyGift" : {
+      "comment" : "明细中打开签到月礼包的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monthly check-in gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到月礼包"
+          }
+        }
+      }
+    },
+    "ai.entry.grant.yearlyGift" : {
+      "comment" : "明细中打开签到年度礼包的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yearly check-in gift"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "签到年度礼包"
+          }
+        }
+      }
+    },
+    "checkIn.opening.failure.stale" : {
+      "comment" : "开礼包失败：礼包已不存在或已在别的设备上开过",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This gift has changed. Close and check your gift list."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个礼包的状态变了，关闭后看看礼包列表"
+          }
+        }
+      }
+    },
+    "auth.sign_in.email" : {
+      "comment" : "登录页邮箱登录按钮，打开 Logto 托管页的邮箱输入页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue with Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用邮箱继续"
+          }
+        }
+      }
+    },
+    "account.security.title" : {
+      "comment" : "设置 › 账号与安全页标题和入口",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account & Security"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账号与安全"
+          }
+        }
+      }
+    },
+    "account.security.shared_note" : {
+      "comment" : "账号与安全页说明：芽豆账号跨 App 通用",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Yado account works across all Yado apps. Changes here apply to every app."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆账号在芽豆系列 App 里通用，这里的修改各 App 都生效。"
+          }
+        }
+      }
+    },
+    "account.security.section.account" : {
+      "comment" : "账号与安全页分组标题：账号信息",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账号信息"
+          }
+        }
+      }
+    },
+    "account.security.section.sign_in" : {
+      "comment" : "账号与安全页分组标题：登录方式",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-In Methods"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录方式"
+          }
+        }
+      }
+    },
+    "account.security.apple" : {
+      "comment" : "账号与安全页 Apple 登录方式行标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple"
+          }
+        }
+      }
+    },
+    "account.security.apple.linked" : {
+      "comment" : "Apple 已关联",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已关联"
+          }
+        }
+      }
+    },
+    "account.security.apple.unlinked" : {
+      "comment" : "Apple 未关联",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Linked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未关联"
+          }
+        }
+      }
+    },
+    "account.security.apple.link" : {
+      "comment" : "Apple 行的动作：关联 Apple",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关联"
+          }
+        }
+      }
+    },
+    "account.apple.link.title" : {
+      "comment" : "关联 Apple 弹层标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link Apple Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关联 Apple 账号"
+          }
+        }
+      }
+    },
+    "account.apple.link.message" : {
+      "comment" : "关联 Apple 这一步的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After linking, you can sign in to this Yado account with Apple. We'll open Apple's sign-in page. Sign in with the Apple Account you want to link."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关联后可以用 Apple 登录这个芽豆账号。接下来会打开 Apple 的登录页面，请用要关联的 Apple 账号登录并授权。"
+          }
+        }
+      }
+    },
+    "account.apple.link.action" : {
+      "comment" : "打开 Apple 授权页的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue with Apple"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用 Apple 继续"
+          }
+        }
+      }
+    },
+    "account.apple.finished.title" : {
+      "comment" : "关联 Apple 完成页标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Account Linked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已关联 Apple"
+          }
+        }
+      }
+    },
+    "account.apple.finished.message" : {
+      "comment" : "关联 Apple 完成页说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can now sign in to this Yado account with Apple."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以后可以用 Apple 登录这个芽豆账号。"
+          }
+        }
+      }
+    },
+    "account.apple.error.in_use" : {
+      "comment" : "这个 Apple 账号已关联其他芽豆账号（user.identity_already_in_use）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Apple Account is already linked to another Yado account."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个 Apple 账号已经关联了其他芽豆账号。"
+          }
+        }
+      }
+    },
+    "account.apple.error.failed" : {
+      "comment" : "关联 Apple 没有完成（授权回程不对或校验失败）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't link your Apple Account. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有完成关联，请稍后再试。"
+          }
+        }
+      }
+    },
+    "account.security.password" : {
+      "comment" : "账号与安全页密码行标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码"
+          }
+        }
+      }
+    },
+    "account.security.password.set" : {
+      "comment" : "密码已设置",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已设置"
+          }
+        }
+      }
+    },
+    "account.security.password.unset" : {
+      "comment" : "密码未设置",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Set"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未设置"
+          }
+        }
+      }
+    },
+    "account.security.password.change" : {
+      "comment" : "密码行的动作：修改密码",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修改"
+          }
+        }
+      }
+    },
+    "account.security.password.set_action" : {
+      "comment" : "密码行的动作：第一次设置密码",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set Up"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置"
+          }
+        }
+      }
+    },
+    "account.password.change.title" : {
+      "comment" : "修改密码弹层标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修改密码"
+          }
+        }
+      }
+    },
+    "account.password.set.title" : {
+      "comment" : "设置密码弹层标题（原来没有密码）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置密码"
+          }
+        }
+      }
+    },
+    "account.password.new.title.change" : {
+      "comment" : "输入新密码这一步的标题（修改）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a New Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入新密码"
+          }
+        }
+      }
+    },
+    "account.password.new.title.set" : {
+      "comment" : "输入新密码这一步的标题（第一次设置）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create a Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置登录密码"
+          }
+        }
+      }
+    },
+    "account.password.new.message" : {
+      "comment" : "输入新密码这一步的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use this password with your username or email to sign in to Yado apps."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置后可以用用户名或邮箱加这个密码登录芽豆系列 App。"
+          }
+        }
+      }
+    },
+    "account.password.new.field" : {
+      "comment" : "新密码输入框标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新密码"
+          }
+        }
+      }
+    },
+    "account.password.new.placeholder" : {
+      "comment" : "新密码输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter new password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入新密码"
+          }
+        }
+      }
+    },
+    "account.password.confirm.field" : {
+      "comment" : "确认密码输入框标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确认新密码"
+          }
+        }
+      }
+    },
+    "account.password.confirm.placeholder" : {
+      "comment" : "确认密码输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter it again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再输入一次"
+          }
+        }
+      }
+    },
+    "account.password.error.mismatch" : {
+      "comment" : "两次输入的新密码不一致",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The passwords don't match."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "两次输入的密码不一致。"
+          }
+        }
+      }
+    },
+    "account.password.error.rejected" : {
+      "comment" : "新密码不符合 Logto 的密码规则（password.rejected）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This password is too short or too simple. Try a stronger one."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码太短或太简单，请换一个更安全的密码。"
+          }
+        }
+      }
+    },
+    "account.password.error.same_as_current" : {
+      "comment" : "新密码和当前密码相同（user.same_password）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The new password is the same as your current one."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新密码和当前密码相同。"
+          }
+        }
+      }
+    },
+    "account.password.finished.changed" : {
+      "comment" : "修改密码完成页标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password Changed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码已修改"
+          }
+        }
+      }
+    },
+    "account.password.finished.set" : {
+      "comment" : "设置密码完成页标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password Set"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码已设置"
+          }
+        }
+      }
+    },
+    "account.password.finished.message" : {
+      "comment" : "设置 / 修改密码完成页说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can now use this password to sign in to Yado apps."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以后可以用这个密码登录芽豆系列 App。"
+          }
+        }
+      }
+    },
+    "account.security.email" : {
+      "comment" : "账号与安全页邮箱行标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邮箱"
+          }
+        }
+      }
+    },
+    "account.security.email.change" : {
+      "comment" : "邮箱行行尾操作：更换邮箱",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更换"
+          }
+        }
+      }
+    },
+    "account.security.email.bind" : {
+      "comment" : "邮箱行行尾操作：绑定邮箱",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "绑定"
+          }
+        }
+      }
+    },
+    "account.security.email.bound" : {
+      "comment" : "邮箱已绑定但读不到地址时的值",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已绑定"
+          }
+        }
+      }
+    },
+    "account.security.email.unbound" : {
+      "comment" : "邮箱未绑定",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Added"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未绑定"
+          }
+        }
+      }
+    },
+    "account.security.value.unknown" : {
+      "comment" : "账号信息某项暂时读不到时的值",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时读不到"
+          }
+        }
+      }
+    },
+    "account.security.reauth.message" : {
+      "comment" : "老会话缺少新权限时，提示重新登录一次",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in again once to view and manage your email."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要重新登录一次，才能查看和管理邮箱。"
+          }
+        }
+      }
+    },
+    "account.security.reauth.action" : {
+      "comment" : "重新登录按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign In Again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登录"
+          }
+        }
+      }
+    },
+    "account.security.reauth.failed" : {
+      "comment" : "重新登录失败，后面换行跟错误详情",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't sign in again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登录失败"
+          }
+        }
+      }
+    },
+    "account.security.load_failed" : {
+      "comment" : "账号与安全页读取账号信息失败",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load account info"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账号信息加载失败"
+          }
+        }
+      }
+    },
+    "account.reauth.switched.title" : {
+      "comment" : "重新登录或验证时登了另一个账号、已退出登录的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signed In to a Different Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录的是另一个账号"
+          }
+        }
+      }
+    },
+    "account.reauth.switched.message" : {
+      "comment" : "重新登录或验证时登了另一个账号、已退出登录的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You signed in to a different Yado account. To keep the data on this device separate, you've been signed out. Please sign in again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你在登录页登录的不是当前芽豆账号。为了不让这台设备上的数据和别的账号混在一起，已退出登录，请重新登录。"
+          }
+        }
+      }
+    },
+    "account.email.bind.title" : {
+      "comment" : "绑定邮箱弹层标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "绑定邮箱"
+          }
+        }
+      }
+    },
+    "account.email.change.title" : {
+      "comment" : "更换邮箱弹层标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更换邮箱"
+          }
+        }
+      }
+    },
+    "account.email.identity.title" : {
+      "comment" : "绑定邮箱第一步标题：验证身份",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verify It's You"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先验证身份"
+          }
+        }
+      }
+    },
+    "account.email.identity.password.message" : {
+      "comment" : "用密码验证身份的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To keep your account safe, enter your Yado account password."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为了保护账号安全，请输入芽豆账号的密码。"
+          }
+        }
+      }
+    },
+    "account.email.identity.password.field" : {
+      "comment" : "密码输入框标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码"
+          }
+        }
+      }
+    },
+    "account.email.identity.password.placeholder" : {
+      "comment" : "密码输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter password"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入密码"
+          }
+        }
+      }
+    },
+    "account.email.identity.code.message" : {
+      "comment" : "用当前邮箱验证码验证身份的说明，%@ 为打码后的当前邮箱",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To keep your account safe, we'll send a code to your current email %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为了保护账号安全，我们会发送验证码到当前邮箱 %@。"
+          }
+        }
+      }
+    },
+    "account.email.identity.unavailable" : {
+      "comment" : "没有 App 能用的身份验证方式时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We can't verify your identity in the app right now. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时无法在 App 内验证你的身份，请稍后再试。"
+          }
+        }
+      }
+    },
+    "account.email.step_up.message" : {
+      "comment" : "只有 Apple 登录的账号需要在托管页重新验证的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Yado account currently uses only Sign in with Apple. To keep it safe, sign in with Apple again on the Yado account page and set up an email or password when prompted."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的芽豆账号目前只用 Apple 登录。为了保护账号，需要在芽豆账号页面重新用 Apple 登录一次，并按提示设置邮箱或密码。"
+          }
+        }
+      }
+    },
+    "account.email.step_up.action" : {
+      "comment" : "打开托管页重新验证的按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续"
+          }
+        }
+      }
+    },
+    "account.email.step_up.failed" : {
+      "comment" : "托管页重新验证失败",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verification didn't finish. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证没有完成，请稍后再试。"
+          }
+        }
+      }
+    },
+    "account.email.step_up.incomplete" : {
+      "comment" : "托管页回来后仍没有邮箱或密码",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No email or password was set. Please verify again and follow the prompts."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有设置邮箱或密码，请重新验证并按提示设置。"
+          }
+        }
+      }
+    },
+    "account.email.next" : {
+      "comment" : "绑定邮箱流程的下一步按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一步"
+          }
+        }
+      }
+    },
+    "account.email.new.title.bind" : {
+      "comment" : "绑定邮箱第二步标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入邮箱"
+          }
+        }
+      }
+    },
+    "account.email.new.title.change" : {
+      "comment" : "更换邮箱第二步标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter New Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入新邮箱"
+          }
+        }
+      }
+    },
+    "account.email.new.message" : {
+      "comment" : "输入新邮箱的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We'll send a code to this email to confirm it's yours."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我们会发送验证码到这个邮箱，确认它属于你。"
+          }
+        }
+      }
+    },
+    "account.email.new.field" : {
+      "comment" : "新邮箱输入框标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邮箱"
+          }
+        }
+      }
+    },
+    "account.email.new.placeholder" : {
+      "comment" : "新邮箱输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "name@example.com"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "name@example.com"
+          }
+        }
+      }
+    },
+    "account.email.code.field" : {
+      "comment" : "验证码输入框标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verification Code"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码"
+          }
+        }
+      }
+    },
+    "account.email.code.placeholder" : {
+      "comment" : "验证码输入框占位，Logto 验证码固定 6 位数字",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6-digit code"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入 6 位数字验证码"
+          }
+        }
+      }
+    },
+    "account.email.code.send" : {
+      "comment" : "发送验证码按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send Code"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送验证码"
+          }
+        }
+      }
+    },
+    "account.email.code.sent" : {
+      "comment" : "验证码已发送的说明，%@ 为新邮箱",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We sent a code to %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码已发送到 %@，请查收。"
+          }
+        }
+      }
+    },
+    "account.email.code.resend" : {
+      "comment" : "重新发送验证码按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resend Code"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新发送验证码"
+          }
+        }
+      }
+    },
+    "account.email.code.resend_countdown" : {
+      "comment" : "重发验证码倒计时，%lld 为剩余秒数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resend in %llds"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 秒后可重新发送"
+          }
+        }
+      }
+    },
+    "account.email.save" : {
+      "comment" : "保存新邮箱按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存"
+          }
+        }
+      }
+    },
+    "account.email.finished.bound" : {
+      "comment" : "邮箱绑定成功",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email Added"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邮箱已绑定"
+          }
+        }
+      }
+    },
+    "account.email.finished.changed" : {
+      "comment" : "邮箱更换成功",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email Changed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邮箱已更换"
+          }
+        }
+      }
+    },
+    "account.email.finished.message" : {
+      "comment" : "邮箱绑定或更换成功后的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can now use this email to sign in to Yado apps."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以后可以用这个邮箱登录芽豆系列 App。"
+          }
+        }
+      }
+    },
+    "account.email.error.invalid_format" : {
+      "comment" : "新邮箱格式不正确",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a valid email address."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邮箱格式不正确。"
+          }
+        }
+      }
+    },
+    "account.email.error.same_as_current" : {
+      "comment" : "新邮箱和当前邮箱相同",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The new email is the same as your current one."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新邮箱和当前邮箱相同。"
+          }
+        }
+      }
+    },
+    "account.email.error.verification_required" : {
+      "comment" : "身份验证已过期，需要重新验证",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your verification has expired. Please verify again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "身份验证已过期，请重新验证。"
+          }
+        }
+      }
+    },
+    "account.email.error.in_use" : {
+      "comment" : "邮箱已被其他账号使用",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This email is already used by another Yado account."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个邮箱已被其他芽豆账号使用。"
+          }
+        }
+      }
+    },
+    "account.email.error.code_mismatch" : {
+      "comment" : "验证码不正确",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incorrect verification code."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码不正确。"
+          }
+        }
+      }
+    },
+    "account.email.error.code_expired" : {
+      "comment" : "验证码已过期",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The code has expired. Please request a new one."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码已过期，请重新获取。"
+          }
+        }
+      }
+    },
+    "account.email.error.code_too_many_attempts" : {
+      "comment" : "验证码尝试次数过多",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many attempts. Please request a new code."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码尝试次数过多，请重新获取。"
+          }
+        }
+      }
+    },
+    "account.email.error.code_invalid" : {
+      "comment" : "验证码记录失效（不存在、与邮箱不匹配或新邮箱验证记录无效）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This code is no longer valid. Please request a new one."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码已失效，请重新获取。"
+          }
+        }
+      }
+    },
+    "account.email.error.rate_limited" : {
+      "comment" : "验证码发送太频繁",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many requests. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送太频繁，请稍后再试。"
+          }
+        }
+      }
+    },
+    "account.email.error.service_unavailable" : {
+      "comment" : "Logto 没配邮件连接器（HTTP 501）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email service isn't available yet, so we can't send a code right now."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邮件服务暂未开通，暂时无法发送验证码。"
+          }
+        }
+      }
+    },
+    "account.security.load_failed.detail" : {
+      "comment" : "账号与安全页读取账号信息失败的说明（非网络原因）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account info is unavailable right now. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账号信息暂时读不到，请稍后再试。"
+          }
+        }
+      }
+    },
+    "account.delete.progress.title" : {
+      "comment" : "注销进行中的全屏阻断层标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleting your Yado account…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在注销芽豆账号…"
+          }
+        }
+      }
+    },
+    "account.delete.progress.message" : {
+      "comment" : "注销进行中的全屏阻断层说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please don't close the app."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请不要关闭 App"
           }
         }
       }

@@ -5,7 +5,8 @@ import SwiftUI
 /// 由 `SignInPresentation` 在 Tab 界面之上整屏显示，不属于任何 Tab 的导航栈，也不是 sheet 弹层；
 /// 左上角关闭回到原来的页面。版式只留品牌、插画、标语、权益、按钮五样，
 /// 大面积留白，让手绘插画成为视觉中心；权益列表告诉用户登录后能得到什么。第三方按钮由 `AuthSocialProvider.displayed` 决定，
-/// 未接通的方式只作占位，点击提示即将上线；账号密码按钮打开 Logto 托管页，App 不接触用户密码。
+/// 未接通的方式只作占位，点击提示即将上线；邮箱按钮（`AuthConfig.isEmailAccountAvailable` 打开时）直接进入托管页的邮箱输入页；
+/// 账号密码按钮打开 Logto 托管页，App 不接触用户密码。
 /// 最底部一行小字说明登录即同意《用户协议》和《隐私政策》，点书名在 App 内打开网页。
 struct SignInView: View {
     @Environment(\.locale) private var locale
@@ -16,11 +17,14 @@ struct SignInView: View {
     /// 显示的第三方登录方式，默认取 `AuthSocialProvider.displayed`；预览时可注入。
     private let providers: [AuthSocialProvider]
 
+    /// 是否显示「邮箱登录」按钮，默认取 `AuthConfig.isEmailAccountAvailable`；预览时可注入。
+    private let showsEmail: Bool
+
     /// 打开登录页的原因；有原因时在标语下说明为什么要登录。
     private let reason: SignInReason?
 
     /// 当前正在进行的登录方式，用于只在被点的那个按钮上转圈。
-    @State private var pendingMethod: PendingMethod?
+    @State private var pendingMethod: AuthSignInMethod?
     /// 入场动画是否已触发。
     @State private var hasAppeared = false
     /// 按钮区上方的提示，如“即将上线”或登录失败。
@@ -33,12 +37,6 @@ struct SignInView: View {
     @State private var successTickProgress: CGFloat = 0
     /// 从底部同意文案里点开的协议。
     @State private var presentedLegalDocument: LegalDocument?
-
-    /// 正在进行的登录方式。
-    private enum PendingMethod: Equatable {
-        case password
-        case social(AuthSocialProvider)
-    }
 
     /// 按钮区上方的一条提示。
     private struct Notice: Equatable {
@@ -53,9 +51,15 @@ struct SignInView: View {
     /// - Parameters:
     ///   - reason: 打开登录页的原因，从“我的”主动登录时为 nil。
     ///   - providers: 要显示的第三方登录方式。
-    init(reason: SignInReason? = nil, providers: [AuthSocialProvider] = AuthSocialProvider.displayed) {
+    ///   - showsEmail: 是否显示「邮箱登录」按钮。
+    init(
+        reason: SignInReason? = nil,
+        providers: [AuthSocialProvider] = AuthSocialProvider.displayed,
+        showsEmail: Bool = AuthConfig.isEmailAccountAvailable
+    ) {
         self.reason = reason
         self.providers = providers
+        self.showsEmail = showsEmail
     }
 
     var body: some View {
@@ -211,7 +215,7 @@ struct SignInView: View {
         .frame(maxWidth: 320)
     }
 
-    /// 底部按钮：第三方方式在前，账号密码收尾；失败时整组左右摇晃。
+    /// 底部按钮：第三方方式在前，邮箱其次（开关打开时），账号密码收尾；失败时整组左右摇晃。
     private var buttons: some View {
         VStack(spacing: 10) {
             ForEach(Array(providers.enumerated()), id: \.element) { index, provider in
@@ -230,6 +234,18 @@ struct SignInView: View {
                 .reveal(hasAppeared, delay: 0.8 + Double(index) * 0.08, reduceMotion: reduceMotion)
             }
 
+            if showsEmail {
+                pillButton(
+                    title: text("auth.sign_in.email"),
+                    systemImage: "envelope.fill",
+                    isLoading: pendingMethod == .email
+                ) {
+                    startSignIn(.email)
+                }
+                .accessibilityIdentifier("sign-in-email")
+                .reveal(hasAppeared, delay: 0.8 + Double(providers.count) * 0.08, reduceMotion: reduceMotion)
+            }
+
             pillButton(
                 title: text("auth.sign_in.password"),
                 systemImage: "person.fill",
@@ -238,7 +254,11 @@ struct SignInView: View {
                 startSignIn(.password)
             }
             .accessibilityIdentifier("sign-in-password")
-            .reveal(hasAppeared, delay: 0.8 + Double(providers.count) * 0.08, reduceMotion: reduceMotion)
+            .reveal(
+                hasAppeared,
+                delay: 0.8 + Double(providers.count + (showsEmail ? 1 : 0)) * 0.08,
+                reduceMotion: reduceMotion
+            )
         }
         .disabled(authStore.isBusy)
         .modifier(ShakeEffect(animatableData: CGFloat(failureCount)))
@@ -310,18 +330,13 @@ struct SignInView: View {
     // MARK: - 操作
 
     /// 发起登录；结束后根据结果进入成功态或抖动提示失败，用户主动取消时什么都不做。
-    private func startSignIn(_ method: PendingMethod) {
+    private func startSignIn(_ method: AuthSignInMethod) {
         guard !authStore.isBusy, !isSucceeded else { return }
         pendingMethod = method
         withAnimation { notice = nil }
 
         Task {
-            switch method {
-            case .password:
-                await authStore.signIn()
-            case let .social(provider):
-                await authStore.signIn(provider: provider)
-            }
+            await authStore.signIn(method: method)
             pendingMethod = nil
 
             if authStore.isAuthenticated {

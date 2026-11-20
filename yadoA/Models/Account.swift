@@ -124,7 +124,7 @@ final class Account {
     ) throws -> Account {
         let name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw AccountValidationError.emptyName }
-        guard let balance = AccountAmountParser.amount(from: draft.amountText, locale: locale) else {
+        guard let balance = AccountDraft.openingBalance(from: draft.amountText, locale: locale) else {
             throw AccountValidationError.invalidAmount
         }
         if draft.accountType.requiresTemplateSelection {

@@ -6,7 +6,7 @@ import UIKit
 /// 一级页面底部的语音记账区域：唯一的会话卡片、悬浮麦克风和一次性提示。
 ///
 /// 这里只负责按住说话；打字和发图片走旁边的聊天入口（见 `AIChatView`）。四个一级页面各挂一份，共用根导航持有的同一个会话，切换 Tab 时卡片跟过去；
-/// 卡片在当前页面往下进入二级页面、点关闭或闲置约 2 分钟后收起，对话段继续；切到停在二级页面的 Tab 时卡片随页面收起，回来还在。创建会话、计时、播报和弹层只需要一份，由 `voiceBookkeepingHost(_:)` 挂在根导航上。
+/// 卡片在当前页面往下进入二级页面、点关闭或闲置一会儿后收起（结果不用再操作时约 10 秒，还在等用户时约 2 分钟），对话段继续；切到停在二级页面的 Tab 时卡片随页面收起，回来还在。创建会话、计时、播报和弹层只需要一份，由 `voiceBookkeepingHost(_:)` 挂在根导航上。
 /// 麦克风放进 Tab Bar 附属栏时（见 `VoiceMicPlacement`），这里只显示卡片和提示，麦克风由 `VoiceMicAccessory` 显示。
 struct VoiceBookkeepingDock: View {
     @Environment(\.modelContext) private var modelContext
@@ -70,6 +70,7 @@ struct VoiceBookkeepingDock: View {
                     onOpenChat: { voice.openChat(isSignedIn: authStore.isAuthenticated) },
                     onCreateAccount: { voice.accountCreationTurn = $0 },
                     onOpenRecurringRules: { voice.isRecurringRulesPresented = true },
+                    onTouchingChange: { voice.isTouchingCard = $0 },
                     isShowingDetail: voice.presentedTransaction != nil || voice.presentedAccount != nil
                         || voice.isRecurringRulesPresented
                 )
@@ -246,6 +247,8 @@ private struct VoiceBookkeepingHost: ViewModifier {
     @Environment(SignInPresentation.self) private var signInPresentation
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
+    /// 是否开着读屏；开着时卡片闲置更久才收起。
+    @Environment(\.accessibilityVoiceOverEnabled) private var isVoiceOverEnabled
     /// 当前账号的 AI 点数；每句话结算后用服务端带回的余额就地更新，每句开始时从这里取模型档位。预览中没有注入时为 nil。
     @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
 
@@ -317,13 +320,17 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 }
                 voice.input.transientHint = nil
             }
-            // 闲置约 2 分钟后收起卡片，约 30 分钟后结束对话段；每轮结束都会重新计时
+            // 卡片闲置一会儿就收起：结果不用再操作时约 10 秒，还在等用户或开着读屏时约 2 分钟。
+            // 每轮结束、暂停结束（松开卡片、关掉弹层、松开麦克风）和时长变化都从头计时
+            .task(id: cardIdleKey) {
+                guard let key = cardIdleKey, !key.isPaused else { return }
+                guard (try? await Task.sleep(for: .seconds(key.timeout))) != nil else { return }
+                session?.hideCardIfIdle(isVoiceOverRunning: isVoiceOverEnabled)
+            }
+            // 约 30 分钟没有新的一轮就结束对话段；和卡片分开计时，卡片暂停不推迟这里
             .task(id: session?.lastActivityAt) {
                 guard session?.lastActivityAt != nil else { return }
-                guard (try? await Task.sleep(for: .seconds(VoiceSession.cardIdleTimeout))) != nil else { return }
-                session?.hideCardIfIdle()
-                let remaining = VoiceSession.contextIdleTimeout - VoiceSession.cardIdleTimeout
-                guard (try? await Task.sleep(for: .seconds(remaining))) != nil else { return }
+                guard (try? await Task.sleep(for: .seconds(VoiceSession.contextIdleTimeout))) != nil else { return }
                 session?.endIfIdle()
             }
             // 每轮结束后用触感和 VoiceOver 播报结果
@@ -432,6 +439,29 @@ private struct VoiceBookkeepingHost: ViewModifier {
 
     /// 一次性提示的展示时长（秒）。
     private static let hintDuration: Double = 1.5
+
+    /// 卡片闲置计时的依据；任一项变化都从头计时。
+    private struct CardIdleKey: Equatable {
+        /// 最近一轮结束、撤销或确认账户的时刻。
+        let lastActivityAt: Date
+
+        /// 这次闲置多久后收起，按卡片上的内容和读屏决定。
+        let timeout: TimeInterval
+
+        /// 是否暂停计时：用户在碰卡片、在用麦克风，或卡片上盖着弹层、提示、登录页。
+        let isPaused: Bool
+    }
+
+    /// 当前的卡片闲置计时依据；卡片没有内容或会话还没有活动时为 nil，不计时。
+    private var cardIdleKey: CardIdleKey? {
+        guard let session, session.isActive, let lastActivityAt = session.lastActivityAt else { return nil }
+        return CardIdleKey(
+            lastActivityAt: lastActivityAt,
+            timeout: session.currentCardIdleTimeout(isVoiceOverRunning: isVoiceOverEnabled),
+            isPaused: voice.isCardIdlePaused || signInPresentation.isPresented
+                || signInPresentation.pendingPromptReason != nil
+        )
+    }
 
     /// VoiceOver 播报本轮结果。
     private func announce(_ outcome: VoiceSession.Turn.Outcome?) {

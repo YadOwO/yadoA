@@ -280,6 +280,27 @@ final class LocalAccountRepository {
         }
     }
 
+    /// 本机一个账户都没有时（包括已停用的），自动建一个余额为 0 的「现金」账户并设为默认记账账户。
+    ///
+    /// 用户跳过了引导里的建账户，第一次进记账页时调用，省得先去建账户才能记第一笔。
+    /// 选现金是因为它不分地区、不挑支付方式，名字按当前语言预填；用户之后可以在账户页改名或换默认账户。
+    /// 已经有任何账户时什么都不做，交给原来的默认账户和账户选择逻辑。
+    /// - Parameters:
+    ///   - locale: 预填账户名称使用的语言环境。
+    ///   - now: 注入的创建时间。
+    /// - Returns: 新建账户的标识；已有账户、没有新建时返回 `nil`。
+    /// - Throws: 读取或保存失败时抛出，此时不写入任何账户。
+    @discardableResult
+    func createStarterAccountIfNeeded(
+        locale: Locale = .current,
+        now: Date = .now
+    ) throws -> UUID? {
+        guard try allAccounts(in: makeContext()).isEmpty else { return nil }
+        let draft = AccountDraft(accountType: .cash, amountText: "0", locale: locale)
+        try save(draft, locale: locale, now: now)
+        return draft.id
+    }
+
     /// 校验并原子更新已有账户资料，不改变余额、状态或账户流水。
     func update(
         _ draft: AccountEditDraft,

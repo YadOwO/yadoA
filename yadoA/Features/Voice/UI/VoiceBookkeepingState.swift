@@ -64,9 +64,27 @@ final class VoiceBookkeepingState {
         isChatPresented ? .chat : .quickVoice
     }
 
+    /// 用户是否正在碰会话卡片：手指按着（点、拖动、长按选字），或内容还在惯性滚动；由当前页面上的卡片报告。
+    var isTouchingCard = false
+
     /// 会话是否正在处理上一句。
     var isProcessing: Bool {
         session?.isProcessing == true
+    }
+
+    /// 卡片的闲置计时是否暂停：用户在碰卡片、在用麦克风，或卡片上盖着弹层和提示；恢复后重新计时。
+    ///
+    /// 免得看完详情回来卡片已经没了，或者话说到一半，上面几轮从卡片上消失。登录页由根视图另外判断。
+    var isCardIdlePaused: Bool {
+        isTouchingCard || input.isPressing || input.isRecording || input.isFinishing || isPresentingOverCard
+    }
+
+    /// 卡片上点开的弹层或提示是否还开着：详情、周期记账、手动记账、新建账户、模型选择、聊天页、AI 记账说明，
+    /// 以及按住说话和撤销失败的提示。
+    private var isPresentingOverCard: Bool {
+        presentedTransaction != nil || presentedAccount != nil || isRecurringRulesPresented || manualEntryNote != nil
+            || accountCreationTurn != nil || isModelTierPresented || isChatPresented || isAIConsentPresented
+            || input.alert != nil || session?.hasUndoFailure == true
     }
 
     /// 没同意“AI 记账说明”时先弹出说明，所有发往 AI 的入口共用这一道检查。
@@ -201,12 +219,15 @@ final class VoiceBookkeepingState {
     func closeCard() {
         input.cancel()
         session?.closeCard()
+        // 卡片收起时可能来不及报告松手，这里清掉，免得下一张卡片一直不计时
+        isTouchingCard = false
     }
 
     /// 结束当前对话段；用于账本被替换、记录被清空或换账号，之后不能再引用之前的内容。
     func endSession() {
         input.cancel()
         session?.end()
+        isTouchingCard = false
     }
 }
 

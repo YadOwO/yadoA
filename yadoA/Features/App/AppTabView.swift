@@ -138,8 +138,17 @@ enum ProfileRoute: Hashable {
     /// AI 记账说明：从 AI 点数页进入，查看发给 AI 的内容、撤回或重新同意。
     case aiProcessingConsent
 
+    /// 每日签到：连签天数、待开礼包、各档礼包进度和签到日历；登录后才有入口。
+    case checkIn
+
     /// 设置页面。
     case settings
+
+    /// 账号与安全：从设置页「账号」分组进入，登录方式、绑定邮箱和注销芽豆账号；登录后才有入口。
+    ///
+    /// 必须走路径导航：退出登录后设置页的入口会消失，若用 `NavigationLink { }` 直接包页面，页面会随入口一起被移除，
+    /// 注销弹层、登录了另一个账号的提示都会被一起关掉；走路径时页面留在栈里，由页面自己在弹层和提示关掉后返回。
+    case accountSecurity
 
     /// 意见反馈：与芽豆团队的对话，登录后才有入口。
     case feedback
@@ -178,8 +187,12 @@ enum ProfileRoute: Hashable {
             }
         case .aiProcessingConsent:
             AIProcessingConsentView()
+        case .checkIn:
+            CheckInView()
         case .settings:
             SettingsView()
+        case .accountSecurity:
+            AccountSecurityView()
         case .feedback:
             FeedbackView()
         case .moreProducts:
