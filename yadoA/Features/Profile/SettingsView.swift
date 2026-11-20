@@ -445,7 +445,7 @@ struct SettingsView: View {
 
     /// 点击退出登录：本机数据已同步到当前账号时让用户选择保留还是清除，否则只做二次确认。
     private func beginSignOut() {
-        // 兜底：注销进行中（「账号与安全」页盖着阻断层，正常点不到这里）不能退出，凭证一清，服务端的删除就拿不到 token，账号会只删一半
+        // 兜底：注销进行中（「账号与安全」页的注销弹层盖着整个界面，正常点不到这里）不能退出，凭证一清，服务端的删除就拿不到 token，账号会只删一半
         guard !authStore.isDeletingAccount else { return }
         syncLifecycle?.refreshState()
         if let boundUserID = syncLifecycle?.state.boundUserID, boundUserID == authStore.userID {

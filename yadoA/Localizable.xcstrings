@@ -13893,6 +13893,23 @@
         }
       }
     },
+    "account.delete.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试注销"
+          }
+        }
+      }
+    },
     "account.delete.warning.message" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13910,19 +13927,87 @@
         }
       }
     },
-    "account.delete.warning.continue" : {
+    "account.delete.choice.erase.detail" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Continue"
+            "value" : "Erase the ledger from this device too."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "继续注销"
+            "value" : "这台设备上的账本也一并清除。"
+          }
+        }
+      }
+    },
+    "account.delete.choice.erase.option" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erase Local Data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除本机账本"
+          }
+        }
+      }
+    },
+    "account.delete.choice.keep.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep the ledger on this device and keep using it. It won't sync anymore."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账本留在这台设备上继续使用，不再同步。"
+          }
+        }
+      }
+    },
+    "account.delete.choice.keep.option" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep Local Data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留本机账本"
+          }
+        }
+      }
+    },
+    "account.delete.choice.required" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose what to do with data on this device first."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先选好本机账本怎么处理，才能注销。"
           }
         }
       }
@@ -13944,53 +14029,19 @@
         }
       }
     },
-    "account.delete.choice.message" : {
+    "account.delete.confirm" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your Yado account and the cloud data of every Yado app will be deleted. You can keep the ledger on this device and keep using it (it will no longer sync), or erase it too."
+            "value" : "Delete Account"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "芽豆账号和所有芽豆 App 的云端数据都会删除。本机账本可以保留在这台设备上继续使用（不再同步），也可以一并清除。"
-          }
-        }
-      }
-    },
-    "account.delete.choice.keep" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete Account, Keep Local Data"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "注销并保留本机账本"
-          }
-        }
-      }
-    },
-    "account.delete.choice.erase" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete Account and Local Data"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "注销并清除本机账本"
+            "value" : "注销芽豆账号"
           }
         }
       }
@@ -14001,13 +14052,132 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your account deletion didn't finish. Some data may already be deleted, and AI features may be unavailable for now. Please try again later to finish."
+            "value" : "Some data may already be deleted, and AI features may be unavailable for now. Try again to finish deleting your account."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "注销没有完成，部分数据可能已经删除，AI 功能可能暂时无法使用。请稍后重试，完成注销。"
+            "value" : "部分数据可能已经删除，AI 功能可能暂时无法使用；重试即可完成注销。"
+          }
+        }
+      }
+    },
+    "account.delete.failed.network" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check your connection and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网络连接有问题，请检查网络后重试。"
+          }
+        }
+      }
+    },
+    "account.delete.failed.service" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado's service couldn't finish the deletion right now. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆服务暂时无法完成注销，请稍后重试。"
+          }
+        }
+      }
+    },
+    "account.delete.failed.session" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your sign-in has expired. Sign in again, then delete your account."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录已失效，请重新登录后再注销。"
+          }
+        }
+      }
+    },
+    "account.delete.failed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account deletion didn't finish"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "注销没有完成"
+          }
+        }
+      }
+    },
+    "account.delete.failed.upgrade" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update the app to the latest version, then try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先把 App 更新到最新版本，再注销。"
+          }
+        }
+      }
+    },
+    "account.delete.finished.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You've been signed out. Data on this device was handled as you chose."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已退出登录，本机账本已按你的选择处理。"
+          }
+        }
+      }
+    },
+    "account.delete.finished.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Yado account has been deleted"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆账号已注销"
           }
         }
       }
@@ -14018,13 +14188,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your Yado account was deleted, but data on this device couldn't be erased. You can reset it in Settings."
+            "value" : "You've been signed out, but data on this device couldn't be erased. You can reset it in Settings."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "芽豆账号已注销，但本机数据没能清除，可以在设置里重置数据。"
+            "value" : "已退出登录，但本机账本没能清除，可以在设置里重置数据。"
           }
         }
       }

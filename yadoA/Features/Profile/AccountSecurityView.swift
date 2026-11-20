@@ -7,21 +7,15 @@ import SwiftUI
 /// 邮箱行在 `AuthConfig.isEmailAccountAvailable` 打开时可点、密码行在 `AuthConfig.isPasswordChangeAvailable` 打开时可点、
 /// Apple 行在未关联且 `AuthConfig.isAppleLinkAvailable` 时可点，都进入 `AccountCredentialChangeView`；否则只读显示。
 /// 新增 `email` / `identities` scope 之前登录的会话读不到邮箱，页面顶部提示重新登录一次（同一账号回来后刷新）。
-/// 注销流程从设置页原样搬来：两步确认、保留 / 清除本机数据、失败提示和进度都不变；退出登录仍在设置页。
-/// 退出登录后（注销完成、重新登录时换了账号、凭证失效）自动返回设置页；要先给用户看的提示关掉后再返回。
+/// 注销在页面底部，点开 `AccountDeletionSheet` 一个弹层走完确认、选本机账本处理方式、进度和结果；退出登录仍在设置页。
+/// 退出登录后（注销完成、重新登录时换了账号、凭证失效）自动返回设置页；弹层和要先给用户看的提示关掉后再返回。
 /// 入口只在已登录且允许联网时显示，与设置页「账号」分组的条件一致；走路径导航（`ProfileRoute.accountSecurity`），
-/// 入口随退出登录消失时页面仍留在栈里。注销进行中盖一层全屏阻断层（`AccountDeletionProgressView`），
-/// Tab Bar 和返回都点不到，页面不会被移出栈；结果提示等阻断层完全关掉后再弹。
+/// 入口随退出登录消失时页面仍留在栈里。注销进行中弹层盖住整个界面且不能关闭，Tab Bar 和返回都点不到，页面不会被移出栈。
 struct AccountSecurityView: View {
     @Environment(\.locale) private var locale
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    /// 全局登录状态。
+        /// 全局登录状态。
     @Environment(AuthStore.self) private var authStore
-    /// 云端同步的绑定状态，注销时据此处理本机数据；预览中没有注入时为 nil，此时注销不执行。
-    @Environment(SyncLifecycle.self) private var syncLifecycle: SyncLifecycle?
-    /// AI 点数状态，注销时关闭当前账号的“帮助改进 AI”授权；预览中没有注入时为 nil。
-    @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
 
     /// 账号信息的加载状态。
     @State private var loadState: LoadState = .loading
@@ -35,20 +29,8 @@ struct AccountSecurityView: View {
     @State private var isAccountSwitchedAlertPresented = false
     /// 已经请求返回设置页，避免重复调用 `dismiss()`。
     @State private var hasRequestedDismiss = false
-    /// 注销账号第一步：提醒芽豆系列所有 App 共用这一个芽豆账号、注销会影响全部 App，并说明会发生什么。
-    @State private var isDeleteAccountWarningPresented = false
-    /// 注销账号第二步：选择本机账本保留还是清除。
-    @State private var isDeleteAccountChoicePresented = false
-    /// 注销没有完成（服务端调用失败），本机数据和登录状态不变；AI 数据、意见反馈数据可能已删除，三个注销接口都可重复调用，重试即可完成。
-    @State private var isDeleteAccountFailurePresented = false
-    /// 服务端已注销，但本机数据没清掉。
-    @State private var isDeleteAccountLocalCleanupFailurePresented = false
-    /// 注销进行中的全屏阻断层是否要显示。
-    @State private var isDeletionCoverPresented = false
-    /// 阻断层是否已经真正出现；没出现过就不会有 onDismiss，结果要直接给。
-    @State private var isDeletionCoverShown = false
-    /// 注销已结束、等阻断层关掉后再处理的结果（弹哪个提示、是否返回设置页）。
-    @State private var pendingDeletionOutcome: AccountDeletionOutcome?
+    /// 注销芽豆账号的弹层（`AccountDeletionSheet`）是否打开；确认、进度和结果都在弹层里，不再叠系统弹窗。
+    @State private var isDeletionSheetPresented = false
 
     /// 账号信息的加载状态。
     private enum LoadState {
@@ -111,52 +93,15 @@ struct AccountSecurityView: View {
         } message: {
             Text(text("account.reauth.switched.message"))
         }
-        .alert(text("account.delete.warning.title"), isPresented: $isDeleteAccountWarningPresented) {
-            Button(text("account.delete.warning.continue"), role: .destructive) {
-                isDeleteAccountChoicePresented = true
-            }
-            .accessibilityIdentifier("settings-delete-account-continue")
-
-            Button(text("common.cancel"), role: .cancel) {}
-        } message: {
-            Text(text("account.delete.warning.message"))
-        }
-        .confirmationDialog(
-            text("account.delete.choice.title"),
-            isPresented: $isDeleteAccountChoicePresented,
-            titleVisibility: .visible
-        ) {
-            Button(text("account.delete.choice.keep"), role: .destructive) {
-                Task { await deleteAccount(.keepOnDevice) }
-            }
-            .accessibilityIdentifier("settings-delete-account-keep")
-
-            Button(text("account.delete.choice.erase"), role: .destructive) {
-                Task { await deleteAccount(.eraseFromDevice) }
-            }
-            .accessibilityIdentifier("settings-delete-account-erase")
-
-            Button(text("common.cancel"), role: .cancel) {}
-        } message: {
-            Text(text("account.delete.choice.message"))
-        }
-        // 注销进行中盖住整个界面（含 Tab Bar），不能手势关闭；关掉后在 onDismiss 里再弹结果提示，避免提示被正在关闭的弹层吞掉
-        .fullScreenCover(isPresented: $isDeletionCoverPresented, onDismiss: deletionCoverDidDismiss) {
-            AccountDeletionProgressView()
-                .onAppear { isDeletionCoverShown = true }
-        }
-        .alert(text("account.delete.failed"), isPresented: $isDeleteAccountFailurePresented) {
-            Button(text("common.close"), role: .cancel) {}
-        }
-        .alert(text("account.delete.local_cleanup_failed"), isPresented: $isDeleteAccountLocalCleanupFailurePresented) {
-            Button(text("common.close"), role: .cancel) {}
+        // 注销整个流程在这一个弹层里，关掉后已退出登录就返回设置页
+        .sheet(isPresented: $isDeletionSheetPresented, onDismiss: dismissIfSignedOut) {
+            AccountDeletionSheet()
         }
         // 退出登录后返回设置页；正在进行的操作或要先给用户看的提示结束后再返回
         .onChange(of: authStore.isAuthenticated) { dismissIfSignedOut() }
         .onChange(of: authStore.isDeletingAccount) { dismissIfSignedOut() }
         .onChange(of: isReauthenticating) { dismissIfSignedOut() }
         .onChange(of: isAccountSwitchedAlertPresented) { dismissIfSignedOut() }
-        .onChange(of: isDeleteAccountLocalCleanupFailurePresented) { dismissIfSignedOut() }
     }
 
     // MARK: - 分组
@@ -343,21 +288,14 @@ struct AccountSecurityView: View {
     /// 页面底部的注销芽豆账号，单独成卡；不依赖账号信息，加载失败时也可以注销。
     private var deleteAccountSection: some View {
         ProfileSettingsSection(nil, seed: "account.security.delete") {
-            HStack {
-                Button {
-                    isDeleteAccountWarningPresented = true
-                } label: {
-                    Label(text("account.delete.action"), systemImage: "person.crop.circle.badge.xmark")
-                }
-                .labelStyle(ProfileExportLabelStyle(color: .red))
-                .disabled(authStore.isBusy || authStore.isDeletingAccount)
-                .accessibilityIdentifier("settings-delete-account")
-
-                if authStore.isDeletingAccount {
-                    ProgressView()
-                        .padding(.trailing, 20)
-                }
+            Button {
+                isDeletionSheetPresented = true
+            } label: {
+                Label(text("account.delete.action"), systemImage: "person.crop.circle.badge.xmark")
             }
+            .labelStyle(ProfileExportLabelStyle(color: .red))
+            .disabled(authStore.isBusy || authStore.isDeletingAccount)
+            .accessibilityIdentifier("settings-delete-account")
         }
     }
 
@@ -512,181 +450,18 @@ struct AccountSecurityView: View {
         guard !authStore.isAuthenticated,
               !hasRequestedDismiss,
               !authStore.isDeletingAccount,
-              !isDeletionCoverPresented,
-              pendingDeletionOutcome == nil,
+              !isDeletionSheetPresented,
               !isReauthenticating,
               credentialFlow == nil,
-              !isAccountSwitchedAlertPresented,
-              !isDeleteAccountLocalCleanupFailurePresented
+              !isAccountSwitchedAlertPresented
         else { return }
         hasRequestedDismiss = true
         dismiss()
     }
 
-    /// 注销账号：先让 yado_ai、yado_hub、yadoA_be 三个服务端删除账号和云端数据，成功后处理本机数据并退出登录。
-    ///
-    /// 删除的是芽豆系列所有 App 共用的芽豆账号（Logto 用户），注销后其他芽豆 App 也无法再用它登录，
-    /// 所以第一步警告必须讲明影响全部 App。
-    ///
-    /// 整个过程盖着全屏阻断层，结果先存进 `pendingDeletionOutcome`，阻断层关掉后由 `deletionCoverDidDismiss()` 处理：
-    /// 服务端失败时提示重试（本机数据和登录状态不变）；服务端已注销、本机清理失败时提示可以在设置里重置数据；
-    /// 退出登录了的，提示看完（或没有提示）后返回设置页。
-    ///
-    /// - Parameter choice: 本机账本保留，或一并清除。
-    private func deleteAccount(_ choice: SyncSignOutChoice) async {
-        guard let syncLifecycle else { return }
-        // 标记在 AuthStore 上：设置页据此禁止退出登录
-        authStore.setAccountDeletionInProgress(true)
-        isDeletionCoverPresented = true
-        let startedAt = ContinuousClock.now
-
-        let outcome = await performAccountDeletion(choice, syncLifecycle: syncLifecycle)
-
-        // 阻断层至少显示一小会儿，等出现动画走完再关，避免一出现就关、结果提示被吞掉
-        let remaining = Self.minimumDeletionCoverDuration - (ContinuousClock.now - startedAt)
-        if remaining > .zero {
-            try? await Task.sleep(for: remaining)
-        }
-        authStore.setAccountDeletionInProgress(false)
-        finishDeletion(outcome)
-    }
-
-    /// 注销的实际步骤，与原来在设置页时相同：服务端删除 → 关闭“帮助改进 AI”授权 → 清除时顺带删撤销快照和搜索词 → 退出登录。
-    ///
-    /// 服务端失败时什么都不改、不退出登录；只有“服务端已注销、本机清理失败”仍退出登录，因为账号已经不存在。
-    ///
-    /// - Parameters:
-    ///   - choice: 本机账本保留，或一并清除。
-    ///   - syncLifecycle: 同步绑定生命周期。
-    /// - Returns: 注销结果。
-    private func performAccountDeletion(
-        _ choice: SyncSignOutChoice,
-        syncLifecycle: SyncLifecycle
-    ) async -> AccountDeletionOutcome {
-        let api = AccountDeletionAPI(
-            aiAccessToken: { try await authStore.accessTokenForAIService() },
-            syncAccessToken: { try await authStore.accessTokenForSyncService() },
-            hubAccessToken: { try await authStore.accessTokenForHubService() }
-        )
-        var remoteError: Error?
-        do {
-            try await syncLifecycle.deleteAccount(choice) {
-                try await api.deleteRemoteData()
-            }
-        } catch {
-            remoteError = error
-        }
-        let outcome = AccountDeletionOutcome(remoteDeletionError: remoteError)
-        guard outcome.signsOut else { return outcome }
-        // 必须在 signOut 之前、userID 还在时关闭授权
-        aiPoints?.setTraceConsented(false)
-        if choice == .eraseFromDevice, outcome == .completed {
-            DataUndoService(container: modelContext.container).discardSnapshot()
-            UserDefaults.standard.removeObject(forKey: BookkeepingSearchHistory.storageKey)
-        }
-        await authStore.signOut()
-        return outcome
-    }
-
-    /// 注销结束：记下结果并关掉阻断层；阻断层没出现过（不会有 onDismiss）时直接处理结果。
-    private func finishDeletion(_ outcome: AccountDeletionOutcome) {
-        pendingDeletionOutcome = outcome
-        let needsDirectDelivery = !isDeletionCoverShown
-        isDeletionCoverPresented = false
-        if needsDirectDelivery {
-            deliverPendingDeletionOutcome()
-        }
-    }
-
-    /// 阻断层完全关掉后处理注销结果。
-    private func deletionCoverDidDismiss() {
-        isDeletionCoverShown = false
-        deliverPendingDeletionOutcome()
-    }
-
-    /// 弹出注销结果对应的提示；已退出登录且没有提示要看时返回设置页。只处理一次。
-    private func deliverPendingDeletionOutcome() {
-        guard let outcome = pendingDeletionOutcome else { return }
-        pendingDeletionOutcome = nil
-        switch outcome {
-        case .failed:
-            isDeleteAccountFailurePresented = true
-        case .localCleanupFailed:
-            isDeleteAccountLocalCleanupFailurePresented = true
-        case .completed:
-            break
-        }
-        dismissIfSignedOut()
-    }
-
-    /// 注销阻断层至少显示的时长。
-    private static let minimumDeletionCoverDuration: Duration = .milliseconds(800)
-
     /// 按应用当前语言解析 String Catalog 文案。
     private func text(_ key: String) -> String {
         AccountLocalization.string(key, locale: locale)
-    }
-}
-
-// MARK: - 注销结果与阻断层
-
-/// 注销芽豆账号的结果，决定阻断层关掉后弹哪个提示、是否退出登录。
-enum AccountDeletionOutcome: Equatable {
-    /// 全部完成：服务端已删除，本机数据已按选择处理，退出登录。
-    case completed
-
-    /// 服务端已删除，但本机数据没清掉；账号已经不存在，仍退出登录，提示可以在设置里重置数据。
-    case localCleanupFailed
-
-    /// 服务端没删完：本机数据和登录状态不变，提示重试（三个注销接口都可重复调用）。
-    case failed
-
-    /// 按 `SyncLifecycle.deleteAccount` 抛出的错误归类。
-    ///
-    /// - Parameter error: 没有错误时为 nil；`SyncLifecycleError.storage` 表示远端已删、本机处理失败，其余都是服务端没删完。
-    init(remoteDeletionError error: Error?) {
-        guard let error else {
-            self = .completed
-            return
-        }
-        if let lifecycleError = error as? SyncLifecycleError, lifecycleError == .storage {
-            self = .localCleanupFailed
-        } else {
-            self = .failed
-        }
-    }
-
-    /// 是否要退出登录：服务端已删除（账号已不存在）时都要退出。
-    var signsOut: Bool {
-        self != .failed
-    }
-}
-
-/// 注销进行中的全屏阻断层：进度圈、「正在注销芽豆账号…」和「请不要关闭 App」，纸张底色，不能手势关闭。
-///
-/// VoiceOver 把整块读成一句：标题加说明。
-private struct AccountDeletionProgressView: View {
-    @Environment(\.locale) private var locale
-
-    var body: some View {
-        VStack(spacing: 18) {
-            ProgressView()
-                .controlSize(.large)
-
-            Text(AccountLocalization.string("account.delete.progress.title", locale: locale))
-                .font(.system(.title3, design: .serif, weight: .semibold))
-
-            Text(AccountLocalization.string("account.delete.progress.message", locale: locale))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .multilineTextAlignment(.center)
-        .padding(32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .paperPage()
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("account-deletion-progress")
-        .interactiveDismissDisabled()
     }
 }
 

@@ -388,13 +388,38 @@ struct AccountSecurityTests {
     func classifiesDeletionOutcome() {
         #expect(AccountDeletionOutcome(remoteDeletionError: nil) == .completed)
         #expect(AccountDeletionOutcome(remoteDeletionError: SyncLifecycleError.storage) == .localCleanupFailed)
-        #expect(AccountDeletionOutcome(remoteDeletionError: SyncLifecycleError.api(.network)) == .failed)
-        #expect(AccountDeletionOutcome(remoteDeletionError: AccountDeletionAPIError.serviceUnavailable) == .failed)
-        #expect(AccountDeletionOutcome(remoteDeletionError: ServiceAuthError.sessionExpired) == .failed)
+        #expect(AccountDeletionOutcome(remoteDeletionError: SyncLifecycleError.api(.network)) == .failed(.network))
+        #expect(AccountDeletionOutcome(remoteDeletionError: AccountDeletionAPIError.serviceUnavailable) == .failed(.serviceUnavailable))
+        #expect(AccountDeletionOutcome(remoteDeletionError: ServiceAuthError.sessionExpired) == .failed(.sessionExpired))
 
         #expect(AccountDeletionOutcome.completed.signsOut)
         #expect(AccountDeletionOutcome.localCleanupFailed.signsOut)
-        #expect(!AccountDeletionOutcome.failed.signsOut)
+        #expect(!AccountDeletionOutcome.failed(.network).signsOut)
+    }
+
+    @Test("注销没完成的原因：按接口错误区分网络、服务、登录失效和需要升级；接口没部署（404 归为契约错误）按服务暂时不可用提示")
+    func classifiesDeletionFailure() {
+        #expect(AccountDeletionFailure(AccountDeletionAPIError.network) == .network)
+        #expect(AccountDeletionFailure(AccountDeletionAPIError.timeout) == .network)
+        #expect(AccountDeletionFailure(AccountDeletionAPIError.serviceUnavailable) == .serviceUnavailable)
+        #expect(AccountDeletionFailure(AccountDeletionAPIError.invalidContract) == .serviceUnavailable)
+        #expect(AccountDeletionFailure(AccountDeletionAPIError.notSignedIn) == .sessionExpired)
+        #expect(AccountDeletionFailure(AccountDeletionAPIError.sessionExpired) == .sessionExpired)
+        #expect(AccountDeletionFailure(AccountDeletionAPIError.unauthorized) == .sessionExpired)
+        #expect(AccountDeletionFailure(AccountDeletionAPIError.upgradeRequired) == .upgradeRequired)
+        #expect(AccountDeletionFailure(ServiceAuthError.unavailable) == .network)
+        #expect(AccountDeletionFailure(ServiceAuthError.notSignedIn) == .sessionExpired)
+        #expect(AccountDeletionFailure(SyncLifecycleError.api(.network)) == .network)
+        #expect(AccountDeletionFailure(SyncLifecycleError.notBound) == .serviceUnavailable)
+        // 404 这类不在契约里的状态码归为契约错误
+        #expect(AccountDeletionAPI.error(statusCode: 404) == .invalidContract)
+    }
+
+    @Test("注销结束后的阶段：没删完回到确认并带上原因，删完了显示结果")
+    func deletionPhaseAfterOutcome() {
+        #expect(AccountDeletionPhase(outcome: .failed(.network)) == .confirming(lastFailure: .network))
+        #expect(AccountDeletionPhase(outcome: .completed) == .finished(.completed))
+        #expect(AccountDeletionPhase(outcome: .localCleanupFailed) == .finished(.localCleanupFailed))
     }
 
     @Test("新增的错误和页面文案都有中英文")
@@ -412,6 +437,20 @@ struct AccountSecurityTests {
             "account.security.load_failed.detail",
             "account.delete.progress.title",
             "account.delete.progress.message",
+            "account.delete.choice.keep.option",
+            "account.delete.choice.keep.detail",
+            "account.delete.choice.erase.option",
+            "account.delete.choice.erase.detail",
+            "account.delete.choice.required",
+            "account.delete.confirm",
+            "account.delete.retry",
+            "account.delete.failed.title",
+            "account.delete.failed.network",
+            "account.delete.failed.service",
+            "account.delete.failed.session",
+            "account.delete.failed.upgrade",
+            "account.delete.finished.title",
+            "account.delete.finished.message",
             "account.security.email.bind",
             "account.security.email.change",
             "account.email.step_up.message",
