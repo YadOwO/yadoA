@@ -31,6 +31,8 @@ struct AccountSecurityView: View {
     @State private var hasRequestedDismiss = false
     /// 注销芽豆账号的弹层（`AccountDeletionSheet`）是否打开；确认、进度和结果都在弹层里，不再叠系统弹窗。
     @State private var isDeletionSheetPresented = false
+    /// 顶部的轻提示：重新登录成功时弹出。
+    @State private var toast: AppToast?
 
     /// 账号信息的加载状态。
     private enum LoadState {
@@ -81,6 +83,7 @@ struct AccountSecurityView: View {
             .padding(.bottom, 32)
         }
         .paperPage()
+        .appToast($toast)
         .navigationTitle(text("account.security.title"))
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
@@ -428,13 +431,15 @@ struct AccountSecurityView: View {
         Task { await load() }
     }
 
-    /// 重新登录一次，让会话拿到新增的 `email` / `identities` scope；回来的是同一账号时刷新账号信息。
+    /// 重新登录一次，让会话拿到新增的 `email` / `identities` scope；回来的是同一账号时刷新账号信息，并提示已重新登录。
     private func reauthenticate() async {
         reauthFailureMessage = nil
         isReauthenticating = true
         defer { isReauthenticating = false }
         switch await authStore.reauthenticate(requiringStepUp: false) {
         case .succeeded:
+            // 重新登录卡片随刷新消失，补一条提示，免得看起来像什么都没发生
+            toast = .success(text("account.security.reauth.succeeded"), accessibilityIdentifier: "account-security-toast")
             await load()
         case .cancelled:
             break

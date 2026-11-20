@@ -455,6 +455,7 @@ struct AccountSecurityTests {
             "account.security.email.change",
             "account.email.step_up.message",
             "account.email.code.resend_countdown",
+            "account.email.code.spam_hint",
             "account.email.error.invalid_format",
             "account.email.error.same_as_current",
             "account.email.step_up.failed",
@@ -618,22 +619,30 @@ struct AccountSecurityTests {
 
     // MARK: - 环境开关与登录页
 
-    @Test("邮箱账号只在 dev 开放，线上（Release、DebugProd）关闭")
-    func emailAccountOnlyInDev() {
+    @Test("邮箱账号两套环境都开放")
+    func emailAccountAvailableInBothEnvironments() {
         #expect(AuthConfig.dev.isEmailAccountAvailable)
-        #expect(!AuthConfig.prod.isEmailAccountAvailable)
+        #expect(AuthConfig.prod.isEmailAccountAvailable)
     }
 
-    @Test("设置 / 修改密码只在 dev 开放，线上关闭")
-    func passwordChangeOnlyInDev() {
+    @Test("设置 / 修改密码两套环境都开放")
+    func passwordChangeAvailableInBothEnvironments() {
         #expect(AuthConfig.dev.isPasswordChangeAvailable)
-        #expect(!AuthConfig.prod.isPasswordChangeAvailable)
+        #expect(AuthConfig.prod.isPasswordChangeAvailable)
     }
 
-    @Test("App 内关联 Apple 只在 dev 开放（有连接器 ID），线上没有")
-    func appleLinkOnlyInDev() {
-        #expect(AuthConfig.dev.appleSocialConnectorID?.isEmpty == false)
-        #expect(AuthConfig.prod.appleSocialConnectorID == nil)
+    @Test("App 内关联 Apple 两套环境都开放，连接器 ID 各是各的")
+    func appleLinkAvailableInBothEnvironments() {
+        #expect(AuthConfig.dev.appleSocialConnectorID == "5h6hh92rverfc70a38tk8")
+        #expect(AuthConfig.prod.appleSocialConnectorID == "iyxaim1nvvp792xmq1fjr")
+    }
+
+    @Test("设置页的「重看引导」「截图记账」只在 dev 显示，线上暂时隐藏")
+    func onboardingReplayAndScreenshotShortcutOnlyInDev() {
+        #expect(AuthConfig.dev.isOnboardingReplayAvailable)
+        #expect(!AuthConfig.prod.isOnboardingReplayAvailable)
+        #expect(AuthConfig.dev.isScreenshotShortcutAvailable)
+        #expect(!AuthConfig.prod.isScreenshotShortcutAvailable)
     }
 
     // MARK: - 关联 Apple 的回程

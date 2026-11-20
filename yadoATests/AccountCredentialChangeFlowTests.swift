@@ -263,6 +263,61 @@ struct AccountCredentialChangeFlowTests {
 
         #expect(flow.step == .identity(.password))
         #expect(flow.messageKey == AccountProfileError.wrongPassword.localizationKey)
+        // 验证没通过，不弹「身份已验证」
+        #expect(flow.notice == nil)
+    }
+
+    // MARK: - 轻提示
+
+    @Test("密码验证通过后给出「身份已验证」的轻提示，再发新邮箱验证码时换成「验证码已发送」")
+    func noticesAfterPasswordVerifiedAndCodeSent() async {
+        let service = FakeAccountSecurityService(account: Self.passwordAccount)
+        let flow = makeFlow(account: Self.passwordAccount, service: service)
+        #expect(flow.notice == nil)
+
+        flow.password = "secret"
+        await flow.submitPassword()
+        #expect(flow.notice?.kind == .identityVerified)
+        #expect(flow.notice?.localizationKey == "account.toast.identity_verified")
+
+        flow.newEmail = "new@example.com"
+        await flow.sendNewEmailCode()
+        #expect(flow.notice?.kind == .codeSent)
+        #expect(flow.notice?.localizationKey == "account.toast.code_sent")
+    }
+
+    @Test("当前邮箱验证码：每次发出都换一条新的轻提示，冷却中点重发不提示，验证通过后提示已验证")
+    func noticesForIdentityCode() async throws {
+        let clock = TestClock()
+        let service = FakeAccountSecurityService(account: Self.emailAccount)
+        let flow = makeFlow(account: Self.emailAccount, service: service, clock: clock)
+
+        await flow.sendIdentityCode()
+        let first = try #require(flow.notice)
+        #expect(first.kind == .codeSent)
+
+        // 冷却中不发，也不换提示
+        await flow.sendIdentityCode()
+        #expect(flow.notice == first)
+
+        // 冷却结束后重发：同样是「验证码已发送」，但是新的一条，界面会再弹一次
+        clock.advance(by: 60)
+        await flow.sendIdentityCode()
+        let second = try #require(flow.notice)
+        #expect(second.kind == .codeSent)
+        #expect(second != first)
+
+        flow.identityCode = "654321"
+        await flow.submitIdentityCode()
+        #expect(flow.notice?.kind == .identityVerified)
+    }
+
+    @Test("只有 Apple 的账号设置密码不用验证身份，也就没有「身份已验证」的提示")
+    func noNoticeWithoutIdentityVerification() async {
+        let service = FakeAccountSecurityService(account: Self.appleOnlyAccount)
+        let flow = makeFlow(target: .password, account: Self.appleOnlyAccount, service: service)
+        #expect(flow.step == .newPassword)
+        #expect(flow.notice == nil)
     }
 
     @Test("当前邮箱验证码：身份验证按发码返回的 expiresAt 过期，而不是从校验通过时算")

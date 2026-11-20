@@ -27,8 +27,8 @@ struct SignInView: View {
     @State private var pendingMethod: AuthSignInMethod?
     /// 入场动画是否已触发。
     @State private var hasAppeared = false
-    /// 按钮区上方的提示，如“即将上线”或登录失败。
-    @State private var notice: Notice?
+    /// 按钮区上方的轻提示，如“即将上线”或登录失败。
+    @State private var notice: AppToast?
     /// 每次登录失败加一，驱动按钮区抖动与错误震动。
     @State private var failureCount = 0
     /// 登录成功后切换为成功态，写一笔对勾后关闭登录页。
@@ -37,16 +37,6 @@ struct SignInView: View {
     @State private var successTickProgress: CGFloat = 0
     /// 从底部同意文案里点开的协议。
     @State private var presentedLegalDocument: LegalDocument?
-
-    /// 按钮区上方的一条提示。
-    private struct Notice: Equatable {
-        /// 已本地化的提示文字。
-        let message: String
-        /// 是否为错误，错误使用账本红。
-        let isError: Bool
-        /// 区分连续两次相同文案的提示，保证自动隐藏只收掉自己那一条。
-        let id = UUID()
-    }
 
     /// - Parameters:
     ///   - reason: 打开登录页的原因，从“我的”主动登录时为 nil。
@@ -143,11 +133,9 @@ struct SignInView: View {
 
             Spacer(minLength: 40)
 
+            // 提示浮在按钮区上方，不挤动版面
             buttons
-                .overlay(alignment: .top) {
-                    noticeView
-                        .alignmentGuide(.top) { $0[.bottom] + 14 }
-                }
+                .appToast($notice, placement: .above(spacing: 14))
 
             Text(text("auth.sign_in.local_note"))
                 .font(.footnote)
@@ -227,7 +215,7 @@ struct SignInView: View {
                     if provider.isConnected {
                         startSignIn(.social(provider))
                     } else {
-                        show(Notice(message: text("auth.sign_in.coming_soon"), isError: false))
+                        notice = .info(text("auth.sign_in.coming_soon"), accessibilityIdentifier: "sign-in-notice")
                     }
                 }
                 .accessibilityIdentifier("sign-in-social-\(provider.rawValue)")
@@ -290,24 +278,6 @@ struct SignInView: View {
         .buttonStyle(SignInPressStyle())
     }
 
-    /// 按钮区上方的提示胶囊，出现时从下方浮起，不挤动版面。
-    @ViewBuilder
-    private var noticeView: some View {
-        if let notice {
-            Text(notice.message)
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(notice.isError ? Color(.ledgerRed) : Color.primary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 9)
-                .background(Capsule().fill(Color(uiColor: .secondarySystemBackground)))
-                .overlay(Capsule().strokeBorder(Color.primary.opacity(0.08), lineWidth: 1))
-                .id(notice.id)
-                .transition(.opacity.combined(with: .offset(y: reduceMotion ? 0 : 8)))
-                .accessibilityIdentifier(notice.isError ? "sign-in-error" : "sign-in-notice")
-        }
-    }
-
     /// 登录成功后的过渡：写一笔账本红对勾，配上欢迎语和账号名称。
     private var successView: some View {
         VStack(spacing: 18) {
@@ -333,7 +303,7 @@ struct SignInView: View {
     private func startSignIn(_ method: AuthSignInMethod) {
         guard !authStore.isBusy, !isSucceeded else { return }
         pendingMethod = method
-        withAnimation { notice = nil }
+        notice = nil
 
         Task {
             await authStore.signIn(method: method)
@@ -346,24 +316,10 @@ struct SignInView: View {
                 withAnimation(reduceMotion ? nil : .linear(duration: 0.42)) {
                     failureCount += 1
                 }
-                show(Notice(
-                    message: "\(text("auth.sign_in.failed"))\n\(errorMessage)",
-                    isError: true
-                ))
-            }
-        }
-    }
-
-    /// 显示一条提示，约 2.5 秒后自动收起；期间若被新提示替换则不再收起新提示。
-    private func show(_ newNotice: Notice) {
-        withAnimation(.spring(duration: 0.35, bounce: 0.25)) {
-            notice = newNotice
-        }
-        Task {
-            try? await Task.sleep(for: .seconds(newNotice.isError ? 4 : 2.5))
-            guard notice?.id == newNotice.id else { return }
-            withAnimation(.easeOut(duration: 0.25)) {
-                notice = nil
+                notice = .error(
+                    "\(text("auth.sign_in.failed"))\n\(errorMessage)",
+                    accessibilityIdentifier: "sign-in-error"
+                )
             }
         }
     }

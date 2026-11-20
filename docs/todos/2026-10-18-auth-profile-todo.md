@@ -42,27 +42,28 @@ topic: auth-profile
 ## 账号安全与找回
 
 - [ ] **绑定邮箱**：只有用户名和密码的账号忘记密码后无法找回；用 Account API 支持绑定 / 更换邮箱（需验证码）。
-  - 2026-11-19 App 端已完成，dev 开放、线上关闭（`AuthConfig.isEmailAccountAvailable`）：
+  - 2026-11-19 App 端已完成（`AuthConfig.isEmailAccountAvailable`），2026-11-20 线上也打开：
     - 设置 › 账号分组第一行新增「账号与安全」：用户名（只读）、Apple 是否关联、邮箱（打码显示，可绑定 / 更换）、是否设置密码；「注销芽豆账号」从设置页搬到这一页底部，流程不变。
     - 绑定 / 更换邮箱：先验证身份（有密码输密码 → 否则给当前邮箱发 `UserPermissionValidation` 验证码 → 只有 Apple 时走 OIDC step-up），再给新邮箱发码、校验，`POST /api/my-account/primary-email` 保存。身份验证记录只存内存，10 分钟过期后重新验证。
     - 登录页在 Apple 和「账号密码」之间加「邮箱登录」，直接进入托管页的邮箱输入页。
     - 登录额外申请 `email`、`identities` scope；之前登录的会话在「账号与安全」页提示重新登录一次。step-up 或重新登录时在托管页登了别的账号，直接退出登录（本机账本和同步绑定保留，不会同步到新账号）。
-  - 待办：dev 按下面的「Logto 后台配置清单」配好后真机走一遍；线上要先升级 Logto（线上 OIDC discovery 没有 `acr_values_supported`，不支持 step-up）、配好清单，再把 `AuthConfig.prod.isEmailAccountAvailable` 改为 true。
-- [ ] **修改密码入口**：「账号与安全」的密码行可设置 / 修改密码（`AccountCredentialChangeFlow` 的 `.password`），dev 已开（`AuthConfig.isPasswordChangeAvailable`）。
-  - 待办：dev 真机走一遍；线上账户中心 password 改为 Edit 后再把 prod 打开。
+  - 2026-11-20 线上 Logto 升到 1.46.0（支持 step-up），按下面的清单配好，`AuthConfig.prod.isEmailAccountAvailable` 改为 true。
+  - 待办：用 `yadoA-prod` 真机走一遍，再随下个版本上架。
+- [ ] **修改密码入口**：「账号与安全」的密码行可设置 / 修改密码（`AccountCredentialChangeFlow` 的 `.password`，`AuthConfig.isPasswordChangeAvailable`），dev 和线上都已打开（线上 2026-11-20）。
+  - 待办：用 `yadoA-prod` 真机走一遍。
 
 ## Logto 后台配置清单
 
-邮箱登录和绑定邮箱依赖下面这些配置。dev 先配；线上要先升级 Logto（支持 `acr_values` step-up），再按同样的清单配，最后打开 `AuthConfig.prod.isEmailAccountAvailable`。
+邮箱登录和绑定邮箱依赖下面这些配置，dev 和线上都已配好。dev 的配置由 mini 上 `~/yado-dev/scripts/logto-setup.mjs` 下发；线上由云服务器 `/opt/yado/scripts/logto-setup.sh` 下发（脚本本体在 `/opt/yado/scripts/logto/`，SMTP 账号在 `/opt/yado/logto/smtp.env`），两边要保持一致，不要在管理后台手改。
 
-- [ ] **邮件连接器**：配一个邮件连接器（阿里云邮件推送或 SMTP），模板覆盖 SignIn / Register / ForgotPassword / BindNewIdentifier / UserPermissionValidation。没配时发验证码返回 501，App 提示「邮件服务暂未开通」。dev 已配（2026-11-19，阿里云邮件推送 SMTP，见 mini 上 `~/yado-dev/scripts/logto-setup.mjs`）；Gmail 会进垃圾箱，线上上线前要处理发信信誉。
-- [ ] **登录体验**：开启邮箱 + 验证码登录（登录页「邮箱登录」按钮、只有 Apple 的用户 step-up 后设置邮箱都靠它），注册允许用户名或邮箱（`signUp.identifiers = [username, email]`，`verify = true`，`password = true`：邮箱注册收完验证码还要设密码），邮箱找回密码。dev 已配（2026-11-19）。
-- [ ] **账户中心字段**：email = Edit，password = Edit（App 内设置 / 修改密码），social = Edit（App 内关联 Apple），username = ReadOnly，name / avatar 保持 Edit。dev 已配（2026-11-19）。
-- [ ] **关联 Apple 的回程**：Apple 授权完 form_post 到 Logto 的 `/callback/<连接器 ID>`，Logto 转成同路径的 GET，但不会跳回 App。云服务器 nginx 接住 `state` 以 `yadoa_` 开头的这个 GET，302 到 App 的 `<scheme>://apple-link?<原参数>`。dev 已配（Air 上 `~/yado-dev-tools/server/install-dev-proxy.sh`）；线上要在 `accounts.yado1225.top` 加同样的规则（跳 `com.yado.yadoa://apple-link`）。Apple 开发者后台的 Services ID `top.yado1225.auth` 要登记 Return URL `https://<Logto 域名>/callback/<连接器 ID>`。
+- [x] **邮件连接器**：配一个邮件连接器（阿里云邮件推送或 SMTP），模板覆盖 SignIn / Register / ForgotPassword / BindNewIdentifier / UserPermissionValidation。没配时发验证码返回 501，App 提示「邮件服务暂未开通」。dev 已配（2026-11-19，阿里云邮件推送 SMTP，见 mini 上 `~/yado-dev/scripts/logto-setup.mjs`）；Gmail 会进垃圾箱，App 和 Logto 的验证码页都提示「没收到看看垃圾邮件箱」。邮件正文是 HTML，中英文各一套（写进 Logto 的邮件模板表，按 App 请求的语言挑），文案和版式在 mini 上 `~/yado-dev/scripts/email-templates.mjs`；线上用同一份模板，不带「DEV」标记，发件人 `no-reply@mail.yado1225.top`（2026-11-20，Apple 后台的 Email Sources 已登记这个域名，Apple 隐藏邮箱才收得到）。
+- [x] **登录体验**：开启邮箱 + 验证码登录（登录页「邮箱登录」按钮、只有 Apple 的用户 step-up 后设置邮箱都靠它），注册允许用户名或邮箱（`signUp.identifiers = [username, email]`，`verify = true`，`password = true`：邮箱注册收完验证码还要设密码），邮箱找回密码。dev 已配（2026-11-19），线上已配（2026-11-20）。
+- [x] **账户中心字段**：email = Edit，password = Edit（App 内设置 / 修改密码），social = Edit（App 内关联 Apple），username = ReadOnly，name / avatar 保持 Edit。dev 已配（2026-11-19），线上已配（2026-11-20）。
+- [x] **关联 Apple 的回程**：Apple 授权完 form_post 到 Logto 的 `/callback/<连接器 ID>`，Logto 转成同路径的 GET，但不会跳回 App。云服务器 nginx 接住 `state` 以 `yadoa_` 开头的这个 GET，302 到 App 的 `<scheme>://apple-link?<原参数>`。dev 已配（Air 上 `~/yado-dev-tools/server/install-dev-proxy.sh`）；线上 2026-11-20 已加（`/opt/yado/nginx/conf.d/accounts.yado1225.top.conf`，跳 `com.yado.yadoa://apple-link`），线上 Apple 连接器 ID `iyxaim1nvvp792xmq1fjr`。Apple 开发者后台的 Services ID `top.yado1225.auth` 要登记 Return URL `https://<Logto 域名>/callback/<连接器 ID>`。
 
 ## 用户名修改（远期）
 
-- 当前：App 内只读。**需在 Logto Console → Sign-in & account → Account center 把 `username` 字段设为 `ReadOnly`**，防止绕过 App 直接调用 Account API 改名。
+- 当前：App 内只读；dev 和线上 Logto 的账户中心 `username` 字段都已设为 `ReadOnly`（由上面说的配置脚本下发），防止绕过 App 直接调用 Account API 改名。
 - Logto 本身不支持“修改冷却期”，只有 Off / ReadOnly / Edit 三档；webhook 只能事后通知，无法拦截。
 - 若以后开放改名，走后端：Logto token 鉴权 → 校验冷却期（如 30 天一次）→ Management API 修改；上次修改时间存在用户不可写的位置（不要用对用户开放编辑的 `customData`）。
 - 可考虑旧用户名保留一段时间不被他人注册，防止冒用。
