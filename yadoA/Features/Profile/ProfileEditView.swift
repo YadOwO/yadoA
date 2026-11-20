@@ -190,20 +190,7 @@ struct ProfileEditView: View {
     /// 黑色胶囊主按钮；深色外观下自动反色，保存中显示转圈。
     private var saveButton: some View {
         Button(action: save) {
-            ZStack {
-                Text(text("profile.edit.save"))
-                    .opacity(isSaving ? 0 : 1)
-                if isSaving {
-                    ProgressView()
-                        .tint(Color(uiColor: .systemBackground))
-                }
-            }
-            .font(.body.weight(.semibold))
-            .foregroundStyle(Color(uiColor: .systemBackground))
-            .padding(.horizontal, 36)
-            .padding(.vertical, 16)
-            .background(Capsule().fill(Color.primary))
-            .contentShape(Capsule())
+            ProfilePrimaryButtonLabel(title: text("profile.edit.save"), isLoading: isSaving)
         }
         .buttonStyle(.plain)
         .opacity(canSave || isSaving ? 1 : 0.35)
@@ -220,11 +207,7 @@ struct ProfileEditView: View {
                 .padding(.leading, 20)
 
             input()
-                .font(.title3)
-                .padding(.horizontal, 22)
-                .padding(.vertical, 16)
-                .background(Capsule().fill(Color(uiColor: .tertiarySystemFill)))
-                .overlay(Capsule().strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+                .profileCapsuleField()
                 .disabled(isSaving)
         }
     }

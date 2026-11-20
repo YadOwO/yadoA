@@ -27,6 +27,17 @@ final class AuthStore {
     /// 是否正在执行登录或退出，用于禁用按钮避免重复触发。
     private(set) var isBusy = false
 
+    /// 正在注销芽豆账号：从调服务端删除到退出登录结束都为 true，由「账号与安全」页的注销流程标记。
+    ///
+    /// 期间设置页不能退出登录：三个服务端还在删数据，凭证一清，后面的删除就拿不到 token，账号会只删一半。
+    private(set) var isDeletingAccount = false
+
+    /// 正在重新走一遍 Logto 托管页（`reauthenticate`）：从打开托管页之前到处理完结果（含换账号时退出登录）都为 true。
+    ///
+    /// 期间不发放任何 resource 的 access token：SDK 登录成功后 `sub` 已是托管页里登的账号，
+    /// 缓存里却还有原账号的 resource token，换了账号时到退出登录清空凭证之前，不能让同步、AI 等请求拿到它们。
+    private var isReauthenticating = false
+
     /// 头像上传器；凭证来源目前是 Debug 构建注入的本地密钥。
     // TODO: 接入服务端 STS 签发后，把这里换成 STS 凭证来源，详见 `BundledOSSCredentialProvider` 上的说明。
     private let avatarUploader = AvatarUploader(credentialProvider: BundledOSSCredentialProvider())
@@ -54,8 +65,9 @@ final class AuthStore {
 
     /// 发起登录，弹出 Logto 托管的登录 / 注册页。
     ///
-    /// - Parameter provider: 指定第三方登录方式时跳过 Logto 的方式选择，直接进入该连接器；nil 时走账号密码页。
-    func signIn(provider: AuthSocialProvider? = nil) async {
+    /// - Parameter method: 登录方式。第三方方式跳过 Logto 的方式选择，直接进入该连接器；
+    ///   邮箱直接进入邮箱输入页；账号密码打开托管页的默认首页。
+    func signIn(method: AuthSignInMethod) async {
         guard isNetworkAllowed() else { return }
         guard !isBusy else { return }
         isBusy = true
@@ -65,7 +77,10 @@ final class AuthStore {
         do {
             try await client.signInWithBrowser(
                 redirectUri: AuthConfig.redirectUri,
-                directSignIn: provider.map { LogtoCore.DirectSignInOptions(method: .social, target: $0.connectorTarget) }
+                directSignIn: method.socialProvider.map {
+                    LogtoCore.DirectSignInOptions(method: .social, target: $0.connectorTarget)
+                },
+                extraParams: method.extraParams
             )
             isAuthenticated = true
             profile = Self.readProfile(from: client)
@@ -95,7 +110,8 @@ final class AuthStore {
     /// ID token 只记录登录那一刻的资料，在其他端改过昵称后需靠这里刷新；
     /// 网络等临时失败时静默保留现有资料；凭证已失效（被撤销、用户被删除）时清除本地凭证，界面回到未登录。
     func refreshProfile() async {
-        guard isNetworkAllowed() else { return }
+        // 重新走托管页期间 `sub` 可能已换成另一个账号，结果由 `reauthenticate` 自己写回
+        guard isNetworkAllowed(), !isReauthenticating else { return }
         guard client.isAuthenticated else { return }
         let userInfo: LogtoCore.UserInfoResponse
         do {
@@ -193,6 +209,96 @@ final class AuthStore {
         )
     }
 
+    // MARK: - 账号与安全
+
+    /// 要求重新完成一次身份验证（OIDC step-up）时附加的参数。
+    ///
+    /// 只有 Apple 等第三方登录的账号没有 Logto 认可的身份验证方式，Logto 托管页收到这个参数后会让用户
+    /// 用已关联的方式重新登录，再要求设置已验证的邮箱或密码。需要 Logto 支持 `acr_values`（dev 支持，线上的旧版本不支持）。
+    static let stepUpExtraParams = ["acr_values": "urn:logto:acr:1fa"]
+
+    /// 在已登录状态下重新走一遍 Logto 托管页：老会话补上新增的 scope，或为只有 Apple 的账号做 step-up。
+    ///
+    /// 打开托管页前记下当前 `sub`，回来后比对。SDK 登录成功后会覆盖 ID token 和 refresh token，
+    /// 但只重置不带 resource 的 access token，同步、AI、反馈这些 resource 的 token 仍是原账号的缓存。
+    /// 用户如果在托管页里登了另一个账号，这时 `userID` 已经是新账号、resource token 却还是原账号的，
+    /// 状态不一致，所以直接退出登录（清空全部凭证），不经过退出登录的本机数据处理：
+    /// 本机账本和同步绑定原样保留，和登录失效时一样；同步引擎只在绑定账号等于当前登录账号时才请求，
+    /// 原账号的本机账本不会同步到新账号。之后用户重新登录原账号即恢复同步，登录别的账号时同步设置页会提示已绑定其他账号。
+    ///
+    /// SDK 的 `signOut` 会先离开主 actor，登录成功到凭证清空之间有空档；同步引擎只在每轮开始时比对账号，
+    /// 之后每个请求各自取 token。所以整个过程（含托管页打开期间）`isReauthenticating` 都为 true，
+    /// `accessToken(forResource:)` 一律不发 token，同步等请求按暂时不可用处理、稍后重试。
+    ///
+    /// - Parameter requiringStepUp: 是否要求 step-up（附带 `stepUpExtraParams`）。
+    /// - Returns: 结果；用户关掉托管页时为 `.cancelled`，凭证不变。
+    func reauthenticate(requiringStepUp: Bool) async -> AccountReauthenticationResult {
+        guard isNetworkAllowed(), !isBusy, let originalUserID = userID else { return .cancelled }
+        isBusy = true
+        isReauthenticating = true
+        defer {
+            isReauthenticating = false
+            isBusy = false
+        }
+
+        do {
+            try await client.signInWithBrowser(
+                redirectUri: AuthConfig.redirectUri,
+                extraParams: requiringStepUp ? Self.stepUpExtraParams : nil
+            )
+        } catch {
+            // 失败时 SDK 不会改动已有凭证
+            isAuthenticated = client.isAuthenticated
+            return Self.isUserCancellation(error) ? .cancelled : .failed(Self.describe(error))
+        }
+
+        let result = AccountReauthenticationResult.afterSignIn(originalUserID: originalUserID, currentUserID: userID)
+        if result == .switchedAccount {
+            // SDK 清空全部凭证后再撤销 refresh token，撤销失败可以忽略；signOut 会先离开主 actor，
+            // 到它返回之前 `isReauthenticating` 仍为 true，期间不会发放原账号缓存的 resource token
+            await client.signOut()
+            isAuthenticated = client.isAuthenticated
+            profile = nil
+        } else {
+            isAuthenticated = client.isAuthenticated
+            profile = Self.readProfile(from: client)
+        }
+        return result
+    }
+
+    /// 获取调用 Logto Account API（`/api/my-account`、`/api/verifications`）的 access token。
+    ///
+    /// 不指定 resource，拿到的是访问 Logto 自身用户接口的 token，SDK 会在过期时自动续期。
+    ///
+    /// - Throws: 不允许联网或网络失败时抛出 `AccountProfileError.network`；未登录或凭证已失效（此时已清除本地凭证）时抛出
+    ///   `AccountProfileError.reauthenticationRequired`。
+    func accessTokenForAccountAPI() async throws -> String {
+        guard isNetworkAllowed() else { throw AccountProfileError.network }
+        guard client.isAuthenticated else { throw AccountProfileError.reauthenticationRequired }
+        do {
+            return try await client.getAccessToken(for: nil)
+        } catch {
+            if await clearCredentialsIfRevoked(error) {
+                throw AccountProfileError.reauthenticationRequired
+            }
+            throw AccountProfileError.network
+        }
+    }
+
+    /// 标记注销芽豆账号开始或结束，由「账号与安全」页的注销流程在开始时和结束时（含退出登录之后）调用。
+    ///
+    /// - Parameter inProgress: 是否正在注销。
+    func setAccountDeletionInProgress(_ inProgress: Bool) {
+        isDeletingAccount = inProgress
+    }
+
+    /// 创建「账号与安全」和绑定邮箱流程用的 Account API 客户端，每次调用都用当前登录凭证。
+    func makeAccountSecurityClient() -> AccountSecurityClient {
+        AccountSecurityClient(api: LogtoAccountAPI(endpoint: Self.endpointURL)) {
+            try await self.accessTokenForAccountAPI()
+        }
+    }
+
     /// 错误提示展示完毕后清除，避免下次进入页面重复弹出。
     func dismissError() {
         errorMessage = nil
@@ -204,13 +310,14 @@ final class AuthStore {
     ///
     /// 同意隐私政策之前（`isNetworkAllowed()` 为 false）所有服务凭证都拿不到，
     /// 同步、AI、反馈、注销这些都要先取凭证的接口因此不会出网；这是统一的兜底关口。
+    /// 重新走托管页期间（`isReauthenticating`）也不发放，避免托管页里换了账号时把原账号的缓存 token 交出去。
     ///
     /// - Parameter resource: 登录时已申请的 API resource 标识。
     /// - Returns: access token。
-    /// - Throws: 不允许联网时抛出 `ServiceAuthError.unavailable`；未登录时抛出 `ServiceAuthError.notSignedIn`；凭证已失效时清除本地凭证并抛出
-    ///   `ServiceAuthError.sessionExpired`；网络等其他失败抛出 `ServiceAuthError.unavailable`。
+    /// - Throws: 不允许联网或正在重新登录时抛出 `ServiceAuthError.unavailable`；未登录时抛出 `ServiceAuthError.notSignedIn`；
+    ///   凭证已失效时清除本地凭证并抛出 `ServiceAuthError.sessionExpired`；网络等其他失败抛出 `ServiceAuthError.unavailable`。
     private func accessToken(forResource resource: String) async throws -> String {
-        guard isNetworkAllowed() else { throw ServiceAuthError.unavailable }
+        guard isNetworkAllowed(), !isReauthenticating else { throw ServiceAuthError.unavailable }
         guard client.isAuthenticated else { throw ServiceAuthError.notSignedIn }
         do {
             return try await client.getAccessToken(for: resource)
@@ -278,11 +385,21 @@ final class AuthStore {
         }
     }
 
+    /// 登录时在 SDK 默认的 openid / offline_access / profile 之外额外申请的 scope。
+    ///
+    /// - `email`：Account API 返回 `primaryEmail` 和 `hasPrimaryEmail`，「账号与安全」据此显示邮箱；
+    /// - `identities`：Account API 返回已关联的社交账号，据此显示 Apple 是否已关联。
+    ///
+    /// refresh token 的 scope 在登录时就定了，新增 scope 之前登录的设备要重新登录一次才能拿到，
+    /// 「账号与安全」页会识别出来并提示重新登录（见 `AccountSecurityInfo.needsReauthentication`）。
+    static let additionalScopes = [UserScope.email.rawValue, UserScope.identities.rawValue]
+
     private static func makeClient() -> LogtoClient {
         // LogtoConfig 仅在 endpoint 不是合法 URL 时抛错，属于配置写错，应尽早暴露
         guard let config = try? LogtoConfig(
             endpoint: AuthConfig.endpoint,
             appId: AuthConfig.appId,
+            scopes: additionalScopes,
             resources: [AuthConfig.aiServiceResource, AuthConfig.syncServiceResource, AuthConfig.hubServiceResource]
         ) else {
             preconditionFailure("AuthConfig.endpoint 不是合法 URL：\(AuthConfig.endpoint)")

@@ -32,6 +32,14 @@ nonisolated enum AuthConfig {
         ///
         /// Langfuse 写进隐私政策和第三方共享清单之前，线上必须为 false；之后要开，先改政策并部署，再把 prod 改为 true。
         let isAITraceConsentAvailable: Bool
+
+        /// 这套环境是否开放邮箱账号：登录页的「邮箱登录」按钮，以及「账号与安全」里绑定 / 更换邮箱的入口。
+        ///
+        /// 线上暂时为 false：线上 Logto 版本较旧，不支持只有 Apple 的用户验证身份要用的 OIDC step-up
+        /// （线上 OIDC discovery 里没有 `acr_values_supported`），也还没配邮件连接器，发不出验证码。
+        /// 升级线上 Logto、配好邮件连接器和账户中心字段（见 `docs/todos/2026-10-18-auth-profile-todo.md`
+        /// 的「Logto 后台配置清单」）之后，再把 prod 改为 true。为 false 时邮箱行只读显示。
+        let isEmailAccountAvailable: Bool
     }
 
     // 两套取值对模块内可见（而非 private），测试可以同时断言两套环境；业务代码只读下面的当前值。
@@ -45,7 +53,8 @@ nonisolated enum AuthConfig {
         aiServiceEndpoint: "https://dev-ai-api.yado1225.top",
         syncServiceEndpoint: "https://dev-yadoa-api.yado1225.top",
         hubServiceEndpoint: "https://dev-hub-api.yado1225.top",
-        isAITraceConsentAvailable: true
+        isAITraceConsentAvailable: true,
+        isEmailAccountAvailable: true
     )
 
     /// 线上环境。
@@ -56,7 +65,8 @@ nonisolated enum AuthConfig {
         aiServiceEndpoint: "https://ai-api.yado1225.top",
         syncServiceEndpoint: "https://yadoa-api.yado1225.top",
         hubServiceEndpoint: "https://hub-api.yado1225.top",
-        isAITraceConsentAvailable: false
+        isAITraceConsentAvailable: false,
+        isEmailAccountAvailable: false
     )
 
     /// 当前环境的取值。
@@ -114,6 +124,9 @@ nonisolated enum AuthConfig {
 
     /// 当前环境是否提供“帮助改进 AI”；为 false 时没有入口和页面，也不会带上报头。
     static var isAITraceConsentAvailable: Bool { current.isAITraceConsentAvailable }
+
+    /// 当前环境是否开放邮箱账号（邮箱登录、绑定 / 更换邮箱）；为 false 时没有这两个入口，邮箱行只读。
+    static var isEmailAccountAvailable: Bool { current.isEmailAccountAvailable }
 
     /// 把写死的地址转成 URL；地址是常量，非法即为配置写错，应尽早暴露。
     private static func url(_ text: String, name: String) -> URL {

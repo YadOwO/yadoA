@@ -51,6 +51,7 @@ struct AuthLocalizationTests {
             "auth.sign_out.confirm.message",
             "auth.sign_in.headline",
             "auth.sign_in.password",
+            "auth.sign_in.email",
             "auth.sign_in.coming_soon",
             "auth.sign_in.local_note",
             "auth.sign_in.success",

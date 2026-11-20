@@ -37,11 +37,26 @@ topic: auth-profile
   - Apple 登录接通后（`AuthSocialProvider.apple.isConnected`），这类用户通常没有密码，甚至没有用户名。
   - 后续凡是需要验证身份的敏感操作（改用户名、绑定邮箱、注销），都要支持邮箱 / 短信验证码（Logto verification-code 接口），不能只靠密码。
   - 用户名为空时，编辑弹层目前显示“未设置”，需确认是否引导用户补充。
+  - 2026-11-19：绑定邮箱已覆盖只有 Apple 的用户：Logto 不认 Apple 验证记录，App 带 `acr_values=urn:logto:acr:1fa` 重新打开托管页（step-up），由托管页让用户重新登录并设置邮箱或密码。
 
 ## 账号安全与找回
 
 - [ ] **绑定邮箱**：只有用户名和密码的账号忘记密码后无法找回；用 Account API 支持绑定 / 更换邮箱（需验证码）。
+  - 2026-11-19 App 端已完成，dev 开放、线上关闭（`AuthConfig.isEmailAccountAvailable`）：
+    - 设置 › 账号分组第一行新增「账号与安全」：用户名（只读）、Apple 是否关联、邮箱（打码显示，可绑定 / 更换）、是否设置密码；「注销芽豆账号」从设置页搬到这一页底部，流程不变。
+    - 绑定 / 更换邮箱：先验证身份（有密码输密码 → 否则给当前邮箱发 `UserPermissionValidation` 验证码 → 只有 Apple 时走 OIDC step-up），再给新邮箱发码、校验，`POST /api/my-account/primary-email` 保存。身份验证记录只存内存，10 分钟过期后重新验证。
+    - 登录页在 Apple 和「账号密码」之间加「邮箱登录」，直接进入托管页的邮箱输入页。
+    - 登录额外申请 `email`、`identities` scope；之前登录的会话在「账号与安全」页提示重新登录一次。step-up 或重新登录时在托管页登了别的账号，直接退出登录（本机账本和同步绑定保留，不会同步到新账号）。
+  - 待办：dev 按下面的「Logto 后台配置清单」配好后真机走一遍；线上要先升级 Logto（线上 OIDC discovery 没有 `acr_values_supported`，不支持 step-up）、配好清单，再把 `AuthConfig.prod.isEmailAccountAvailable` 改为 true。
 - [ ] **修改密码入口**：Account API 支持，成本较低。
+
+## Logto 后台配置清单
+
+邮箱登录和绑定邮箱依赖下面这些配置。dev 先配；线上要先升级 Logto（支持 `acr_values` step-up），再按同样的清单配，最后打开 `AuthConfig.prod.isEmailAccountAvailable`。
+
+- [ ] **邮件连接器**：配一个邮件连接器（阿里云邮件推送或 SMTP），模板覆盖 SignIn / Register / ForgotPassword / BindNewIdentifier / UserPermissionValidation。没配时发验证码返回 501，App 提示「邮件服务暂未开通」。
+- [ ] **登录体验**：开启邮箱 + 验证码登录（登录页「邮箱登录」按钮、只有 Apple 的用户 step-up 后设置邮箱都靠它）。
+- [ ] **账户中心字段**：email = Edit，social = ReadOnly，password = ReadOnly，username = ReadOnly，name / avatar 保持 Edit。
 
 ## 用户名修改（远期）
 
@@ -49,7 +64,7 @@ topic: auth-profile
 - Logto 本身不支持“修改冷却期”，只有 Off / ReadOnly / Edit 三档；webhook 只能事后通知，无法拦截。
 - 若以后开放改名，走后端：Logto token 鉴权 → 校验冷却期（如 30 天一次）→ Management API 修改；上次修改时间存在用户不可写的位置（不要用对用户开放编辑的 `customData`）。
 - 可考虑旧用户名保留一段时间不被他人注册，防止冒用。
-- `LogtoAccountAPI` 中的 `verifyPassword` 与 `username` 参数目前未被调用，保留备用；确定走后端方案后可删除。
+- `LogtoAccountAPI` 中的 `username` 参数目前未被调用，保留备用；确定走后端方案后可删除。`verifyPassword` 已用于绑定邮箱前验证身份。
 
 ## 体验与细节
 

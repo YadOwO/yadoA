@@ -37,7 +37,9 @@ struct AccountProfile: Equatable, Identifiable {
     }
 }
 
-/// 修改资料失败的原因，界面按类型展示本地化文案。
+/// 调用 Logto Account API（修改资料、验证身份、绑定邮箱）失败的原因，界面按类型展示本地化文案。
+///
+/// Logto 的错误码只在 `from(logtoCode:)` / `from(statusCode:logtoCode:)` 这一处归类。
 enum AccountProfileError: Error, Equatable {
     /// 用户名已被其他账号使用。
     case usernameTaken
@@ -47,8 +49,28 @@ enum AccountProfileError: Error, Equatable {
     case wrongPassword
     /// 密码尝试次数过多，被 Logto 暂时锁定。
     case tooManyAttempts
-    /// 服务器未开放该字段的修改，或身份验证已失效。
+    /// 服务器未开放该字段的修改（账户中心没开或字段不可编辑）。
     case notAllowed
+    /// 登录凭证不被接受（`auth.unauthorized`）：凭证已失效，或是加新 scope 之前登录的老会话，需要重新登录一次。
+    case reauthenticationRequired
+    /// 身份验证记录已过期或不被接受（`verification_record.permission_denied`），需要重新验证身份。
+    case verificationRequired
+    /// 邮箱已被其他账号使用。
+    case emailInUse
+    /// 验证码不正确。
+    case codeMismatch
+    /// 验证码已过期。
+    case codeExpired
+    /// 验证码尝试次数过多。
+    case codeTooManyAttempts
+    /// 验证码记录不存在或与邮箱不匹配，需要重新获取。
+    case codeInvalid
+    /// 验证码发送太频繁。
+    case rateLimited
+    /// Logto 没有配置邮件连接器（HTTP 501），发不出验证码。
+    case emailServiceUnavailable
+    /// 新邮箱的验证记录无效（`verification_record.not_found`），需要重新获取验证码。
+    case newEmailVerificationInvalid
     /// 网络不可用或请求超时。
     case network
     /// 其他未归类错误，附带服务器返回的错误码便于排查。
@@ -61,7 +83,16 @@ enum AccountProfileError: Error, Equatable {
         case .invalidUsername: "profile.edit.error.username_invalid"
         case .wrongPassword: "profile.edit.error.wrong_password"
         case .tooManyAttempts: "profile.edit.error.too_many_attempts"
-        case .notAllowed: "profile.edit.error.not_allowed"
+        // 「暂时无法修改，请重新登录后再试」两种情况都适用；改昵称时 `auth.unauthorized` 的提示因此保持不变
+        case .notAllowed, .reauthenticationRequired: "profile.edit.error.not_allowed"
+        case .verificationRequired: "account.email.error.verification_required"
+        case .emailInUse: "account.email.error.in_use"
+        case .codeMismatch: "account.email.error.code_mismatch"
+        case .codeExpired: "account.email.error.code_expired"
+        case .codeTooManyAttempts: "account.email.error.code_too_many_attempts"
+        case .codeInvalid, .newEmailVerificationInvalid: "account.email.error.code_invalid"
+        case .rateLimited: "account.email.error.rate_limited"
+        case .emailServiceUnavailable: "account.email.error.service_unavailable"
         case .network: "profile.edit.error.network"
         case .unknown: "profile.edit.error.unknown"
         }
@@ -72,13 +103,30 @@ enum AccountProfileError: Error, Equatable {
         switch code {
         case "user.username_already_in_use":
             .usernameTaken
+        case "user.email_already_in_use":
+            .emailInUse
         case "session.invalid_credentials":
             .wrongPassword
         case "session.verification_blocked_too_many_attempts":
             .tooManyAttempts
-        case "account_center.field_not_editable", "account_center.not_enabled",
-             "verification_record.permission_denied", "auth.unauthorized":
+        case "account_center.field_not_editable", "account_center.not_enabled":
             .notAllowed
+        case "auth.unauthorized":
+            .reauthenticationRequired
+        case "verification_record.permission_denied":
+            .verificationRequired
+        case "verification_record.not_found":
+            .newEmailVerificationInvalid
+        case "verification_code.code_mismatch":
+            .codeMismatch
+        case "verification_code.expired":
+            .codeExpired
+        case "verification_code.exceed_max_try":
+            .codeTooManyAttempts
+        case "verification_code.not_found", "verification_code.email_mismatch":
+            .codeInvalid
+        case "request.message_rate_limited":
+            .rateLimited
         case "guard.invalid_input":
             .invalidUsername
         case let code? where code.hasPrefix("user.username_"):
@@ -87,11 +135,26 @@ enum AccountProfileError: Error, Equatable {
             .unknown(code)
         }
     }
+
+    /// 按 HTTP 状态码和 Logto 错误码归类失败的响应。
+    ///
+    /// 501 表示发验证码的连接器没有配置，不管错误码是什么都归为邮件服务未开通；
+    /// 其余按错误码归类，响应体里没有错误码时用 `http.<状态码>` 代替，便于排查。
+    ///
+    /// - Parameters:
+    ///   - statusCode: HTTP 状态码。
+    ///   - code: 响应体里的 `code`；解析不到时为 nil。
+    static func from(statusCode: Int, logtoCode code: String?) -> AccountProfileError {
+        if statusCode == 501 {
+            return .emailServiceUnavailable
+        }
+        return from(logtoCode: code ?? "http.\(statusCode)")
+    }
 }
 
-/// Logto Account API 的最小封装：用户以自己的登录凭证修改自己的资料，无需自有后端。
+/// Logto Account API 的最小封装：用户以自己的登录凭证读取账号信息、修改资料和绑定邮箱，无需自有后端。
 ///
-/// 前提是服务器已在 Account Center 中开启对应字段的编辑权限；
+/// 前提是服务器已在 Account Center 中开启对应字段的读取 / 编辑权限；
 /// 调用方传入不指定资源的 access token（`getAccessToken(for: nil)`）。
 struct LogtoAccountAPI {
     /// Logto 服务地址（不含路径）。
@@ -147,7 +210,7 @@ struct LogtoAccountAPI {
         }
         var request = try makeRequest(path: "api/my-account", method: "PATCH", body: body, accessToken: accessToken)
         if let verificationID {
-            request.setValue(verificationID, forHTTPHeaderField: "logto-verification-id")
+            request.setValue(verificationID, forHTTPHeaderField: Self.verificationHeaderName)
         }
         let response: ProfileResponse = try await send(request)
         return AccountProfile(
@@ -157,7 +220,184 @@ struct LogtoAccountAPI {
         )
     }
 
+    // MARK: - 账号安全与邮箱
+
+    /// 读取当前账号的登录方式与安全信息（`GET /api/my-account`）。
+    ///
+    /// - Throws: `AccountProfileError`。
+    func fetchAccount(accessToken: String) async throws -> AccountSecurityInfo {
+        try await send(makeFetchAccountRequest(accessToken: accessToken))
+    }
+
+    /// 给邮箱发验证码（`POST /api/verifications/verification-code`），返回验证码记录 ID 和失效时刻。
+    ///
+    /// - Parameters:
+    ///   - email: 收验证码的地址。
+    ///   - purpose: 验证身份（发到当前邮箱）还是验证新邮箱。
+    /// - Throws: `AccountProfileError`；没配邮件连接器时为 `.emailServiceUnavailable`。
+    func sendEmailVerificationCode(
+        to email: String,
+        purpose: EmailVerificationPurpose,
+        accessToken: String
+    ) async throws -> EmailVerificationCodeRecord {
+        let request = try makeSendEmailCodeRequest(email: email, purpose: purpose, accessToken: accessToken)
+        let response: VerificationCodeResponse = try await send(request)
+        return EmailVerificationCodeRecord(
+            recordID: response.verificationRecordId,
+            // Logto 返回 ISO 8601 时间，与 yado_ai 的时间格式相同，复用同一个解析
+            expiresAt: response.expiresAt.flatMap(AIBillingTimestamp.parse)
+        )
+    }
+
+    /// 校验邮箱验证码（`POST /api/verifications/verification-code/verify`），返回校验通过的验证记录 ID。
+    ///
+    /// - Parameters:
+    ///   - code: 用户输入的验证码。
+    ///   - email: 发验证码时的地址，必须一致。
+    ///   - verificationID: `sendEmailVerificationCode` 返回的记录 ID。
+    /// - Throws: `AccountProfileError`。
+    func verifyEmailCode(
+        _ code: String,
+        email: String,
+        verificationID: String,
+        accessToken: String
+    ) async throws -> String {
+        let request = try makeVerifyEmailCodeRequest(
+            code: code,
+            email: email,
+            verificationID: verificationID,
+            accessToken: accessToken
+        )
+        let response: VerificationRecordResponse = try await send(request)
+        return response.verificationRecordId
+    }
+
+    /// 设置主邮箱（`POST /api/my-account/primary-email`），新增和更换都走它；成功时返回 204，没有响应体。
+    ///
+    /// - Parameters:
+    ///   - email: 新邮箱。
+    ///   - newEmailVerificationID: 新邮箱验证码校验通过后的记录 ID。
+    ///   - identityVerificationID: 身份验证记录 ID（密码或当前邮箱验证码），放进 `logto-verification-id` 请求头。
+    /// - Throws: `AccountProfileError`。
+    func setPrimaryEmail(
+        _ email: String,
+        newEmailVerificationID: String,
+        identityVerificationID: String,
+        accessToken: String
+    ) async throws {
+        let request = try makeSetPrimaryEmailRequest(
+            email: email,
+            newEmailVerificationID: newEmailVerificationID,
+            identityVerificationID: identityVerificationID,
+            accessToken: accessToken
+        )
+        try await perform(request)
+    }
+
+    // MARK: - 请求构造（模块内可见，供测试断言）
+
+    /// `GET /api/my-account`，没有请求体。
+    func makeFetchAccountRequest(accessToken: String) throws -> URLRequest {
+        try makeRequest(path: "api/my-account", method: "GET", body: nil, accessToken: accessToken)
+    }
+
+    /// 发邮箱验证码的请求；验证身份时带 `templateType`。
+    func makeSendEmailCodeRequest(
+        email: String,
+        purpose: EmailVerificationPurpose,
+        accessToken: String
+    ) throws -> URLRequest {
+        var body: [String: Any] = ["identifier": Self.emailIdentifier(email)]
+        if let templateType = purpose.templateType {
+            body["templateType"] = templateType
+        }
+        return try makeRequest(
+            path: "api/verifications/verification-code",
+            method: "POST",
+            body: body,
+            accessToken: accessToken
+        )
+    }
+
+    /// 校验邮箱验证码的请求。
+    func makeVerifyEmailCodeRequest(
+        code: String,
+        email: String,
+        verificationID: String,
+        accessToken: String
+    ) throws -> URLRequest {
+        try makeRequest(
+            path: "api/verifications/verification-code/verify",
+            method: "POST",
+            body: [
+                "identifier": Self.emailIdentifier(email),
+                "verificationId": verificationID,
+                "code": code,
+            ],
+            accessToken: accessToken
+        )
+    }
+
+    /// 设置主邮箱的请求，身份验证记录放在 `logto-verification-id` 请求头。
+    func makeSetPrimaryEmailRequest(
+        email: String,
+        newEmailVerificationID: String,
+        identityVerificationID: String,
+        accessToken: String
+    ) throws -> URLRequest {
+        var request = try makeRequest(
+            path: "api/my-account/primary-email",
+            method: "POST",
+            body: ["email": email, "newIdentifierVerificationRecordId": newEmailVerificationID],
+            accessToken: accessToken
+        )
+        request.setValue(identityVerificationID, forHTTPHeaderField: Self.verificationHeaderName)
+        return request
+    }
+
+    /// 携带身份验证记录 ID 的请求头。
+    static let verificationHeaderName = "logto-verification-id"
+
+    // MARK: - 响应处理（模块内可见，供测试断言）
+
+    /// 校验状态码：非 2xx 时解析 Logto 的错误码并抛出对应的 `AccountProfileError`。
+    ///
+    /// - Parameters:
+    ///   - statusCode: HTTP 状态码。
+    ///   - data: 响应体，可能为空（如 204）。
+    static func validate(statusCode: Int, data: Data) throws {
+        guard (200..<300).contains(statusCode) else {
+            let code = try? JSONDecoder().decode(ErrorResponse.self, from: data).code
+            throw AccountProfileError.from(statusCode: statusCode, logtoCode: code)
+        }
+    }
+
+    /// 解码成功响应；格式不符时抛出 `AccountProfileError.unknown("decode")`。
+    static func decode<Response: Decodable>(_ type: Response.Type, from data: Data) throws -> Response {
+        do {
+            return try JSONDecoder().decode(Response.self, from: data)
+        } catch {
+            throw AccountProfileError.unknown("decode")
+        }
+    }
+
     // MARK: - 私有方法
+
+    /// 校验验证码接口返回的记录 ID。
+    private struct VerificationRecordResponse: Decodable {
+        let verificationRecordId: String
+    }
+
+    /// 发验证码接口返回的记录 ID 和失效时刻（ISO 8601 文本）。
+    private struct VerificationCodeResponse: Decodable {
+        let verificationRecordId: String
+        let expiresAt: String?
+    }
+
+    /// 请求体里的邮箱标识。
+    private static func emailIdentifier(_ email: String) -> [String: String] {
+        ["type": "email", "value": email]
+    }
 
     /// Account API 返回的资料字段，只取界面用到的部分。
     private struct ProfileResponse: Decodable {
@@ -171,22 +411,27 @@ struct LogtoAccountAPI {
         let code: String?
     }
 
+    /// 构造带鉴权头的请求；`body` 为 nil 时（如 GET）不带请求体和 `Content-Type`。
     private func makeRequest(
         path: String,
         method: String,
-        body: [String: Any],
+        body: [String: Any]?,
         accessToken: String
     ) throws -> URLRequest {
         var request = URLRequest(url: endpoint.appending(path: path))
         request.httpMethod = method
         request.timeoutInterval = 20
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        }
         return request
     }
 
-    private func send<Response: Decodable>(_ request: URLRequest) async throws -> Response {
+    /// 发出请求并校验状态码，返回响应体，不解码；成功时没有响应体的接口（204）直接用它。
+    @discardableResult
+    private func perform(_ request: URLRequest) async throws -> Data {
         let data: Data
         let response: URLResponse
         do {
@@ -194,17 +439,13 @@ struct LogtoAccountAPI {
         } catch {
             throw AccountProfileError.network
         }
+        try Self.validate(statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0, data: data)
+        return data
+    }
 
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200..<300).contains(status) else {
-            let code = try? JSONDecoder().decode(ErrorResponse.self, from: data).code
-            throw AccountProfileError.from(logtoCode: code ?? "http.\(status)")
-        }
-
-        do {
-            return try JSONDecoder().decode(Response.self, from: data)
-        } catch {
-            throw AccountProfileError.unknown("decode")
-        }
+    /// 发出请求、校验状态码并解码响应体。
+    private func send<Response: Decodable>(_ request: URLRequest) async throws -> Response {
+        let data = try await perform(request)
+        return try Self.decode(Response.self, from: data)
     }
 }
