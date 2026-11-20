@@ -160,7 +160,6 @@ struct CheckInView: View {
                     .font(.subheadline.weight(.medium))
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
-                    .accessibilityIdentifier("check-in-today")
 
                 if let protection = status?.protection, protection.isEnabled {
                     protectionCardsLine(protection)
@@ -168,6 +167,7 @@ struct CheckInView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("check-in-streak")
 
             checkInControl
         }
@@ -185,7 +185,6 @@ struct CheckInView: View {
                 .monospacedDigit()
                 .contentTransition(.numericText(value: Double(status.streak)))
                 .animation(reduceMotion ? nil : .default, value: status.streak)
-                .accessibilityIdentifier("check-in-streak")
         } else if isRefreshingStatus {
             ProgressView()
         } else {

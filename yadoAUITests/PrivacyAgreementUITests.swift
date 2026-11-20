@@ -79,7 +79,7 @@ final class PrivacyAgreementUITests: XCTestCase {
         decline.tap()
 
         // 点「不同意」先弹窗说明只能用基础服务，点返回仍停在同意卡上
-        let goBack = app.buttons["privacy-agreement-decline-cancel"]
+        let goBack = app.buttons["privacy-agreement-decline-cancel"].firstMatch
         XCTAssertTrue(goBack.waitForExistence(timeout: 3))
         XCTAssertTrue(app.alerts["Basic Features Only"].exists)
         goBack.tap()
@@ -97,7 +97,7 @@ final class PrivacyAgreementUITests: XCTestCase {
         let decline = app.buttons["privacy-agreement-decline"]
         XCTAssertTrue(decline.waitForExistence(timeout: 5))
         decline.tap()
-        let confirm = app.buttons["privacy-agreement-decline-confirm"]
+        let confirm = app.buttons["privacy-agreement-decline-confirm"].firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
         confirm.tap()
         waitForDisappearance(of: app.buttons["privacy-agreement-decline"])
