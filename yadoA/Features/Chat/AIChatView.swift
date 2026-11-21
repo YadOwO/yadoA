@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 /// 麦克风旁的聊天入口：打字和发图片都在聊天页里。
@@ -75,7 +74,6 @@ private enum AIChatRoute: Hashable {
 struct AIChatView: View {
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(VoiceBookkeepingState.self) private var voice
