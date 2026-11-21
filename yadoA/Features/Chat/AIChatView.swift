@@ -163,21 +163,7 @@ struct AIChatView: View {
         .onChange(of: manualEntryNote == nil) { _, _ in refreshLedgerState() }
         .onChange(of: rows.map(\.snapshot)) { _, _ in refreshLedgerState() }
         .sheet(item: $manualEntryNote) { item in
-            NavigationStack {
-                DiningExpenseEntryView(
-                    draft: DiningExpenseDraft(
-                        transactionDay: TransactionDay.encode(.now, calendar: calendar),
-                        note: item.text
-                    )
-                ) { draft in
-                    try LocalExpenseRepository(container: modelContext.container).save(draft)
-                }
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(text("common.cancel")) { manualEntryNote = nil }
-                    }
-                }
-            }
+            VoiceManualEntrySheet(note: item.text) { manualEntryNote = nil }
         }
         .sheet(item: $accountCreationTurn) { turn in
             VoiceAccountCreationSheet(turn: turn, voice: voice)

@@ -398,6 +398,37 @@ struct VoiceAccountCreationSheet: View {
     }
 }
 
+/// 从语音记账转手动记账的弹层：把没记上的那句话带进备注，用今天作为记账日。
+struct VoiceManualEntrySheet: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.calendar) private var calendar
+    @Environment(\.locale) private var locale
+
+    /// 带进备注的文字。
+    let note: String
+
+    /// 点「取消」时关闭弹层。
+    let onCancel: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            DiningExpenseEntryView(
+                draft: DiningExpenseDraft(
+                    transactionDay: TransactionDay.encode(.now, calendar: calendar),
+                    note: note
+                )
+            ) { draft in
+                try LocalExpenseRepository(container: modelContext.container).save(draft)
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(AccountLocalization.string("common.cancel", locale: locale)) { onCancel() }
+                }
+            }
+        }
+    }
+}
+
 /// 追问的候选项：点选后作为下一句回答发送。
 struct VoiceAskOptionsView: View {
     /// 候选项。

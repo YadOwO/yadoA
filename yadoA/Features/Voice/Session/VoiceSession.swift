@@ -363,7 +363,7 @@ final class VoiceSession {
                     askUser(turnID, question: question, options: options)
                     return
                 case let .reply(text):
-                    events.append(.assistant(text: String(text.prefix(VoiceSessionLimits.maxAssistantTextLength))))
+                    appendAssistantEvent(text)
                     updateTurn(turnID) { $0.outcome = .reply(text) }
                     return
                 case let .accountRequired(text):
@@ -611,7 +611,7 @@ final class VoiceSession {
         if turn.changes.isEmpty {
             events.removeSubrange(turn.eventStartIndex...)
         } else {
-            events.append(.assistant(text: String(text.prefix(VoiceSessionLimits.maxAssistantTextLength))))
+            appendAssistantEvent(text)
         }
         updateTurn(id) {
             $0.outcome = .accountRequired(text)
@@ -713,6 +713,12 @@ final class VoiceSession {
         mutation(&turns[index])
     }
 
+    /// 追加一条 assistant 事件，文字按服务端契约截到 `VoiceSessionLimits.maxAssistantTextLength` 以内。
+    /// - Parameter text: 要写入会话记录的助手文字。
+    private func appendAssistantEvent(_ text: String) {
+        events.append(.assistant(text: String(text.prefix(VoiceSessionLimits.maxAssistantTextLength))))
+    }
+
     /// 以追问结束本轮：问题追加为 assistant 事件，等待用户下一轮回答。
     ///
     /// - Parameters:
@@ -720,7 +726,7 @@ final class VoiceSession {
     ///   - question: 要问用户的问题。
     ///   - options: 供用户点选的候选项。
     private func askUser(_ id: UUID, question: String, options: [VoiceAskOption]) {
-        events.append(.assistant(text: String(question.prefix(VoiceSessionLimits.maxAssistantTextLength))))
+        appendAssistantEvent(question)
         updateTurn(id) { $0.outcome = .ask(question: question, options: options) }
     }
 
@@ -728,7 +734,7 @@ final class VoiceSession {
     private func finishTurnLocally(_ id: UUID) {
         guard let turn = turns.first(where: { $0.id == id }) else { return }
         let summary = VoiceSessionSummary.text(for: turn.changes, locale: locale)
-        events.append(.assistant(text: String(summary.prefix(VoiceSessionLimits.maxAssistantTextLength))))
+        appendAssistantEvent(summary)
         updateTurn(id) { $0.outcome = .reply(summary) }
     }
 

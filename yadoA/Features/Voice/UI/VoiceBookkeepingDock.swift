@@ -389,21 +389,7 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 }
             }
             .sheet(item: $voice.manualEntryNote) { item in
-                NavigationStack {
-                    DiningExpenseEntryView(
-                        draft: DiningExpenseDraft(
-                            transactionDay: TransactionDay.encode(.now, calendar: calendar),
-                            note: item.text
-                        )
-                    ) { draft in
-                        try LocalExpenseRepository(container: modelContext.container).save(draft)
-                    }
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(text("common.cancel")) { voice.manualEntryNote = nil }
-                        }
-                    }
-                }
+                VoiceManualEntrySheet(note: item.text) { voice.manualEntryNote = nil }
             }
             .sheet(item: $voice.accountCreationTurn) { turn in
                 VoiceAccountCreationSheet(turn: turn, voice: voice)

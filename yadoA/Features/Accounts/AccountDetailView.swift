@@ -71,36 +71,11 @@ struct AccountDetailView: View {
         .id(queryRefreshToken)
         .navigationTitle(AccountLocalization.string("account.detail.title", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
-        .alert(
-            AccountLocalization.string("account.default.save_error", locale: locale),
-            isPresented: $isDefaultActionFailed
-        ) {
-            Button(AccountLocalization.string("common.close", locale: locale), role: .cancel) {}
-        }
-        .alert(
-            AccountLocalization.string("account.lifecycle.restore_error", locale: locale),
-            isPresented: $isRestoreActionFailed
-        ) {
-            Button(AccountLocalization.string("common.close", locale: locale), role: .cancel) {}
-        }
-        .alert(
-            AccountLocalization.string("account.lifecycle.state_changed", locale: locale),
-            isPresented: $isLifecycleStateChanged
-        ) {
-            Button(AccountLocalization.string("common.close", locale: locale), role: .cancel) {}
-        }
-        .alert(
-            AccountLocalization.string("account.lifecycle.plan_error", locale: locale),
-            isPresented: $isLifecyclePlanLoadFailed
-        ) {
-            Button(AccountLocalization.string("common.close", locale: locale), role: .cancel) {}
-        }
-        .alert(
-            AccountLocalization.string("account.transfer.delete_failed", locale: locale),
-            isPresented: $isTransferDeleteFailed
-        ) {
-            Button(AccountLocalization.string("common.close", locale: locale), role: .cancel) {}
-        }
+        .accountFailureAlert("account.default.save_error", isPresented: $isDefaultActionFailed, locale: locale)
+        .accountFailureAlert("account.lifecycle.restore_error", isPresented: $isRestoreActionFailed, locale: locale)
+        .accountFailureAlert("account.lifecycle.state_changed", isPresented: $isLifecycleStateChanged, locale: locale)
+        .accountFailureAlert("account.lifecycle.plan_error", isPresented: $isLifecyclePlanLoadFailed, locale: locale)
+        .accountFailureAlert("account.transfer.delete_failed", isPresented: $isTransferDeleteFailed, locale: locale)
         // 删除转账会同时改动两个账户的余额，先确认一次。
         .confirmationDialog(
             AccountLocalization.string("account.transfer.delete_confirm", locale: locale),
@@ -877,6 +852,19 @@ private struct AccountTransactionHistoryRow: View {
     private var amount: some View {
         Text(presentation.formattedAmount)
             .font(.system(.body, design: .serif).monospacedDigit())
+    }
+}
+
+private extension View {
+    /// 账户详情页的操作失败提示：标题取本地化文案，只有一个「关闭」按钮。
+    /// - Parameters:
+    ///   - titleKey: 失败提示标题的本地化 key。
+    ///   - isPresented: 控制提示显示的绑定。
+    ///   - locale: 取文案用的语言。
+    func accountFailureAlert(_ titleKey: String, isPresented: Binding<Bool>, locale: Locale) -> some View {
+        alert(AccountLocalization.string(titleKey, locale: locale), isPresented: isPresented) {
+            Button(AccountLocalization.string("common.close", locale: locale), role: .cancel) {}
+        }
     }
 }
 
