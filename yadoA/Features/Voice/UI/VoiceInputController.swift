@@ -84,6 +84,12 @@ final class VoiceInputController {
     /// 最近一次按下时的界面语言，用于一次性提示的文案。
     private var locale = Locale.current
 
+    /// 没按满时长就松手时提示的文案键；每次按下时由调用方指定，一级页面会顺带提一句旁边可以打字。
+    private var shortPressHintKey = VoiceInputController.defaultShortPressHintKey
+
+    /// 没按满时长就松手时默认提示的文案键：「按住说话」。
+    nonisolated static let defaultShortPressHintKey = "voice.mic.holdHint"
+
     /// 最近一句从松手到拿到最终识别文字的耗时；由 `takeSpeechFinalizeDuration()` 取走，计入这句话的耗时。
     private var speechFinalizeDuration: Duration?
 
@@ -130,7 +136,14 @@ final class VoiceInputController {
     ///   - isSignedIn: 当前是否已登录；未登录时不收音，松手后弹窗询问是否去登录。
     ///   - locale: 识别语言。
     ///   - contextualStrings: 读取识别专有名词的动作，只在可以收音时调用。
-    func pressBegan(isSignedIn: Bool, locale: Locale, contextualStrings: () -> [String]) {
+    ///   - shortPressHintKey: 没按满时长就松手时提示的文案键；默认只说「按住说话」。
+    func pressBegan(
+        isSignedIn: Bool,
+        locale: Locale,
+        contextualStrings: () -> [String],
+        shortPressHintKey: String = VoiceInputController.defaultShortPressHintKey
+    ) {
+        self.shortPressHintKey = shortPressHintKey
         begin(isSignedIn: isSignedIn, locale: locale, contextualStrings: contextualStrings, delay: holdDelay)
     }
 
@@ -230,7 +243,7 @@ final class VoiceInputController {
             // 没按满时长就松手：还没开始收音，取消等待，只提示要按住说话
             startTask?.cancel()
             startTask = nil
-            transientHint = AccountLocalization.string("voice.mic.holdHint", locale: locale)
+            transientHint = AccountLocalization.string(shortPressHintKey, locale: locale)
         case .record where isCancelled:
             // 上滑取消：立即作废并关麦，启动还没完成也不等
             AppHaptics.play(.dismiss)

@@ -111,6 +111,23 @@ struct VoiceInputControllerTests {
         #expect(fixture.controller.transientHint == AccountLocalization.string("voice.mic.holdHint", locale: Fixture.locale))
     }
 
+    @Test("按下时指定了提示文案键：没按满时长就松手提示这条（一级页面顺带提可以打字）")
+    func releaseBeforeHoldDelayUsesGivenHintKey() async {
+        let fixture = Fixture(holdDelay: .seconds(60))
+
+        fixture.controller.pressBegan(
+            isSignedIn: true,
+            locale: Fixture.locale,
+            contextualStrings: { [] },
+            shortPressHintKey: "voice.mic.holdHint.orType"
+        )
+        await settle()
+        fixture.controller.pressEnded(onText: { _ in })
+        await settle()
+
+        #expect(fixture.controller.transientHint == AccountLocalization.string("voice.mic.holdHint.orType", locale: Fixture.locale))
+    }
+
     @Test("手指按下后不移动，按满时长也会开始收音")
     func startsWithoutMovementAfterHoldDelay() async {
         let fixture = Fixture(holdDelay: .milliseconds(50))

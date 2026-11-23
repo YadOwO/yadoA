@@ -24,3 +24,7 @@ build/
 
 # Local secrets (OSS avatar upload keys, etc.)
 Config/Secrets.xcconfig
+
+# App Store screenshots: simulator captures and rendered images, regenerate with docs/appstore/capture.sh + render.sh
+docs/appstore/raw/
+docs/appstore/out/

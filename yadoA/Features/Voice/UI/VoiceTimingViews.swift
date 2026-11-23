@@ -1,42 +1,62 @@
 import SwiftUI
 
-/// 会话卡片中一句话的耗时面板：默认只显示一行概要，点开展开整棵耗时树。
+/// 会话卡片中一句话的耗时面板：默认只显示一行概要，dev 环境点开展开整棵耗时树。
 ///
-/// 只在 `VoiceTimingFeature.isEnabled` 时显示（与「开发」页面入口一致）。
+/// 只在 `VoiceTimingFeature.isEnabled` 时显示（与「开发」页面入口一致）；
+/// 线上环境（DebugProd 包）只有概要、没有展开箭头，见 `AuthConfig.isVoiceTimingDetailAvailable`。
 struct VoiceTurnTimingView: View {
     @Environment(\.locale) private var locale
 
     /// 这句话的耗时。
     let timing: VoiceTurnTiming
 
+    /// 当前环境能不能点开耗时树；默认读环境开关，预览和测试可以直接指定。
+    var isDetailAvailable = AuthConfig.isVoiceTimingDetailAvailable
+
     /// 是否展开耗时树。
     @State private var isExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Button {
-                isExpanded.toggle()
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "stopwatch")
-                    Text(VoiceTimingBreakdown.summary(for: timing, locale: locale))
-                        .monospacedDigit()
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption2.weight(.semibold))
+            if isDetailAvailable {
+                Button {
+                    isExpanded.toggle()
+                } label: {
+                    summary(showsChevron: true)
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("voice-turn-timing")
+            } else {
+                // 线上只留一行概要：不是按钮，点了没有反应
+                summary(showsChevron: false)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("voice-turn-timing")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("voice-turn-timing")
 
-            if isExpanded {
+            if isDetailAvailable, isExpanded {
                 VoiceTimingRowsView(rows: VoiceTimingBreakdown.rows(for: timing, locale: locale))
                     .padding(10)
                     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
         }
+    }
+
+    /// 秒表图标加总耗时的一行概要。
+    ///
+    /// - Parameter showsChevron: 是否在行尾画展开 / 收起箭头；不能展开时不画。
+    private func summary(showsChevron: Bool) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "stopwatch")
+            Text(VoiceTimingBreakdown.summary(for: timing, locale: locale))
+                .monospacedDigit()
+            if showsChevron {
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.caption2.weight(.semibold))
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .contentShape(Rectangle())
     }
 }
 

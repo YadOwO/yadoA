@@ -54,7 +54,7 @@ struct AccountTypeOrderView: View {
         }
     }
 
-    /// 一个分类：图标、名称，以及该分类下启用账户的数量。
+    /// 一个分类：图标、名称、包含哪些账户的说明，以及该分类下启用账户的数量。
     private func row(_ accountType: AccountType) -> some View {
         let count = queriedAccounts.count { $0.isActive && $0.accountType == accountType }
         return HStack(spacing: 12) {
@@ -63,8 +63,16 @@ struct AccountTypeOrderView: View {
                 .foregroundStyle(accountType.tint)
                 .frame(width: 28)
                 .accessibilityHidden(true)
-            Text(accountType.title(locale: locale))
-                .foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(accountType.title(locale: locale))
+                    .foregroundStyle(.primary)
+                if let note = note(for: accountType) {
+                    Text(note)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             Spacer(minLength: 8)
             if count > 0 {
                 Text(count.formatted())
@@ -74,6 +82,19 @@ struct AccountTypeOrderView: View {
         }
         .frame(minHeight: 44)
         .accessibilityElement(children: .combine)
+    }
+
+    /// 分类名下面的一行说明，告诉用户这个分类里有哪些账户；没有说明的分类（现金、储蓄卡、自定义资产）为 nil。
+    ///
+    /// 虚拟账户单独写明微信、支付宝：新建账户时它俩是单独的快捷入口，用户不知道排序时要拖「虚拟账户」。
+    /// 新建页里虚拟账户的说明是「其他电子钱包」，因为微信、支付宝已经列在旁边，这里不能照搬。
+    ///
+    /// - Parameter accountType: 要说明的分类。
+    private func note(for accountType: AccountType) -> String? {
+        if accountType == .virtualAccount {
+            return text("account.type_order.virtualAccount.note")
+        }
+        return accountType.subtitle(locale: locale)
     }
 
     /// 写入新的分类顺序，失败时提示。

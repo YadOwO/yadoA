@@ -4432,18 +4432,37 @@
       }
     },
     "home.details.empty.first.message" : {
+      "comment" : "首页空状态（账本还没有收支）：手动记一笔在右上角，语音在页面下方",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap Add Transaction below to record your first entry."
+            "value" : "Tap + at the top right, or hold the mic below and just say it."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "点下方的“记一笔”，写下第一笔收支。"
+            "value" : "点右上角的“+”记一笔，或按住下方的麦克风，说一句话就能记。"
+          }
+        }
+      }
+    },
+    "home.details.empty.first.offlineMessage" : {
+      "comment" : "首页空状态（账本还没有收支，离线模式没有语音入口）：只提右上角的记一笔",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap + at the top right to record your first entry."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点右上角的“+”，写下第一笔收支。"
           }
         }
       }
@@ -18091,20 +18110,38 @@
         }
       }
     },
-    "voice.chat.entry" : {
-      "comment" : "Button next to the mic that opens the AI chat.",
+    "voice.chat.typeEntry" : {
+      "comment" : "VoiceOver label of the keyboard button next to the mic; opens the AI chat to type or send a photo.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open chat"
+            "value" : "Type instead"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "打开对话"
+            "value" : "打字记账"
+          }
+        }
+      }
+    },
+    "voice.chat.typeEntry.hint" : {
+      "comment" : "VoiceOver hint of the keyboard button next to the mic.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the chat, where you can type or send a photo."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开对话页，可以打字或发图片记账。"
           }
         }
       }
@@ -22767,6 +22804,150 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请不要关闭 App"
+          }
+        }
+      }
+    },
+    "account.type_order.virtualAccount.note" : {
+      "comment" : "账户分类排序页「虚拟账户」下的说明：微信、支付宝在新建账户时是单独入口，这里写明它们属于虚拟账户",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WeChat Pay, Alipay and other e-wallets"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "微信、支付宝、云闪付等电子钱包"
+          }
+        }
+      }
+    },
+    "voice.mic.holdHint.orType" : {
+      "comment" : "一级页面上没按住就松开麦克风时的一次性提示，顺带告诉用户右边的键盘可以打字",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold to speak, or tap the keyboard to type"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按住说话，想打字点右边的键盘"
+          }
+        }
+      }
+    },
+    "appUpdate.notice.title" : {
+      "comment" : "「发现新版本」弹层标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Version Available"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发现新版本"
+          }
+        }
+      }
+    },
+    "appUpdate.notice.version" : {
+      "comment" : "「发现新版本」弹层里的版本号，%@ 为 App Store 上的版本号",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "版本 %@"
+          }
+        }
+      }
+    },
+    "appUpdate.notice.notes" : {
+      "comment" : "「发现新版本」弹层里更新说明的小标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What's New"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新内容"
+          }
+        }
+      }
+    },
+    "appUpdate.notice.update" : {
+      "comment" : "「发现新版本」弹层的主按钮，打开 App Store 产品页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update on the App Store"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前往 App Store 更新"
+          }
+        }
+      }
+    },
+    "appUpdate.notice.later" : {
+      "comment" : "「发现新版本」弹层的次按钮，关掉弹层、这个版本不再提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稍后再说"
+          }
+        }
+      }
+    },
+    "developer.app.previewUpdateNotice" : {
+      "comment" : "开发页按钮：用示例版本预览「发现新版本」弹层",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preview Update Notice"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预览新版本提示"
           }
         }
       }

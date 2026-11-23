@@ -18,12 +18,13 @@ final class AppUpdatePrompt {
 
     /// App 的 App Store 数字 ID；上架后填 App Store 的数字 ID。
     ///
-    /// 为 nil 时提示里只有文字和「知道了」按钮，没有跳转按钮。
+    /// 为 nil 时改用 `AppUpdateNotice` 查到的产品页地址；也没查到过时提示里只有文字和「知道了」按钮，没有跳转按钮。
     nonisolated static let appStoreID: String? = nil
 
-    /// App 在 App Store 上的产品页地址；没配置 ID 或 ID 不是纯数字时为 nil，提示里就不显示跳转按钮。
+    /// App 在 App Store 上的产品页地址：优先用配置的数字 ID，没配置时用「发现新版本」查 App Store 时存下的地址；
+    /// 两者都没有时为 nil，提示里就不显示跳转按钮。
     static var appStoreURL: URL? {
-        AppStoreLink.productURL(id: appStoreID)
+        AppStoreLink.productURL(id: appStoreID) ?? AppUpdateNotice.shared.storeURL
     }
 
     /// 是否正在显示提示，供 alert 绑定。

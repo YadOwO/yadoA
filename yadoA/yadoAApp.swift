@@ -79,6 +79,10 @@ struct yadoAApp: App {
                 if AIChatUITestFixture.isEnabled {
                     try AIChatUITestFixture.seed(in: container.modelContainer)
                 }
+                // App Store 宣传图的演示账本
+                if AppStoreScreenshotFixture.isEnabled {
+                    try AppStoreScreenshotFixture.seed(in: container.modelContainer)
+                }
                 uiTestingDataContainer = container
                 if ScreenshotShortcutUITestFixture.isEnabled,
                    ProcessInfo.processInfo.arguments.contains("--ui-testing-screenshot-cold-start") {

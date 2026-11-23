@@ -528,7 +528,11 @@ final class VoiceSession {
     /// - Parameter isVoiceOverRunning: 是否开着读屏；读屏念完结果、再找到撤销按钮要更久。
     /// - Returns: 还在等用户回应或开着读屏时为 `cardExtendedIdleTimeout`，其余为 `cardIdleTimeout`。
     func currentCardIdleTimeout(isVoiceOverRunning: Bool) -> TimeInterval {
-        isVoiceOverRunning || isCardAwaitingUser ? Self.cardExtendedIdleTimeout : Self.cardIdleTimeout
+        #if DEBUG
+        // 截 App Store 宣传图时卡片多留一会儿
+        if AppStoreScreenshotFixture.holdsHighlights { return Self.cardExtendedIdleTimeout }
+        #endif
+        return isVoiceOverRunning || isCardAwaitingUser ? Self.cardExtendedIdleTimeout : Self.cardIdleTimeout
     }
 
     /// 闲置超过 `currentCardIdleTimeout(isVoiceOverRunning:)` 时收起首页卡片。

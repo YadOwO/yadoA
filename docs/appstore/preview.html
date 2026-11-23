@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>App Store 截图并排预览</title>
+<!-- 模拟 App Store 产品页里截图并排、带间隔和圆角的效果，用来检查跨图元素是否接得上。 -->
+<style>
+  html, body { margin: 0; background: #fff; }
+  .row { display: flex; gap: 22px; padding: 46px 40px; }
+  img { height: 900px; border-radius: 34px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .06); }
+</style>
+</head>
+<body>
+<div class="row" id="row"></div>
+<script>
+  const lang = new URLSearchParams(location.hash.slice(1)).get("lang") === "en" ? "en" : "zh";
+  document.getElementById("row").innerHTML = [1, 2, 3, 4, 5, 6, 7].map(i => `<img src="out/${lang}/0${i}.png">`).join("");
+</script>
+</body>
+</html>

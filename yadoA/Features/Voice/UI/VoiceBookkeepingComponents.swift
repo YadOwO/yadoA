@@ -3,10 +3,13 @@ import SwiftUI
 
 // MARK: - 麦克风按钮
 
-/// 语音记账的麦克风按钮：按住说话、松手发送、上滑取消；没有轻点操作，打字和发图片走旁边的聊天入口 `AIChatEntryButton`。
+/// 语音记账的麦克风按钮：按住说话、松手发送、上滑取消；没有轻点操作，打字和发图片走右侧的键盘入口 `AIChatEntryButton`。
 struct VoiceMicButton: View {
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// 麦克风按钮的直径；旁边打字入口的可点高度与它一致，不把这一行撑高。
+    static let size: CGFloat = 64
 
     /// 按住说话的交互逻辑。
     let controller: VoiceInputController
@@ -43,7 +46,7 @@ struct VoiceMicButton: View {
                     .contentTransition(.symbolEffect(.replace))
             }
         }
-        .frame(width: 64, height: 64)
+        .frame(width: Self.size, height: Self.size)
         // 玻璃只负责外观，触摸由上层 UIKit 控件接收，避免额外的手势识别等待。
         .floatingGlassSurface(in: Circle())
         .scaleEffect(controller.isRecording && !reduceMotion ? 1.12 : 1)
@@ -82,7 +85,7 @@ struct VoiceMicButton: View {
 /// Tab Bar 附属栏里的麦克风：按住说话，跟随 Tab Bar 滚动收起；按下、上滑取消、松手发送与 `VoiceMicButton` 相同。
 ///
 /// 附属栏的玻璃底和形状由系统绘制，这里只画图标和文字；Tab Bar 收起后附属栏与它并排，文字随之变小。
-/// 右端是聊天入口，其余部分都可以按住。
+/// 右端用一道竖线隔出打字入口（键盘图标，整段高度都能点，见 `AIChatEntryButton`），其余部分都可以按住。
 @available(iOS 26.1, *)
 struct VoiceMicAccessory: View {
     @Environment(\.locale) private var locale
@@ -105,7 +108,7 @@ struct VoiceMicAccessory: View {
     var body: some View {
         HStack(spacing: 0) {
             holdArea
-            AIChatEntryButton(voice: voice, isFloating: false)
+            AIChatEntryButton(voice: voice, style: .accessory)
         }
     }
 
@@ -132,8 +135,8 @@ struct VoiceMicAccessory: View {
         }
         .font(font)
         .foregroundStyle(tint)
-        // 展开时左边留出聊天按钮的宽度，文字仍在整条中间；与 Tab Bar 并排时空间太窄，不留
-        .padding(.leading, placement == .inline ? 0 : AIChatEntryButton.size)
+        // 展开时左边留出右端打字入口的宽度，文字仍在整条中间（留白处照样能按住）；与 Tab Bar 并排时空间太窄，不留
+        .padding(.leading, placement == .inline ? 0 : AIChatEntryButton.accessoryWidth)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // 告诉一级页面附属栏顶边在哪，会话卡片和提示据此避开附属栏
         .onGeometryChange(for: CGFloat.self) { proxy in

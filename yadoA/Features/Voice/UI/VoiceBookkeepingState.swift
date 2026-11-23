@@ -143,7 +143,9 @@ final class VoiceBookkeepingState {
         input.pressBegan(
             isSignedIn: isSignedIn,
             locale: locale,
-            contextualStrings: { [weak self] in self?.contextualStrings ?? [] }
+            contextualStrings: { [weak self] in self?.contextualStrings ?? [] },
+            // 一级页面上轻点麦克风的人可能是想打字：顺带指一下右边的键盘入口；聊天页本身有输入框，只说按住说话
+            shortPressHintKey: isChatPresented ? VoiceInputController.defaultShortPressHintKey : "voice.mic.holdHint.orType"
         )
     }
 
