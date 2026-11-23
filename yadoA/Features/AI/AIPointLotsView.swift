@@ -79,7 +79,7 @@ private struct AICreditLotRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(lot.title(locale: locale))
                     .font(.body)
-                Text(AccountLocalization.formatted("ai.lots.expiresOn", value: lot.expiryText(locale: locale), locale: locale))
+                Text(expiryLine)
                     .font(.footnote)
                     .foregroundStyle(isExpiringSoon ? Color(.ledgerRed) : Color.secondary)
                 if let createdAt = lot.createdAt {
@@ -114,9 +114,18 @@ private struct AICreditLotRow: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// 是否快要过期。
+    /// 到期一行，例如“2027年1月26日 过期”；买来的点数永不过期，显示“永久有效”。
+    private var expiryLine: String {
+        guard let expiryText = lot.expiryText(locale: locale) else {
+            return AccountLocalization.string("ai.lots.neverExpires", locale: locale)
+        }
+        return AccountLocalization.formatted("ai.lots.expiresOn", value: expiryText, locale: locale)
+    }
+
+    /// 是否快要过期；永不过期的批次为 false。
     private var isExpiringSoon: Bool {
-        lot.expiresAt.timeIntervalSinceNow < Self.expiringSoonInterval
+        guard let expiresAt = lot.expiresAt else { return false }
+        return expiresAt.timeIntervalSinceNow < Self.expiringSoonInterval
     }
 
     /// 带日期的一行，例如“2027年1月26日 过期”。

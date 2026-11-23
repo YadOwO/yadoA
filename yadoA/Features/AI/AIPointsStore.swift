@@ -289,21 +289,25 @@ final class AIPointsStore {
         refreshRequest != nil
     }
 
-    /// 还有剩余、尚未到期的各批点数，按过期时间从早到晚；没有余额或服务端没有返回批次时为空。
+    /// 还有剩余、尚未到期的各批点数，按过期时间从早到晚，永不过期的（买来的点数）排在最后；没有余额或服务端没有返回批次时为空。
     ///
     /// - Parameter now: 当前时间，测试可注入；已到期但还没刷新掉的批次不算。
     /// - Returns: 未过期的批次。
     func activeLots(now: Date = .now) -> [AICreditLot] {
         guard let balance, balance > 0 else { return [] }
-        return lots.filter { $0.points > 0 && $0.expiresAt > now }
+        return lots.filter { lot in
+            guard lot.points > 0 else { return false }
+            guard let expiresAt = lot.expiresAt else { return true }
+            return expiresAt > now
+        }
     }
 
-    /// 最早过期、还有剩余的一批点数；没有余额或服务端没有返回批次时为 nil。
+    /// 最早过期、还有剩余的一批点数；永不过期的批次不算。没有余额、服务端没有返回批次或只剩买来的点数时为 nil。
     ///
     /// - Parameter now: 当前时间，测试可注入；已到期但还没刷新掉的批次不算。
     /// - Returns: 最近一批要过期的点数。
     func nextExpiringLot(now: Date = .now) -> AICreditLot? {
-        activeLots(now: now).first
+        activeLots(now: now).first { $0.expiresAt != nil }
     }
 
     /// 从服务端刷新余额，同时重新查模型档位列表。
@@ -579,7 +583,11 @@ final class AIPointsStore {
             product: AIBillingAPI.product,
             createdAt: createdAt
         )
-        let index = lots.firstIndex { $0.expiresAt > lot.expiresAt } ?? lots.endIndex
+        // 永不过期的批次（expiresAt 为 nil）排在最后，新的一批插在它们前面
+        let index = lots.firstIndex { existing in
+            guard let existingExpiry = existing.expiresAt else { return true }
+            return existingExpiry > expiresAt
+        } ?? lots.endIndex
         lots.insert(lot, at: index)
     }
 

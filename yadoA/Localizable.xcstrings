@@ -17403,6 +17403,438 @@
         }
       }
     },
+    "ai.entry.purchase" : {
+      "comment" : "点数明细里 App 内购买点数的一条",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Points Purchase"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买点数"
+          }
+        }
+      }
+    },
+    "ai.entry.purchaseRefund" : {
+      "comment" : "点数明细里购买退款、扣回没用掉的点数的一条",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase Refund"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买退款"
+          }
+        }
+      }
+    },
+    "ai.entry.purchaseRefundReversed" : {
+      "comment" : "点数明细里 Apple 撤销退款、点数补回的一条",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refund Reversed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退款撤销"
+          }
+        }
+      }
+    },
+    "ai.lots.neverExpires" : {
+      "comment" : "到期明细里买来的点数：永不过期",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Never expires"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "永久有效"
+          }
+        }
+      }
+    },
+    "ai.store.title" : {
+      "comment" : "AI 点数页充值区的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buy Points"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充值点数"
+          }
+        }
+      }
+    },
+    "ai.store.points" : {
+      "comment" : "充值区一个点数包的点数，%@ 是点数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ points"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 点"
+          }
+        }
+      }
+    },
+    "ai.store.badge.popular" : {
+      "comment" : "点数包角标：最受欢迎",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Popular"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最受欢迎"
+          }
+        }
+      }
+    },
+    "ai.store.badge.bestValue" : {
+      "comment" : "点数包角标：最划算",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Best Value"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最划算"
+          }
+        }
+      }
+    },
+    "ai.store.footnote" : {
+      "comment" : "充值区下方说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchased points never expire and are shared across Yado apps. Payment is handled by Apple, and the points stay with your Yado account."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买的点数永不过期，芽豆系列 App 通用。付款由 Apple 处理，点数随芽豆账号保存。"
+          }
+        }
+      }
+    },
+    "ai.store.purchase.hint" : {
+      "comment" : "价格按钮的读屏提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pays with your Apple Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用 Apple 账号付款"
+          }
+        }
+      }
+    },
+    "ai.store.period" : {
+      "comment" : "订阅商品的周期，%@ 是系统格式化的时长，例如 1 个月",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "every %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每 %@"
+          }
+        }
+      }
+    },
+    "ai.store.subscription.terms" : {
+      "comment" : "有订阅商品时的续订说明（App Store 要求）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period. You can manage or cancel them anytime in your App Store account settings."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "订阅会自动续期，在当前周期结束前至少 24 小时取消就不会续订；可以随时在 App Store 账户设置里管理或取消。"
+          }
+        }
+      }
+    },
+    "ai.store.manageSubscriptions" : {
+      "comment" : "打开系统的管理订阅页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage Subscriptions"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理订阅"
+          }
+        }
+      }
+    },
+    "ai.store.restore" : {
+      "comment" : "恢复购买按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore Purchases"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复购买"
+          }
+        }
+      }
+    },
+    "ai.store.notice.credited.title" : {
+      "comment" : "购买成功提示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase Complete"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买成功"
+          }
+        }
+      }
+    },
+    "ai.store.notice.credited.message" : {
+      "comment" : "购买成功提示，%@ 是入账的点数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ points have been added to your balance."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 点已到账。"
+          }
+        }
+      }
+    },
+    "ai.store.notice.pending.title" : {
+      "comment" : "购买等待批准（询问购买、银行验证）提示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for Approval"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待批准"
+          }
+        }
+      }
+    },
+    "ai.store.notice.pending.message" : {
+      "comment" : "购买等待批准提示的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The points will be added automatically once the purchase is approved."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "批准后点数会自动到账。"
+          }
+        }
+      }
+    },
+    "ai.store.notice.delayed.title" : {
+      "comment" : "已付款但暂时没入账提示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Points on the Way"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点数稍后到账"
+          }
+        }
+      }
+    },
+    "ai.store.notice.delayed.message" : {
+      "comment" : "已付款但暂时没入账提示的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your payment went through, but we couldn't reach Yado's service just now. The points will be added automatically the next time you open the app or this page. No need to buy again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已付款，但暂时没能连上芽豆的服务。下次打开 App 或这个页面时点数会自动到账，不用重复购买。"
+          }
+        }
+      }
+    },
+    "ai.store.notice.otherAccount.title" : {
+      "comment" : "购买属于另一个芽豆账号提示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Belongs to Another Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "属于其他账号"
+          }
+        }
+      }
+    },
+    "ai.store.notice.otherAccount.message" : {
+      "comment" : "购买属于另一个芽豆账号提示的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This purchase was made while signed in to another Yado account. Sign in to that account and the points will be added."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这笔购买是在另一个芽豆账号下发起的，切换回那个账号登录后点数会到账。"
+          }
+        }
+      }
+    },
+    "ai.store.notice.failed.title" : {
+      "comment" : "没能发起购买提示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase Not Completed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没能完成购买"
+          }
+        }
+      }
+    },
+    "ai.store.notice.failed.message" : {
+      "comment" : "没能发起购买提示的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The App Store isn't available right now. You weren't charged. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Store 暂时不可用，没有扣款，请稍后再试。"
+          }
+        }
+      }
+    },
     "ai.entry.other" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -17613,13 +18045,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Points expire after a while. Points closest to expiring are used first"
+            "value" : "Free points expire after a while, and the ones closest to expiring are used first. Purchased points never expire"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "点数有有效期，到期作废；扣点时先用快过期的"
+            "value" : "赠送的点数有有效期，到期作废，扣点时先用快过期的；购买的点数永不过期"
           }
         }
       }

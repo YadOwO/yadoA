@@ -20,6 +20,8 @@ struct yadoAApp: App {
     @State private var authStore: AuthStore
     /// 当前账号的 AI 点数，“我的”入口、AI 点数页和语音记账共用；凭证与账号取自 `authStore`。
     @State private var aiPoints: AIPointsStore
+    /// 点数充值：在售商品、购买与交易入账，只在登录后出现；入账后刷新 `aiPoints` 的余额。
+    @State private var aiPointsShop: AIPointsShop
     /// 意见反馈的未读回复数，“我的”入口和 Tab 角标共用；凭证与账号取自 `authStore`。
     @State private var feedback: FeedbackStore
     /// 芽豆系列的产品目录，“我的”入口和「更多芽豆产品」页共用；公开数据，与登录状态无关。
@@ -33,7 +35,11 @@ struct yadoAApp: App {
         let isNetworkAllowed = { privacyAgreement.allowsNetwork }
         let authStore = AuthStore(isNetworkAllowed: isNetworkAllowed)
         _authStore = State(initialValue: authStore)
-        _aiPoints = State(initialValue: AIPointsStore(authStore: authStore, isNetworkAllowed: isNetworkAllowed))
+        let aiPoints = AIPointsStore(authStore: authStore, isNetworkAllowed: isNetworkAllowed)
+        _aiPoints = State(initialValue: aiPoints)
+        _aiPointsShop = State(
+            initialValue: AIPointsShop(authStore: authStore, aiPoints: aiPoints, isNetworkAllowed: isNetworkAllowed)
+        )
         _feedback = State(initialValue: FeedbackStore(authStore: authStore, isNetworkAllowed: isNetworkAllowed))
         _seriesCatalog = State(initialValue: SeriesCatalogStore(isNetworkAllowed: isNetworkAllowed))
         // Release 同样启用；诊断只存本机，只有用户在意见反馈里勾选后才上传
@@ -155,10 +161,14 @@ struct yadoAApp: App {
             .environment(privacyAgreement)
             .environment(authStore)
             .environment(aiPoints)
+            .environment(aiPointsShop)
             .environment(feedback)
             .environment(seriesCatalog)
             .environment(appLock)
             .modifier(AppDisplayPreferencesModifier())
+            // 付了款还没入账的交易：启动时开始监听交易更新，并在启动和每次换账号登录后补传
+            .task { aiPointsShop.startObservingTransactions() }
+            .task(id: authStore.userID) { await aiPointsShop.processUnfinishedTransactions() }
         }
     }
 }

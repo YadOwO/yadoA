@@ -49,18 +49,20 @@ nonisolated struct AIWallet: Decodable, Equatable, Sendable {
     }
 }
 
-/// 一批未过期的点数：每笔入账（赠送、退点、正数调整）各成一批，到期后剩余点数作废，扣点先用最早过期的。
+/// 一批未过期的点数：每笔入账（赠送、退点、正数调整、购买）各成一批，到期后剩余点数作废，扣点先用最早过期的。
+///
+/// App 内购买的点数永不过期（App Store 审核指南 3.1.1），`expiresAt` 为 nil，服务端把它们排在最后、最后才用。
 nonisolated struct AICreditLot: Decodable, Equatable, Sendable {
     /// 本批剩余可用点数。
     let points: Int
 
-    /// 过期时刻。
-    let expiresAt: Date
+    /// 过期时刻；永不过期（买来的点数）时为 nil。
+    let expiresAt: Date?
 
     /// 本批入账时的点数；服务端没有返回时为 nil。
     let originalPoints: Int?
 
-    /// 本批的来源类型（赠送、退点或人工调整）；上线有效期之前的存量点数没有来源，与服务端没有返回时都为 nil。
+    /// 本批的来源类型（赠送、退点、人工调整或购买）；上线有效期之前的存量点数没有来源，与服务端没有返回时都为 nil。
     let kind: AICreditEntryKind?
 
     /// 来源的原因标签，与流水一致，例如 `initial_grant`；没有时为 nil。
@@ -79,7 +81,7 @@ nonisolated struct AICreditLot: Decodable, Equatable, Sendable {
     /// 逐字段创建。
     init(
         points: Int,
-        expiresAt: Date,
+        expiresAt: Date?,
         originalPoints: Int? = nil,
         kind: AICreditEntryKind? = nil,
         reason: String? = nil,
@@ -98,8 +100,10 @@ nonisolated struct AICreditLot: Decodable, Equatable, Sendable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         points = try container.decode(Int.self, forKey: .points)
-        let expiresAtText = try container.decode(String.self, forKey: .expiresAt)
-        expiresAt = try Self.parseTime(expiresAtText, forKey: .expiresAt, in: container)
+        // 服务端对永不过期的批次返回 null
+        expiresAt = try container.decodeIfPresent(String.self, forKey: .expiresAt).map {
+            try Self.parseTime($0, forKey: .expiresAt, in: container)
+        }
         originalPoints = try container.decodeIfPresent(Int.self, forKey: .originalPoints)
         kind = try container.decodeIfPresent(AICreditEntryKind.self, forKey: .kind)
         reason = try container.decodeIfPresent(String.self, forKey: .reason)
@@ -780,6 +784,9 @@ nonisolated enum AICreditEntryKind: String, Decodable, Equatable, Sendable {
     /// 到期作废，为负数。
     case expire
 
+    /// App 内购买的点数，永不过期。
+    case purchase
+
     /// 客户端还不认识的类型。
     case unknown
 
@@ -1028,6 +1035,12 @@ extension AICreditEntry {
     /// 每日签到赠送的原因标签，与 yado_ai 签到发放写入的流水 reason 一致。
     static let dailyCheckInReason = "daily_check_in"
 
+    /// App 内购买退款、扣回没用掉的点数的原因标签，与 yado_ai `shared/billing/purchases.ts` 一致。
+    static let purchaseRefundReason = "app_store_refund"
+
+    /// App 内购买的退款被 Apple 撤销、点数补回的原因标签，与 yado_ai `shared/billing/purchases.ts` 一致。
+    static let purchaseRefundReversedReason = "app_store_refund_reversed"
+
     /// 各产品名称的本地化 key，按 yado_ai `config/billing.ts` 的 `PRODUCT_CODES`；不在这里的产品显示不带产品名的标题。
     static let productNameKeys: [String: String] = [
         "yadoa": "ai.product.yadoa"
@@ -1096,9 +1109,17 @@ extension AICreditEntry {
         case .refund:
             "ai.entry.refund"
         case .adjust:
-            "ai.entry.adjust"
+            if reason == purchaseRefundReason {
+                "ai.entry.purchaseRefund"
+            } else if reason == purchaseRefundReversedReason {
+                "ai.entry.purchaseRefundReversed"
+            } else {
+                "ai.entry.adjust"
+            }
         case .expire:
             "ai.entry.expire"
+        case .purchase:
+            "ai.entry.purchase"
         case .unknown:
             "ai.entry.other"
         }
@@ -1119,9 +1140,11 @@ extension AICreditEntry {
         case .refund:
             "arrow.uturn.backward"
         case .adjust:
-            "slider.horizontal.3"
+            reason == purchaseRefundReason || reason == purchaseRefundReversedReason ? "cart" : "slider.horizontal.3"
         case .expire:
             "hourglass"
+        case .purchase:
+            "cart"
         case .unknown:
             "circle.dashed"
         }
@@ -1186,8 +1209,9 @@ extension AICreditLot {
     /// 到期时间文本：签到点数 24 小时后过期，显示到时分，其余只显示日期。
     ///
     /// - Parameter locale: 文案使用的语言环境。
-    /// - Returns: 本地化后的到期时间。
-    func expiryText(locale: Locale) -> String {
+    /// - Returns: 本地化后的到期时间；永不过期的批次为 nil。
+    func expiryText(locale: Locale) -> String? {
+        guard let expiresAt else { return nil }
         if isDailyCheckIn {
             return expiresAt.formatted(.dateTime.year().month().day().hour().minute().locale(locale))
         }
