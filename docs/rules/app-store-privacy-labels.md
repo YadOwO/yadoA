@@ -103,4 +103,5 @@
 - 首次使用 AI 记账前单独征得同意（共享清单里写了「首次使用前会单独征得你的同意」）；
 - ~~Release 版隐藏「帮助改进 AI」入口，Langfuse 上线前政策里没有这一项~~（已完成 2026-11-14：连线上的包（Release、DebugProd）不显示入口和页面，`AIPointsStore.isTraceConsented` 恒为 false，本机留着的旧授权也不会让请求带 `X-AI-Trace-Consent`；开关在 `Features/Auth/AuthConfig.swift` 的 `isAITraceConsentAvailable`，Langfuse 写进隐私政策和共享清单后再把 prod 改为 true）；
 - ~~中国区首次启动的隐私政策同意弹窗~~（已完成 2026-11-12：系统地区为中国大陆时首次启动先出同意卡，同意前不发任何请求，不同意进入离线模式；见 `Features/Legal/PrivacyAgreementStore.swift`）；
-- Logto 托管登录页填上用户协议和隐私政策链接。
+- Logto 托管登录页填上用户协议和隐私政策链接；
+- 出口合规（已完成 2026-11-18）：`yadoA-Info.plist` 声明 `ITSAppUsesNonExemptEncryption` 为 NO（`<false/>`），Debug、DebugProd、Release 都用这份 plist，上传构建后不用再在 App Store Connect 回答出口合规问题。依据：网络只走系统 HTTPS（URLSession / TLS），登录凭证存在系统 Keychain；CryptoKit 只用来算 SHA256 摘要和 HMAC 签名（`OSSRequestSigner` 的 OSS V4 签名、`SyncPayloadCoder` 的同步载荷摘要、周期规则和分类的固定 ID），不加密任何数据；没有自带或自己实现的加密算法，属于豁免。以后引入自定义加密（例如同步做端到端加密、用 CryptoKit 的 AES / ChaChaPoly 加密数据、接入带加密算法的第三方库）时，要重新评估这个键，必要时改为 YES，并在 App Store Connect 提交出口合规文件。
