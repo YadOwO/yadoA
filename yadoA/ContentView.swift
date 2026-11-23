@@ -71,15 +71,16 @@ struct ContentView: View {
             .environment(signInPresentation)
             // 联网接口返回 426 时弹出升级提示
             .modifier(AppUpdatePromptModifier())
-            // App Store 有新版本时弹一次说明；等允许联网、引导和同意卡都结束后再查
+            // App Store 有新版本时弹一次说明；等允许联网、引导、同意卡和登录页都结束后再查
             .modifier(AppUpdateNoticeModifier(canCheck: canCheckForUpdate))
     }
 
-    /// 能不能查 App Store 新版本：允许联网，而且首次引导和隐私政策同意卡都不在屏幕上，免得弹层盖在它们上面。
+    /// 能不能查 App Store 新版本：允许联网，而且首次引导、隐私政策同意卡和登录页都不在屏幕上，免得弹层盖在它们上面。
     private var canCheckForUpdate: Bool {
         onboarding == nil
             && privacyAgreement?.isCardPresented != true
             && privacyAgreement?.allowsNetwork ?? true
+            && !signInPresentation.isPresented
     }
 }
 

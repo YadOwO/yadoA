@@ -193,6 +193,7 @@ struct AIPointsShopTests {
 
         api.uploadResults = [.failure(.unknownAccount)]
         #expect(await shop.deliver(Self.transaction(3, finishedIDs: storeKit)) == .abandoned)
+        #expect(AIPointsShop.notice(for: .abandoned) == .cannotCredit)
         #expect(storeKit.finishedIDs == [3])
 
         api.uploadResults = [.success(AIStorePurchaseResult(status: .revoked, points: 0, balance: 98))]
