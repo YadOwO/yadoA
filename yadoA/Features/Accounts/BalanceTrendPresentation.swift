@@ -51,7 +51,7 @@ enum BalanceTrendDirection: Equatable, Sendable {
     case debt
 }
 
-/// 资产趋势页可切换的三种金额，与账户页汇总卡片的三项一一对应。
+/// 资产分析页的三个 tab（也是走势可切换的三种金额），与账户页汇总卡片的三项一一对应。
 enum NetWorthTrendMetric: String, CaseIterable, Identifiable, Hashable {
     /// 净资产：资产减负债。
     case netAssets

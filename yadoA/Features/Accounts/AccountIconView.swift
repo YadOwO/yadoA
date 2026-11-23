@@ -17,22 +17,25 @@ struct AccountIconView: View {
     /// 当前账户解析出的图标展示数据。
     let presentation: AccountIconPresentation
 
+    /// 图标边长；圆角和 SF Symbol 的留白按边长等比缩放，默认是账户列表里的 36pt。
+    var size: CGFloat = 36
+
     var body: some View {
         Group {
             if let brandImageName = presentation.brandImageName {
                 Image(brandImageName)
                     .resizable()
                     .scaledToFit()
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: size * 8 / 36, style: .continuous))
             } else {
                 Image(systemName: presentation.symbolName)
                     .resizable()
                     .scaledToFit()
-                    .padding(7)
+                    .padding(size * 7 / 36)
                     .foregroundStyle(presentation.tint)
             }
         }
-        .frame(width: 36, height: 36)
+        .frame(width: size, height: size)
         .accessibilityHidden(true)
     }
 }

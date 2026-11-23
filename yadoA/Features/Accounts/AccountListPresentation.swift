@@ -314,7 +314,7 @@ enum AccountListState {
     /// 空状态是否展示内嵌添加入口。
     static func showsInlineAdd(accountCount: Int) -> Bool { accountCount == 0 }
 
-    /// 非空状态是否在导航栏「更多」菜单中提供添加入口。
+    /// 非空状态是否在导航栏右上角直接放「＋」添加入口。
     static func showsToolbarAdd(accountCount: Int) -> Bool { accountCount > 0 }
 
 }

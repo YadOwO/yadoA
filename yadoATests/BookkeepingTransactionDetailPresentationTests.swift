@@ -33,11 +33,47 @@ struct BookkeepingTransactionDetailPresentationTests {
         #expect(detail.formattedAmount.contains("30.50"))
         #expect(detail.transactionDay == 20260826)
         #expect(detail.accountName == "日常现金")
+        #expect(detail.accountIcon == AccountListPresentation.row(for: account, locale: chineseLocale).icon)
         #expect(detail.accountState == .active)
         #expect(detail.note == "工作午餐")
         #expect(detail.canEdit)
         #expect(detail.accessibilityLabel.contains("餐饮"))
         #expect(detail.accessibilityLabel.contains("工作午餐"))
+    }
+
+    @Test("银行卡账户在详情里带上品牌图标")
+    func detailCarriesBankBrandIcon() throws {
+        let accountID = UUID()
+        let transaction = try AccountTransaction.validatingDiningExpense(
+            id: UUID(),
+            accountID: accountID,
+            amount: 18,
+            transactionDay: 20260826
+        )
+        let account = Account(
+            id: accountID,
+            typeRawValue: AccountType.debitCard.rawValue,
+            templateID: "debitCard.cmb",
+            name: "招商银行",
+            note: nil,
+            lastFourDigits: "1234",
+            balance: 100,
+            currencyCode: "CNY",
+            createdAt: Date(timeIntervalSince1970: 1),
+            updatedAt: Date(timeIntervalSince1970: 1)
+        )
+
+        let detail = try #require(
+            BookkeepingSearchPresentation.detail(
+                transactionID: transaction.id,
+                transactions: [transaction],
+                accounts: [account],
+                calendar: utcCalendar,
+                locale: chineseLocale
+            )
+        )
+
+        #expect(detail.accountIcon?.brandImageName == "BrandCMB")
     }
 
     @Test("没写备注时详情主标题回退到分类名")
@@ -107,6 +143,7 @@ struct BookkeepingTransactionDetailPresentationTests {
         #expect(inactiveDetail.canEdit == false)
         #expect(orphanDetail.accountState == .unavailable)
         #expect(orphanDetail.accountName == nil)
+        #expect(orphanDetail.accountIcon == nil)
         #expect(orphanDetail.canEdit == false)
     }
 

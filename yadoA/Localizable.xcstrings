@@ -1,20 +1,290 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "account.trend.net_worth.title" : {
-      "comment" : "资产趋势页标题，从账户页汇总卡片进入",
+    "account.analysis.title" : {
+      "comment" : "资产分析页标题，从账户页汇总卡片进入",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Net Worth Trend"
+            "value" : "Net Worth Analysis"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "资产趋势"
+            "value" : "资产分析"
+          }
+        }
+      }
+    },
+    "account.analysis.tab.accessibility" : {
+      "comment" : "资产分析页顶部「净资产 / 资产 / 负债」切换的无障碍名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看内容"
+          }
+        }
+      }
+    },
+    "account.analysis.debt_ratio.title" : {
+      "comment" : "资产分析页净资产 tab：资产负债率卡片标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debt-to-Asset Ratio"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "资产负债率"
+          }
+        }
+      }
+    },
+    "account.analysis.debt_ratio.formula" : {
+      "comment" : "资产负债率卡片底部的算法说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debt-to-asset ratio = debts ÷ assets"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "资产负债率 = 负债 ÷ 资产"
+          }
+        }
+      }
+    },
+    "account.analysis.debt_ratio.none" : {
+      "comment" : "资产负债率说明：没有负债",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No debts: everything you have is yours."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有负债，资产都是自己的。"
+          }
+        }
+      }
+    },
+    "account.analysis.debt_ratio.negligible" : {
+      "comment" : "资产负债率说明：负债不到资产的 1%",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debts are less than 1% of your assets."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负债不到资产的 1%。"
+          }
+        }
+      }
+    },
+    "account.analysis.debt_ratio.partial_format" : {
+      "comment" : "资产负债率说明，%@ 为每 100 元资产里负债的元数（1 到 100 的整数）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Out of every 100 in assets, %@ is debt."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每 100 元资产里，有 %@ 元是负债。"
+          }
+        }
+      }
+    },
+    "account.analysis.debt_ratio.exceeds" : {
+      "comment" : "资产负债率说明：负债超过了资产，或者没有资产却有负债",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your debts are more than your assets, so your net worth is below zero."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负债已经超过资产，净资产是负的。"
+          }
+        }
+      }
+    },
+    "account.analysis.composition.assets" : {
+      "comment" : "资产 tab：按账户类型的资产构成环形图标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asset Mix"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "资产构成"
+          }
+        }
+      }
+    },
+    "account.analysis.composition.liabilities" : {
+      "comment" : "负债 tab：按账户类型的负债构成环形图标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debt Mix"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负债构成"
+          }
+        }
+      }
+    },
+    "account.analysis.composition.remaining" : {
+      "comment" : "资产或负债构成里合并的较小几类账户",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他"
+          }
+        }
+      }
+    },
+    "account.analysis.ranking.assets" : {
+      "comment" : "资产 tab：按账户从多到少的资产排行标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assets by Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "资产排行"
+          }
+        }
+      }
+    },
+    "account.analysis.ranking.liabilities" : {
+      "comment" : "负债 tab：按账户从多到少的负债排行标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debts by Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负债排行"
+          }
+        }
+      }
+    },
+    "account.analysis.ranking.empty.assets" : {
+      "comment" : "资产排行为空时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No asset balances yet."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有资产余额。"
+          }
+        }
+      }
+    },
+    "account.analysis.ranking.empty.liabilities" : {
+      "comment" : "负债排行为空时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No debts."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有负债。"
+          }
+        }
+      }
+    },
+    "account.analysis.ranking.open_hint" : {
+      "comment" : "资产或负债排行里一行的无障碍提示：点按打开账户详情",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows the account details."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看账户详情"
           }
         }
       }
@@ -26,13 +296,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows how your net worth has changed."
+            "value" : "Shows your net worth trend, debt ratio and asset mix."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "查看资产趋势"
+            "value" : "查看资产分析"
           }
         }
       }
@@ -123,24 +393,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "时间范围"
-          }
-        }
-      }
-    },
-    "account.trend.metric.accessibility" : {
-      "comment" : "资产趋势页净资产、资产、负债切换的无障碍名称",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trend type"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "走势类型"
           }
         }
       }
@@ -242,13 +494,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Worked out day by day from each account's current balance and its records. Only active accounts are included. Each account counts from the day it was added, or from just before its earliest record if that is earlier. Credit cards and loans count toward liabilities as the amount owed."
+            "value" : "Trends are worked out day by day from each account's current balance and its records. Only active accounts are included. Each account counts from the day it was added, or from just before its earliest record if that is earlier. Credit cards and loans count toward liabilities as the amount owed. The mix and rankings use each account's current balance."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "按每个账户的当前余额和流水逐日倒推，只算启用中的账户。每个账户从建立那天起计入，补记了更早的流水时从那笔流水之前算起。信用卡、负债按欠款计入负债。"
+            "value" : "走势按每个账户的当前余额和流水逐日倒推，只算启用中的账户。每个账户从建立那天起计入，补记了更早的流水时从那笔流水之前算起。信用卡、负债按欠款计入负债。构成和排行按各账户当前余额计算。"
           }
         }
       }
@@ -4180,18 +4432,37 @@
       }
     },
     "home.details.empty.first.message" : {
+      "comment" : "首页空状态（账本还没有收支）：手动记一笔在右上角，语音在页面下方",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap Add Transaction below to record your first entry."
+            "value" : "Tap + at the top right, or hold the mic below and just say it."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "点下方的“记一笔”，写下第一笔收支。"
+            "value" : "点右上角的“+”记一笔，或按住下方的麦克风，说一句话就能记。"
+          }
+        }
+      }
+    },
+    "home.details.empty.first.offlineMessage" : {
+      "comment" : "首页空状态（账本还没有收支，离线模式没有语音入口）：只提右上角的记一笔",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap + at the top right to record your first entry."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点右上角的“+”，写下第一笔收支。"
           }
         }
       }
@@ -17151,6 +17422,438 @@
         }
       }
     },
+    "ai.entry.purchase" : {
+      "comment" : "点数明细里 App 内购买点数的一条",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Points Purchase"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买点数"
+          }
+        }
+      }
+    },
+    "ai.entry.purchaseRefund" : {
+      "comment" : "点数明细里购买退款、扣回没用掉的点数的一条",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase Refund"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买退款"
+          }
+        }
+      }
+    },
+    "ai.entry.purchaseRefundReversed" : {
+      "comment" : "点数明细里 Apple 撤销退款、点数补回的一条",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refund Reversed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退款撤销"
+          }
+        }
+      }
+    },
+    "ai.lots.neverExpires" : {
+      "comment" : "到期明细里买来的点数：永不过期",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Never expires"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "永久有效"
+          }
+        }
+      }
+    },
+    "ai.store.title" : {
+      "comment" : "AI 点数页充值区的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buy Points"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充值点数"
+          }
+        }
+      }
+    },
+    "ai.store.points" : {
+      "comment" : "充值区一个点数包的点数，%@ 是点数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ points"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 点"
+          }
+        }
+      }
+    },
+    "ai.store.badge.popular" : {
+      "comment" : "点数包角标：最受欢迎",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Popular"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最受欢迎"
+          }
+        }
+      }
+    },
+    "ai.store.badge.bestValue" : {
+      "comment" : "点数包角标：最划算",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Best Value"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最划算"
+          }
+        }
+      }
+    },
+    "ai.store.footnote" : {
+      "comment" : "充值区下方说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchased points never expire and are shared across Yado apps. Payment is handled by Apple, and the points stay with your Yado account."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买的点数永不过期，芽豆系列 App 通用。付款由 Apple 处理，点数随芽豆账号保存。"
+          }
+        }
+      }
+    },
+    "ai.store.purchase.hint" : {
+      "comment" : "价格按钮的读屏提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pays with your Apple Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用 Apple 账号付款"
+          }
+        }
+      }
+    },
+    "ai.store.period" : {
+      "comment" : "订阅商品的周期，%@ 是系统格式化的时长，例如 1 个月",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "every %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每 %@"
+          }
+        }
+      }
+    },
+    "ai.store.subscription.terms" : {
+      "comment" : "有订阅商品时的续订说明（App Store 要求）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period. You can manage or cancel them anytime in your App Store account settings."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "订阅会自动续期，在当前周期结束前至少 24 小时取消就不会续订；可以随时在 App Store 账户设置里管理或取消。"
+          }
+        }
+      }
+    },
+    "ai.store.manageSubscriptions" : {
+      "comment" : "打开系统的管理订阅页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage Subscriptions"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理订阅"
+          }
+        }
+      }
+    },
+    "ai.store.restore" : {
+      "comment" : "恢复购买按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore Purchases"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复购买"
+          }
+        }
+      }
+    },
+    "ai.store.notice.credited.title" : {
+      "comment" : "购买成功提示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase Complete"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买成功"
+          }
+        }
+      }
+    },
+    "ai.store.notice.credited.message" : {
+      "comment" : "购买成功提示，%@ 是入账的点数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ points have been added to your balance."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 点已到账。"
+          }
+        }
+      }
+    },
+    "ai.store.notice.pending.title" : {
+      "comment" : "购买等待批准（询问购买、银行验证）提示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for Approval"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待批准"
+          }
+        }
+      }
+    },
+    "ai.store.notice.pending.message" : {
+      "comment" : "购买等待批准提示的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The points will be added automatically once the purchase is approved."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "批准后点数会自动到账。"
+          }
+        }
+      }
+    },
+    "ai.store.notice.delayed.title" : {
+      "comment" : "已付款但暂时没入账提示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Points on the Way"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点数稍后到账"
+          }
+        }
+      }
+    },
+    "ai.store.notice.delayed.message" : {
+      "comment" : "已付款但暂时没入账提示的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your payment went through, but we couldn't reach Yado's service just now. The points will be added automatically the next time you open the app or this page. No need to buy again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已付款，但暂时没能连上芽豆的服务。下次打开 App 或这个页面时点数会自动到账，不用重复购买。"
+          }
+        }
+      }
+    },
+    "ai.store.notice.otherAccount.title" : {
+      "comment" : "购买属于另一个芽豆账号提示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Belongs to Another Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "属于其他账号"
+          }
+        }
+      }
+    },
+    "ai.store.notice.otherAccount.message" : {
+      "comment" : "购买属于另一个芽豆账号提示的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This purchase was made while signed in to another Yado account. Sign in to that account and the points will be added."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这笔购买是在另一个芽豆账号下发起的，切换回那个账号登录后点数会到账。"
+          }
+        }
+      }
+    },
+    "ai.store.notice.failed.title" : {
+      "comment" : "没能发起购买提示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase Not Completed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没能完成购买"
+          }
+        }
+      }
+    },
+    "ai.store.notice.failed.message" : {
+      "comment" : "没能发起购买提示的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The App Store isn't available right now. You weren't charged. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Store 暂时不可用，没有扣款，请稍后再试。"
+          }
+        }
+      }
+    },
     "ai.entry.other" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -17361,13 +18064,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Points expire after a while. Points closest to expiring are used first"
+            "value" : "Free points expire after a while, and the ones closest to expiring are used first. Purchased points never expire"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "点数有有效期，到期作废；扣点时先用快过期的"
+            "value" : "赠送的点数有有效期，到期作废，扣点时先用快过期的；购买的点数永不过期"
           }
         }
       }
@@ -17407,20 +18110,38 @@
         }
       }
     },
-    "voice.chat.entry" : {
-      "comment" : "Button next to the mic that opens the AI chat.",
+    "voice.chat.typeEntry" : {
+      "comment" : "VoiceOver label of the keyboard button next to the mic; opens the AI chat to type or send a photo.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open chat"
+            "value" : "Type instead"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "打开对话"
+            "value" : "打字记账"
+          }
+        }
+      }
+    },
+    "voice.chat.typeEntry.hint" : {
+      "comment" : "VoiceOver hint of the keyboard button next to the mic.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the chat, where you can type or send a photo."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开对话页，可以打字或发图片记账。"
           }
         }
       }
@@ -22083,6 +22804,150 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请不要关闭 App"
+          }
+        }
+      }
+    },
+    "account.type_order.virtualAccount.note" : {
+      "comment" : "账户分类排序页「虚拟账户」下的说明：微信、支付宝在新建账户时是单独入口，这里写明它们属于虚拟账户",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WeChat Pay, Alipay and other e-wallets"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "微信、支付宝、云闪付等电子钱包"
+          }
+        }
+      }
+    },
+    "voice.mic.holdHint.orType" : {
+      "comment" : "一级页面上没按住就松开麦克风时的一次性提示，顺带告诉用户右边的键盘可以打字",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold to speak, or tap the keyboard to type"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按住说话，想打字点右边的键盘"
+          }
+        }
+      }
+    },
+    "appUpdate.notice.title" : {
+      "comment" : "「发现新版本」弹层标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Version Available"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发现新版本"
+          }
+        }
+      }
+    },
+    "appUpdate.notice.version" : {
+      "comment" : "「发现新版本」弹层里的版本号，%@ 为 App Store 上的版本号",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "版本 %@"
+          }
+        }
+      }
+    },
+    "appUpdate.notice.notes" : {
+      "comment" : "「发现新版本」弹层里更新说明的小标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What's New"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新内容"
+          }
+        }
+      }
+    },
+    "appUpdate.notice.update" : {
+      "comment" : "「发现新版本」弹层的主按钮，打开 App Store 产品页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update on the App Store"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前往 App Store 更新"
+          }
+        }
+      }
+    },
+    "appUpdate.notice.later" : {
+      "comment" : "「发现新版本」弹层的次按钮，关掉弹层、这个版本不再提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稍后再说"
+          }
+        }
+      }
+    },
+    "developer.app.previewUpdateNotice" : {
+      "comment" : "开发页按钮：用示例版本预览「发现新版本」弹层",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preview Update Notice"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预览新版本提示"
           }
         }
       }

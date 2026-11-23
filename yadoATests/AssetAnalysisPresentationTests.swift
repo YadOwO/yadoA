@@ -1,0 +1,161 @@
+import Foundation
+import Testing
+@testable import yadoA
+
+@Suite("资产分析投影")
+@MainActor
+struct AssetAnalysisPresentationTests {
+    @Test("合计与汇总卡片同一口径：停用账户不算，信用卡算负债，未知类型算资产")
+    func totalsMatchSummaryCard() {
+        let accounts = [
+            makeAccount(type: .debitCard, templateID: "debitCard.cmb", name: "招商银行", balance: 10_000),
+            makeAccount(type: .cash, name: "现金", balance: 500),
+            makeAccount(typeRawValue: "futureType", name: "新类型", balance: 300),
+            makeAccount(type: .creditCard, templateID: "creditCard.huabei", name: "花呗", balance: 2_000),
+            makeAccount(type: .liability, name: "房贷", balance: 6_000),
+            makeAccount(type: .cash, name: "旧钱包", balance: 9_999, deactivated: true)
+        ]
+
+        let analysis = AssetAnalysisPresentation(accounts: accounts, locale: chineseLocale)
+        let summary = AccountSummaryPresentation.summary(for: accounts, locale: chineseLocale)
+
+        #expect(analysis.assets == 10_800)
+        #expect(analysis.liabilities == 8_000)
+        #expect(analysis.netAssets == 2_800)
+        #expect(analysis.assets == summary.assets)
+        #expect(analysis.liabilities == summary.liabilities)
+        #expect(analysis.debtRatio.map { ($0 * 1000).doubleValue.rounded() } == 741)
+        #expect(analysis.debtRatioLevel == .partial(perHundred: 74))
+    }
+
+    @Test("资产负债率的说明分档")
+    func debtRatioLevels() {
+        let noDebt = AssetAnalysisPresentation(accounts: [
+            makeAccount(type: .cash, name: "现金", balance: 100),
+            // 信用卡多还了：欠款为负，不算有负债
+            makeAccount(type: .creditCard, name: "信用卡", balance: -50)
+        ])
+        #expect(noDebt.debtRatioLevel == .noDebt)
+        #expect(noDebt.debtRatio == 0)
+
+        let negligible = AssetAnalysisPresentation(accounts: [
+            makeAccount(type: .cash, name: "现金", balance: 100_000),
+            makeAccount(type: .creditCard, name: "信用卡", balance: 100)
+        ])
+        #expect(negligible.debtRatioLevel == .negligible)
+
+        let full = AssetAnalysisPresentation(accounts: [
+            makeAccount(type: .cash, name: "现金", balance: 1_000),
+            makeAccount(type: .liability, name: "借款", balance: 1_000)
+        ])
+        #expect(full.debtRatioLevel == .partial(perHundred: 100))
+
+        let exceeds = AssetAnalysisPresentation(accounts: [
+            makeAccount(type: .cash, name: "现金", balance: 1_000),
+            makeAccount(type: .liability, name: "借款", balance: 3_000)
+        ])
+        #expect(exceeds.debtRatioLevel == .exceedsAssets)
+
+        // 没有资产却有负债：比率没有意义，写成「—」，说明按负债超过资产
+        let noAssets = AssetAnalysisPresentation(accounts: [
+            makeAccount(type: .liability, name: "借款", balance: 3_000)
+        ])
+        #expect(noAssets.debtRatio == nil)
+        #expect(noAssets.debtRatioLevel == .exceedsAssets)
+    }
+
+    @Test("构成按账户类型合计，从大到小排，合计不为正的类型不画")
+    func compositionGroupsByType() {
+        let analysis = AssetAnalysisPresentation(accounts: [
+            makeAccount(type: .debitCard, templateID: "debitCard.cmb", name: "招商银行", balance: 3_000),
+            makeAccount(type: .debitCard, templateID: "debitCard.icbc", name: "工商银行", balance: 2_000),
+            makeAccount(type: .virtualAccount, templateID: "virtualAccount.wechat", name: "微信", balance: 1_000),
+            // 透支的现金账户：类型合计为负，不进环形图
+            makeAccount(type: .cash, name: "现金", balance: -10),
+            makeAccount(type: .creditCard, name: "信用卡", balance: 800),
+            makeAccount(type: .liability, name: "房贷", balance: 1_200)
+        ], locale: chineseLocale)
+
+        #expect(analysis.assetComposition.segments.map(\.id) == ["debitCard", "virtualAccount"])
+        #expect(analysis.assetComposition.segments.first?.amount == 5_000)
+        #expect(analysis.assetComposition.totalAmount == 6_000)
+        #expect(analysis.liabilityComposition.segments.map(\.id) == ["liability", "creditCard"])
+        #expect(analysis.composition(for: .liabilities) == analysis.liabilityComposition)
+        #expect(analysis.composition(for: .assets) == analysis.assetComposition)
+    }
+
+    @Test("构成超过三类时，较小的合并成「其他」")
+    func compositionFoldsLongTail() {
+        let analysis = AssetAnalysisPresentation(accounts: [
+            makeAccount(type: .debitCard, name: "储蓄卡", balance: 5_000),
+            makeAccount(type: .virtualAccount, name: "微信", balance: 4_000),
+            makeAccount(type: .investment, name: "基金", balance: 3_000),
+            makeAccount(type: .cash, name: "现金", balance: 200),
+            makeAccount(type: .receivable, name: "借给朋友", balance: 100)
+        ], locale: chineseLocale)
+
+        let segments = analysis.assetComposition.segments
+        #expect(segments.count == AssetAnalysisPresentation.maxCompositionSegments + 1)
+        #expect(segments.prefix(3).map(\.id) == ["debitCard", "virtualAccount", "investment"])
+        #expect(segments.last?.id == CategoryBreakdownPresentation.remainingID)
+        #expect(segments.last?.amount == 300)
+        #expect(segments.last?.title == "其他")
+    }
+
+    @Test("排行按余额从多到少，零余额不列，透支没有占比")
+    func rankingSortsAccounts() {
+        let cmb = makeAccount(type: .debitCard, templateID: "debitCard.cmb", name: "招商银行", balance: 3_000)
+        let wechat = makeAccount(type: .virtualAccount, templateID: "virtualAccount.wechat", name: "微信", balance: 1_000)
+        let empty = makeAccount(type: .cash, name: "空钱包", balance: 0)
+        let overdrawn = makeAccount(type: .cash, name: "现金", balance: -20)
+
+        let analysis = AssetAnalysisPresentation(accounts: [wechat, empty, overdrawn, cmb], locale: chineseLocale)
+        let ranking = analysis.assetRanking
+
+        #expect(ranking.map(\.id) == [cmb.id, wechat.id, overdrawn.id])
+        #expect(ranking[0].share == 0.75)
+        #expect(ranking[1].share == 0.25)
+        #expect(ranking[2].share == nil)
+        // 品牌图标与账户列表一致
+        #expect(ranking[0].row.icon.brandImageName == "BrandCMB")
+        #expect(analysis.liabilityRanking.isEmpty)
+        #expect(analysis.ranking(for: .assets) == ranking)
+    }
+
+    // MARK: - 工具
+
+    /// 测试用的中文语言环境。
+    private var chineseLocale: Locale { Locale(identifier: "zh-Hans") }
+
+    /// 建一个不落库的账户。
+    ///
+    /// - Parameters:
+    ///   - type: 账户类型；传 `typeRawValue` 时忽略。
+    ///   - typeRawValue: 直接指定类型原始值，用来模拟未知类型。
+    ///   - templateID: 模板标识。
+    ///   - name: 账户名称。
+    ///   - balance: 当前余额或欠款。
+    ///   - deactivated: 是否已停用。
+    private func makeAccount(
+        type: AccountType = .cash,
+        typeRawValue: String? = nil,
+        templateID: String? = nil,
+        name: String,
+        balance: Decimal,
+        deactivated: Bool = false
+    ) -> Account {
+        Account(
+            id: UUID(),
+            typeRawValue: typeRawValue ?? type.rawValue,
+            templateID: templateID,
+            name: name,
+            note: nil,
+            lastFourDigits: nil,
+            balance: balance,
+            currencyCode: "CNY",
+            createdAt: Date(timeIntervalSince1970: 1),
+            updatedAt: Date(timeIntervalSince1970: 1),
+            deactivatedAt: deactivated ? Date(timeIntervalSince1970: 2) : nil
+        )
+    }
+}

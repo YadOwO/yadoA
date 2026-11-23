@@ -42,26 +42,15 @@ struct AccountListView: View {
         }
         .navigationTitle(AccountLocalization.string("account.list.title", locale: locale))
         .toolbar {
-            // 至少两个可记账账户才有转账的意义。
-            if TransferView.transferableAccounts(queriedAccounts, order: order).count >= 2 {
+            // 添加账户是这一页最常要找的操作：有账户时右上角直接放「＋」，一点就打开；没有账户时添加按钮在页面中间。
+            if AccountListState.showsToolbarAdd(accountCount: accounts.count) {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        transferDraft = TransferDraft(
-                            fromAccountID: defaultTransferSourceID,
-                            transactionDay: TransactionDay.encode(.now, calendar: calendar)
-                        )
-                    } label: {
-                        Label(
-                            AccountLocalization.string("account.transfer.title", locale: locale),
-                            systemImage: "arrow.left.arrow.right"
-                        )
-                    }
-                    .accessibilityIdentifier("account-list-transfer")
+                    addButton(identifier: "account-list-toolbar-add")
                 }
             }
-            // 添加账户和账户管理收进同一个「更多」菜单，右上角最多两个按钮。
+            // 转账和账户管理收进「更多」菜单，右上角最多两个按钮。至少两个可记账账户才有转账的意义。
             ToolbarItem(placement: .primaryAction) {
-                moreMenu(showsAdd: AccountListState.showsToolbarAdd(accountCount: accounts.count))
+                moreMenu(showsTransfer: TransferView.transferableAccounts(queriedAccounts, order: order).count >= 2)
             }
         }
         .onAppear { isVisible = true }
@@ -127,14 +116,25 @@ struct AccountListView: View {
         )
     }
 
-    /// 右上角的「更多」菜单：有账户时提供添加账户，始终提供账户管理。
+    /// 右上角的「更多」菜单：可以转账时提供转账，始终提供账户管理。
     ///
     /// 系统菜单不保留菜单项的 identifier，UI 测试按菜单项标题查找。
-    /// - Parameter showsAdd: 是否提供添加账户；没有账户时添加入口在页面中间。
-    private func moreMenu(showsAdd: Bool) -> some View {
+    /// - Parameter showsTransfer: 是否提供转账；可记账账户不足两个时没有转账的意义。
+    private func moreMenu(showsTransfer: Bool) -> some View {
         Menu {
-            if showsAdd {
-                addButton(identifier: "account-list-toolbar-add")
+            if showsTransfer {
+                Button {
+                    transferDraft = TransferDraft(
+                        fromAccountID: defaultTransferSourceID,
+                        transactionDay: TransactionDay.encode(.now, calendar: calendar)
+                    )
+                } label: {
+                    Label(
+                        AccountLocalization.string("account.transfer.title", locale: locale),
+                        systemImage: "arrow.left.arrow.right"
+                    )
+                }
+                .accessibilityIdentifier("account-list-transfer")
             }
             Button {
                 isPresentingManagement = true
@@ -269,21 +269,16 @@ struct AccountListView: View {
         }
     }
 
-    /// 汇总卡片；有净资产走势时整张卡片点进资产趋势页。
+    /// 汇总卡片；整张卡片点进资产分析页。还没记过账、画不出走势时也能进，构成和排行按当前余额就能看。
     ///
     /// - Parameters:
     ///   - summary: 资产、负债和净资产汇总。
-    ///   - trend: 净资产近三个月的走势；还没记过账时为 `nil`。
-    @ViewBuilder
+    ///   - trend: 净资产近三个月的走势；还没记过账时为 `nil`，卡片里不画迷你走势。
     private func summaryCard(_ summary: AccountSummaryPresentation, trend: BalanceTrendSeries?) -> some View {
-        if let trend, trend.canDraw {
-            NavigationLink(value: AccountsRoute.netWorthTrend) {
-                AccountSummaryCard(presentation: summary, trend: trend)
-            }
-            .navigationLinkIndicatorVisibility(.hidden)
-        } else {
-            AccountSummaryCard(presentation: summary)
+        NavigationLink(value: AccountsRoute.assetAnalysis) {
+            AccountSummaryCard(presentation: summary, trend: trend, showsDisclosure: true)
         }
+        .navigationLinkIndicatorVisibility(.hidden)
     }
 
     /// 启用账户合计的净资产近三个月走势，与汇总卡片同一口径；一笔流水都没有、或材料还没汇总好时不画。
@@ -300,7 +295,7 @@ struct AccountListView: View {
         return history.netWorthSeries(.netAssets, range: .threeMonths)
     }
 
-    /// 构造具有稳定自动化标识的主要添加按钮。
+    /// 构造具有稳定自动化标识的主要添加按钮；空状态放在页面中间，有账户时放在右上角。
     private func addButton(identifier: String) -> some View {
         Button {
             isPresentingCreation = true

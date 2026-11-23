@@ -2,7 +2,7 @@ import Charts
 import Observation
 import SwiftUI
 
-/// 余额走势折线：账户页汇总卡片、资产趋势页和账户详情共用，用系统的 Swift Charts 画。
+/// 余额走势折线：账户页汇总卡片、资产分析页和账户详情共用，用系统的 Swift Charts 画。
 ///
 /// 纵轴只框住线本身，起伏看得清；欠款按欠了多少（正数）画，金额有正有负时在零处画一道虚线。
 /// 整条线一个颜色，与「较某天」那一行相同：资产变多、欠款变少用正向色，反过来用负向色，跟随「正负颜色」设置；没有变化时用墨色。
@@ -496,7 +496,7 @@ enum BalanceTrendFormatting {
     }
 }
 
-/// 三个月、一年、全部的范围切换，资产趋势页和账户详情共用。
+/// 三个月、一年、全部的范围切换，资产分析页和账户详情共用。
 struct BalanceTrendRangePicker: View {
     @Environment(\.locale) private var locale
 

@@ -1,19 +1,45 @@
-import SwiftData
 import SwiftUI
 
-/// 麦克风旁的聊天入口：打字和发图片都在聊天页里。
+/// 麦克风旁的打字入口：键盘图标，点开聊天页，打字和发图片都在那里。
+///
+/// 一级页面只能按住说话，想打字的人从这里进。用键盘图标而不是对话气泡：和「按住说话」并排时一眼能看出是「换成打字」，
+/// 线条图标也比麦克风的实心图标轻一级，不和按住说话抢主次。
+/// 悬浮时是麦克风右侧的玻璃圆钮，可点范围比圆钮大一圈；放在 Tab Bar 附属栏里时是右端单独的一段，
+/// 左边一道竖线和按住说话的部分隔开，整段高度都能点。
 struct AIChatEntryButton: View {
     @Environment(\.locale) private var locale
     @Environment(AuthStore.self) private var authStore
 
-    /// 按钮的边长；悬浮麦克风左侧按它留出等宽占位，让麦克风保持居中。
-    static let size: CGFloat = 44
+    /// 入口摆放的位置，决定外观和可点范围。
+    enum Style {
+        /// 悬浮在麦克风右侧：玻璃圆钮，四周留出透明的可点范围。
+        case floating
+
+        /// 放在 Tab Bar 附属栏右端：玻璃底由系统绘制，这里不再叠底色；左边一道竖线，整段高度都能点。
+        case accessory
+    }
+
+    /// 悬浮时玻璃圆钮的直径。
+    static let floatingSize: CGFloat = 44
+
+    /// 悬浮时圆钮在可点范围里离左边的距离；靠麦克风一侧只多出这么一点，按偏了麦克风不容易误开聊天页。
+    static let floatingLeadingInset: CGFloat = 4
+
+    /// 悬浮时的可点宽度：圆钮左边多 4pt、右边多 12pt。麦克风左侧按它留出等宽占位，让麦克风保持居中。
+    static let floatingHitWidth: CGFloat = 60
+
+    /// 悬浮时麦克风与两侧（占位、打字入口可点范围）的间距；加上 `floatingLeadingInset`，圆钮和麦克风之间看上去仍隔 12pt，
+    /// 可点范围和麦克风之间留 8pt 空隙，两块触摸区不相接。
+    static let floatingSpacing: CGFloat = 8
+
+    /// 附属栏里这一段的宽度（含左边的竖线）；按住说话的部分左边留出同样的宽度，文字仍在整条正中。
+    static let accessoryWidth: CGFloat = 56
 
     /// 与麦克风、会话卡片共享的语音状态。
     let voice: VoiceBookkeepingState
 
-    /// 是否画悬浮底色；附属栏的玻璃底由系统绘制，不再叠一层。
-    var isFloating = true
+    /// 摆放位置；默认悬浮。
+    var style: Style = .floating
 
     /// 是否不接受点击：正在说话或等待识别结果。
     private var isBusy: Bool {
@@ -24,33 +50,53 @@ struct AIChatEntryButton: View {
         Button {
             voice.openChat(isSignedIn: authStore.isAuthenticated)
         } label: {
-            Image(systemName: "bubble.left.and.text.bubble.right")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(isBusy ? Color.secondary : Color.primary)
-                .frame(width: Self.size, height: Self.size)
-                .modifier(AIChatEntryButtonSurface(isFloating: isFloating))
-                .contentShape(Circle())
+            label
         }
         .buttonStyle(.plain)
         .disabled(isBusy)
-        // 按住说话时让位给麦克风，避免手指滑过时误以为还能点
+        // 按住说话时让位给麦克风，避免手指滑过时误以为还能点；附属栏里的竖线一起隐藏，整条都是松手发送的区域
         .opacity(voice.input.isPressing ? 0 : 1)
-        .accessibilityLabel(AccountLocalization.string("voice.chat.entry", locale: locale))
+        .accessibilityLabel(text("voice.chat.typeEntry"))
+        .accessibilityHint(text("voice.chat.typeEntry.hint"))
         .accessibilityIdentifier("voice-chat-entry")
     }
-}
 
-/// 聊天入口的底色：悬浮时与麦克风同样的玻璃或材质，放在附属栏里时没有底色。
-private struct AIChatEntryButtonSurface: ViewModifier {
-    /// 是否画悬浮底色。
-    let isFloating: Bool
-
-    func body(content: Content) -> some View {
-        if isFloating {
-            content.floatingGlassSurface(in: Circle())
-        } else {
-            content
+    /// 按位置画出的按钮外观和可点范围。
+    @ViewBuilder
+    private var label: some View {
+        switch style {
+        case .floating:
+            // 圆钮靠左放进比它大的透明框里，透明部分也能点；框和麦克风同高，不把那一行撑高
+            icon
+                .frame(width: Self.floatingSize, height: Self.floatingSize)
+                .floatingGlassSurface(in: Circle())
+                .padding(.leading, Self.floatingLeadingInset)
+                .frame(width: Self.floatingHitWidth, height: VoiceMicButton.size, alignment: .leading)
+                .contentShape(Rectangle())
+        case .accessory:
+            icon
+                .frame(width: Self.accessoryWidth)
+                .frame(maxHeight: .infinity)
+                .overlay(alignment: .leading) {
+                    // 一道竖线把这一段和按住说话隔开，读起来是单独的按钮，不像装饰
+                    Capsule()
+                        .fill(.tertiary)
+                        .frame(width: 1)
+                        .padding(.vertical, 12)
+                }
+                .contentShape(Rectangle())
         }
+    }
+
+    /// 键盘图标；忙碌时变淡。
+    private var icon: some View {
+        Image(systemName: "keyboard")
+            .font(.body.weight(.semibold))
+            .foregroundStyle(isBusy ? Color.secondary : Color.primary)
+    }
+
+    private func text(_ key: String) -> String {
+        AccountLocalization.string(key, locale: locale)
     }
 }
 
@@ -75,7 +121,6 @@ private enum AIChatRoute: Hashable {
 struct AIChatView: View {
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(VoiceBookkeepingState.self) private var voice
@@ -163,21 +208,7 @@ struct AIChatView: View {
         .onChange(of: manualEntryNote == nil) { _, _ in refreshLedgerState() }
         .onChange(of: rows.map(\.snapshot)) { _, _ in refreshLedgerState() }
         .sheet(item: $manualEntryNote) { item in
-            NavigationStack {
-                DiningExpenseEntryView(
-                    draft: DiningExpenseDraft(
-                        transactionDay: TransactionDay.encode(.now, calendar: calendar),
-                        note: item.text
-                    )
-                ) { draft in
-                    try LocalExpenseRepository(container: modelContext.container).save(draft)
-                }
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(text("common.cancel")) { manualEntryNote = nil }
-                    }
-                }
-            }
+            VoiceManualEntrySheet(note: item.text) { manualEntryNote = nil }
         }
         .sheet(item: $accountCreationTurn) { turn in
             VoiceAccountCreationSheet(turn: turn, voice: voice)

@@ -143,7 +143,9 @@ final class VoiceBookkeepingState {
         input.pressBegan(
             isSignedIn: isSignedIn,
             locale: locale,
-            contextualStrings: { [weak self] in self?.contextualStrings ?? [] }
+            contextualStrings: { [weak self] in self?.contextualStrings ?? [] },
+            // 一级页面上轻点麦克风的人可能是想打字：顺带指一下右边的键盘入口；聊天页本身有输入框，只说按住说话
+            shortPressHintKey: isChatPresented ? VoiceInputController.defaultShortPressHintKey : "voice.mic.holdHint.orType"
         )
     }
 
@@ -246,7 +248,8 @@ enum VoiceMicPlacement {
     /// 是否把麦克风放进 Tab Bar 附属栏，跟随 Tab Bar 滚动收起。
     ///
     /// 只在 iPhone 的 iOS 26.1 及以上启用：需要 `tabViewBottomAccessory(isEnabled:)` 才能只在一级页面显示；
-    /// iPad 的 Tab Bar 在顶部，仍用悬浮按钮。按设备而不是尺寸类别判断，避免旋转时麦克风换位置打断按住。
+    /// 1.0 只支持 iPhone 竖屏（见 AGENTS.md「环境与构建配置」）；在 iPad 上以 iPhone 兼容窗口运行时 idiom 仍是 `.phone`，所以会走附属栏。
+    /// 下面的 idiom 判断留作保险，不要删。
     static var usesTabBarAccessory: Bool {
         guard UIDevice.current.userInterfaceIdiom == .phone else { return false }
         if #available(iOS 26.1, *) {

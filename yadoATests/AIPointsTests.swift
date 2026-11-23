@@ -462,8 +462,8 @@ struct AIPointsTests {
         #expect(plainLot.symbol == "gift")
 
         let english = Locale(identifier: "en_US")
-        #expect(checkInLot.expiryText(locale: english).contains(":"))
-        #expect(!plainLot.expiryText(locale: english).contains(":"))
+        #expect(checkInLot.expiryText(locale: english)?.contains(":") == true)
+        #expect(plainLot.expiryText(locale: english)?.contains(":") == false)
     }
 
     @Test("批次标题与图标和生成它的入账流水一致，存量批次显示早期点数")
@@ -1163,6 +1163,114 @@ struct AIPointsTests {
         #expect(store.activeLots(now: now).isEmpty)
     }
 
+    @Test("买来的点数永不过期：批次解码出空的到期时间，排在最后、最后才扣，不算最近过期的一批")
+    func handlesNeverExpiringPurchasedLots() async throws {
+        let walletJSON = """
+        {"mode":"enforce","balance":305,"lots":[
+          {"points":5,"originalPoints":12,"kind":"grant","reason":"daily_check_in","product":"yadoa",
+           "createdAt":"2026-11-21T02:00:00.000Z","expiresAt":"2026-11-22T02:00:00.000Z"},
+          {"points":300,"originalPoints":300,"kind":"purchase","reason":"app_store_purchase","product":"yadoa",
+           "createdAt":"2026-11-21T03:00:00.000Z","expiresAt":null}
+        ],"ruleVersion":"2026-11-22.1"}
+        """
+        let wallet = try JSONDecoder().decode(AIWallet.self, from: Data(walletJSON.utf8))
+        let purchased = try #require(wallet.lots.last)
+        #expect(purchased.expiresAt == nil)
+        #expect(purchased.kind == .purchase)
+        #expect(purchased.titleKey == "ai.entry.purchase")
+        #expect(purchased.symbol == "cart")
+        #expect(purchased.expiryText(locale: Locale(identifier: "en_US")) == nil)
+
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(wallet)]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        let now = Date(timeIntervalSince1970: 1_795_233_600)  // 2026-11-21T04:00:00Z，签到点数还没过期
+        await store.refresh()
+        #expect(store.activeLots(now: now).map(\.points) == [5, 300])
+        #expect(store.nextExpiringLot(now: now)?.points == 5)
+
+        // 签到点数过期后，只剩永不过期的批次：仍在到期明细里，但没有“最近过期”的提示
+        let afterExpiry = now.addingTimeInterval(86_400)
+        #expect(store.activeLots(now: afterExpiry).map(\.points) == [300])
+        #expect(store.nextExpiringLot(now: afterExpiry) == nil)
+
+        // 语音扣点先扣会过期的那批，买来的点数最后才动
+        store.balanceReporter()(301)
+        #expect(store.lots.map(\.points) == [1, 300])
+        store.balanceReporter()(250)
+        #expect(store.lots.map(\.points) == [250])
+        #expect(store.lots.first?.expiresAt == nil)
+    }
+
+    @Test("购买相关的明细：购买、退款扣回、退款撤销各有标题与图标，不认识的调整仍是“调整”")
+    func mapsPurchaseEntries() {
+        let date = Date(timeIntervalSince1970: 1_795_320_000)
+        let purchase = AICreditEntry(
+            id: "9", kind: .purchase, points: 300, balanceAfter: 305, reason: "app_store_purchase", product: "yadoa", createdAt: date
+        )
+        #expect(purchase.titleKey == "ai.entry.purchase")
+        #expect(purchase.symbol == "cart")
+        let refund = AICreditEntry(
+            id: "10", kind: .adjust, points: -200, balanceAfter: 105, reason: AICreditEntry.purchaseRefundReason, createdAt: date
+        )
+        #expect(refund.titleKey == "ai.entry.purchaseRefund")
+        #expect(refund.symbol == "cart")
+        let reversed = AICreditEntry(
+            id: "11", kind: .adjust, points: 200, balanceAfter: 305, reason: AICreditEntry.purchaseRefundReversedReason, createdAt: date
+        )
+        #expect(reversed.titleKey == "ai.entry.purchaseRefundReversed")
+        let manual = AICreditEntry(id: "12", kind: .adjust, points: 5, balanceAfter: 310, reason: "compensation", createdAt: date)
+        #expect(manual.titleKey == "ai.entry.adjust")
+        #expect(manual.symbol == "slider.horizontal.3")
+
+        let english = Locale(identifier: "en")
+        let simplifiedChinese = Locale(identifier: "zh-Hans")
+        #expect(AccountLocalization.string("ai.entry.purchase", locale: simplifiedChinese) == "购买点数")
+        #expect(AccountLocalization.string("ai.lots.neverExpires", locale: simplifiedChinese) == "永久有效")
+        #expect(AccountLocalization.formatted("ai.store.points", value: "300", locale: simplifiedChinese) == "300 点")
+        #expect(AccountLocalization.formatted("ai.store.points", value: "300", locale: english) == "300 points")
+        #expect(
+            AccountLocalization.formatted("ai.store.notice.credited.message", value: "1,000", locale: english)
+                == "1,000 points have been added to your balance."
+        )
+        let storeKeys = [
+            "ai.entry.purchase", "ai.entry.purchaseRefund", "ai.entry.purchaseRefundReversed", "ai.lots.neverExpires",
+            "ai.store.title", "ai.store.points", "ai.store.badge.popular", "ai.store.badge.bestValue", "ai.store.footnote",
+            "ai.store.purchase.hint", "ai.store.period", "ai.store.subscription.terms", "ai.store.manageSubscriptions",
+            "ai.store.restore", "ai.store.notice.credited.title", "ai.store.notice.credited.message",
+            "ai.store.notice.pending.title", "ai.store.notice.pending.message", "ai.store.notice.delayed.title",
+            "ai.store.notice.delayed.message", "ai.store.notice.otherAccount.title", "ai.store.notice.otherAccount.message",
+            "ai.store.notice.failed.title", "ai.store.notice.failed.message",
+        ]
+        for key in storeKeys {
+            for locale in [english, simplifiedChinese] {
+                #expect(AccountLocalization.string(key, locale: locale) != key, "\(key) 缺少 \(locale.identifier) 文案")
+            }
+        }
+    }
+
+    @Test("充值请求：商品列表带产品代号，上传交易是 POST 并带产品代号和签名交易")
+    func buildsStoreRequests() throws {
+        let endpoint = try #require(URL(string: "https://example.invalid"))
+        let api = AIBillingAPI(endpoint: endpoint) { "token" }
+
+        let catalog = api.makeURLRequest(.storeCatalog, token: "abc")
+        #expect(catalog.httpMethod == "GET")
+        #expect(catalog.url?.absoluteString == "https://example.invalid/v1/store/catalog?product=yadoa")
+        #expect(catalog.httpBody == nil)
+
+        let purchase = api.makeURLRequest(.submitPurchase(signedTransaction: "jws.payload.sig"), token: "abc")
+        #expect(purchase.httpMethod == "POST")
+        #expect(purchase.url?.absoluteString == "https://example.invalid/v1/store/purchases")
+        #expect(purchase.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        #expect(purchase.value(forHTTPHeaderField: "Authorization") == "Bearer abc")
+        let body = try #require(purchase.httpBody)
+        let fields = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(fields.count == 2)
+        #expect(fields["product"] as? String == "yadoa")
+        #expect(fields["signedTransaction"] as? String == "jws.payload.sig")
+    }
+
     @Test("同时发起的刷新共用一次请求")
     func concurrentRefreshesShareOneRequest() async {
         let api = FakeAIBillingAPI()
@@ -1305,7 +1413,7 @@ struct AIPointsTests {
         #expect(store.balance == 142)
         #expect(store.lots.count == 2)
         #expect(store.lots.first?.reason == AICreditEntry.dailyCheckInReason)
-        #expect(store.lots.map(\.expiresAt) == store.lots.map(\.expiresAt).sorted())
+        #expect(store.lots.compactMap(\.expiresAt) == store.lots.compactMap(\.expiresAt).sorted())
         #expect(store.checkInStatus?.checkedIn == true)
         #expect(store.checkInStatus?.checkIn?.points == 42)
         #expect(store.checkInStatus?.minPoints == 10)
@@ -1422,6 +1530,36 @@ struct AIPointsTests {
         #expect(store.unopenedGifts.isEmpty)
     }
 
+    @Test("刷新签到状态进行中用户签到了：晚到的刷新结果是签到之前的，不能把已签状态和新礼包盖回去")
+    func staleCheckInStatusRefreshDoesNotOverwriteCheckIn() async {
+        let api = FakeAIBillingAPI()
+        api.walletResults = [.success(AIWallet(balance: 100))]
+        api.checkInStatusResults = [.success(Self.pendingStatus(streak: 6))]
+        let store = AIPointsStore(api: api, defaults: .isolated()) { "user-1" }
+        await store.refresh()
+        await store.refreshCheckInStatus()
+        #expect(store.checkInStatus?.checkedIn == false)
+
+        // 再发起一次刷新并挂起，它拿到的仍是“今天未签”的旧状态
+        let gate = AsyncSaveGate()
+        api.checkInStatusGate = gate
+        let staleRefresh = Task { await store.refreshCheckInStatus() }
+        while !gate.hasStarted {
+            await Task.yield()
+        }
+
+        // 刷新挂起期间用户签到成功，得到一个新礼包
+        let gift = Self.gift(id: "12", tier: .weekly, streak: 7)
+        api.checkInResult = .success(Self.checkInResult(points: 12, balance: 112, isDuplicate: false, streak: 7, gifts: [gift]))
+        _ = await store.checkIn()
+        #expect(store.checkInStatus?.checkedIn == true)
+
+        gate.resume()
+        await staleRefresh.value
+        #expect(store.checkInStatus?.checkedIn == true)
+        #expect(store.unopenedGifts == [gift])
+    }
+
     @Test("用补签卡签到：请求带 useCard，连签取返回值，补签卡换成剩余张数、今天不能再用；不用卡时卡留着")
     func checkInWithProtectionCard() async {
         let api = FakeAIBillingAPI()
@@ -1515,7 +1653,7 @@ struct AIPointsTests {
         #expect(store.balance == 465)
         #expect(store.unopenedGifts == [afterFirst])
         #expect(store.lots.first?.reason == "check_in_gift_yearly")
-        #expect(store.lots.map(\.expiresAt) == store.lots.map(\.expiresAt).sorted())
+        #expect(store.lots.compactMap(\.expiresAt) == store.lots.compactMap(\.expiresAt).sorted())
 
         let afterSecond = Self.gift(id: "20", tier: .yearly, streak: 365, totalOpens: 2, openedCount: 2)
         api.openResults = [.success(Self.openResult(gift: afterSecond, seq: 2, points: 233, balance: 698, validDays: 365))]
@@ -1874,6 +2012,9 @@ private final class FakeAIBillingAPI: AIBillingFetching {
     /// 设置后查询余额时先挂起，直到用例恢复。
     var walletGate: AsyncSaveGate?
 
+    /// 设置后查询签到状态时先挂起，直到用例恢复。
+    var checkInStatusGate: AsyncSaveGate?
+
     /// 查询余额的次数。
     private(set) var walletCalls = 0
 
@@ -1915,6 +2056,9 @@ private final class FakeAIBillingAPI: AIBillingFetching {
     func fetchCheckInStatus() async throws -> AICheckInStatus {
         let index = min(checkInStatusCalls, checkInStatusResults.count - 1)
         checkInStatusCalls += 1
+        if let checkInStatusGate {
+            await checkInStatusGate.wait()
+        }
         return try checkInStatusResults[index].get()
     }
 

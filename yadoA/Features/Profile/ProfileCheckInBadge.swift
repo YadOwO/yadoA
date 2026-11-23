@@ -64,6 +64,12 @@ struct ProfileCheckInBadge: View {
     /// 庆祝或淡出动画结束，页面可以移除气泡。
     let onFinished: () -> Void
 
+    /// 签到成功、庆祝结束、气泡开始淡出的那一刻调用，参数是这次获得的点数；重复签到和失败不调用。
+    ///
+    /// 「我的」页用它把「+N 点」从气泡飞到「AI 点数」那一行。传了它时气泡原地淡出、不再带着点数向上飘，
+    /// 由页面接着飞；签到页不传，保持向上飘走。
+    var onRewardDeparting: ((Int) -> Void)?
+
     @State private var phase: Phase = .idle
     @State private var errorKey: String?
     /// 用卡签到成功后显示在气泡下方的说明，例如“用掉 1 张补签卡，保住了 23 天连签”。
@@ -323,7 +329,7 @@ struct ProfileCheckInBadge: View {
         }
     }
 
-    /// 成功：冒芽，点数从 0 滚到 N，落定后停留片刻向上飘走；用了补签卡时气泡下方说明保住了几天连签，多停一会儿让人看完。
+    /// 成功：冒芽，点数从 0 滚到 N，落定后停留片刻向上飘走（页面接手飞点数时原地淡出）；用了补签卡时气泡下方说明保住了几天连签，多停一会儿让人看完。
     private func celebrate(_ result: AICheckInResult) async {
         let points = result.points
         let isBonus = result.isBonus
@@ -353,7 +359,9 @@ struct ProfileCheckInBadge: View {
 
         try? await Task.sleep(for: .seconds(note == nil ? 0.6 : 2))
         guard !Task.isCancelled else { return }
-        risesOnLeave = true
+        // 页面要把点数飞到别处时，气泡原地淡出、由页面接着飞；否则带着点数向上飘走
+        risesOnLeave = onRewardDeparting == nil
+        onRewardDeparting?(points)
         withAnimation(.easeOut(duration: 0.45)) {
             phase = .leaving
             protectionNote = nil

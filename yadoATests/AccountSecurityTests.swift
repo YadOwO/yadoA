@@ -645,6 +645,12 @@ struct AccountSecurityTests {
         #expect(!AuthConfig.prod.isScreenshotShortcutAvailable)
     }
 
+    @Test("语音耗时只在 dev 能点开明细，线上只留一行概要")
+    func voiceTimingDetailOnlyInDev() {
+        #expect(AuthConfig.dev.isVoiceTimingDetailAvailable)
+        #expect(!AuthConfig.prod.isVoiceTimingDetailAvailable)
+    }
+
     // MARK: - 关联 Apple 的回程
 
     @Test("关联 Apple 的 state 以 yadoa_ 开头（与云服务器 nginx 的规则一致），每次不同；回程地址是 Logto 的 /callback/<连接器 ID>")

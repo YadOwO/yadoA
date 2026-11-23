@@ -5,7 +5,7 @@ import UIKit
 
 /// 一级页面底部的语音记账区域：唯一的会话卡片、悬浮麦克风和一次性提示。
 ///
-/// 这里只负责按住说话；打字和发图片走旁边的聊天入口（见 `AIChatView`）。四个一级页面各挂一份，共用根导航持有的同一个会话，切换 Tab 时卡片跟过去；
+/// 这里只负责按住说话；打字和发图片走麦克风右侧的键盘入口 `AIChatEntryButton`，进聊天页（见 `AIChatView`）。四个一级页面各挂一份，共用根导航持有的同一个会话，切换 Tab 时卡片跟过去；
 /// 卡片在当前页面往下进入二级页面、点关闭或闲置一会儿后收起（结果不用再操作时约 10 秒，还在等用户时约 2 分钟），对话段继续；切到停在二级页面的 Tab 时卡片随页面收起，回来还在。创建会话、计时、播报和弹层只需要一份，由 `voiceBookkeepingHost(_:)` 挂在根导航上。
 /// 麦克风放进 Tab Bar 附属栏时（见 `VoiceMicPlacement`），这里只显示卡片和提示，麦克风由 `VoiceMicAccessory` 显示。
 struct VoiceBookkeepingDock: View {
@@ -34,7 +34,7 @@ struct VoiceBookkeepingDock: View {
         privacyAgreement?.allowsNetwork ?? true
     }
 
-    /// 离线模式（没同意隐私政策）下不显示卡片、悬浮麦克风和聊天入口，并把底部留白归零；同意后立即恢复。
+    /// 离线模式（没同意隐私政策）下不显示卡片、悬浮麦克风和打字入口，并把底部留白归零；同意后立即恢复。
     var body: some View {
         Group {
             if isNetworkAllowed {
@@ -48,7 +48,7 @@ struct VoiceBookkeepingDock: View {
         }
     }
 
-    /// 语音区域本体：一次性提示、会话卡片、悬浮麦克风和聊天入口。
+    /// 语音区域本体：一次性提示、会话卡片、悬浮麦克风和打字入口。
     private var dock: some View {
         VStack(spacing: 10) {
             // 提示参与布局；短按时没有卡片和悬浮按钮，也要保留完整高度，避免空栈上的 overlay 落入附属栏。
@@ -81,10 +81,10 @@ struct VoiceBookkeepingDock: View {
                 VStack(spacing: 8) {
                     // 麦克风上方轮换示例说法；卡片或一次性提示出现时只隐藏不移除，列表底部留白不跟着跳
                     floatingSpeakingPrompt
-                    HStack(spacing: 12) {
-                        // 与右侧聊天按钮等宽的占位，让麦克风保持居中；不接收触摸，点到这里仍是下面的列表
+                    HStack(spacing: AIChatEntryButton.floatingSpacing) {
+                        // 与右侧打字入口的可点宽度等宽的占位，让麦克风保持居中；不接收触摸，点到这里仍是下面的列表
                         Color.clear
-                            .frame(width: AIChatEntryButton.size, height: AIChatEntryButton.size)
+                            .frame(width: AIChatEntryButton.floatingHitWidth, height: AIChatEntryButton.floatingSize)
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
                         VoiceMicButton(
@@ -96,7 +96,7 @@ struct VoiceBookkeepingDock: View {
                                 voice.toggleRecording(isSignedIn: authStore.isAuthenticated, locale: locale)
                             }
                         )
-                        AIChatEntryButton(voice: voice)
+                        AIChatEntryButton(voice: voice, style: .floating)
                     }
                 }
                 .padding(.vertical, 12)
@@ -266,14 +266,21 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 // 启动时清理一次；放在创建会话之前，这时还没有新一轮的图片，不会误删
                 let history = AIChatHistoryStore(container: modelContext.container)
                 history.prune()
+                var api: VoiceSessionTurnSending = VoiceSessionAPI(
+                    pointsReporter: { [aiPoints] in aiPoints?.balanceReporter() ?? { _ in } },
+                    isTraceConsented: { [aiPoints] in aiPoints?.isTraceConsented ?? false }
+                ) { [authStore] in
+                    try await authStore.accessTokenForAIService()
+                }
+                #if DEBUG
+                // 截 App Store 宣传图时由本地脚本回复，不联网
+                if AppStoreScreenshotFixture.isEnabled {
+                    api = AppStoreScreenshotFixture.makeAPI()
+                }
+                #endif
                 voice.session = VoiceSession(
                     container: modelContext.container,
-                    api: VoiceSessionAPI(
-                        pointsReporter: { [aiPoints] in aiPoints?.balanceReporter() ?? { _ in } },
-                        isTraceConsented: { [aiPoints] in aiPoints?.isTraceConsented ?? false }
-                    ) { [authStore] in
-                        try await authStore.accessTokenForAIService()
-                    },
+                    api: api,
                     modelTier: { [aiPoints] scope in aiPoints?.requestTier(for: scope) },
                     locale: locale,
                     calendar: calendar,
@@ -287,6 +294,10 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 // UI 自动化没有真实账号，从入口走不到说明弹层；夹具启用时直接弹出，不发请求
                 if AIProcessingConsentUITestFixture.isEnabled {
                     voice.isAIConsentPresented = true
+                }
+                // 截 App Store 宣传图：替用户说那句话或发小票
+                if AppStoreScreenshotFixture.isEnabled {
+                    await AppStoreScreenshotFixture.play(on: voice)
                 }
                 #endif
             }
@@ -389,21 +400,7 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 }
             }
             .sheet(item: $voice.manualEntryNote) { item in
-                NavigationStack {
-                    DiningExpenseEntryView(
-                        draft: DiningExpenseDraft(
-                            transactionDay: TransactionDay.encode(.now, calendar: calendar),
-                            note: item.text
-                        )
-                    ) { draft in
-                        try LocalExpenseRepository(container: modelContext.container).save(draft)
-                    }
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(text("common.cancel")) { voice.manualEntryNote = nil }
-                        }
-                    }
-                }
+                VoiceManualEntrySheet(note: item.text) { voice.manualEntryNote = nil }
             }
             .sheet(item: $voice.accountCreationTurn) { turn in
                 VoiceAccountCreationSheet(turn: turn, voice: voice)

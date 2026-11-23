@@ -94,20 +94,14 @@ struct CategoryBreakdownView: View {
 private struct CategoryBreakdownCard: View {
     @Environment(\.locale) private var locale
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
-    /// 图例图标预留宽度随字号缩放，避免辅助功能字号下与分类名称相互覆盖。
-    @ScaledMetric(relativeTo: .caption) private var legendSymbolWidth = 20
 
     /// 与排行榜使用相同筛选条件的统计结果。
     let chart: ChartOverviewPresentation
-    /// 点选扇区或图例后展示的分类，空值表示全部。
-    @State private var selectedID: String?
-    /// Swift Charts 返回的累计占比角度选择值。
-    @State private var selectedAngle: Double?
 
     var body: some View {
         let breakdown = CategoryBreakdownPresentation(items: chart.categoryRanking, locale: locale)
+        let totalTitle = AccountLocalization.string(chart.totalTitleLocalizationKey, locale: locale)
         VStack(alignment: .leading, spacing: 18) {
             Text(AccountLocalization.string("chart.category.share", locale: locale))
                 .font(.system(.headline, design: .serif))
@@ -119,30 +113,24 @@ private struct CategoryBreakdownCard: View {
                         .font(.largeTitle)
                         .foregroundStyle(.tertiary)
                         .accessibilityHidden(true)
-                    totalLabel(breakdown: breakdown)
+                    ShareDonutTotalLabel(
+                        title: totalTitle,
+                        amount: breakdown.totalAmount,
+                        identifier: "category-breakdown-total"
+                    )
                     Text(AccountLocalization.string("category.ranking.empty", locale: locale))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("category-breakdown-empty")
                 }
                 .frame(maxWidth: .infinity, minHeight: 200)
-            } else if dynamicTypeSize.isAccessibilitySize {
-                totalLabel(breakdown: breakdown)
-                legend(breakdown: breakdown)
             } else {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 16) {
-                        donut(breakdown: breakdown)
-                            .frame(width: 176, height: 220)
-                        legend(breakdown: breakdown)
-                            .frame(minWidth: 132)
-                    }
-                    VStack(spacing: 20) {
-                        donut(breakdown: breakdown)
-                            .frame(height: 240)
-                        legend(breakdown: breakdown)
-                    }
-                }
+                ShareDonutBreakdown(
+                    breakdown: breakdown,
+                    totalTitle: totalTitle,
+                    color: color(for:),
+                    identifierPrefix: "category-breakdown"
+                )
             }
         }
         .padding(18)
@@ -154,172 +142,25 @@ private struct CategoryBreakdownCard: View {
                     style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
                 )
         }
-        .onChange(of: chart) { _, _ in
-            selectedAngle = nil
-            selectedID = nil
-        }
-    }
-
-    /// 扇区之间留空隙；图标补充颜色编码，点击后中心显示该分类金额。
-    private func donut(breakdown: CategoryBreakdownPresentation) -> some View {
-        Chart(breakdown.segments) { segment in
-            SectorMark(
-                angle: .value(segment.title, breakdown.share(of: segment)),
-                innerRadius: .ratio(0.7),
-                outerRadius: .ratio(selectedID == segment.id ? 1 : 0.96),
-                angularInset: 2
-            )
-            .cornerRadius(3)
-            .foregroundStyle(color(for: segment))
-            .opacity(selectedID == nil || selectedID == segment.id ? 1 : 0.35)
-            .annotation(position: .overlay) {
-                if breakdown.share(of: segment) >= 0.08 {
-                    Image(systemName: segment.symbolName)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
-                        .accessibilityHidden(true)
-                }
-            }
-            .accessibilityLabel(segment.title)
-            .accessibilityValue(Text(detail(for: segment, breakdown: breakdown)))
-        }
-        .chartLegend(.hidden)
-        .chartAngleSelection(value: Binding(
-            get: { selectedAngle },
-            set: { value in
-                selectedAngle = value
-                selectedID = value.flatMap { breakdown.segment(at: $0)?.id }
-            }
-        ))
-        .chartGesture { proxy in
-            SpatialTapGesture().onEnded { value in
-                proxy.selectAngleValue(at: proxy.angle(at: value.location))
-            }
-        }
-        .accessibilityIdentifier("category-breakdown-donut")
-        // 滑过扇区或点图例每换一个分类震一下，取消选中不震
-        .appHaptic(.selection, trigger: selectedID) { _, id in id != nil }
-        .overlay {
-            GeometryReader { geometry in
-                totalLabel(breakdown: breakdown)
-                    .frame(width: min(geometry.size.width, geometry.size.height) * 0.64)
-                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-            }
-            .allowsHitTesting(false)
-        }
-    }
-
-    /// 默认展示总额，选中分类时展示分类金额；再次点击图例可恢复总额。
-    private func totalLabel(breakdown: CategoryBreakdownPresentation) -> some View {
-        let selected = breakdown.segments.first { $0.id == selectedID }
-        let title = selected?.title
-            ?? AccountLocalization.string(chart.totalTitleLocalizationKey, locale: locale)
-        let amount = (selected?.amount ?? breakdown.totalAmount)
-            .formattedCurrency(locale: locale)
-        return VStack(spacing: 5) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(amount)
-                .font(.system(.title3, design: .serif, weight: .medium).monospacedDigit())
-                .lineLimit(1)
-                .minimumScaleFactor(0.55)
-                .contentTransition(.numericText())
-        }
-        .multilineTextAlignment(.center)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("category-breakdown-total")
-    }
-
-    /// 图例同时提供图标、名称、百分比和完整金额播报，不依赖颜色识别分类。
-    private func legend(breakdown: CategoryBreakdownPresentation) -> some View {
-        VStack(spacing: 0) {
-            ForEach(breakdown.segments) { segment in
-                Button {
-                    selectedAngle = nil
-                    selectedID = selectedID == segment.id ? nil : segment.id
-                } label: {
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: segment.symbolName)
-                            .font(.caption)
-                            .foregroundStyle(color(for: segment))
-                            .frame(width: legendSymbolWidth)
-                        if dynamicTypeSize.isAccessibilitySize {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(segment.title)
-                                    .font(.subheadline)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                percentageLabel(for: segment, breakdown: breakdown)
-                            }
-                            Spacer(minLength: 0)
-                        } else {
-                            Text(segment.title)
-                                .font(.subheadline)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Spacer(minLength: 4)
-                            percentageLabel(for: segment, breakdown: breakdown)
-                        }
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.vertical, 8)
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(segment.title)
-                .accessibilityValue(Text(detail(for: segment, breakdown: breakdown)))
-                .accessibilityAddTraits(selectedID == segment.id ? .isSelected : [])
-                .accessibilityIdentifier("category-breakdown-legend-\(segment.id)")
-            }
-        }
-    }
-
-    /// 占比在常规字号右对齐，大字号时移至名称下方以保留完整分类名称。
-    private func percentageLabel(
-        for segment: CategoryRankingItem,
-        breakdown: CategoryBreakdownPresentation
-    ) -> some View {
-        Text(breakdown.share(of: segment).formatted(
-            .percent.precision(.fractionLength(1)).locale(locale)
-        ))
-        .font(.system(.caption, design: .serif).monospacedDigit())
-        .foregroundStyle(.secondary)
-        .fixedSize()
-    }
-
-    /// 分类金额和百分比共用同一分母，供图形和可操作图例完整播报。
-    private func detail(for segment: CategoryRankingItem, breakdown: CategoryBreakdownPresentation) -> String {
-        let amount = segment.amount.formattedCurrency(locale: locale)
-        let share = breakdown.share(of: segment).formatted(.percent.precision(.fractionLength(1)).locale(locale))
-        return "\(amount), \(share)"
     }
 
     /// 固定分类映射的三色组合与分类图标共同编码，筛选或排行变化不重新分配颜色。
-    /// 浅深色分别使用经过验证的色阶；合并项用语义灰色，与账本“其他”分类区分。
+    /// 浅深色分别使用经过验证的色阶（见 `ChartPalette`）；合并项用语义灰色，与账本“其他”分类区分。
     private func color(for segment: CategoryRankingItem) -> Color {
         if differentiateWithoutColor || segment.id == CategoryBreakdownPresentation.remainingID {
-            return Color(uiColor: .secondaryLabel)
+            return ChartPalette.neutral
         }
-        let light: UInt32
-        let dark: UInt32
-        switch segment.id {
+        let slot = switch segment.id {
         case "expense.shopping", "expense.clothing", "expense.household", "expense.socialGifts",
              "income.bonus", "income.reimbursement", "income.gifts":
-            (light, dark) = (0xEB6834, 0xD95926)
+            1
         case "expense.entertainment", "expense.transportation", "expense.travel", "expense.pets",
              "expense.other", "income.investment", "income.refund", "income.other":
-            (light, dark) = (0x1BAF7A, 0x199E70)
+            2
         default:
-            (light, dark) = (0x2A78D6, 0x3987E5)
+            0
         }
-        let hex = colorScheme == .dark ? dark : light
-        return Color(
-            .sRGB,
-            red: Double((hex >> 16) & 0xFF) / 255,
-            green: Double((hex >> 8) & 0xFF) / 255,
-            blue: Double(hex & 0xFF) / 255,
-            opacity: 1
-        )
+        return ChartPalette.color(slot: slot, colorScheme: colorScheme)
     }
 }
 

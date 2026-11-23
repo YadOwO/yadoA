@@ -369,6 +369,129 @@ struct ChartOverviewPresentationTests {
         #expect(chart.totalAmount == Decimal(string: "3.00")!)
     }
 
+    @Test("每个点带完整时间和当天笔数，供选中时替换摘要")
+    func pointsCarryDetailLabelAndCount() throws {
+        let anchorDate = try #require(date(year: 2026, month: 8, day: 19))
+        let transactions = [
+            try dining(amount: "3.25", transactionDay: 20260819),
+            try dining(amount: "4.75", transactionDay: 20260819),
+            try dining(amount: "1.00", transactionDay: 20260801)
+        ]
+        let month = ChartOverviewPresentation(
+            period: .month,
+            anchorDate: anchorDate,
+            transactions: transactions,
+            calendar: utcCalendar,
+            locale: Locale(identifier: "en_US")
+        )
+        let selected = try #require(month.point(bucketValue: 20260819))
+
+        #expect(selected.formattedLabel == "19")
+        #expect(selected.formattedDetailLabel.contains("Aug"))
+        #expect(selected.formattedDetailLabel.contains("19"))
+        #expect(selected.formattedDetailLabel.contains("Wed"))
+        #expect(selected.transactionCount == 2)
+        #expect(month.point(bucketValue: 20260802)?.transactionCount == 0)
+        #expect(month.points.reduce(0) { $0 + $1.transactionCount } == month.transactionCount)
+
+        let year = ChartOverviewPresentation(
+            period: .year,
+            anchorDate: anchorDate,
+            transactions: transactions,
+            calendar: utcCalendar,
+            locale: Locale(identifier: "zh-Hans")
+        )
+        let august = try #require(year.point(bucketValue: 202608))
+        #expect(august.formattedDetailLabel.contains("2026"))
+        #expect(august.formattedDetailLabel.contains("8月"))
+        #expect(august.transactionCount == 3)
+    }
+
+    @Test("按时间桶取点，没选中或不在本周期时为空")
+    func looksUpPointByBucketValue() throws {
+        let chart = try weekChart()
+
+        #expect(chart.point(bucketValue: 20260819)?.bucketValue == 20260819)
+        #expect(chart.point(bucketValue: nil) == nil)
+        #expect(chart.point(bucketValue: 20260901) == nil)
+    }
+
+    @Test("按屏幕横坐标找最近的点，滑出两端停在头尾，一样近取较早的")
+    func findsNearestPointByPosition() throws {
+        let chart = try weekChart()
+        let position = evenlySpacedPositions(of: chart, spacing: 40)
+
+        #expect(chart.point(nearestX: 85, position: position)?.bucketValue == 20260819)
+        #expect(chart.point(nearestX: 100, position: position)?.bucketValue == 20260819)
+        #expect(chart.point(nearestX: -60, position: position)?.bucketValue == 20260817)
+        #expect(chart.point(nearestX: 900, position: position)?.bucketValue == 20260823)
+        // 算不出位置的点不参与比较
+        #expect(chart.point(nearestX: 85) { $0.bucketValue == 20260819 ? nil : position($0) }?.bucketValue == 20260820)
+        #expect(chart.point(nearestX: 85) { _ in nil } == nil)
+    }
+
+    @Test("点按选中最近的点，点在已选中的点上收起，点旁边的点换过去")
+    func togglesSelectionOnTap() throws {
+        let chart = try weekChart()
+        let sparse = evenlySpacedPositions(of: chart, spacing: 40)
+
+        // 没选中：选中最近的点
+        #expect(chart.bucketValue(afterTapAtX: 125, selectedBucketValue: nil, tolerance: 22, position: sparse) == 20260820)
+        // 点在已选中的点上：收起
+        #expect(chart.bucketValue(afterTapAtX: 130, selectedBucketValue: 20260820, tolerance: 22, position: sparse) == nil)
+        // 点在别的点上：换过去
+        #expect(chart.bucketValue(afterTapAtX: 162, selectedBucketValue: 20260820, tolerance: 22, position: sparse) == 20260821)
+        // 最近的还是已选中的点，但离得比手指宽还远（例如点在最后一点右边的空白）：保持不变
+        #expect(chart.bucketValue(afterTapAtX: 280, selectedBucketValue: 20260823, tolerance: 22, position: sparse) == 20260823)
+
+        // 点挨得近（月视图）：在手指宽度内但离旁边的点更近，换到旁边的点而不是收起
+        let dense = evenlySpacedPositions(of: chart, spacing: 10)
+        #expect(chart.bucketValue(afterTapAtX: 41, selectedBucketValue: 20260820, tolerance: 22, position: dense) == 20260821)
+        #expect(chart.bucketValue(afterTapAtX: 31, selectedBucketValue: 20260820, tolerance: 22, position: dense) == nil)
+
+        // 一个点的位置都算不出：不改动选中
+        #expect(chart.bucketValue(afterTapAtX: 30, selectedBucketValue: 20260820, tolerance: 22) { _ in nil } == 20260820)
+    }
+
+    @Test("读屏上下轻扫逐点移动，到头停住，没选中时往后从头、往前从尾开始")
+    func stepsThroughPointsForVoiceOver() throws {
+        let chart = try weekChart()
+
+        #expect(chart.point(steppingFrom: nil, by: 1)?.bucketValue == 20260817)
+        #expect(chart.point(steppingFrom: nil, by: -1)?.bucketValue == 20260823)
+        #expect(chart.point(steppingFrom: 20260819, by: 1)?.bucketValue == 20260820)
+        #expect(chart.point(steppingFrom: 20260819, by: -1)?.bucketValue == 20260818)
+        #expect(chart.point(steppingFrom: 20260817, by: -1)?.bucketValue == 20260817)
+        #expect(chart.point(steppingFrom: 20260823, by: 1)?.bucketValue == 20260823)
+        #expect(chart.point(steppingFrom: 20260901, by: 1)?.bucketValue == 20260817)
+    }
+
+    /// 2026-08-17（周一）到 08-23 的周视图，七个点，供选中逻辑测试。
+    private func weekChart() throws -> ChartOverviewPresentation {
+        let chart = ChartOverviewPresentation(
+            period: .week,
+            anchorDate: try #require(date(year: 2026, month: 8, day: 19)),
+            transactions: [try dining(amount: "8.00", transactionDay: 20260819)],
+            calendar: utcCalendar,
+            locale: Locale(identifier: "en_US")
+        )
+        #expect(chart.points.map(\.bucketValue) == Array(20260817...20260823))
+        return chart
+    }
+
+    /// 模拟图表把点等距排开：第 n 个点画在 `n * spacing` 处。
+    ///
+    /// - Parameters:
+    ///   - chart: 要排开的周期投影。
+    ///   - spacing: 相邻两点的间距。
+    private func evenlySpacedPositions(
+        of chart: ChartOverviewPresentation,
+        spacing: CGFloat
+    ) -> (ChartPointPresentation) -> CGFloat? {
+        let indices = Dictionary(uniqueKeysWithValues: chart.points.enumerated().map { ($1.bucketValue, $0) })
+        return { point in indices[point.bucketValue].map { CGFloat($0) * spacing } }
+    }
+
     /// 创建独立账户的有效收入流水，覆盖跨账户聚合。
     private func income(amount: String, transactionDay: Int) throws -> AccountTransaction {
         try AccountTransaction.validatingIncome(

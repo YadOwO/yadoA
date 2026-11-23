@@ -65,6 +65,12 @@ nonisolated enum AuthConfig {
         /// 线上暂时只藏设置页的入口：截图记账的 App Intent 由系统在编译时索引，不随这个开关变，
         /// 已经装好快捷指令的用户照常能用。要放回来时把 prod 改为 true。
         let isScreenshotShortcutAvailable: Bool
+
+        /// 这套环境的语音会话卡片上，耗时概要那一行能不能点开整棵耗时树（`VoiceTurnTimingView`）。
+        ///
+        /// 耗时概要本身只在 DEBUG 包显示（`VoiceTimingFeature.isEnabled`），这里只管能不能展开：
+        /// 线上环境（DebugProd 包）只留一行概要，免得排查线上问题时卡片被耗时明细撑高；要逐步细看去「开发 → 语音耗时」。
+        let isVoiceTimingDetailAvailable: Bool
     }
 
     // 两套取值对模块内可见（而非 private），测试可以同时断言两套环境；业务代码只读下面的当前值。
@@ -83,7 +89,8 @@ nonisolated enum AuthConfig {
         isPasswordChangeAvailable: true,
         appleSocialConnectorID: "5h6hh92rverfc70a38tk8",
         isOnboardingReplayAvailable: true,
-        isScreenshotShortcutAvailable: true
+        isScreenshotShortcutAvailable: true,
+        isVoiceTimingDetailAvailable: true
     )
 
     /// 线上环境。
@@ -99,7 +106,8 @@ nonisolated enum AuthConfig {
         isPasswordChangeAvailable: true,
         appleSocialConnectorID: "iyxaim1nvvp792xmq1fjr",
         isOnboardingReplayAvailable: false,
-        isScreenshotShortcutAvailable: false
+        isScreenshotShortcutAvailable: false,
+        isVoiceTimingDetailAvailable: false
     )
 
     /// 当前环境的取值。
@@ -175,6 +183,9 @@ nonisolated enum AuthConfig {
 
     /// 当前环境的设置页是否显示「截图记账」。
     static var isScreenshotShortcutAvailable: Bool { current.isScreenshotShortcutAvailable }
+
+    /// 当前环境的语音耗时概要能不能点开明细；为 false 时只显示一行概要。
+    static var isVoiceTimingDetailAvailable: Bool { current.isVoiceTimingDetailAvailable }
 
     /// 登录回调地址的 scheme（如 `com.yado.yadoa.dev`）；关联 Apple 时云服务器 nginx 也跳回这个 scheme，
     /// `ASWebAuthenticationSession` 据此识别回程。

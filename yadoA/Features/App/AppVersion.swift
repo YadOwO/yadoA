@@ -20,6 +20,10 @@ nonisolated enum AppVersion {
     /// 当前 App 的版本号字符串；启动后不会变，只算一次。
     static let current: String = string()
 
+    /// 当前 App 的营销版本号（`CFBundleShortVersionString`，例如 `1.2.0`），不带构建号；
+    /// 和 App Store 上的版本号比较新旧时用它。读不到时为空字符串。
+    static let marketingVersion: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+
     /// 给请求带上版本请求头；当前版本号为空时不带。
     ///
     /// - Parameter request: 要设置请求头的请求。

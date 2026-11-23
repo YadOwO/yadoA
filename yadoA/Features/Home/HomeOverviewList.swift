@@ -464,8 +464,10 @@ private struct HomeOverviewRow: View {
 /// 首页没有真实收入或支出流水时的本地化空状态。
 private struct HomeEmptyState: View {
     @Environment(\.locale) private var locale
+    /// 隐私政策同意状态；离线模式下没有语音入口，文案只提右上角的记一笔。预览中没有注入时为 nil，按允许联网处理。
+    @Environment(PrivacyAgreementStore.self) private var privacyAgreement: PrivacyAgreementStore?
 
-    /// 整个账本是否还没有任何收支；为真时文案指向下方的记账按钮，否则只说明当前月份为空。
+    /// 整个账本是否还没有任何收支；为真时文案指向记账入口（右上角的记一笔、下方的语音），否则只说明当前月份为空。
     let isLedgerEmpty: Bool
 
     var body: some View {
@@ -477,13 +479,20 @@ private struct HomeEmptyState: View {
                 HandDrawnSlipIllustration()
             }
         } description: {
-            Text(AccountLocalization.string(
-                isLedgerEmpty ? "home.details.empty.first.message" : "home.details.empty.message",
-                locale: locale
-            ))
+            Text(AccountLocalization.string(messageKey, locale: locale))
         }
         // 先声明为容器，标识才落在整个空状态上，而不是被下发给内部文字。
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("home-details-empty")
+    }
+
+    /// 说明文字的本地化键：账本还空着时告诉用户从哪里记第一笔，否则只说这个月没有收支。
+    ///
+    /// 手动记一笔在导航栏右上角；语音入口在页面下方（悬浮麦克风或 Tab Bar 附属栏），离线模式下不显示，文案也不提。
+    private var messageKey: String {
+        guard isLedgerEmpty else { return "home.details.empty.message" }
+        return privacyAgreement?.allowsNetwork ?? true
+            ? "home.details.empty.first.message"
+            : "home.details.empty.first.offlineMessage"
     }
 }

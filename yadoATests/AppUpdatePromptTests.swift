@@ -53,7 +53,8 @@ struct AppUpdatePromptTests {
         // 全角数字不是 ASCII 数字。
         #expect(AppStoreLink.productURL(id: "１２３") == nil)
 
-        // 当前没配置 App Store ID，提示里不显示跳转按钮。
-        #expect(AppUpdatePrompt.appStoreURL == nil)
+        // 当前没配置 App Store ID，跳转地址退回「发现新版本」查到的产品页；还没查到过时为 nil，不显示跳转按钮。
+        #expect(AppUpdatePrompt.appStoreID == nil)
+        #expect(AppUpdatePrompt.appStoreURL == AppUpdateNotice.shared.storeURL)
     }
 }

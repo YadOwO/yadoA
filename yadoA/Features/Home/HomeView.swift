@@ -310,10 +310,22 @@ extension HomeQueryContent {
 
 extension HomeQueryContent {
     /// 新增或修改提示从出现到完全回到默认样式所需的总时长，之后清除标记。
-    private static let highlightLifetime: Duration = .milliseconds(4500)
+    private static var highlightLifetime: Duration {
+        #if DEBUG
+        // 截 App Store 宣传图时提示停住，不按时清除
+        if AppStoreScreenshotFixture.holdsHighlights { return .seconds(600) }
+        #endif
+        return .milliseconds(4500)
+    }
 
     /// 删除残影从出现、划掉到停留结束的时长，之后把这一行从列表中收起。
-    private static let deletedRowLifetime: Duration = .milliseconds(1600)
+    private static var deletedRowLifetime: Duration {
+        #if DEBUG
+        // 截 App Store 宣传图时划掉的那一行留在列表里
+        if AppStoreScreenshotFixture.holdsHighlights { return .seconds(600) }
+        #endif
+        return .milliseconds(1600)
+    }
 
     /// 首页可见时取走刚变更的流水并展示提示。
     ///
@@ -368,6 +380,10 @@ extension HomeQueryContent {
 
         let switchesMonth = focus.month != selectedMonth
         selectedMonth = focus.month
+        #if DEBUG
+        // 截 App Store 宣传图时变更都在今天、本来就在列表最上面，不滚动，日期标题不会被汇总框压住
+        if AppStoreScreenshotFixture.holdsHighlights { return }
+        #endif
         let request = HomeScrollRequest(
             transactionIDs: focus.transactionIDs,
             isAnimated: animated && !switchesMonth && !reduceMotion

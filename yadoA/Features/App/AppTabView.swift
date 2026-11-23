@@ -99,8 +99,8 @@ enum AccountsRoute: Hashable {
     /// 账户历史中的统一收支详情入口。
     case transactionDetail(UUID)
 
-    /// 资产趋势：从账户页汇总卡片进入，看净资产、资产、负债的走势。
-    case netWorthTrend
+    /// 资产分析：从账户页汇总卡片进入，按净资产、资产、负债三个 tab 看走势、资产负债率、构成和排行。
+    case assetAnalysis
 }
 
 /// “我的”导航栈支持的二级页面。
@@ -221,7 +221,7 @@ struct AppTabView: View {
     /// 用户选择的启动页面；对应 Tab 排在底部导航第一位，修改后立即重建并重排。
     @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
     /// 冷启动时落在用户选择的启动页面；之后在设置里修改不会打断当前所在 Tab。
-    @State private var selectedTab: AppTab = AppStartPage.stored().tab
+    @State private var selectedTab: AppTab = Self.launchTab
     /// 首次引导是否已完成；引导写入或跳过时变为 true，此时落到引导里选的启动页面。
     @AppStorage(OnboardingStore.completedKey) private var isOnboardingCompleted = false
     @State private var homePath: [HomeRoute] = []
@@ -230,8 +230,16 @@ struct AppTabView: View {
     @State private var profilePath: [ProfileRoute] = []
     /// 语音记账的共享状态；麦克风可能在 Tab Bar 附属栏里，与各一级页面的会话卡片分属两处，由这里统一持有。
     @State private var voice = VoiceBookkeepingState()
-    /// 余额走势的数据缓存，账户页、资产趋势页和账户详情共用；切 Tab 时保留，回来不用重新汇总流水。
+    /// 余额走势的数据缓存，账户页、资产分析页和账户详情共用；切 Tab 时保留，回来不用重新汇总流水。
     @State private var balanceHistory = BalanceHistoryStore()
+
+    /// 冷启动落在哪个 Tab：用户选的启动页面；Debug 构建截 App Store 宣传图时按截图场景指定。
+    private static var launchTab: AppTab {
+        #if DEBUG
+        if let tab = AppStoreScreenshotFixture.initialTab { return tab }
+        #endif
+        return AppStartPage.stored().tab
+    }
 
     /// 是否允许联网；没注入同意状态时按允许处理。
     private var isNetworkAllowed: Bool {
@@ -378,8 +386,8 @@ struct AppTabView: View {
                             AccountDetailView(accountID: accountID)
                         case let .transactionDetail(transactionID):
                             BookkeepingTransactionDetailView(transactionID: transactionID)
-                        case .netWorthTrend:
-                            NetWorthTrendView()
+                        case .assetAnalysis:
+                            AssetAnalysisView()
                         }
                     }
             }

@@ -2,14 +2,14 @@ import SwiftData
 import SwiftUI
 import UIKit
 
-/// “我的 › AI 点数”：当前余额，点数明细、模型和隐私设置的入口，以及扣点规则。
+/// “我的 › AI 点数”：当前余额、充值，点数明细、模型和隐私设置的入口，以及扣点规则。
 ///
-/// 内容按用途分组：余额卡片下先是点数明细（`AICreditEntriesView`），再是快捷语音的模型（`AIModelTierView`），
+/// 内容按用途分组：余额卡片下先是充值（`AIPointsPurchaseSection`，登录后且有可买的商品时才出现），再是点数明细（`AICreditEntriesView`），再是快捷语音的模型（`AIModelTierView`），
 /// 然后是隐私与数据（“AI 记账说明”和“帮助改进 AI”的说明较长，各自单独一页 `AIProcessingConsentView`、`AITraceConsentView`，后者仅 dev 环境；清空本机对话记录就地完成），最后是扣点规则。
 /// 点数分好几批、到期时间不同时，余额下的到期提示可以点开，进入到期明细（`AIPointLotsView`）。
 /// AI 对话的模型在聊天页的输入栏里单独选，本页不显示；余额是否够用、切换档位的提示都按快捷语音所用的档位算。
 ///
-/// 余额与每轮点数来自根部注入的 `AIPointsStore`。暂不提供充值；点数用完时只说明暂时无法使用 AI 记账。
+/// 余额与每轮点数来自根部注入的 `AIPointsStore`，充值来自根部注入的 `AIPointsShop`；买来的点数永不过期，到期提示只看会过期的那几批。
 struct AIPointsView: View {
     @Environment(\.locale) private var locale
     @Environment(\.modelContext) private var modelContext
@@ -17,6 +17,8 @@ struct AIPointsView: View {
     @Environment(SignInPresentation.self) private var signInPresentation
     /// 当前账号的 AI 点数；预览中没有注入时为 nil。
     @Environment(AIPointsStore.self) private var points: AIPointsStore?
+    /// 点数充值；预览中没有注入时为 nil。
+    @Environment(AIPointsShop.self) private var shop: AIPointsShop?
 
     /// 是否在确认清空对话记录。
     @State private var isClearChatHistoryConfirming = false
@@ -36,6 +38,7 @@ struct AIPointsView: View {
                 balanceCard
 
                 if authStore.isAuthenticated {
+                    AIPointsPurchaseSection()
                     entriesSection
                     tierSection
                     privacySection
@@ -51,8 +54,13 @@ struct AIPointsView: View {
         .paperPage()
         .navigationTitle(text("ai.points.title"))
         .navigationBarTitleDisplayMode(.inline)
-        .refreshable { await points?.refresh() }
+        .refreshable {
+            await points?.refresh()
+            await shop?.refresh()
+        }
         .task(id: authStore.isAuthenticated) { await points?.refresh() }
+        // 商品列表和补传没结束的交易与余额并行，StoreKit 慢不拖住余额显示
+        .task(id: authStore.isAuthenticated) { await shop?.refresh() }
         .onAppear {
             hasChatHistory = AIChatHistoryStore(container: modelContext.container).hasRecords()
         }
@@ -156,12 +164,12 @@ struct AIPointsView: View {
 
     /// 最近一批要过期的点数，例如“100 点将于 2027年1月26日 过期”；没有余额或服务端没返回批次时不显示。
     private var expiryText: String? {
-        guard let lot = points?.nextExpiringLot() else { return nil }
+        guard let lot = points?.nextExpiringLot(), let lotExpiry = lot.expiryText(locale: locale) else { return nil }
         return String(
             format: text("ai.points.expiry"),
             locale: locale,
             lot.points.formatted(.number.locale(locale)),
-            lot.expiryText(locale: locale)
+            lotExpiry
         )
     }
 
@@ -361,7 +369,7 @@ struct AIPointsView: View {
 
     // MARK: - 扣点规则
 
-    /// 扣点规则：每说一句扣一次点、追问也算一句、失败不扣、点数有有效期。
+    /// 扣点规则：每说一句扣一次点、追问也算一句、失败不扣、赠送的点数有有效期而买来的永不过期。
     ///
     /// 快捷语音和 AI 对话可以选不同的档位，每句扣几点因档位而异，这里不写数字，各档位的点数在模型选择页看。
     private var rulesSection: some View {

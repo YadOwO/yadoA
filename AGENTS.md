@@ -28,6 +28,7 @@
 - 随环境变化的值只放在 `AuthConfig` 的 `dev` / `prod` 两套取值里，业务代码读 `AuthConfig.xxx`，不要在别处写死地址或自己按环境分支。
 - 开发机上不跑后端：dev 的服务都在 Mac mini 上，App 里没有"改连本机服务"的开关，不要再加。
 - 新增构建配置必须带 `ENV_DEV` 或 `ENV_PROD` 标志，否则编译失败。
+- 1.0 起只支持 iPhone、只用竖屏：App 和测试 target 的 `TARGETED_DEVICE_FAMILY` 都是 `1`，`INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone` 只有 `UIInterfaceOrientationPortrait`，也不设 `_iPad` 的方向。不要把设备族改回 `1,2`，不要恢复横屏。原因是 App 带着 iPad 支持发布以后，后续版本就不能再去掉。在 iPad 上 App 以 iPhone 兼容窗口运行，此时 `userInterfaceIdiom` 仍是 `.phone`。要做 iPad 版或横屏，先和维护者确认。
 
 ## 系统版本兼容
 

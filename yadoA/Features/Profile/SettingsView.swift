@@ -4,7 +4,7 @@ import UIKit
 
 /// “我的 › 设置”二级页面：集中放置设一次就很少再动的偏好、数据维护和退出登录。
 ///
-/// 分组顺序为通用、隐私与安全、记账、数据、关于、危险操作、账号；重置数据单独成卡，避免与导入导出相邻误触。
+/// 分组顺序为通用、隐私与安全、记账、数据、关于、账号；「清除所有数据」在「数据」分组最后一行，红色显示，点了还要二次确认。
 /// 账号分组第一行进入「账号与安全」（登录方式、绑定邮箱、注销芽豆账号），第二行退出登录。
 /// 「截图记账」和「重看引导」按环境开关显示，线上暂时隐藏（`AuthConfig.isScreenshotShortcutAvailable` / `isOnboardingReplayAvailable`）。
 struct SettingsView: View {
@@ -146,6 +146,12 @@ struct SettingsView: View {
 
                     DataUndoEntryView(container: modelContext.container) { ProfileSettingsRowDivider() }
                         .labelStyle(ProfileExportLabelStyle())
+
+                    ProfileSettingsRowDivider()
+
+                    // 清除会清空本机全部记账数据：排在分组最后、用红色，和导入导出区分开
+                    DataResetEntryView(container: modelContext.container)
+                        .labelStyle(ProfileExportLabelStyle(color: .red))
                 }
 
                 ProfileSettingsSection("settings.section.about") {
@@ -172,12 +178,6 @@ struct SettingsView: View {
                         }
                         .accessibilityIdentifier("settings-legal-\(document.rawValue)")
                     }
-                }
-
-                // 重置会清空本机全部记账数据，单独成卡与常规数据操作拉开距离
-                ProfileSettingsSection(nil, seed: "settings.reset") {
-                    DataResetEntryView(container: modelContext.container)
-                        .labelStyle(ProfileExportLabelStyle(color: .red))
                 }
 
                 // 账号与安全要读写 Logto、退出登录要撤销远端凭证，离线模式（没同意隐私政策）下都不显示；已登录用户不会因此退出。

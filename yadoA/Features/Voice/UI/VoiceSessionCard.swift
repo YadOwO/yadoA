@@ -340,7 +340,7 @@ private struct VoiceSessionTurnView: View {
                     .onAppear { tapHint.markShown(turnID: turn.id) }
                     .accessibilityIdentifier("voice-change-tap-hint")
             }
-            // DEBUG 包与 TestFlight 包显示这句话的耗时，点开看每一步
+            // DEBUG 包显示这句话的耗时；dev 环境点开看每一步，线上环境（DebugProd）只有一行概要
             if VoiceTimingFeature.isEnabled, let timing = turn.timing {
                 VoiceTurnTimingView(timing: timing)
             }

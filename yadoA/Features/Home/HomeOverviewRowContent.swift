@@ -223,6 +223,10 @@ extension HomeOverviewRowContent {
             case .added:
                 draw(duration: 0.4) { tickProgress = 1 }
                 try await Task.sleep(for: .milliseconds(1100))
+                #if DEBUG
+                // 截 App Store 宣传图时停在标红写对勾的样子
+                if AppStoreScreenshotFixture.holdsHighlights { try await Task.sleep(for: .seconds(600)) }
+                #endif
                 // 颜色渐变不涉及位移，减少动态效果时同样保留，只是更短。
                 withAnimation(.easeInOut(duration: reduceMotion ? 0.6 : 1.2)) {
                     hasSettled = true

@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>芽豆资产 · App Store 截图</title>
+<!--
+  App Store 宣传图（6.9 英寸，1320 × 2868）。
+  7 张图在同一块长画布上排版，手机、顶部墨线和豆子会跨过相邻两张的分界，上架后左右滑动是连起来的一幅。
+  用法：
+    screenshots.html                 整幅预览（按窗口宽度缩放）
+    screenshots.html#f=3&lang=en     只显示第 3 张英文版，窗口设为 1320×2868 截图即可
+  出图见同目录 render.sh。
+-->
+<style>
+@font-face { font-family: "NY"; src: local("New York"), url("file:///System/Library/Fonts/NewYork.ttf"); font-weight: 300 900; }
+
+:root {
+  --paper: #F2EFE7;
+  --surface: #FBF9F3;
+  --ink: #17181A;
+  --red: #D5452B;
+  --red-soft: #F0674C;
+  --green: #2E7D52;
+  --pencil: rgba(23, 24, 26, .52);
+  --rule: rgba(23, 24, 26, .14);
+  --dark: #101112;
+  --dark-surface: #1B1C1E;
+  --serif: "NY", "Songti SC", "STSong", serif;
+  --sans: -apple-system, "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
+  --W: 1320px;
+  --H: 2868px;
+}
+html, body { margin: 0; background: #8f8b84; }
+body { overflow: hidden; }
+* { box-sizing: border-box; }
+
+#stage {
+  position: relative; width: calc(var(--W) * 7); height: var(--H); overflow: hidden;
+  background: var(--paper); color: var(--ink); font-family: var(--sans);
+  -webkit-font-smoothing: antialiased; transform-origin: 0 0;
+}
+/* 纸面颗粒 */
+#stage::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45  0 0 0 0 .40  0 0 0 0 .33  0 0 0 .10 0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.darkbg { position: absolute; top: 0; height: var(--H); width: var(--W); background: var(--dark); z-index: 0; }
+.darkbg::before {
+  content: ""; position: absolute; inset: 0; opacity: .7;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 .97  0 0 0 0 .9  0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.frame { position: absolute; top: 0; width: var(--W); height: var(--H); z-index: 2; }
+.abs { position: absolute; }
+.layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+/* ---------- 通用字形 ---------- */
+.hl { position: absolute; margin: 0; font-family: var(--serif); font-weight: 700; line-height: 1.12; letter-spacing: .01em; }
+.hl span { display: block; white-space: nowrap; }
+html[lang="en"] .hl { letter-spacing: -.012em; font-weight: 600; line-height: 1.04; }
+.sub { position: absolute; margin: 0; font-size: 50px; line-height: 1.5; color: var(--pencil); font-weight: 500; }
+.center { left: 0; right: 0; text-align: center; }
+.pill {
+  position: absolute; display: inline-flex; align-items: center; gap: 18px; height: 92px; padding: 0 44px 0 34px;
+  border-radius: 46px; font-size: 42px; font-weight: 600; background: var(--surface);
+}
+.pill .ic { width: 44px; height: 44px; color: var(--red); stroke-width: 2.2; }
+.pill.c { left: 50%; transform: translateX(-50%); }
+.foot { position: absolute; margin: 0; font-size: 28px; line-height: 1.5; color: var(--pencil); }
+
+.bean {
+  display: inline-block; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 34% 30%, #F28A6E 0%, #DE5236 38%, #C63B22 78%, #B0331C 100%);
+  box-shadow: inset -4px -6px 10px rgba(120, 25, 10, .25), 0 10px 18px -8px rgba(150, 40, 20, .45);
+}
+.dot { width: .22em; height: .22em; margin-left: .06em; vertical-align: .02em; }
+
+.ic { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* 手绘墨线由脚本按元素尺寸生成 */
+/* 手绘框只负责画线，定位由元素自己决定：流式布局里的框用 relative，独立摆放的用 absolute */
+.tile, .vow .v { position: relative; }
+.rough > svg.rs { position: absolute; left: -6px; top: -6px; overflow: visible; pointer-events: none; }
+.rough > svg.rs path { fill: none; stroke: var(--rc, var(--ink)); stroke-width: var(--rw, 4px); stroke-linecap: round; stroke-linejoin: round; }
+.blob { position: relative; display: grid; place-items: center; }
+.blob > svg.bs { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; z-index: 0; }
+.blob > svg.bs path { fill: var(--bf, rgba(23, 24, 26, .07)); }
+.blob > :not(svg.bs) { position: relative; z-index: 1; }
+
+/* ---------- 手机 ---------- */
+.ph { position: absolute; transform-origin: 50% 50%; z-index: 3; }
+.phone {
+  width: 466px; height: 982px; border-radius: 78px; padding: 13px; position: relative;
+  background: linear-gradient(150deg, #4a4b50 0%, #1a1b1e 22%, #0d0d0f 60%, #2a2b2f 100%);
+  box-shadow: inset 0 0 0 1.5px #77787d, inset 0 0 0 4px #1d1e21,
+              0 46px 70px -26px rgba(60, 40, 20, .45), 0 18px 28px -14px rgba(60, 40, 20, .35);
+}
+.screen {
+  width: 440px; height: 956px; border-radius: 65px; overflow: hidden; position: relative;
+  background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 17px;
+}
+.island { position: absolute; top: 11px; left: 50%; width: 126px; height: 37px; margin-left: -63px; background: #000; border-radius: 20px; z-index: 30; }
+.homebar { position: absolute; bottom: 8px; left: 50%; width: 148px; height: 5px; margin-left: -74px; border-radius: 3px; background: var(--ink); z-index: 30; }
+.screen img.shot { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* 从截图里裁出来放大的一块 */
+.crop { position: absolute; z-index: 6; background-repeat: no-repeat; box-shadow: 0 44px 70px -30px rgba(60, 40, 20, .5), 0 0 0 1px rgba(23, 24, 26, .05); }
+
+/* ---------- 第 1 张 ---------- */
+.brand { position: absolute; display: flex; align-items: center; gap: 18px; font-family: var(--serif); font-weight: 600; font-size: 58px; letter-spacing: .06em; }
+.brand svg { width: 76px; height: 76px; }
+html[lang="en"] .brand { letter-spacing: 0; font-size: 56px; }
+.quote { position: absolute; padding: 46px 52px 52px; background: var(--surface); border-radius: 52px; --rw: 4px; }
+.quote .who { display: flex; align-items: center; gap: 16px; font-size: 34px; color: var(--pencil); font-weight: 500; margin-bottom: 22px; }
+.wave { display: inline-flex; align-items: center; gap: 6px; height: 44px; }
+.wave i { display: block; width: 7px; border-radius: 4px; background: var(--red); }
+.quote p { margin: 0; font-family: var(--serif); font-size: 60px; line-height: 1.55; font-weight: 600; }
+html[lang="en"] .quote p { font-size: 56px; line-height: 1.42; }
+.quote u { text-decoration: none; background-image: linear-gradient(var(--red), var(--red)); background-repeat: no-repeat; background-size: 100% 6px; background-position: 0 94%; padding-bottom: 4px; }
+.micpill { position: absolute; display: flex; align-items: center; gap: 28px; height: 150px; padding: 0 56px 0 24px; border-radius: 75px; font-size: 52px; font-weight: 600; }
+.micpill { background: var(--surface); box-shadow: 0 30px 50px -30px rgba(60, 40, 20, .35); }
+.micpill .mc { width: 108px; height: 108px; border-radius: 50%; background: var(--ink); display: grid; place-items: center; }
+.micpill .mc .ic { width: 52px; height: 52px; color: #fff; stroke-width: 2; }
+/* ---------- 第 2 张 ---------- */
+.steps { position: absolute; padding: 54px 40px 50px; background: var(--surface); border-radius: 52px; --rw: 4px; }
+.steps h3 { margin: 0; text-align: center; font-family: var(--serif); font-size: 66px; font-weight: 700; line-height: 1.2; }
+html[lang="en"] .steps h3 { font-size: 60px; font-weight: 600; }
+.steps .hr2 { display: block; width: 100%; height: 10px; margin: 30px 0 40px; overflow: visible; }
+.steps .hr2 path { fill: none; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
+.steps .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center; }
+.steps .n { width: 64px; height: 64px; margin: 0 auto 22px; display: grid; place-items: center; color: #fff; font-family: var(--serif); font-weight: 700; font-size: 36px; }
+.steps .n.bean { box-shadow: inset -3px -4px 8px rgba(120, 25, 10, .25); }
+.steps .si { width: 150px; height: 150px; margin: 0 auto 22px; --bf: rgba(23, 24, 26, .07); }
+.steps .si .ic { width: 70px; height: 70px; stroke-width: 1.7; }
+.steps .si.hot { --bf: rgba(213, 69, 43, .14); color: var(--red); }
+.steps .lb { font-size: 38px; line-height: 1.32; font-weight: 600; }
+html[lang="en"] .steps .lb { font-size: 33px; }
+.says { position: absolute; display: grid; gap: 30px; }
+.says .q { position: relative; padding: 30px 38px 34px; background: var(--surface); border-radius: 44px; --rw: 3.5px; }
+.says .q .tag { display: inline-block; font-size: 30px; font-weight: 700; padding: 6px 18px; border-radius: 26px; color: #fff; background: var(--red); }
+.says .q .tag.o { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2.5px var(--ink); }
+.says .q p { margin: 16px 0 0; font-family: var(--serif); font-size: 44px; font-weight: 600; line-height: 1.35; }
+html[lang="en"] .says .q p { font-size: 40px; }
+
+/* ---------- 第 3 / 4 张 ---------- */
+.big { position: absolute; margin: 0; font-family: "NY", serif; font-weight: 500; line-height: 1; letter-spacing: -.035em; font-variant-numeric: tabular-nums lining-nums; }
+.big small { font-size: .36em; letter-spacing: -.01em; color: var(--pencil); margin-left: .04em; }
+.big .cur { font-size: .58em; vertical-align: .44em; margin-right: .04em; letter-spacing: 0; }
+
+.snap { position: absolute; z-index: 6; padding: 18px 18px 60px; background: #fffdf8; box-shadow: 0 44px 70px -28px rgba(60, 40, 20, .5), 0 0 0 1px rgba(0, 0, 0, .05); }
+.snap img { display: block; width: 330px; height: 440px; object-fit: cover; }
+
+/* ---------- 第 6 张（深色） ---------- */
+.dk { color: #F2EFE7; }
+.dk .sub { color: rgba(242, 239, 231, .55); }
+.vow { position: absolute; display: grid; gap: 40px; }
+.vow .v { box-shadow: 0 -30px 60px -10px rgba(0, 0, 0, .55); padding: 52px 56px; border-radius: 48px; background: var(--dark-surface); --rc: rgba(242, 239, 231, .75); --rw: 3.5px; display: flex; gap: 40px; align-items: flex-start; }
+.vow .v .vi { width: 120px; height: 120px; flex: none; --bf: rgba(242, 239, 231, .1); color: #F2EFE7; }
+.vow .v .vi .ic { width: 58px; height: 58px; stroke-width: 1.7; }
+.vow .v h4 { margin: 4px 0 14px; font-family: var(--serif); font-size: 60px; font-weight: 700; }
+html[lang="en"] .vow .v h4 { font-weight: 600; font-size: 58px; }
+.vow .v p { margin: 0; font-size: 40px; line-height: 1.5; color: rgba(242, 239, 231, .62); }
+.vow .v.hot { background: var(--red-soft); color: var(--ink); --rc: var(--ink); }
+.vow .v.hot p { color: rgba(23, 24, 26, .72); }
+.vow .v.hot .vi { --bf: rgba(23, 24, 26, .12); color: var(--ink); }
+
+/* ---------- 第 7 张 ---------- */
+.tiles { position: absolute; display: grid; grid-template-columns: 1fr 1fr; gap: 36px; }
+.tile { height: 380px; padding: 50px 46px; background: var(--surface); border-radius: 48px; --rw: 3.5px; display: grid; align-content: start; gap: 0; }
+.tile .ti { width: 116px; height: 116px; margin-bottom: 34px; }
+.tile .ti .ic { width: 56px; height: 56px; stroke-width: 1.7; }
+.tile .ti.hot { --bf: rgba(213, 69, 43, .14); color: var(--red); }
+.tile h4 { margin: 0; font-family: var(--serif); font-size: 56px; font-weight: 700; }
+html[lang="en"] .tile h4 { font-weight: 600; font-size: 52px; }
+.tile p { margin: 12px 0 0; font-size: 38px; color: var(--pencil); font-weight: 500; }
+html[lang="en"] .tile p { font-size: 35px; }
+.wm { position: absolute; font-family: var(--serif); font-weight: 700; font-size: 92px; letter-spacing: .1em; }
+html[lang="en"] .wm { letter-spacing: 0; font-weight: 600; }
+
+/* 顶部墨线 */
+svg.topline { position: absolute; left: 0; top: 0; z-index: 4; overflow: visible; pointer-events: none; }
+svg.topline path { fill: none; stroke-linecap: round; }
+.rollbean { position: absolute; z-index: 5; width: 46px; height: 46px; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+
+<script>
+// ============================================================================
+// 文案：中文为主，英文对照。手机里的金额按 App 的写法：只支持人民币，英文环境显示 CN¥。
+// ============================================================================
+const COPY = {
+  zh: {
+    brand: "芽豆资产",
+    f1: {
+      pill: "按住麦克风，说一句话",
+      h: ["说一句，", "记好几笔"],
+      who: "你说",
+      quote: ["午饭 32 微信付，", "打车 28，", "早上那杯咖啡删掉"],
+      mic: "按住说话",
+      foot: "语音记账需登录并联网，会消耗 AI 点数；新账号赠送点数，每日签到也能领。"
+    },
+    f2: {
+      title: "开口到记好，就这一句",
+      steps: ["按住<br>说话", "说出<br>几笔", "分好类<br>选好账户", "记进<br>账本"],
+      h: ["想到什么，", "就说什么"],
+      says: [["记一笔", "「午饭 28，微信付的」"], ["改一笔", "「刚才打车那笔改成 40」"], ["删一笔", "「早上那杯咖啡删掉」"], ["查一查", "「这个月吃饭花了多少」"]]
+    },
+    f3: { pill: "钱去哪了", pre: "11 月一共花了", cur: "¥", big: "4,286", dec: ".50", sub: "花在哪、怎么变，一眼看清" },
+    f4: { pill: "还剩多少", h: ["净资产，", "一直心里有数"], sub: "银行卡、微信、支付宝、信用卡<br>放在一处看" },
+    f5: { pill: "芽豆助手", h: ["拍张小票，", "也能记账"], sub: "记账、改账、查账<br>说一句、打一句都行", foot: "AI 对话需登录并联网，会消耗 AI 点数。" },
+    f6: {
+      h: ["你的账本，", "只存在这台手机上"],
+      vows: [
+        ["不登录，也能用", "记账、看图表、管账户，都不需要账号。"],
+        ["同不同步，你说了算", "登录不会自动上传。云端同步要你亲手打开，随时能关。"],
+        ["面容 ID 上锁", "打开 App 先验证，别人拿到手机也看不到账本。"]
+      ]
+    },
+    f7: {
+      h: ["小事，", "也替你想好了"],
+      tiles: [
+        ["轻点背面", "截图记账"], ["周期记账", "到日子自动记"],
+        ["每日提醒", "不再忘了记"], ["每日签到", "领 AI 点数"],
+        ["备份导出", "换手机也带得走"], ["深色模式", "夜里也不刺眼"]
+      ],
+      tagline: "记账，从说一句话开始"
+    }
+  },
+  en: {
+    brand: "Yado Asset",
+    f1: {
+      pill: "Hold the mic and talk",
+      h: ["Say it once.", "Log it all"],
+      who: "You say",
+      quote: ["Lunch 32 on WeChat, ", "taxi 28, ", "and delete this morning's coffee"],
+      mic: "Hold to Speak",
+      foot: "Voice entry requires sign-in and a network connection, and uses AI points. New accounts get free points, and you can earn more by checking in daily."
+    },
+    f2: {
+      title: "From talking to tracked",
+      steps: ["Hold<br>to talk", "Say a few<br>entries", "Sorted &amp;<br>matched", "Saved to<br>your ledger"],
+      h: ["Just say", "what you need"],
+      says: [["Add", "“Lunch 28, paid with WeChat”"], ["Edit", "“Change that taxi to 40”"], ["Delete", "“Delete this morning's coffee”"], ["Ask", "“How much did I spend on food this month?”"]]
+    },
+    f3: { pill: "Where it went", pre: "Spent in November", cur: "¥", big: "4,286", dec: ".50", sub: "See where it goes and how it changes" },
+    f4: { pill: "What's left", h: ["Your net worth,", "always in view"], sub: "Bank cards, e-wallets and<br>credit cards in one place" },
+    f5: { pill: "Yado Assistant", h: ["Snap a receipt.", "It's recorded"], sub: "Record, edit and look up entries<br>by voice or by typing", foot: "AI chat requires sign-in and a network connection, and uses AI points." },
+    f6: {
+      h: ["Your ledger", "lives on this phone"],
+      vows: [
+        ["No account needed", "Record, chart and manage accounts without signing in."],
+        ["Sync is your call", "Signing in uploads nothing. Turn on cloud sync yourself, and turn it off anytime."],
+        ["Locked with Face ID", "Unlock to open the app, so no one else can see your ledger."]
+      ]
+    },
+    f7: {
+      h: ["The little things,", "taken care of"],
+      tiles: [
+        ["Back Tap", "Log a screenshot"], ["Recurring", "Logged when due"],
+        ["Reminders", "Never forget a day"], ["Check-in", "Earn AI points"],
+        ["Backup", "Take it to a new phone"], ["Dark Mode", "Easy on the eyes"]
+      ],
+      tagline: "Bookkeeping that starts with one sentence"
+    }
+  }
+};
+
+// ============================================================================
+// 图标：仿 SF Symbols 的线性图标，24 × 24
+// ============================================================================
+const ICONS = {
+  book: '<path d="M3.5 5.6c2.6-1.1 5.8-1 8.5.9 2.7-1.9 5.9-2 8.5-.9v13.2c-2.6-1.1-5.8-1-8.5.9-2.7-1.9-5.9-2-8.5-.9z"/><path d="M12 6.5v13.2"/>',
+  chart: '<path d="M3.5 20.5h17"/><path d="M7 17.5v-6"/><path d="M12 17.5V6"/><path d="M17 17.5v-8.5"/>',
+  card: '<rect x="2.8" y="5.5" width="18.4" height="13" rx="2.6"/><path d="M2.8 9.8h18.4"/><path d="M6.5 15h4"/>',
+  person: '<circle cx="12" cy="12" r="9.2"/><circle cx="12" cy="10" r="3.2"/><path d="M6.2 18.4c1.4-2.3 3.4-3.4 5.8-3.4s4.4 1.1 5.8 3.4"/>',
+  mic: '<rect x="8.8" y="2.8" width="6.4" height="11.4" rx="3.2"/><path d="M5.4 11.2a6.6 6.6 0 0 0 13.2 0"/><path d="M12 17.8v3.4"/>',
+  search: '<circle cx="10.8" cy="10.8" r="6.6"/><path d="m15.8 15.8 4.7 4.7"/>',
+  plus: '<path d="M12 4.8v14.4M4.8 12h14.4"/>',
+  eye: '<path d="M2.5 12S6 5.6 12 5.6 21.5 12 21.5 12 18 18.4 12 18.4 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.9"/>',
+  down: '<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>',
+  right: '<path d="m9.5 6 6 6-6 6"/>',
+  left: '<path d="m14.5 6-6 6 6 6"/>',
+  upright: '<path d="M7.5 16.5 16.5 7.5"/><path d="M9 7.5h7.5V15"/>',
+  downleft: '<path d="M16.5 7.5 7.5 16.5"/><path d="M7.5 9v7.5H15"/>',
+  fork: '<path d="M7 3v18"/><path d="M4.5 3v5.2a2.5 2.5 0 0 0 5 0V3"/><path d="M17 21V3c-2.3 1.2-3.4 3.8-3.4 7 0 2.2 1.2 3.4 3.4 3.4"/>',
+  car: '<path d="M4.5 16.5h15v-4l-1.9-4.9a2 2 0 0 0-1.9-1.3H8.3a2 2 0 0 0-1.9 1.3L4.5 12.5z"/><path d="M4.5 12.5h15"/><path d="M6.5 16.5v2.3M17.5 16.5v2.3"/><circle cx="8" cy="14.5" r=".4"/><circle cx="16" cy="14.5" r=".4"/>',
+  cup: '<path d="M4.5 7.5h11.5v4.2a5.4 5.4 0 0 1-5.4 5.4h-.7a5.4 5.4 0 0 1-5.4-5.4z"/><path d="M16 9h1.6a2.3 2.3 0 0 1 0 4.6H16"/><path d="M3.2 20.3h15"/>',
+  cart: '<path d="M2.8 4h2.4l2.3 11.2h10.6l2.1-8.2H6.2"/><circle cx="9.2" cy="19.2" r="1.3"/><circle cx="16.8" cy="19.2" r="1.3"/>',
+  bag: '<path d="M5.2 8h13.6l-1.1 12.7H6.3z"/><path d="M8.8 8V6.6a3.2 3.2 0 0 1 6.4 0V8"/>',
+  tram: '<rect x="5.8" y="3.2" width="12.4" height="13.4" rx="3.2"/><path d="M5.8 10.6h12.4"/><path d="m8.6 20.6 1.6-4M15.4 20.6l-1.6-4"/><circle cx="9.2" cy="13.6" r=".3"/><circle cx="14.8" cy="13.6" r=".3"/>',
+  house: '<path d="m3.6 11.2 8.4-7 8.4 7"/><path d="M5.8 9.6v10.8h12.4V9.6"/><path d="M10 20.4v-5.3h4v5.3"/>',
+  note: '<rect x="2.6" y="6.2" width="18.8" height="11.6" rx="2.2"/><circle cx="12" cy="12" r="2.7"/><path d="M6 9.4v5.2M18 9.4v5.2"/>',
+  ticket: '<path d="M3.5 7.5a1 1 0 0 1 1-1h15a1 1 0 0 1 1 1v2.6a2 2 0 0 0 0 3.8v2.6a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-2.6a2 2 0 0 0 0-3.8z"/><path d="M14.5 6.5v11" stroke-dasharray="1.6 2.2"/>',
+  leaf: '<path d="M5 19c0-8 5.5-13.5 14.5-14-.2 9.2-5.8 14.5-14.5 14z"/><path d="M5 19c3.2-4.2 6.2-6.8 9.5-8.6"/>',
+  game: '<path d="M7.2 7.5h9.6a4.2 4.2 0 0 1 4.1 3.4l.9 4.6a2.4 2.4 0 0 1-4.2 2l-1.9-2.3H8.3l-1.9 2.3a2.4 2.4 0 0 1-4.2-2l.9-4.6a4.2 4.2 0 0 1 4.1-3.4z"/><path d="M8 10.2v3.2M6.4 11.8h3.2"/><circle cx="15.6" cy="11" r=".5"/><circle cx="17.4" cy="12.8" r=".5"/>',
+  pie: '<path d="M12 3.2v8.8h8.8A8.8 8.8 0 1 1 12 3.2z"/><path d="M15 2.6a8.8 8.8 0 0 1 6.4 6.4H15z"/>',
+  xmark: '<path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/>',
+  camera: '<path d="M3.5 8.2h3.6l1.6-2.4h6.6l1.6 2.4h3.6v11H3.5z"/><circle cx="12" cy="13.4" r="3.6"/>',
+  keyboard: '<rect x="2.6" y="6" width="18.8" height="12" rx="2.2"/><path d="M6.2 9.5h.1M9.4 9.5h.1M12.6 9.5h.1M15.8 9.5h.1M6.2 12.3h.1M9.4 12.3h.1M12.6 12.3h.1M15.8 12.3h.1M8.2 15h7.6"/>',
+  bell: '<path d="M6 16.2v-5.4a6 6 0 0 1 12 0v5.4l1.6 2.1H4.4z"/><path d="M9.8 20.6a2.3 2.3 0 0 0 4.4 0"/>',
+  repeat: '<path d="M4.4 12a7.6 7.6 0 0 1 13.3-5"/><path d="M19.6 12a7.6 7.6 0 0 1-13.3 5"/><path d="M17.9 3.4V7h-3.6"/><path d="M6.1 20.6V17h3.6"/>',
+  backtap: '<rect x="6.4" y="2.6" width="11.2" height="18.8" rx="2.6"/><path d="M10.4 5h3.2"/><circle cx="12" cy="12.6" r="2.2"/><path d="M8.8 9.4a4.6 4.6 0 0 1 6.4 0M8.8 15.8a4.6 4.6 0 0 0 6.4 0" opacity=".55"/>',
+  gift: '<rect x="3.6" y="8.4" width="16.8" height="4.2" rx="1"/><path d="M5.2 12.6v7.8h13.6v-7.8"/><path d="M12 8.4v12"/><path d="M12 8.4C10.6 4.6 6.6 4.4 6.6 6.8c0 1.2 1.4 1.6 5.4 1.6zM12 8.4c1.4-3.8 5.4-4 5.4-1.6 0 1.2-1.4 1.6-5.4 1.6z"/>',
+  export: '<path d="M4.4 13.6v6h15.2v-6"/><path d="M12 4v11.2"/><path d="m7.8 8.2 4.2-4.2 4.2 4.2"/>',
+  moon: '<path d="M19.6 14.6A8 8 0 0 1 9.4 4.4a8 8 0 1 0 10.2 10.2z"/>',
+  faceid: '<path d="M3.6 8V6.2a2.6 2.6 0 0 1 2.6-2.6H8M16 3.6h1.8a2.6 2.6 0 0 1 2.6 2.6V8M20.4 16v1.8a2.6 2.6 0 0 1-2.6 2.6H16M8 20.4H6.2a2.6 2.6 0 0 1-2.6-2.6V16"/><path d="M8.6 8.8v1.6M15.4 8.8v1.6M12 8.8v4.6h-1"/><path d="M9.2 16c1.7 1.2 3.9 1.2 5.6 0"/>',
+  phone: '<rect x="6.4" y="2.6" width="11.2" height="18.8" rx="2.6"/><path d="M10.4 5h3.2"/><path d="m9.4 12.6 1.8 1.8 3.6-3.8"/>',
+  cloud: '<path d="M7.2 18.4h10a4 4 0 0 0 .6-8 5.6 5.6 0 0 0-10.8 1.4 3.3 3.3 0 0 0 .2 6.6z"/><path d="m9.8 13.6 4.4 0" />',
+  check: '<path d="m5 12.6 4.4 4.4L19 7.4"/>',
+  bubbles: '<path d="M4 5.2h10.4a1.6 1.6 0 0 1 1.6 1.6v5.8a1.6 1.6 0 0 1-1.6 1.6H9l-3.4 2.6v-2.6H4a1.6 1.6 0 0 1-1.6-1.6V6.8A1.6 1.6 0 0 1 4 5.2z"/><path d="M18.4 9.6h1.6a1.6 1.6 0 0 1 1.6 1.6V17a1.6 1.6 0 0 1-1.6 1.6h-1.6v2.4l-3.2-2.4H11"/>'
+};
+const ic = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24">${ICONS[n] || ""}</svg>`;
+
+// 品牌对勾（AppIcon 02-tick 的轮廓，账本红）
+const TICK_PATH = "M756.5 526.0 C756.5 537.0 750.0 546.6 740.6 550.9 L486.1 729.9 C474 739 466 740 458 740 C440 740 427 731 421.6 720.8 L348.0 610.6 C342.4 604.7 339.0 596.8 339.0 588.0 C339.0 569.8 353.8 555.0 372.0 555.0 C381.5 555.0 390.0 559.0 396.0 565.4 L465.2 635.9 L717.4 501.1 C720.9 499.4 724.9 498.5 729.0 498.5 C744.2 498.5 756.5 510.8 756.5 526.0 Z";
+const brandMark = () => `<svg viewBox="300 420 500 360"><defs><linearGradient id="tk" x1="366" y1="716" x2="732" y2="540" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#C23A22"/><stop offset=".5" stop-color="#D5452B"/><stop offset="1" stop-color="#EC6A4C"/></linearGradient></defs><path d="${TICK_PATH}" fill="url(#tk)"/></svg>`;
+
+// ============================================================================
+// 手绘线条：按种子生成，同一个种子每次画出来一样
+// ============================================================================
+function rng(seed) {
+  let s = seed >>> 0;
+  return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+function smooth(pts, closed) {
+  const n = pts.length, f = v => v.toFixed(1);
+  const g = i => closed ? pts[(i + n) % n] : pts[Math.max(0, Math.min(n - 1, i))];
+  let d = `M${f(pts[0][0])} ${f(pts[0][1])}`;
+  const last = closed ? n : n - 1;
+  for (let i = 0; i < last; i++) {
+    const p0 = g(i - 1), p1 = g(i), p2 = g(i + 1), p3 = g(i + 2);
+    d += `C${f(p1[0] + (p2[0] - p0[0]) / 6)} ${f(p1[1] + (p2[1] - p0[1]) / 6)} ${f(p2[0] - (p3[0] - p1[0]) / 6)} ${f(p2[1] - (p3[1] - p1[1]) / 6)} ${f(p2[0])} ${f(p2[1])}`;
+  }
+  return d + (closed ? "Z" : "");
+}
+// 一笔画出的圆角框：首尾稍微交叠，边上有低频抖动
+function roughRect(w, h, r, seed, amp) {
+  const R = rng(seed);
+  r = Math.min(r, w / 2, h / 2);
+  const segs = [];
+  const line = (x0, y0, x1, y1) => segs.push({ len: Math.hypot(x1 - x0, y1 - y0), at: t => [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t], nx: (y1 - y0), ny: -(x1 - x0) });
+  const arc = (cx, cy, a0, a1) => segs.push({ len: Math.abs(a1 - a0) * r, at: t => { const a = a0 + (a1 - a0) * t; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; }, arc: [cx, cy, a0, a1] });
+  const P = Math.PI;
+  line(r, 0, w - r, 0); arc(w - r, r, -P / 2, 0); line(w, r, w, h - r); arc(w - r, h - r, 0, P / 2);
+  line(w - r, h, r, h); arc(r, h - r, P / 2, P); line(0, h - r, 0, r); arc(r, r, P, 1.5 * P);
+  const total = segs.reduce((s, x) => s + x.len, 0);
+  const ph = [R() * 6.28, R() * 6.28, R() * 6.28], start = R() * .25 + .05;
+  const sample = u => {
+    let d = ((u % 1) + 1) % 1 * total;
+    for (const s of segs) { if (d <= s.len || s === segs[segs.length - 1]) { const t = Math.min(1, d / s.len); const p = s.at(t); return [p, s]; } d -= s.len; }
+  };
+  const N = Math.max(28, Math.round(total / 26));
+  const pts = [];
+  const over = .018 + R() * .014;
+  for (let i = 0; i <= N * (1 + over); i++) {
+    const u = start + i / N;
+    const [p, s] = sample(u);
+    const cx = w / 2, cy = h / 2;
+    let nx = p[0] - cx, ny = p[1] - cy; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+    const k = i / N;
+    let off = amp * (Math.sin(k * 6.28 * 3 + ph[0]) * .55 + Math.sin(k * 6.28 * 7 + ph[1]) * .3 + Math.sin(k * 6.28 * 13 + ph[2]) * .15);
+    if (k > 1) off += (k - 1) / over * amp * .5; // 收笔略微出界
+    pts.push([p[0] + nx * off, p[1] + ny * off]);
+  }
+  return smooth(pts, false);
+}
+function blobPath(w, h, seed) {
+  const R = rng(seed), n = 9, pts = [], rot = R() * 6.28;
+  for (let i = 0; i < n; i++) {
+    const a = rot + i / n * 6.28 + (R() - .5) * .3, k = .84 + R() * .16;
+    pts.push([w / 2 + Math.cos(a) * w / 2 * k, h / 2 + Math.sin(a) * h / 2 * k]);
+  }
+  return smooth(pts, true);
+}
+function rulePath(w, seed, amp = 1.2, y = 3, step = 22) {
+  const R = rng(seed), pts = [], ph = R() * 6.28, ph2 = R() * 6.28;
+  const n = Math.max(3, Math.round(w / step));
+  for (let i = 0; i <= n; i++) { const x = i / n * w; pts.push([x, y + amp * (Math.sin(i / n * 6.28 * 1.6 + ph) * .7 + Math.sin(i / n * 6.28 * 4.3 + ph2) * .3)]); }
+  return smooth(pts, false);
+}
+const ruleSVG = (cls, w, seed, amp, h = 6) => `<svg class="${cls}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="${rulePath(w, seed, amp, h / 2, Math.max(14, w / 14))}"/></svg>`;
+/**
+ * 登录页的芽豆插画，路径照搬 yadoA/Features/Auth/SproutIllustration.swift（240 × 240 设计画布）：
+ * 地面、根须、茎、两片叶子（左叶带叶脉），芽尖一颗账本红豆子，左上方三道闪光短线。
+ */
+function sproutSVG({ size, left, top }) {
+  const bean = { x: 112, y: 62, r: 22 };
+  const sparkles = [-155, -100, -42].map(deg => {
+    const a = deg * Math.PI / 180, dx = Math.cos(a), dy = Math.sin(a);
+    return `M${bean.x + dx * 31} ${bean.y + dy * 31}L${bean.x + dx * 40} ${bean.y + dy * 40}`;
+  }).join("");
+  return `<svg class="abs" style="left:${left}px;top:${top}px;overflow:visible" width="${size}" height="${size}" viewBox="0 0 240 240">
+    <g fill="none" stroke="#17181A" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M42 199C70 191 94 203 118 196C144 189 170 203 192 197"/>
+      <path d="M117 198C115 207 109 213 101 217M120 198C124 206 131 211 138 214"/>
+      <path d="M118 196C104 170 128 142 116 120C108 106 111 93 113 85"/>
+      <path d="M114 150C92 126 60 124 50 140C66 158 98 162 114 150M62 141Q84 140 104 147"/>
+      <path d="M118 128C138 102 174 96 188 108C176 130 142 140 118 128"/>
+    </g>
+    <path d="${sparkles}" fill="none" stroke="rgba(23,24,26,.5)" stroke-width="2.8" stroke-linecap="round"/>
+    <circle cx="${bean.x}" cy="${bean.y}" r="${bean.r}" fill="#D5452B"/>
+  </svg>`;
+}
+const blob = (inner, cls, seed, style = "") => `<div class="blob ${cls}" data-blob="${seed}" style="${style}">${inner}</div>`;
+
+// ============================================================================
+// 手机界面：放 capture.sh 在模拟器里截的真实画面（raw/<语言>/<场景>.png，1320 × 2868）
+// ============================================================================
+const RAW_W = 1320, RAW_H = 2868;
+let LANG = "zh";
+const shot = name => `raw/${LANG}/${name}.png`;
+const phone = name => `<div class="phone"><div class="screen"><img class="shot" src="${shot(name)}"><div class="island"></div><div class="homebar"></div></div></div>`;
+// 手机框里截图的缩放：屏幕宽 440（CSS 像素）× zoom，对应截图 1320 像素
+const shotScale = z => 440 * z / RAW_W;
+/**
+ * 从截图里裁一块放大，浮在版面上。
+ * @param name 截图场景名
+ * @param r 截图里的矩形 [x, y, w, h]（像素）
+ * @param left 版面位置
+ * @param top 版面位置
+ * @param width 放大后的宽度
+ * @param radius 圆角
+ */
+function crop(name, r, { left, top, width, radius = 60, extra = "" }) {
+  const k = width / r[2];
+  return `<div class="crop" style="left:${left}px;top:${top}px;width:${width}px;height:${r[3] * k}px;border-radius:${radius}px;
+    background-image:url(${shot(name)});background-size:${RAW_W * k}px ${RAW_H * k}px;background-position:${-r[0] * k}px ${-r[1] * k}px;${extra}"></div>`;
+}
+// 截图里要放大的区域（按 1320 × 2868 量的）
+const RECT = {
+  voicePanel: [92, 1672, 1140, 596],   // 语音卡片里「已处理 3 笔」那块
+  netCard: [52, 526, 1216, 790]        // 账户页净资产卡片，带一圈纸色
+};
+
+// ============================================================================
+// 版面
+// ============================================================================
+const W = 1320, H = 2868;
+const place = (inner, { x, y, z = 2, rot = 0, layer = 3 }) => `<div class="ph" style="left:${x}px;top:${y}px;transform:rotate(${rot}deg);z-index:${layer}"><div style="zoom:${z}">${inner}</div></div>`;
+const phoneW = z => 466 * z, phoneH = z => 982 * z;
+
+function build(lang) {
+  const c = COPY[lang];
+  LANG = lang;
+  document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+  const isEn = lang === "en";
+  let h = "";
+
+  // 第 6 张深色底
+  h += `<div class="darkbg" style="left:${W * 5}px"></div>`;
+
+  // ---------- 顶部墨线 + 一路滚过去的豆子 ----------
+  const lineY = 150, total = W * 7, endX = W * 6 + 1150;
+  h += `<svg class="topline" width="${total}" height="400" viewBox="0 0 ${total} 400">
+    <path d="${rulePath(W * 5 + 2, 9, 3.2, lineY, 60)}" stroke="rgba(23,24,26,.78)" stroke-width="5"/>
+    <path transform="translate(${W * 5 - 2} 0)" d="${rulePath(W + 4, 19, 3.2, lineY, 60)}" stroke="rgba(242,239,231,.8)" stroke-width="5"/>
+    <path transform="translate(${W * 6 + 2} 0)" d="${rulePath(endX - W * 6 - 2, 29, 3.2, lineY, 60)}" stroke="rgba(23,24,26,.78)" stroke-width="5"/>
+  </svg>`;
+  // 每张图里豆子的位置往前挪一点，左右滑动时像在沿线滚
+  const beanX = [150, 340, 520, 700, 880, 1040, 1150];
+  beanX.forEach((bx, i) => {
+    const x = W * i + bx;
+    const dashes = i === 0 ? "" : `<svg class="abs" style="left:${x - 120}px;top:${lineY - 36}px;z-index:5" width="90" height="40"><path d="M10 14h18M38 14h30M18 26h26" stroke="${i === 5 ? "rgba(242,239,231,.45)" : "rgba(23,24,26,.35)"}" stroke-width="4" stroke-linecap="round"/></svg>`;
+    h += dashes + `<i class="bean rollbean" style="left:${x - 23}px;top:${lineY - 46}px"></i>`;
+  });
+
+  // ---------- 1. 说一句，记好几笔 ----------
+  h += `<section class="frame" style="left:0">
+    <div class="brand" style="top:240px;left:96px">${brandMark()}<span>${c.brand}</span></div>
+    <div class="pill rough" data-rough="41" style="top:400px;left:100px;--rw:3.5px">${ic("mic")}${c.f1.pill}</div>
+    <h1 class="hl" style="top:560px;left:94px;font-size:${isEn ? 176 : 186}px"><span>${c.f1.h[0]}</span><span style="font-size:${isEn ? 1.0 : 1.14}em">${c.f1.h[1]}<i class="bean dot"></i></span></h1>
+    <div class="quote rough" data-rough="43" style="top:1150px;left:90px;width:${isEn ? 760 : 720}px">
+      <div class="who"><span class="wave">${[16, 30, 44, 26, 36, 18, 28, 12].map(v => `<i style="height:${v}px"></i>`).join("")}</span>${c.f1.who}</div>
+      <p>${c.f1.quote.map(s => `<u>${s.trim()}</u>`).join(isEn ? " " : "")}</p>
+    </div>
+    ${crop("voice", RECT.voicePanel, { left: 70, top: 1600, width: isEn ? 820 : 780, radius: 54 })}
+    <div class="micpill rough" data-rough="45" style="top:2290px;left:70px;--rw:3.5px"><span class="mc">${ic("mic")}</span>${c.f1.mic}<span class="wave" style="margin-left:6px">${[14, 26, 40, 22, 34, 16, 28, 12, 20].map(v => `<i style="height:${v}px;width:6px"></i>`).join("")}</span></div>
+    <p class="foot" style="left:76px;bottom:80px;width:660px">${c.f1.foot}</p>
+  </section>`;
+
+  // 手机跨在第 1、2 张之间
+  {
+    const z = 2.02;
+    h += place(phone("voice"), { x: W - phoneW(z) / 2 + 30, y: 1010, z, rot: 5 });
+  }
+
+  // ---------- 2. 一句话，加改删 ----------
+  h += `<section class="frame" style="left:${W}px">
+    <div class="steps rough" data-rough="51" style="top:270px;left:80px;width:1160px">
+      <h3>${c.f2.title}</h3>${ruleSVG("hr2", 1000, 52, 2.4, 10)}
+      <div class="grid">${["mic", "bubbles", "pie", "book"].map((n, i) => `<div><i class="bean n">${i + 1}</i>${blob(ic(n), "si" + (i === 3 ? " hot" : ""), 60 + i)}<div class="lb">${c.f2.steps[i]}</div></div>`).join("")}</div>
+    </div>
+    <h2 class="hl" style="top:1190px;left:650px;font-size:${isEn ? 84 : 100}px">${c.f2.h.map(s => `<span>${s}</span>`).join("")}</h2>
+    <div class="says" style="top:1500px;left:650px;width:590px">${c.f2.says.map((q, i) => `<div class="q rough" data-rough="${70 + i}"><span class="tag ${i === 3 ? "o" : ""}">${q[0]}</span><p>${q[1]}</p></div>`).join("")}</div>
+  </section>`;
+
+  // ---------- 3. 钱去哪了 ----------
+  {
+    const z = 1.96, x = W * 2 + (W - phoneW(z)) / 2, y = 1110;
+    h += `<section class="frame" style="left:${W * 2}px">
+      <div class="pill c rough" data-rough="81" style="top:270px;--rw:3.5px">${ic("pie")}${c.f3.pill}</div>
+      <p class="sub center" style="top:430px;color:var(--ink);font-size:60px;font-weight:600">${c.f3.pre}</p>
+      <p class="big center" style="top:540px;font-size:320px"><span class="cur">${c.f3.cur}</span>${c.f3.big}<small>${c.f3.dec}</small></p>
+      <p class="sub center" style="top:900px">${c.f3.sub}</p>
+    </section>`;
+    h += place(phone("charts"), { x, y, z, rot: 0 });
+  }
+
+  // ---------- 4. 还剩多少 ----------
+  {
+    const z = 1.96, x = W * 3 + 300, y = 1080;
+    h += `<section class="frame" style="left:${W * 3}px">
+      <div class="pill rough" data-rough="91" style="top:270px;left:100px;--rw:3.5px">${ic("card")}${c.f4.pill}</div>
+      <h2 class="hl" style="top:420px;left:94px;font-size:${isEn ? 132 : 150}px">${c.f4.h.map(s => `<span>${s}</span>`).join("")}</h2>
+      <p class="sub" style="top:${isEn ? 740 : 790}px;left:100px">${c.f4.sub}</p>
+    </section>`;
+    h += place(phone("accounts"), { x, y, z, rot: 0 });
+    // 手机里的净资产卡片放大 1.18 倍，浮在原来的位置上
+    {
+      const k = shotScale(z), r = RECT.netCard, zoomIn = 1.18;
+      const cx = x + 13 * z + (r[0] + r[2] / 2) * k, cy = y + 13 * z + (r[1] + r[3] / 2) * k;
+      const width = r[2] * k * zoomIn, height = r[3] * k * zoomIn;
+      h += crop("accounts", r, { left: cx - width / 2, top: cy - height / 2, width, radius: 64 });
+    }
+  }
+
+  // ---------- 5. 拍张小票 ----------
+  {
+    const z = 1.96, x = W * 4 + 36, y = 1080;
+    h += `<section class="frame" style="left:${W * 4}px">
+      <div class="pill rough" data-rough="101" style="top:270px;right:100px;--rw:3.5px">${ic("bubbles")}${c.f5.pill}</div>
+      <h2 class="hl" style="top:420px;right:96px;text-align:right;font-size:${isEn ? 132 : 150}px">${c.f5.h.map(s => `<span>${s}</span>`).join("")}</h2>
+      <p class="sub" style="top:${isEn ? 740 : 790}px;right:100px;text-align:right">${c.f5.sub}</p>
+      <p class="foot" style="top:${isEn ? 900 : 950}px;right:100px;width:760px;text-align:right">${c.f5.foot}</p>
+    </section>`;
+    h += place(phone("chat"), { x, y, z, rot: 0 });
+    // 发出去的那张小票照片，从手机里拿出来放大
+    h += `<div class="snap" style="left:${W * 4 + 880}px;top:1230px;transform:rotate(6deg)"><img src="raw/${lang}/receipt.jpg"></div>`;
+  }
+
+  // ---------- 6. 只存在这台手机上（深色） ----------
+  h += `<section class="frame dk" style="left:${W * 5}px">
+    <h2 class="hl" style="top:270px;left:94px;font-size:${isEn ? 134 : 128}px"><span>${c.f6.h[0]}</span><span>${c.f6.h[1]}<i class="bean dot"></i></span></h2>
+    <div class="vow" style="top:1460px;left:90px;width:1140px">${c.f6.vows.map((v, i) => `<div class="v rough ${i === 1 ? "hot" : ""}" data-rough="${210 + i}">${blob(ic(["person", "cloud", "faceid"][i]), "vi", 220 + i)}<div><h4>${v[0]}</h4><p>${v[1]}</p></div></div>`).join("")}</div>
+  </section>`;
+
+  {
+    const z = 1.72;
+    h += place(phone("home-dark"), { x: W * 5 + (W - phoneW(z)) / 2, y: 690, z, rot: 0, layer: 1 });
+  }
+
+  // ---------- 7. 小事也替你想好了 ----------
+  h += `<section class="frame" style="left:${W * 6}px">
+    <h2 class="hl" style="top:270px;left:94px;font-size:${isEn ? 128 : 140}px">${c.f7.h.map(s => `<span>${s}</span>`).join("")}</h2>
+    <div class="tiles" style="top:690px;left:90px;width:1140px">${c.f7.tiles.map((t, i) => `<div class="tile rough" data-rough="${300 + i}">${blob(ic(["backtap", "repeat", "bell", "gift", "export", "moon"][i]), "ti" + (i === 0 ? " hot" : ""), 310 + i)}<h4>${t[0]}</h4><p>${t[1]}</p></div>`).join("")}</div>
+    ${sproutSVG({ size: 440, left: W / 2 - 117 * 440 / 240, top: 2002 })}
+    <div class="wm center" style="top:2490px;text-align:center">${c.brand}</div>
+    <p class="sub center" style="top:2640px;font-size:44px">${c.f7.tagline}</p>
+  </section>`;
+
+  document.getElementById("stage").innerHTML = h;
+}
+
+// ============================================================================
+// 按元素尺寸补上手绘框和色块
+// ============================================================================
+function decorate() {
+  document.querySelectorAll("[data-rough]").forEach(el => {
+    const w = el.offsetWidth, hgt = el.offsetHeight;
+    const r = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 20;
+    const seed = +el.dataset.rough;
+    const amp = Math.max(.8, Math.min(w, hgt) / 90);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "rs"); svg.setAttribute("width", w + 12); svg.setAttribute("height", hgt + 12);
+    svg.innerHTML = `<path transform="translate(6 6)" d="${roughRect(w, hgt, r, seed, Math.min(amp, 4))}"/>`;
+    el.appendChild(svg);
+  });
+  document.querySelectorAll("[data-blob]").forEach(el => {
+    const w = el.offsetWidth, hgt = el.offsetHeight;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "bs"); svg.setAttribute("viewBox", `0 0 ${w} ${hgt}`);
+    svg.innerHTML = `<path d="${blobPath(w, hgt, +el.dataset.blob)}"/>`;
+    el.prepend(svg);
+  });
+}
+
+// ============================================================================
+// 入口：#f=1..7 只显示一张；否则整幅缩放预览
+// ============================================================================
+const params = new URLSearchParams(location.hash.slice(1));
+const lang = params.get("lang") === "en" ? "en" : "zh";
+build(lang);
+const stage = document.getElementById("stage");
+const f = +params.get("f");
+if (f >= 1 && f <= 7) {
+  stage.style.transform = `translateX(${-(f - 1) * W}px)`;
+} else {
+  const s = innerWidth / (W * 7);
+  stage.style.transform = `scale(${s})`;
+  document.body.style.height = H * s + "px";
+}
+document.fonts.ready.then(() => { decorate(); document.body.dataset.ready = "1"; });
+</script>
+</body>
+</html>

@@ -46,11 +46,18 @@ struct ChartPointPresentation: Identifiable, Equatable {
     /// 当前语言环境下的横轴标题。
     let formattedLabel: String
 
+    /// 选中这个点时显示和播报的完整时间，例如「8月19日周三」「2026年8月」；
+    /// 横轴标题为了省地方只写「19」「周三」，单独拿出来看不出是哪天。
+    let formattedDetailLabel: String
+
     /// 当前时间桶内所选类型的有效流水的精确金额。
     let amount: Decimal
 
-    /// 当前语言环境下的货币金额，用于辅助功能播报。
+    /// 当前语言环境下的货币金额，选中这个点时显示，也用于辅助功能播报。
     let formattedAmount: String
+
+    /// 当前时间桶内所选类型的有效流水笔数，选中这个点时替换摘要里整个周期的笔数。
+    let transactionCount: Int
 
     /// 图表点使用的稳定标识。
     var id: Int { bucketValue }
@@ -218,8 +225,14 @@ struct ChartOverviewPresentation: Equatable {
             locale: locale,
             calendar: calendar
         )
+        let pointDetailFormatter = Self.pointDetailFormatter(
+            for: period,
+            locale: locale,
+            calendar: calendar
+        )
         self.points = bucketDates.map { bucketDate in
-            let amount = groupedTransactions[bucketDate, default: []].reduce(
+            let bucketTransactions = groupedTransactions[bucketDate, default: []]
+            let amount = bucketTransactions.reduce(
                 into: Decimal.zero
             ) { total, transaction in
                 total += transaction.amount
@@ -231,8 +244,10 @@ struct ChartOverviewPresentation: Equatable {
                     calendar: calendar
                 ),
                 formattedLabel: pointFormatter.string(from: bucketDate),
+                formattedDetailLabel: pointDetailFormatter.string(from: bucketDate),
                 amount: amount,
-                formattedAmount: amount.formattedCurrency(locale: locale)
+                formattedAmount: amount.formattedCurrency(locale: locale),
+                transactionCount: bucketTransactions.count
             )
         }
     }
@@ -486,6 +501,24 @@ struct ChartOverviewPresentation: Equatable {
         return dateFormatter(template: template, locale: locale, calendar: calendar)
     }
 
+    /// 创建单次投影内复用的选中点完整时间格式器：日带月份和星期，月带年份。
+    ///
+    /// 月视图的年月已经写在时间切换里，日这里不再重复年份。
+    private static func pointDetailFormatter(
+        for period: ChartPeriod,
+        locale: Locale,
+        calendar: Calendar
+    ) -> DateFormatter {
+        let template: String
+        switch period {
+        case .week, .month:
+            template = "MMMdEEE"
+        case .year:
+            template = "yMMM"
+        }
+        return dateFormatter(template: template, locale: locale, calendar: calendar)
+    }
+
     /// 使用明确日历、时区和语言环境格式化日期。
     private static func formattedDate(
         _ date: Date,
@@ -504,5 +537,83 @@ struct ChartOverviewPresentation: Equatable {
         calendar: Calendar
     ) -> DateFormatter {
         BookkeepingDateFormatting.formatter(template: template, locale: locale, calendar: calendar)
+    }
+}
+
+// MARK: - 趋势图选中
+
+extension ChartOverviewPresentation {
+    /// 某个时间桶对应的点；当前周期没有这个桶或传入 `nil` 时为 `nil`。
+    ///
+    /// - Parameter bucketValue: 日为 `YYYYMMDD`、月为 `YYYYMM` 的时间桶标识。
+    func point(bucketValue: Int?) -> ChartPointPresentation? {
+        guard let bucketValue else { return nil }
+        return points.first { $0.bucketValue == bucketValue }
+    }
+
+    /// 离手指横坐标最近的点，供点按、左右滑动趋势图时选中；没有点时为 `nil`。
+    ///
+    /// 横轴是按标题排开的分类轴，按标题反查位置并不可靠，这里改为比较每个点画在屏幕上的横坐标；
+    /// 手指滑出绘图区两端时自然落在第一个或最后一个点上。一个周期最多三十一个点，逐个比较即可。
+    ///
+    /// - Parameters:
+    ///   - x: 手指在绘图区里的横坐标。
+    ///   - position: 某个点在绘图区里的横坐标；算不出时返回 `nil`，这个点不参与比较。
+    /// - Returns: 横坐标最接近的点；两边一样近时取较早的一个。
+    func point(
+        nearestX x: CGFloat,
+        position: (ChartPointPresentation) -> CGFloat?
+    ) -> ChartPointPresentation? {
+        var nearest: (point: ChartPointPresentation, distance: CGFloat)?
+        for point in points {
+            guard let pointX = position(point) else { continue }
+            let distance = abs(pointX - x)
+            if nearest.map({ distance < $0.distance }) ?? true {
+                nearest = (point, distance)
+            }
+        }
+        return nearest?.point
+    }
+
+    /// 点按趋势图后应选中的时间桶。
+    ///
+    /// 点在已选中的点上（离它不超过 `tolerance`）收起选中；否则换成离点按处最近的点。
+    /// 只有最近的点就是已选中的点时才收起，月视图点和点挨得近，点旁边一天会换过去而不是收起。
+    ///
+    /// - Parameters:
+    ///   - x: 点按处在绘图区里的横坐标。
+    ///   - selectedBucketValue: 当前选中的时间桶；没选中时为 `nil`。
+    ///   - tolerance: 离已选中的点多近算点在它上面，大约一根手指宽。
+    ///   - position: 某个点在绘图区里的横坐标。
+    /// - Returns: 点按后选中的时间桶；`nil` 表示收起选中。
+    func bucketValue(
+        afterTapAtX x: CGFloat,
+        selectedBucketValue: Int?,
+        tolerance: CGFloat,
+        position: (ChartPointPresentation) -> CGFloat?
+    ) -> Int? {
+        guard let nearest = point(nearestX: x, position: position) else { return selectedBucketValue }
+        if nearest.bucketValue == selectedBucketValue,
+           let selectedX = position(nearest),
+           abs(selectedX - x) <= tolerance {
+            return nil
+        }
+        return nearest.bucketValue
+    }
+
+    /// 读屏上下轻扫时换到的点：从选中的点往后或往前挪，到头就停在头上。
+    ///
+    /// 还没选中时，往后从第一个点开始，往前从最后一个点开始，和读周期的顺序一致。
+    ///
+    /// - Parameters:
+    ///   - bucketValue: 当前选中的时间桶；没选中时为 `nil`。
+    ///   - offset: 往后为正，往前为负。
+    /// - Returns: 挪到的点；没有点时为 `nil`。
+    func point(steppingFrom bucketValue: Int?, by offset: Int) -> ChartPointPresentation? {
+        guard !points.isEmpty else { return nil }
+        guard let bucketValue, let index = points.firstIndex(where: { $0.bucketValue == bucketValue }) else {
+            return offset >= 0 ? points.first : points.last
+        }
+        return points[min(max(index + offset, 0), points.count - 1)]
     }
 }

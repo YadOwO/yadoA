@@ -130,6 +130,20 @@ final class AIBillingAPI: AIBillingFetching {
         /// `POST /v1/billing/check-in/dev-reset`：开发测试用的重置签到，只有 dev 环境开放。
         case devResetCheckIn(AICheckInResetOptions)
 
+        /// `GET /v1/store/catalog`：在售商品和本账号的 appAccountToken。
+        case storeCatalog
+
+        /// `POST /v1/store/purchases`：上传 Apple 签名的交易入账。
+        case submitPurchase(signedTransaction: String)
+
+        /// 上传交易的请求体。
+        private nonisolated struct PurchaseBody: Encodable, Sendable {
+            /// 本产品代号。
+            let product: String
+            /// StoreKit 2 交易的 jwsRepresentation。
+            let signedTransaction: String
+        }
+
         /// 签到的请求体。
         private nonisolated struct CheckInBody: Encodable, Sendable {
             /// 本产品代号。
@@ -160,13 +174,15 @@ final class AIBillingAPI: AIBillingFetching {
             case .checkInHistory: "v1/billing/check-in/history"
             case let .openCheckInGift(id, _): "v1/billing/check-in/gifts/\(id)/open"
             case .devResetCheckIn: "v1/billing/check-in/dev-reset"
+            case .storeCatalog: "v1/store/catalog"
+            case .submitPurchase: "v1/store/purchases"
             }
         }
 
         /// 查询参数；余额和流水都要带本产品代号，服务端缺这个参数时返回 400。
         var queryItems: [URLQueryItem] {
             switch self {
-            case .wallet, .checkInStatus:
+            case .wallet, .checkInStatus, .storeCatalog:
                 return [URLQueryItem(name: "product", value: AIBillingAPI.product)]
             case let .checkInHistory(month):
                 return [
@@ -182,20 +198,20 @@ final class AIBillingAPI: AIBillingFetching {
                     items.append(URLQueryItem(name: "cursor", value: cursor))
                 }
                 return items
-            case .models, .checkIn, .openCheckInGift, .devResetCheckIn:
+            case .models, .checkIn, .openCheckInGift, .devResetCheckIn, .submitPurchase:
                 return []
             }
         }
 
-        /// HTTP 方法；签到、打开礼包和重置签到是 POST。
+        /// HTTP 方法；签到、打开礼包、重置签到和上传交易是 POST。
         var httpMethod: String {
             switch self {
-            case .checkIn, .openCheckInGift, .devResetCheckIn: "POST"
+            case .checkIn, .openCheckInGift, .devResetCheckIn, .submitPurchase: "POST"
             default: "GET"
             }
         }
 
-        /// 请求体：签到带本产品代号和是否用补签卡，打开礼包带要开第几次，重置签到带本产品代号和重置选项；其余没有。
+        /// 请求体：签到带本产品代号和是否用补签卡，打开礼包带要开第几次，重置签到带本产品代号和重置选项，上传交易带本产品代号和签名交易；其余没有。
         var httpBody: Data? {
             switch self {
             case let .checkIn(useCard):
@@ -210,6 +226,8 @@ final class AIBillingAPI: AIBillingFetching {
                         cardUsed: options.cardUsed
                     )
                 )
+            case let .submitPurchase(signedTransaction):
+                try? JSONEncoder().encode(PurchaseBody(product: AIBillingAPI.product, signedTransaction: signedTransaction))
             default: nil
             }
         }
@@ -347,6 +365,32 @@ final class AIBillingAPI: AIBillingFetching {
     /// - Returns: 解码后的响应。
     /// - Throws: `AIBillingAPIError`。
     private func send<Response: Decodable>(_ route: Route) async throws -> Response {
+        let (data, httpResponse) = try await perform(route)
+        guard httpResponse.statusCode == 200 else {
+            throw Self.error(statusCode: httpResponse.statusCode, route: route)
+        }
+        return try Self.decode(data)
+    }
+
+    /// 解码 200 响应体。
+    ///
+    /// - Parameter data: 响应体。
+    /// - Returns: 解码后的响应。
+    /// - Throws: 不符合契约时为 `AIBillingAPIError.invalidContract`。
+    private static func decode<Response: Decodable>(_ data: Data) throws -> Response {
+        do {
+            return try JSONDecoder().decode(Response.self, from: data)
+        } catch {
+            throw AIBillingAPIError.invalidContract
+        }
+    }
+
+    /// 获取凭证并发出请求，返回响应体和 HTTP 响应，不判断状态码；需要升级时直接抛出。
+    ///
+    /// - Parameter route: 接口。
+    /// - Returns: 响应体和 HTTP 响应。
+    /// - Throws: `AIBillingAPIError`。
+    private func perform(_ route: Route) async throws -> (Data, HTTPURLResponse) {
         let token: String
         do {
             token = try await accessToken()
@@ -373,13 +417,83 @@ final class AIBillingAPI: AIBillingFetching {
         if AppUpdatePrompt.checkUpgradeRequired(httpResponse) {
             throw AIBillingAPIError.upgradeRequired
         }
-        guard httpResponse.statusCode == 200 else {
-            throw Self.error(statusCode: httpResponse.statusCode, route: route)
+        return (data, httpResponse)
+    }
+}
+
+// MARK: - App 内购买
+
+/// 查询在售商品、上传交易入账的能力；测试注入假实现。
+protocol AIStorePurchasing {
+    /// 查询在售商品和本账号购买时要用的 appAccountToken。
+    ///
+    /// - Returns: 商品列表；本产品没开放购买时 `isEnabled` 为 false。
+    /// - Throws: `AIBillingAPIError`。
+    func fetchStoreCatalog() async throws -> AIStoreCatalog
+
+    /// 上传一笔 Apple 签名的交易，服务端校验后入账；同一笔交易重传不会重复入账。
+    ///
+    /// - Parameter signedTransaction: StoreKit 2 交易的 `jwsRepresentation`。
+    /// - Returns: 入账结果；返回即表示可以结束这笔交易。
+    /// - Throws: `AIStoreUploadError`，据 `shouldFinishTransaction` 决定交易要不要结束。
+    func submitPurchase(signedTransaction: String) async throws -> AIStorePurchaseResult
+}
+
+extension AIBillingAPI: AIStorePurchasing {
+    /// 服务端错误响应里客户端用得到的部分：错误码和 `details.reason`。
+    private nonisolated struct ErrorBody: Decodable, Sendable {
+        /// 错误详情。
+        nonisolated struct Details: Decodable, Sendable {
+            /// 错误原因，例如 `other_account`。
+            let reason: String?
+        }
+
+        /// 错误码，例如 `PURCHASE_ACCOUNT_MISMATCH`。
+        let code: String?
+
+        /// 错误详情。
+        let details: Details?
+    }
+
+    func fetchStoreCatalog() async throws -> AIStoreCatalog {
+        try await send(.storeCatalog)
+    }
+
+    func submitPurchase(signedTransaction: String) async throws -> AIStorePurchaseResult {
+        let data: Data
+        let httpResponse: HTTPURLResponse
+        do {
+            (data, httpResponse) = try await perform(.submitPurchase(signedTransaction: signedTransaction))
+        } catch let error as AIBillingAPIError {
+            throw AIStoreUploadError.billing(error)
         }
         do {
-            return try JSONDecoder().decode(Response.self, from: data)
-        } catch {
-            throw AIBillingAPIError.invalidContract
+            return try Self.purchaseResult(statusCode: httpResponse.statusCode, data: data)
+        } catch let error as AIBillingAPIError {
+            throw AIStoreUploadError.billing(error)
+        }
+    }
+
+    /// 把上传交易的响应映射成入账结果或错误：200 解码结果；409 按 `details.reason` 区分是另一个账号还是已不存在的账号；
+    /// 400 的 `PURCHASE_INVALID` 是服务端拒绝入账；其余同 `error(statusCode:)`。
+    ///
+    /// - Parameters:
+    ///   - statusCode: HTTP 状态码。
+    ///   - data: 响应体。
+    /// - Returns: 入账结果。
+    /// - Throws: `AIStoreUploadError`；通用错误为 `AIBillingAPIError`，由调用方包装。
+    static func purchaseResult(statusCode: Int, data: Data) throws -> AIStorePurchaseResult {
+        if statusCode == 200 {
+            return try decode(data)
+        }
+        let body = try? JSONDecoder().decode(ErrorBody.self, from: data)
+        switch (statusCode, body?.code) {
+        case (409, "PURCHASE_ACCOUNT_MISMATCH"):
+            throw body?.details?.reason == "unknown_account" ? AIStoreUploadError.unknownAccount : .otherAccount
+        case (400, "PURCHASE_INVALID"):
+            throw AIStoreUploadError.rejected(reason: body?.details?.reason)
+        default:
+            throw error(statusCode: statusCode)
         }
     }
 }

@@ -2,7 +2,7 @@
 import SwiftUI
 
 /// 「我的 → 头像右上角 → 开发」：集中查看开发调试信息（AI 耗时、AI 服务、云端同步状态、构建信息），
-/// 以及尚未接入正式流程的线条头像选择原型。dev 包另有签到测试：重置签到引导、清空签到、把连签设成差一天拿礼包、
+/// 预览「发现新版本」弹层，以及尚未接入正式流程的线条头像选择原型。dev 包另有签到测试：重置签到引导、清空签到、把连签设成差一天拿礼包、
 /// 昨天漏签（测补签卡）。
 ///
 /// 只在 DEBUG 包存在，入口由 `DeveloperTools.isEnabled` 控制。数值是给开发者看的原始值，不做本地化。
@@ -95,6 +95,11 @@ struct DeveloperView: View {
                 infoRow("developer.app.version", value: Self.appVersion)
                 infoRow("developer.app.bundleID", value: Bundle.main.bundleIdentifier ?? "—")
                 infoRow("developer.app.environment", value: AppEnvironment.current.rawValue)
+                // dev 包的 Bundle ID 没上架，查不到新版本；用示例版本看弹层的样子
+                Button(text("developer.app.previewUpdateNotice")) {
+                    AppUpdateNotice.shared.presentPreview()
+                }
+                .accessibilityIdentifier("developer-preview-update-notice")
             }
         }
         .navigationTitle(text("developer.title"))

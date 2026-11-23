@@ -207,12 +207,20 @@ struct CheckInCalendarView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel(day: day, record: record, isProtected: isProtected, isToday: isToday))
+        .accessibilityLabel(
+            accessibilityLabel(day: day, record: record, isProtected: isProtected, isToday: isToday, isFuture: isFuture)
+        )
     }
 
     /// 某一天的朗读文本，例如“2026年11月5日，已签到，+12 点，连签第 3 天，获得周礼包”；
-    /// 被补签卡保住的那天读作“2026年11月18日，补签卡保住了连签”。
-    private func accessibilityLabel(day: Int, record: AICheckInDay?, isProtected: Bool, isToday: Bool) -> String {
+    /// 被补签卡保住的那天读作“2026年11月18日，补签卡保住了连签”；今天之后的日子只读日期。
+    private func accessibilityLabel(
+        day: Int,
+        record: AICheckInDay?,
+        isProtected: Bool,
+        isToday: Bool,
+        isFuture: Bool
+    ) -> String {
         var parts = [month.spokenDate(day: day, locale: locale)]
         if isToday {
             parts.append(text("checkIn.calendar.today"))
@@ -229,7 +237,7 @@ struct CheckInCalendarView: View {
             parts += record.giftTiers.map { text($0.titleKey) }
         } else if isProtected {
             parts.append(text("checkIn.calendar.day.protected"))
-        } else {
+        } else if !isFuture {
             parts.append(text("checkIn.calendar.day.unchecked"))
         }
         return parts.joined(separator: text("checkIn.calendar.separator"))

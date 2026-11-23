@@ -607,6 +607,8 @@ struct CheckInGiftOpeningView: View {
 
     /// 年度礼包开完第一次后：盒盖落回、光芒收起，回到待开，等用户再开一次。
     private func prepareNextOpen() {
+        flow?.cancel()
+        flow = nil
         confettiID = nil
         errorKey = nil
         withAnimation(reduceMotion ? .easeOut(duration: 0.25) : .spring(duration: 0.5, bounce: 0.3)) {

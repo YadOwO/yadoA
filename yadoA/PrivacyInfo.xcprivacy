@@ -125,6 +125,19 @@
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
 			</array>
 		</dict>
+		<!-- 购买项目：App 内购买点数的交易编号、商品、购买与退款时间、点数（付款由 Apple 处理，我们收不到付款信息） -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePurchaseHistory</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
 		<!-- 诊断：意见反馈里用户选择附带的 MetricKit 崩溃、卡顿、磁盘写入报告，以及 App 版本、系统版本、设备型号 -->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
