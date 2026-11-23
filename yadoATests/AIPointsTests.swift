@@ -1240,6 +1240,7 @@ struct AIPointsTests {
             "ai.store.restore", "ai.store.notice.credited.title", "ai.store.notice.credited.message",
             "ai.store.notice.pending.title", "ai.store.notice.pending.message", "ai.store.notice.delayed.title",
             "ai.store.notice.delayed.message", "ai.store.notice.otherAccount.title", "ai.store.notice.otherAccount.message",
+            "ai.store.notice.cannotCredit.title", "ai.store.notice.cannotCredit.message",
             "ai.store.notice.failed.title", "ai.store.notice.failed.message",
         ]
         for key in storeKeys {
