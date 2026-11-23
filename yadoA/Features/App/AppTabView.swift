@@ -99,8 +99,8 @@ enum AccountsRoute: Hashable {
     /// 账户历史中的统一收支详情入口。
     case transactionDetail(UUID)
 
-    /// 资产趋势：从账户页汇总卡片进入，看净资产、资产、负债的走势。
-    case netWorthTrend
+    /// 资产分析：从账户页汇总卡片进入，按净资产、资产、负债三个 tab 看走势、资产负债率、构成和排行。
+    case assetAnalysis
 }
 
 /// “我的”导航栈支持的二级页面。
@@ -230,7 +230,7 @@ struct AppTabView: View {
     @State private var profilePath: [ProfileRoute] = []
     /// 语音记账的共享状态；麦克风可能在 Tab Bar 附属栏里，与各一级页面的会话卡片分属两处，由这里统一持有。
     @State private var voice = VoiceBookkeepingState()
-    /// 余额走势的数据缓存，账户页、资产趋势页和账户详情共用；切 Tab 时保留，回来不用重新汇总流水。
+    /// 余额走势的数据缓存，账户页、资产分析页和账户详情共用；切 Tab 时保留，回来不用重新汇总流水。
     @State private var balanceHistory = BalanceHistoryStore()
 
     /// 是否允许联网；没注入同意状态时按允许处理。
@@ -378,8 +378,8 @@ struct AppTabView: View {
                             AccountDetailView(accountID: accountID)
                         case let .transactionDetail(transactionID):
                             BookkeepingTransactionDetailView(transactionID: transactionID)
-                        case .netWorthTrend:
-                            NetWorthTrendView()
+                        case .assetAnalysis:
+                            AssetAnalysisView()
                         }
                     }
             }

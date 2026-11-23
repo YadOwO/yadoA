@@ -100,27 +100,13 @@ struct CategoryRankingView: View {
                     }
                 }
 
-                rankingBar(ratio(item.amount, to: maximum), seed: item.id.handDrawnSeed)
+                LedgerRankingBar(value: ratio(item.amount, to: maximum), seed: item.id.handDrawnSeed)
             }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(item.title))
         .accessibilityValue(Text("\(amount), \(percentage)"))
         .accessibilityIdentifier("category-ranking-\(item.id)")
-    }
-
-    /// 用一笔粗墨线表示该分类相对最高分类的比例，底下的淡线是满格长度。
-    private func rankingBar(_ value: Double, seed: UInt64) -> some View {
-        let style = StrokeStyle(lineWidth: 4, lineCap: .round)
-        return ZStack {
-            HandDrawnRule(seed: seed)
-                .stroke(Color.primary.opacity(0.1), style: style)
-            HandDrawnRule(seed: seed)
-                .trim(from: 0, to: value)
-                .stroke(Color.primary.opacity(0.85), style: style)
-        }
-        .frame(height: 6)
-        .accessibilityHidden(true)
     }
 
     /// 分类名称与本周期金额占比。
@@ -139,6 +125,28 @@ struct CategoryRankingView: View {
     private func ratio(_ amount: Decimal, to total: Decimal) -> Double {
         guard total > 0 else { return 0 }
         return min(max(NSDecimalNumber(decimal: amount / total).doubleValue, 0), 1)
+    }
+}
+
+/// 排行里的一道比例线：一笔粗墨线表示这一项相对最高一项的比例，底下的淡线是满格长度。分类排行和资产排行共用。
+struct LedgerRankingBar: View {
+    /// 比例，0...1。
+    let value: Double
+
+    /// 笔迹种子，同一项每次画出来的抖动一样。
+    let seed: UInt64
+
+    var body: some View {
+        let style = StrokeStyle(lineWidth: 4, lineCap: .round)
+        ZStack {
+            HandDrawnRule(seed: seed)
+                .stroke(Color.primary.opacity(0.1), style: style)
+            HandDrawnRule(seed: seed)
+                .trim(from: 0, to: value)
+                .stroke(Color.primary.opacity(0.85), style: style)
+        }
+        .frame(height: 6)
+        .accessibilityHidden(true)
     }
 }
 

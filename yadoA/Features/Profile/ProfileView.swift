@@ -3,8 +3,9 @@ import SwiftUI
 
 /// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、周期记账、分类）、AI 点数与每日签到、云端同步、“设置”二级页、意见反馈和更多芽豆产品。
 ///
-/// 页头的签到气泡登录后第一次出现时，从气泡弹出签到引导（`CheckInGuideCard`），每个账号只弹一次；
-/// 签到得到连签礼包时，庆祝动画结束后直接弹出开礼包的整屏（`CheckInGiftOpeningView`）。
+/// 页头的签到气泡登录后第一次出现时，从气泡弹出签到引导（`CheckInGuideCard`），每个账号只弹一次。
+/// 签到成功后「+N 点」从气泡飞到「AI 点数」那一行，「AI 点数」「每日签到」两行的数字从签到前滚到新值（`CheckInRewardToken`）；
+/// 签到得到连签礼包时，这段动画结束后直接弹出开礼包的整屏（`CheckInGiftOpeningView`）。
 ///
 /// 语言、外观、默认账户、导入导出、退出登录等低频项统一收进 `SettingsView`，已停用账户由“账户”Tab 承载。
 /// 进入二级页面都走路径导航（见 `ProfileRoute`），根导航据此判断是否显示语音入口。
@@ -47,99 +48,146 @@ struct ProfileView: View {
     /// 正在开的礼包，非空时弹出开礼包的整屏。
     @State private var openingGift: AICheckInGift?
 
+    /// 签到期间按住不变的「AI 点数」「每日签到」行尾，等奖励飞到再依次放开；为 nil 时两行都显示最新值。
+    @State private var heldRewardRows: CheckInHeldRows?
+
+    /// 气泡庆祝结束、要飞到「AI 点数」行的点数；由滚动视图那一层接手启动飞行，接手后清空。
+    @State private var departingReward: Int?
+
+    /// 正在飞的「+N 点」；为 nil 时没有在飞。
+    @State private var rewardFlight: CheckInRewardFlight?
+
+    /// 飞行和放开数字的整段流程是否在进行；进行中时这次得到的礼包等流程结束再弹。
+    @State private var isRewardSequenceRunning = false
+
+    /// 刚放开、正用账本绿提示的行。
+    @State private var highlightedRewardRows: Set<CheckInRewardRow> = []
+
+    /// 签到气泡中心在滚动内容里的位置，飞行的起点。
+    @State private var checkInBubbleCenter: CGPoint?
+
+    /// 「AI 点数」行在滚动内容里的位置，飞行的终点在它的行尾数字附近。
+    @State private var pointsRowFrame: CGRect?
+
+    /// 「AI 点数」「每日签到」两行是否基本都在屏幕上；不在时先滚过去再飞。
+    @State private var areRewardRowsVisible = true
+
+    /// 滚动内容的命名坐标空间：气泡、「AI 点数」行和飞行的小签都按它定位。
+    nonisolated static let contentCoordinateSpace = "profile.content"
+
+    /// 「AI 点数」「每日签到」所在分组的滚动标识。
+    nonisolated static let rewardRowsID = "profile.rewardRows"
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 28) {
-                profileHeader
+        ScrollViewReader { scrollProxy in
+            ScrollView {
+                VStack(spacing: 28) {
+                    profileHeader
 
-                ProfileSettingsSection(nil, seed: "profile.section.bookkeeping") {
-                    // 账单是按月、按年回看的汇总，不是日常记账操作，放在这里不占记账页导航栏。
-                    NavigationLink(value: ProfileRoute.bills) {
-                        ProfileSettingsRow(titleKey: "bill.title", symbol: "doc.text")
-                    }
-                    .accessibilityIdentifier("profile-bills")
-
-                    ProfileSettingsRowDivider()
-
-                    NavigationLink(value: ProfileRoute.recurringRules) {
-                        ProfileSettingsRow(titleKey: "recurring.title", symbol: "repeat")
-                    }
-                    .accessibilityIdentifier("profile-recurring")
-
-                    ProfileSettingsRowDivider()
-
-                    NavigationLink(value: ProfileRoute.categories) {
-                        ProfileSettingsRow(titleKey: "category.management.title", symbol: "square.grid.2x2")
-                    }
-                    .accessibilityIdentifier("profile-category-management")
-                }
-
-                // 离线模式（没同意隐私政策）下 AI、云同步和反馈都要联网，入口整体隐藏
-                if isNetworkAllowed {
-                    ProfileSettingsSection(nil, seed: "profile.section.ai") {
-                        NavigationLink(value: ProfileRoute.aiPoints) {
-                            ProfileSettingsRow(
-                                titleKey: "ai.points.title",
-                                symbol: "sparkles",
-                                value: aiPointsValue,
-                                // 余额不够快捷语音说一句时用账本红提醒，其余保持灰色；与 AI 点数页的余额颜色一致
-                                valueTint: authStore.isAuthenticated && aiPoints?.isExhausted(for: .quickVoice) == true
-                                    ? Color(.ledgerRed) : nil,
-                                valueContentTransition: .numericText()
-                            )
+                    ProfileSettingsSection(nil, seed: "profile.section.bookkeeping") {
+                        // 账单是按月、按年回看的汇总，不是日常记账操作，放在这里不占记账页导航栏。
+                        NavigationLink(value: ProfileRoute.bills) {
+                            ProfileSettingsRow(titleKey: "bill.title", symbol: "doc.text")
                         }
-                        .animation(reduceMotion ? nil : .snappy, value: aiPoints?.balance)
-                        .accessibilityIdentifier("profile-ai-points")
+                        .accessibilityIdentifier("profile-bills")
 
                         ProfileSettingsRowDivider()
 
-                        checkInEntry
-                    }
-                }
+                        NavigationLink(value: ProfileRoute.recurringRules) {
+                            ProfileSettingsRow(titleKey: "recurring.title", symbol: "repeat")
+                        }
+                        .accessibilityIdentifier("profile-recurring")
 
-                ProfileSettingsSection(nil, seed: "profile.section.data") {
+                        ProfileSettingsRowDivider()
+
+                        NavigationLink(value: ProfileRoute.categories) {
+                            ProfileSettingsRow(titleKey: "category.management.title", symbol: "square.grid.2x2")
+                        }
+                        .accessibilityIdentifier("profile-category-management")
+                    }
+
+                    // 离线模式（没同意隐私政策）下 AI、云同步和反馈都要联网，入口整体隐藏
                     if isNetworkAllowed {
-                        NavigationLink(value: ProfileRoute.sync) {
-                            ProfileSettingsRow(
-                                titleKey: "sync.title",
-                                symbol: "icloud",
-                                value: text(isSyncOn ? "sync.row.on" : "sync.row.off"),
-                                // 已开启用账本绿表示生效，未开启保持灰色；账本绿已配好浅色与深色两套
-                                valueTint: isSyncOn ? Color(.ledgerGreen) : nil
-                            )
-                        }
-                        .accessibilityIdentifier("profile-sync")
+                        ProfileSettingsSection(nil, seed: "profile.section.ai") {
+                            NavigationLink(value: ProfileRoute.aiPoints) {
+                                pointsRow
+                            }
+                            .animation(reduceMotion ? nil : .snappy, value: aiPoints?.balance)
+                            // 签到奖励飞行的终点
+                            .onGeometryChange(for: CGRect.self) { proxy in
+                                proxy.frame(in: .named(Self.contentCoordinateSpace))
+                            } action: { frame in
+                                pointsRowFrame = frame
+                            }
+                            .accessibilityIdentifier("profile-ai-points")
 
-                        ProfileSettingsRowDivider()
-                    }
-
-                    NavigationLink(value: ProfileRoute.settings) {
-                        ProfileSettingsRow(titleKey: "settings.title", symbol: "gearshape")
-                    }
-                    .accessibilityIdentifier("profile-settings")
-                }
-
-                if isNetworkAllowed {
-                    ProfileSettingsSection(nil, seed: "profile.section.feedback") {
-                        feedbackEntry
-
-                        // 目录里除了本 App 没有别的产品时不显示入口，避免点进去是空页面
-                        if seriesCatalog?.products.isEmpty == false {
                             ProfileSettingsRowDivider()
 
-                            NavigationLink(value: ProfileRoute.moreProducts) {
-                                ProfileSettingsRow(titleKey: "series.title", symbol: "square.stack.3d.up")
-                            }
-                            .accessibilityIdentifier("profile-more-products")
+                            checkInEntry
+                        }
+                        .id(Self.rewardRowsID)
+                        .onScrollVisibilityChange(threshold: 0.9) { visible in
+                            areRewardRowsVisible = visible
                         }
                     }
-                }
 
-                brandFooter
+                    ProfileSettingsSection(nil, seed: "profile.section.data") {
+                        if isNetworkAllowed {
+                            NavigationLink(value: ProfileRoute.sync) {
+                                ProfileSettingsRow(
+                                    titleKey: "sync.title",
+                                    symbol: "icloud",
+                                    value: text(isSyncOn ? "sync.row.on" : "sync.row.off"),
+                                    // 已开启用账本绿表示生效，未开启保持灰色；账本绿已配好浅色与深色两套
+                                    valueTint: isSyncOn ? Color(.ledgerGreen) : nil
+                                )
+                            }
+                            .accessibilityIdentifier("profile-sync")
+
+                            ProfileSettingsRowDivider()
+                        }
+
+                        NavigationLink(value: ProfileRoute.settings) {
+                            ProfileSettingsRow(titleKey: "settings.title", symbol: "gearshape")
+                        }
+                        .accessibilityIdentifier("profile-settings")
+                    }
+
+                    if isNetworkAllowed {
+                        ProfileSettingsSection(nil, seed: "profile.section.feedback") {
+                            feedbackEntry
+
+                            // 目录里除了本 App 没有别的产品时不显示入口，避免点进去是空页面
+                            if seriesCatalog?.products.isEmpty == false {
+                                ProfileSettingsRowDivider()
+
+                                NavigationLink(value: ProfileRoute.moreProducts) {
+                                    ProfileSettingsRow(titleKey: "series.title", symbol: "square.stack.3d.up")
+                                }
+                                .accessibilityIdentifier("profile-more-products")
+                            }
+                        }
+                    }
+
+                    brandFooter
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 32)
+                .coordinateSpace(.named(Self.contentCoordinateSpace))
+                .overlay(alignment: .topLeading) {
+                    if let rewardFlight {
+                        CheckInRewardToken(flight: rewardFlight)
+                            .id(rewardFlight.id)
+                    }
+                }
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 32)
+            // 气泡把点数交出来后，在能拿到滚动代理的这一层接着飞
+            .onChange(of: departingReward) { _, points in
+                guard let points else { return }
+                departingReward = nil
+                runRewardSequence(points: points, scrollProxy: scrollProxy)
+            }
         }
         .paperPage()
         .navigationTitle(text("profile.title"))
@@ -171,7 +219,13 @@ struct ProfileView: View {
             checkInPlacement = .random()
             isVisible = true
         }
-        .onDisappear { isVisible = false }
+        .onDisappear {
+            isVisible = false
+            // 签到动画中途离开本页时气泡的流程会被取消、不再交接；把按住的数字放开，免得回来时还停在旧值
+            if !isRewardSequenceRunning {
+                heldRewardRows = nil
+            }
+        }
         .task(id: refreshTrigger) {
             // 每次回到“我的”都刷新一次余额，其他芽豆 App 用掉的点数也能及时反映
             await aiPoints?.refresh()
@@ -221,31 +275,63 @@ struct ProfileView: View {
         }
     }
 
-    /// 每日签到行：有待开的礼包时行尾用礼包主色提示，否则显示连签天数，未登录或还没签过时留空。
+    /// 每日签到行：签到期间先停在签到前的样子，奖励飞到后连签天数滚到新值并短暂变绿。
     private var checkInRow: some View {
-        let gifts = authStore.isAuthenticated ? aiPoints?.unopenedGifts ?? [] : []
-        let streak = authStore.isAuthenticated ? aiPoints?.checkInStatus?.streak ?? 0 : 0
-        let value: String
-        if !gifts.isEmpty {
-            value = AccountLocalization.formatted(
-                "checkIn.row.gifts",
-                value: gifts.count.formatted(.number.locale(locale)),
-                locale: locale
-            )
-        } else if streak > 0 {
-            value = AccountLocalization.formatted(
-                "checkIn.row.streak",
-                value: streak.formatted(.number.locale(locale)),
-                locale: locale
-            )
-        } else {
-            value = ""
-        }
+        let shown = heldRewardRows?.streak ?? liveCheckInRowValue
         return ProfileSettingsRow(
             titleKey: "checkIn.title",
             symbol: "calendar.badge.checkmark",
-            value: value,
-            valueTint: gifts.first?.tier.tint
+            value: shown.text,
+            valueTint: highlightedRewardRows.contains(.streak) ? Color(.ledgerGreen) : shown.tint,
+            valueContentTransition: .numericText()
+        )
+    }
+
+    /// 每日签到行尾的最新值：有待开的礼包时用礼包主色写礼包数，否则写连签天数，未登录或还没签过时留空。
+    private var liveCheckInRowValue: CheckInHeldRows.HeldValue {
+        let gifts = authStore.isAuthenticated ? aiPoints?.unopenedGifts ?? [] : []
+        let streak = authStore.isAuthenticated ? aiPoints?.checkInStatus?.streak ?? 0 : 0
+        if !gifts.isEmpty {
+            return .init(
+                text: AccountLocalization.formatted(
+                    "checkIn.row.gifts",
+                    value: gifts.count.formatted(.number.locale(locale)),
+                    locale: locale
+                ),
+                tint: gifts.first?.tier.tint
+            )
+        }
+        if streak > 0 {
+            return .init(
+                text: AccountLocalization.formatted(
+                    "checkIn.row.streak",
+                    value: streak.formatted(.number.locale(locale)),
+                    locale: locale
+                ),
+                tint: nil
+            )
+        }
+        return .init(text: "", tint: nil)
+    }
+
+    /// AI 点数行：签到期间先停在签到前的余额，奖励飞到后滚到新余额并短暂变绿。
+    private var pointsRow: some View {
+        let shown = heldRewardRows?.points ?? livePointsRowValue
+        return ProfileSettingsRow(
+            titleKey: "ai.points.title",
+            symbol: "sparkles",
+            value: shown.text,
+            valueTint: highlightedRewardRows.contains(.points) ? Color(.ledgerGreen) : shown.tint,
+            valueContentTransition: .numericText()
+        )
+    }
+
+    /// AI 点数行尾的最新值：余额不够快捷语音说一句时用账本红提醒，其余保持灰色；与 AI 点数页的余额颜色一致。
+    private var livePointsRowValue: CheckInHeldRows.HeldValue {
+        .init(
+            text: aiPointsValue,
+            tint: authStore.isAuthenticated && aiPoints?.isExhausted(for: .quickVoice) == true
+                ? Color(.ledgerRed) : nil
         )
     }
 
@@ -385,9 +471,19 @@ struct ProfileView: View {
                     messageWidth: sideGap,
                     protectionOffer: authStore.isAuthenticated ? aiPoints?.checkInStatus?.protectionOffer : nil,
                     onTap: handleCheckInTap,
-                    onFinished: finishCheckIn
+                    onFinished: finishCheckIn,
+                    onRewardDeparting: { points in
+                        departingReward = points
+                    }
                 )
                 .frame(width: 72, height: 72)
+                // 签到奖励飞行的起点
+                .onGeometryChange(for: CGPoint.self) { proxy in
+                    let frame = proxy.frame(in: .named(Self.contentCoordinateSpace))
+                    return CGPoint(x: frame.midX, y: frame.midY)
+                } action: { center in
+                    checkInBubbleCenter = center
+                }
                 .popover(isPresented: $isCheckInGuidePresented, attachmentAnchor: .rect(.bounds)) {
                     CheckInGuideCard(status: aiPoints?.checkInStatus) {
                         isCheckInGuidePresented = false
@@ -411,23 +507,106 @@ struct ProfileView: View {
             return .signInRequired
         }
         isCheckInBadgeActive = true
+        // 先按住两行签到前的样子：store 一拿到结果就会改余额和连签，等奖励飞到再放开，让数字从旧值滚到新值
+        heldRewardRows = CheckInHeldRows(points: livePointsRowValue, streak: liveCheckInRowValue)
         switch await aiPoints.checkIn(useCard: useCard) {
         case let .success(result):
             pendingGift = result.newGifts.first
+            // 今天已经签过：没有新点数可飞，直接显示最新值
+            if result.isDuplicate {
+                heldRewardRows = nil
+            }
             return .success(result)
         case let .failure(error):
             isCheckInBadgeActive = false
+            heldRewardRows = nil
             return .failure(error)
         }
     }
 
-    /// 签到庆祝结束：收起气泡；这次签到得到了礼包就弹出开礼包的整屏，礼包以 store 里最新的为准，已开完时不再弹。
+    /// 签到庆祝结束：收起气泡；点数还在飞时礼包等整段流程结束再弹，否则直接弹。
     private func finishCheckIn() {
         isCheckInBadgeActive = false
-        if let pending = pendingGift {
-            pendingGift = nil
-            if openingGift == nil, let latest = aiPoints?.unopenedGifts.first(where: { $0.id == pending.id }) {
-                openingGift = latest
+        guard !isRewardSequenceRunning else { return }
+        // 没有交接点数（例如重复签到）时不会有人放开按住的数字，这里兜底
+        heldRewardRows = nil
+        openPendingGift()
+    }
+
+    /// 这次签到得到了礼包就弹出开礼包的整屏；礼包以 store 里最新的为准，已开完时不再弹。
+    private func openPendingGift() {
+        guard let pending = pendingGift else { return }
+        pendingGift = nil
+        if openingGift == nil, let latest = aiPoints?.unopenedGifts.first(where: { $0.id == pending.id }) {
+            openingGift = latest
+        }
+    }
+
+    /// 签到奖励落到两行上：「AI 点数」不在屏幕上时先滚过去，「+N 点」从气泡飞到那一行，
+    /// 落下后两行依次放开、数字滚到新值并短暂变绿，最后弹出这次得到的礼包。
+    ///
+    /// 开启「减弱动态效果」时不滚、不飞、不变色，数字直接换成新值。
+    ///
+    /// - Parameters:
+    ///   - points: 这次签到获得的点数。
+    ///   - scrollProxy: 「我的」页滚动视图的代理。
+    private func runRewardSequence(points: Int, scrollProxy: ScrollViewProxy) {
+        isRewardSequenceRunning = true
+        Task {
+            if !reduceMotion {
+                if !areRewardRowsVisible {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        // 不给锚点：只滚到刚好露出这一组为止
+                        scrollProxy.scrollTo(Self.rewardRowsID)
+                    }
+                    try? await Task.sleep(for: .seconds(0.4))
+                }
+                if let from = checkInBubbleCenter, let row = pointsRowFrame {
+                    // 终点落在行尾数字附近：右边留出箭头和内边距
+                    rewardFlight = CheckInRewardFlight(
+                        points: points,
+                        from: from,
+                        to: CGPoint(x: row.maxX - 70, y: row.midY)
+                    )
+                    try? await Task.sleep(for: .seconds(CheckInRewardToken.duration))
+                    rewardFlight = nil
+                }
+                AppHaptics.play(.tap)
+            }
+            releaseHeldRewardRow(.points)
+            if !reduceMotion {
+                try? await Task.sleep(for: .seconds(0.3))
+            }
+            releaseHeldRewardRow(.streak)
+            if !reduceMotion {
+                // 绿色留一小会儿让人看清新数字，再退回原色；礼包和退色一起出现，不让人多等
+                try? await Task.sleep(for: .seconds(0.9))
+                withAnimation(.easeOut(duration: 0.4)) {
+                    highlightedRewardRows = []
+                }
+            }
+            heldRewardRows = nil
+            isRewardSequenceRunning = false
+            // 气泡已经收尾时由这里弹礼包；还没收尾（减弱动态效果下整段很快）时交给 finishCheckIn
+            if !isCheckInBadgeActive {
+                openPendingGift()
+            }
+        }
+    }
+
+    /// 放开按住的一行：数字从签到前滚到最新值，并用账本绿提示一下。
+    ///
+    /// - Parameter row: 要放开的行。
+    private func releaseHeldRewardRow(_ row: CheckInRewardRow) {
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.5)) {
+            switch row {
+            case .points:
+                heldRewardRows?.points = nil
+            case .streak:
+                heldRewardRows?.streak = nil
+            }
+            if !reduceMotion {
+                highlightedRewardRows.insert(row)
             }
         }
     }

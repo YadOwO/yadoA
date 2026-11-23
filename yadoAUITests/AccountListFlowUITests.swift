@@ -6,7 +6,7 @@ final class AccountListFlowUITests: XCTestCase {
     }
 
     @MainActor
-    func testEmptyStateCreatesFirstAccountAndMovesAddActionToMoreMenu() throws {
+    func testEmptyStateCreatesFirstAccountAndMovesAddActionToToolbar() throws {
         let app = launchIsolatedAppInEnglish()
         openAccountsTab(in: app)
 
@@ -41,16 +41,31 @@ final class AccountListFlowUITests: XCTestCase {
         XCTAssertFalse(summaryCard.label.isEmpty)
         XCTAssertTrue(summaryCard.label.contains("40"))
 
-        // 添加账户和账户管理都收在右上角的「更多」菜单里。
+        // 汇总卡片点进资产分析页：默认看净资产；切到资产后按账户排行，只有这一个现金账户。
+        summaryCard.tap()
+        let analysisBar = app.navigationBars["Net Worth Analysis"]
+        XCTAssertTrue(analysisBar.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.descendants(matching: .any)["asset-analysis-debt-ratio-card"].exists)
+        app.buttons["asset-analysis-tab-assets"].tap()
+        let rankingRow = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "asset-analysis-ranking-")
+        ).firstMatch
+        XCTAssertTrue(rankingRow.waitForExistence(timeout: 2))
+        analysisBar.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(summaryCard.waitForExistence(timeout: 3))
+
+        // 有账户后，添加账户直接放在右上角；账户管理收在旁边的「更多」菜单里。
+        XCTAssertTrue(app.buttons["account-list-toolbar-add"].waitForExistence(timeout: 2))
         var more = app.buttons["account-list-more"]
         if !more.exists {
             more = app.navigationBars["Accounts"].buttons["More"]
         }
         XCTAssertTrue(more.waitForExistence(timeout: 2))
         more.tap()
-        // 系统菜单保留操作标题，但不会保留 SwiftUI 按钮的 identifier。
-        XCTAssertTrue(app.buttons["Add Account"].waitForExistence(timeout: 2))
+        // 系统菜单保留操作标题，但不会保留 SwiftUI 按钮的 identifier。只有一个账户时还不能转账。
         let management = app.buttons["Account Management"]
+        XCTAssertTrue(management.waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons["Transfer"].exists)
         XCTAssertTrue(management.exists)
         management.tap()
         XCTAssertTrue(app.buttons["account-management-choose-default"].waitForExistence(timeout: 2))

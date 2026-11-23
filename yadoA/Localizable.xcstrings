@@ -1,20 +1,290 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "account.trend.net_worth.title" : {
-      "comment" : "资产趋势页标题，从账户页汇总卡片进入",
+    "account.analysis.title" : {
+      "comment" : "资产分析页标题，从账户页汇总卡片进入",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Net Worth Trend"
+            "value" : "Net Worth Analysis"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "资产趋势"
+            "value" : "资产分析"
+          }
+        }
+      }
+    },
+    "account.analysis.tab.accessibility" : {
+      "comment" : "资产分析页顶部「净资产 / 资产 / 负债」切换的无障碍名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看内容"
+          }
+        }
+      }
+    },
+    "account.analysis.debt_ratio.title" : {
+      "comment" : "资产分析页净资产 tab：资产负债率卡片标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debt-to-Asset Ratio"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "资产负债率"
+          }
+        }
+      }
+    },
+    "account.analysis.debt_ratio.formula" : {
+      "comment" : "资产负债率卡片底部的算法说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debt-to-asset ratio = debts ÷ assets"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "资产负债率 = 负债 ÷ 资产"
+          }
+        }
+      }
+    },
+    "account.analysis.debt_ratio.none" : {
+      "comment" : "资产负债率说明：没有负债",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No debts: everything you have is yours."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有负债，资产都是自己的。"
+          }
+        }
+      }
+    },
+    "account.analysis.debt_ratio.negligible" : {
+      "comment" : "资产负债率说明：负债不到资产的 1%",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debts are less than 1% of your assets."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负债不到资产的 1%。"
+          }
+        }
+      }
+    },
+    "account.analysis.debt_ratio.partial_format" : {
+      "comment" : "资产负债率说明，%@ 为每 100 元资产里负债的元数（1 到 100 的整数）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Out of every 100 in assets, %@ is debt."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每 100 元资产里，有 %@ 元是负债。"
+          }
+        }
+      }
+    },
+    "account.analysis.debt_ratio.exceeds" : {
+      "comment" : "资产负债率说明：负债超过了资产，或者没有资产却有负债",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your debts are more than your assets, so your net worth is below zero."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负债已经超过资产，净资产是负的。"
+          }
+        }
+      }
+    },
+    "account.analysis.composition.assets" : {
+      "comment" : "资产 tab：按账户类型的资产构成环形图标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asset Mix"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "资产构成"
+          }
+        }
+      }
+    },
+    "account.analysis.composition.liabilities" : {
+      "comment" : "负债 tab：按账户类型的负债构成环形图标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debt Mix"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负债构成"
+          }
+        }
+      }
+    },
+    "account.analysis.composition.remaining" : {
+      "comment" : "资产或负债构成里合并的较小几类账户",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他"
+          }
+        }
+      }
+    },
+    "account.analysis.ranking.assets" : {
+      "comment" : "资产 tab：按账户从多到少的资产排行标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assets by Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "资产排行"
+          }
+        }
+      }
+    },
+    "account.analysis.ranking.liabilities" : {
+      "comment" : "负债 tab：按账户从多到少的负债排行标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debts by Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负债排行"
+          }
+        }
+      }
+    },
+    "account.analysis.ranking.empty.assets" : {
+      "comment" : "资产排行为空时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No asset balances yet."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有资产余额。"
+          }
+        }
+      }
+    },
+    "account.analysis.ranking.empty.liabilities" : {
+      "comment" : "负债排行为空时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No debts."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有负债。"
+          }
+        }
+      }
+    },
+    "account.analysis.ranking.open_hint" : {
+      "comment" : "资产或负债排行里一行的无障碍提示：点按打开账户详情",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows the account details."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看账户详情"
           }
         }
       }
@@ -26,13 +296,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows how your net worth has changed."
+            "value" : "Shows your net worth trend, debt ratio and asset mix."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "查看资产趋势"
+            "value" : "查看资产分析"
           }
         }
       }
@@ -123,24 +393,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "时间范围"
-          }
-        }
-      }
-    },
-    "account.trend.metric.accessibility" : {
-      "comment" : "资产趋势页净资产、资产、负债切换的无障碍名称",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trend type"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "走势类型"
           }
         }
       }
@@ -242,13 +494,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Worked out day by day from each account's current balance and its records. Only active accounts are included. Each account counts from the day it was added, or from just before its earliest record if that is earlier. Credit cards and loans count toward liabilities as the amount owed."
+            "value" : "Trends are worked out day by day from each account's current balance and its records. Only active accounts are included. Each account counts from the day it was added, or from just before its earliest record if that is earlier. Credit cards and loans count toward liabilities as the amount owed. The mix and rankings use each account's current balance."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "按每个账户的当前余额和流水逐日倒推，只算启用中的账户。每个账户从建立那天起计入，补记了更早的流水时从那笔流水之前算起。信用卡、负债按欠款计入负债。"
+            "value" : "走势按每个账户的当前余额和流水逐日倒推，只算启用中的账户。每个账户从建立那天起计入，补记了更早的流水时从那笔流水之前算起。信用卡、负债按欠款计入负债。构成和排行按各账户当前余额计算。"
           }
         }
       }

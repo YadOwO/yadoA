@@ -252,10 +252,15 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                 )
                 .accessibilityIdentifier("bookkeeping-detail-category")
 
+                // 账户名前带上账户图标（如招商银行的品牌图），不必读字就能认出是哪个账户。
                 LedgerField(
                     title: AccountLocalization.string("bookkeeping.search.detail.account", locale: locale),
                     value: presentation.accountName ?? accountStatusText(presentation.accountState)
-                )
+                ) {
+                    if let icon = presentation.accountIcon {
+                        AccountIconView(presentation: icon, size: 22)
+                    }
+                }
                 .accessibilityIdentifier("bookkeeping-detail-account")
 
                 // 账户正常时这一行只会写"正常"，没有信息量；只在停用、删除等异常状态下出现。

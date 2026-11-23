@@ -4,7 +4,7 @@ import SwiftUI
 
 /// 账户列表顶部的资产汇总卡片，突出净资产并并列展示资产和负债；首次引导的示例也用它。
 ///
-/// 账户页传入净资产走势时，净资产下面多一条迷你走势和「较某天」的变化，整张卡片点进资产趋势页。
+/// 账户页传入净资产走势时，净资产下面多一条迷你走势和「较某天」的变化；账户页上整张卡片点进资产分析页。
 struct AccountSummaryCard: View {
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
@@ -17,17 +17,28 @@ struct AccountSummaryCard: View {
     /// 净资产近三个月的走势；为空或画不成线时不显示迷你走势，例如首次引导的示例和还没记过账时。
     var trend: BalanceTrendSeries?
 
+    /// 卡片能点进资产分析页时为 true：显示一个向右的箭头，读屏提示点按打开；首次引导的示例不能点，保持默认 false。
+    var showsDisclosure = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 5) {
-                Text(
-                    AccountLocalization.string(
-                        "account.summary.net_assets",
-                        locale: locale
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(
+                        AccountLocalization.string(
+                            "account.summary.net_assets",
+                            locale: locale
+                        )
                     )
-                )
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+
+                    // 有迷你走势时箭头跟在「较某天」那一行后面；没有走势时放在标题这一行，提示整张卡片能点进去
+                    if showsDisclosure, !showsSparkline {
+                        Spacer(minLength: 8)
+                        disclosureChevron
+                    }
+                }
 
                 Text(presentation.formattedNetAssets)
                     .font(.system(.largeTitle, design: .serif, weight: .medium))
@@ -37,7 +48,7 @@ struct AccountSummaryCard: View {
                     .amountTone(presentation.netAssetsTone)
             }
 
-            if let trend, trend.canDraw, let first = trend.points.first {
+            if showsSparkline, let trend, let first = trend.points.first {
                 sparkline(trend, since: first.date)
             }
 
@@ -74,11 +85,23 @@ struct AccountSummaryCard: View {
         .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityValue(trendAccessibilityValue)
         .accessibilityHint(
-            trend?.canDraw == true
+            showsDisclosure
                 ? AccountLocalization.string("account.trend.open_hint", locale: locale)
                 : ""
         )
         .accessibilityIdentifier("account-list-summary-card")
+    }
+
+    /// 是否在净资产下面画迷你走势：传了走势且至少两个点。
+    private var showsSparkline: Bool {
+        trend?.canDraw == true
+    }
+
+    /// 向右的箭头，提示整张卡片能点进资产分析页。
+    private var disclosureChevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.tertiary)
     }
 
     /// 迷你走势的播报：「较 2026/8/17，+¥1,234.00」；没有走势时为空。
@@ -90,7 +113,7 @@ struct AccountSummaryCard: View {
         ].joined(separator: ", ")
     }
 
-    /// 净资产下的迷你走势：一条没有坐标轴的线，下面写「较某天」的变化和一个箭头，提示点进去能看详细走势。
+    /// 净资产下的迷你走势：一条没有坐标轴的线，下面写「较某天」的变化；能点进去时后面跟一个箭头。
     ///
     /// - Parameters:
     ///   - trend: 净资产走势。
@@ -102,10 +125,10 @@ struct AccountSummaryCard: View {
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 BalanceTrendChangeLine(series: trend, since: since)
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
+                if showsDisclosure {
+                    Spacer(minLength: 8)
+                    disclosureChevron
+                }
             }
         }
     }

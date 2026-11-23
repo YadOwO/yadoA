@@ -603,6 +603,7 @@ struct BookkeepingSearchPresentation {
             transactionDay: transaction.transactionDay,
             formattedDate: formattedDate,
             accountName: accountName,
+            accountIcon: account.map { AccountListPresentation.row(for: $0, locale: locale).icon },
             accountState: accountState,
             note: note,
             accessibilityLabel: spokenParts.joined(separator: ", "),
@@ -814,6 +815,9 @@ struct BookkeepingTransactionDetailPresentation: Equatable {
 
     /// 账户名称；账户不可用时为空。
     let accountName: String?
+
+    /// 账户名前的小图标，与账户列表同一套规则（品牌图优先，否则用类型图标）；账户已删除时为空。
+    let accountIcon: AccountIconPresentation?
 
     /// 账户当前生命周期状态。
     let accountState: BookkeepingTransactionAccountState
