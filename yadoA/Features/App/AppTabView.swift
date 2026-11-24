@@ -372,9 +372,9 @@ struct AppTabView: View {
     private func homeDestination(_ route: HomeRoute) -> some View {
         switch route {
         case .expenseEntry:
-            HomeExpenseEntryPage(draft: nil)
+            HomeExpenseEntryPage(draft: nil, isSplitExpanded: isSplitExpanded)
         case let .repeatEntry(draft):
-            HomeExpenseEntryPage(draft: draft)
+            HomeExpenseEntryPage(draft: draft, isSplitExpanded: isSplitExpanded)
         case .search:
             // 搜索页里点开的详情在右栏里往下推
             BookkeepingSearchView { transactionID in
@@ -458,6 +458,7 @@ struct AppTabView: View {
 ///
 /// 作为右栏根页面时，保存或关闭后用容器的关闭动作清空路径：两栏展开时 `dismiss()` 对右栏根页面没有效果。
 /// 不是右栏根页面时（取不到关闭动作）沿用页面自己的 `dismiss()`。
+/// 两栏展开时右栏根页面没有系统返回按钮，因此左上角额外显示关闭按钮；单栏时有系统返回按钮，不显示。
 private struct HomeExpenseEntryPage: View {
     @Environment(\.modelContext) private var modelContext
     /// 右栏根页面关掉自己的动作；不是右栏根页面时为 nil。
@@ -466,8 +467,16 @@ private struct HomeExpenseEntryPage: View {
     /// 预填好的草稿；为空时新建一笔。
     let draft: DiningExpenseDraft?
 
+    /// 记账 Tab 当前是否为两栏展开。
+    let isSplitExpanded: Bool
+
     var body: some View {
-        DiningExpenseEntryView(draft: draft, onFinish: finishAction) { draft in
+        // 单栏时根页面也能取到关闭动作，所以必须同时判断两栏展开
+        DiningExpenseEntryView(
+            draft: draft,
+            onFinish: finishAction,
+            showsCloseButton: isSplitExpanded && closeDetail != nil
+        ) { draft in
             let repository = LocalExpenseRepository(
                 container: modelContext.container
             )

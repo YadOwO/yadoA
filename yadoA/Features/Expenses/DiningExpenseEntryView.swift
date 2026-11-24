@@ -15,6 +15,8 @@ struct DiningExpenseEntryView: View {
     private let screenshot: UIImage?
     /// 外部入口的关闭动作；普通导航录入沿用环境 dismiss。
     private let onFinish: (@MainActor () -> Void)?
+    /// 截图入口之外也显示关闭按钮：两栏展开时本页是右栏根页面，没有系统返回按钮，需要自己提供取消入口。
+    private let showsCloseButton: Bool
 
     /// 创建支出录入页。
     ///
@@ -22,15 +24,18 @@ struct DiningExpenseEntryView: View {
     ///   - draft: 可选的既有草稿，默认创建以今天为日期的新草稿。
     ///   - screenshot: 截图入口的参考图片，为空时保持普通记账流程。
     ///   - onFinish: 外部展示容器在取消或保存成功后的收尾动作。
+    ///   - showsCloseButton: 非截图入口时是否也显示关闭按钮，两栏展开且本页是右栏根页面时为 `true`。
     ///   - save: 上层注入的本地餐饮支出保存动作。
     init(
         draft: DiningExpenseDraft? = nil,
         screenshot: UIImage? = nil,
         onFinish: (@MainActor () -> Void)? = nil,
+        showsCloseButton: Bool = false,
         save: @escaping DiningExpenseSaveAction
     ) {
         self.screenshot = screenshot
         self.onFinish = onFinish
+        self.showsCloseButton = showsCloseButton
         _flow = StateObject(
             wrappedValue: DiningExpenseEntryFlow(
                 draft: draft,
@@ -62,13 +67,14 @@ struct DiningExpenseEntryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .interactiveDismissDisabled(flow.isSaving)
         .toolbar {
-            if screenshot != nil {
+            if screenshot != nil || showsCloseButton {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(AccountLocalization.string("common.close", locale: locale), systemImage: "xmark") {
                         finishEntry()
                     }
                     .disabled(flow.isSaving)
-                    .accessibilityIdentifier("screenshot-entry-close")
+                    // 截图入口沿用旧标识，UI 测试依赖它，且部分断言要求它在非截图入口不存在
+                    .accessibilityIdentifier(screenshot != nil ? "screenshot-entry-close" : "expense-entry-close")
                 }
             }
         }
