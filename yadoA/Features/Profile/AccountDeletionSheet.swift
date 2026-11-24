@@ -9,7 +9,7 @@ import SwiftUI
 ///
 /// 本机账本的处理方式没有默认值，必须选一项才能注销，避免误清本机数据。
 /// 注销进行中没有取消按钮、不能下滑关闭；弹层盖住整个界面（含 Tab Bar），设置页的退出登录点不到。
-/// 服务端没删完时留在这一页，写明原因，可以直接重试（三个注销接口都可重复调用）；
+/// 服务端没删完时留在这一页，写明原因，可以直接重试（yado_hub 的注销接口可重复调用）；
 /// 服务端已删除后显示结果，点完成关闭，由「账号与安全」页返回设置页。
 struct AccountDeletionSheet: View {
     @Environment(\.locale) private var locale
@@ -285,7 +285,7 @@ struct AccountDeletionSheet: View {
 
     // MARK: - 操作
 
-    /// 注销账号：先让 yado_ai、yado_hub、yadoA_be 三个服务端删除账号和云端数据，成功后处理本机数据并退出登录。
+    /// 注销账号：先让 yado_hub 删除各服务里这个账号的数据和 Logto 账号，成功后处理本机数据并退出登录。
     ///
     /// 删除的是芽豆系列所有 App 共用的芽豆账号（Logto 用户），注销后其他芽豆 App 也无法再用它登录，
     /// 所以确认页必须讲明影响全部 App。服务端没删完时回到确认阶段并写明原因；服务端已删除后进入结果阶段。
@@ -314,15 +314,11 @@ struct AccountDeletionSheet: View {
         syncLifecycle: SyncLifecycle
     ) async -> AccountDeletionOutcome {
         let authStore = authStore
-        let api = AccountDeletionAPI(
-            aiAccessToken: { try await authStore.accessTokenForAIService() },
-            syncAccessToken: { try await authStore.accessTokenForSyncService() },
-            hubAccessToken: { try await authStore.accessTokenForHubService() }
-        )
+        let api = AccountDeletionAPI(hubAccessToken: { try await authStore.accessTokenForHubService() })
         var remoteError: Error?
         do {
             try await syncLifecycle.deleteAccount(choice) {
-                try await api.deleteRemoteData()
+                try await api.deleteAccount()
             }
         } catch {
             remoteError = error
