@@ -9,6 +9,7 @@
 ## 测试与验证
 
 - 代码改完即可交付，不主动执行编译、单元测试或 UI 测试（如 `xcodebuild build/test`、启动模拟器）；验证由开发者本人完成。
+- 例外：yado_agents 里 agentd 的 testflight 流程可以在它自己的 worktree 里 Archive（Release，scheme `yadoA-prod`）并导出上传 TestFlight，这会编译；其他场景（包括 review、一次实现、对话里的 agent）照旧不主动编译、不跑测试。
 - 仍需同步维护受影响的测试代码（新增或更新断言），只是不运行；交付时说明哪些内容未经验证、建议重点测试什么。
 - 只有在开发者明确要求时才运行测试。
 
