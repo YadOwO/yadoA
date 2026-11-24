@@ -52,7 +52,7 @@ struct AccountDeletionSheet: View {
             .toolbar {
                 if isConfirming {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button(text("common.cancel")) {
+                        Button(text("common.cancel"), systemImage: "xmark") {
                             dismiss()
                         }
                         .accessibilityIdentifier("account-deletion-cancel")

@@ -28,7 +28,27 @@
 - 随环境变化的值只放在 `AuthConfig` 的 `dev` / `prod` 两套取值里，业务代码读 `AuthConfig.xxx`，不要在别处写死地址或自己按环境分支。
 - 开发机上不跑后端：dev 的服务都在 Mac mini 上，App 里没有"改连本机服务"的开关，不要再加。
 - 新增构建配置必须带 `ENV_DEV` 或 `ENV_PROD` 标志，否则编译失败。
-- 1.0 起只支持 iPhone、只用竖屏：App 和测试 target 的 `TARGETED_DEVICE_FAMILY` 都是 `1`，`INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone` 只有 `UIInterfaceOrientationPortrait`，也不设 `_iPad` 的方向。不要把设备族改回 `1,2`，不要恢复横屏。原因是 App 带着 iPad 支持发布以后，后续版本就不能再去掉。在 iPad 上 App 以 iPhone 兼容窗口运行，此时 `userInterfaceIdiom` 仍是 `.phone`。要做 iPad 版或横屏，先和维护者确认。
+- 1.0 起只支持 iPhone、只用竖屏：App 和测试 target 的 `TARGETED_DEVICE_FAMILY` 都是 `1`，`INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone` 只有 `UIInterfaceOrientationPortrait`，也不设 `_iPad` 的方向。不要把设备族改回 `1,2`，不要恢复横屏。原因是 App 带着 iPad 支持发布以后，后续版本就不能再去掉。在 iPad 上 App 以 iPhone 兼容窗口运行，此时 `userInterfaceIdiom` 仍是 `.phone`。要做 iPad 版或横屏，先和维护者确认。iPhone Duo 内屏不受这条竖屏锁定约束，见下一节，这不算"恢复横屏"。
+
+## iPhone Duo（折叠屏 iPhone）
+
+- iPhone Duo 是 iPhone，`userInterfaceIdiom` 是 `.phone`，设备族保持 `1`，不需要也不要为它加 iPad 支持。
+- 用 Xcode 27.1 及以上出包，App 在 Duo 上自动铺满全屏：
+  - 外屏比普通 iPhone 更宽更矮，宽度是 compact；系统会把导航栏、工具栏和 Tab Bar 放到屏幕侧边竖排。
+  - 内屏的宽高都是 regular，而且不管 App 的竖屏锁定，横着展开时 App 会被拉成横宽的样子。
+  - 内屏还能和别的 App 左右分屏，这时宽度又会变窄。
+- 布局只按可用宽度和尺寸类型判断：不要按屏幕方向、`userInterfaceIdiom` 或 `UIScreen.main` 做布局决定。
+- 开合是同一个窗口变大变小，不是重启；页面状态（填到一半的表单、当前月份、导航路径）在开合前后必须保留。
+- 记账、账户、"我的"三个 Tab 在宽屏上是左右两栏：左边一级页面，右边二级页面；内屏竖着时宽度不够，仍是单栏。图表 Tab 保持单栏。
+  - 这三个 Tab 在所有 iPhone 上都用同一个分栏容器 `TabSplitNavigation`（`Features/App/TabSplitNavigation.swift`，合上时系统把它收成一层层的导航，和普通 iPhone 一样），不要改回只在展开时才换成分栏：换容器会重建页面，开合一下填到一半的内容就没了。展开的宽度门槛和语音麦克风的显示规则在 `TabSplitLayout` 里。
+  - 导航路径仍是唯一状态：路径第一项显示在右栏，后面的项在右栏里继续往下推，拆分规则在 `TabSplitPath`。新增路由要实现 `TabSplitRoute.hasOwnBottomBar`：页面自带贴底操作栏时为 `true`，两栏时右栏是它就收起麦克风。
+  - 一级页面上的入口用 `TabRouteLink(value:)`，两栏时换掉右栏；不要直接写 `NavigationLink(value:)`，否则宽屏时会越叠越深。二级页面里的入口照常用 `NavigationLink(value:)`。
+  - 右栏根页面要关掉自己（例如删除、保存后）时，先取环境里的 `tabDetailClose`，取不到再用 `dismiss()`：两栏展开时 `dismiss()` 对右栏根页面没有效果。
+- 单栏页面在宽屏上用 `readableContentWidth(sideMargin:)`（`Components/ReadableContentWidth.swift`）把滚动内容限制在约 620pt 居中，背景照样铺满；表单页沿用 `.frame(maxWidth: 620)`。
+- 工具栏按钮一律同时给标题和 SF Symbol（`Label(标题, systemImage:)`），只有文字或自定义视图的按钮系统不会竖排；只负责关闭弹层的按钮放 `.cancellationAction`、用 `xmark`。键盘上方（`.keyboard`）的按钮不受影响。
+- 少写死尺寸；确实要固定尺寸的动画舞台，空间不够时整体等比缩小。
+- Duo 专用的新 API（`ReservedRegion`、`ArrangementView`、工具栏竖排相关的修饰符等）是 iOS 27.0 / 27.1 才有的，按下一节要求加 `#available`。
+- 改到布局时，用 Xcode 设备中心里的 iPhone Duo 模拟器看合上、打开、半折、旋转和左右分屏几种状态。
 
 ## 系统版本兼容
 

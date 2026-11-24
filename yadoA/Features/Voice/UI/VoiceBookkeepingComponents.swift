@@ -425,7 +425,7 @@ struct VoiceManualEntrySheet: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(AccountLocalization.string("common.cancel", locale: locale)) { onCancel() }
+                    Button(AccountLocalization.string("common.cancel", locale: locale), systemImage: "xmark") { onCancel() }
                 }
             }
         }

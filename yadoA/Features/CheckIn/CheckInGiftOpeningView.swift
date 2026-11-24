@@ -59,6 +59,9 @@ struct CheckInGiftOpeningView: View {
     @State private var haptics = CheckInHaptics()
     @State private var flow: Task<Void, Never>?
 
+    /// 整屏的可用尺寸；舞台按它缩小，装进比普通 iPhone 更宽更矮的屏幕（如 iPhone Duo 外屏）。
+    @State private var containerSize: CGSize = .zero
+
     /// 创建开礼包的整屏。
     ///
     /// - Parameters:
@@ -121,6 +124,7 @@ struct CheckInGiftOpeningView: View {
                     .id(confettiID)
             }
         }
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { containerSize = $0 }
         .onAppear { haptics.start() }
         .onDisappear {
             flow?.cancel()
@@ -226,6 +230,24 @@ struct CheckInGiftOpeningView: View {
         return min(gift.nextSeq, gift.totalOpens)
     }
 
+    /// 舞台设计尺寸（宽 × 高）；容器比它小时整体等比缩小，普通 iPhone 上比例恒为 1。
+    private static let stageDesignSize = CGSize(width: 360, height: 300)
+
+    /// 舞台以外的内容（关闭按钮、标题、结果区、按钮区和边距）占用的竖向高度，用来算舞台还剩多少。
+    private static let stageReservedHeight: CGFloat = 380
+
+    /// 舞台的等比缩放比例：主要按竖向剩余高度缩，最小 0.45，容器尺寸未知时为 1。
+    ///
+    /// 光芒和彩纸本来就会盖过左右边距，所以宽度只和整屏宽比：普通 iPhone 都比舞台宽，比例保持 1，
+    /// 只有分屏等整屏比舞台还窄时才跟着缩。高度里多算的 40 是舞台上下的留白。
+    private var stageScale: CGFloat {
+        guard containerSize.width > 0, containerSize.height > 0 else { return 1 }
+        let design = Self.stageDesignSize
+        let availableHeight = containerSize.height - Self.stageReservedHeight
+        let scale = min(1, containerSize.width / design.width, availableHeight / (design.height + 40))
+        return max(0.45, scale)
+    }
+
     /// 中间的舞台：光芒、星光、冲击波、礼盒、彩纸和年度礼包的印章；点礼盒也能打开。
     private var stage: some View {
         let ceremony = self.ceremony
@@ -263,7 +285,8 @@ struct CheckInGiftOpeningView: View {
                     .offset(x: 104, y: -96)
             }
         }
-        .frame(height: 300)
+        .scaleEffect(stageScale)
+        .frame(height: Self.stageDesignSize.height * stageScale)
     }
 
     /// 礼盒背后的光芒：开盖后展开并旋转；年度礼包里面再叠一层反向旋转的短光芒。

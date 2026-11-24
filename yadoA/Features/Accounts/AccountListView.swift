@@ -216,9 +216,10 @@ struct AccountListView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
 
-                // 有欠款填成了负数时，净资产会偏高；紧跟在汇总下面提示，点一下打开第一个这样的账户去改
+                // 有欠款填成了负数时，净资产会偏高；紧跟在汇总下面提示，点一下打开第一个这样的账户去改。
+                // 两栏时打开的账户会在对应的账户行上标出，提示本身不标
                 if let firstNegativeDebt = negativeDebtAccounts.first {
-                    NavigationLink(value: AccountsRoute.detail(firstNegativeDebt.id)) {
+                    TabRouteLink(value: AccountsRoute.detail(firstNegativeDebt.id), marksSelection: false) {
                         NegativeDebtListHint(
                             names: negativeDebtAccounts.map { AccountListPresentation.row(for: $0, locale: locale).name }
                         )
@@ -238,11 +239,14 @@ struct AccountListView: View {
                                 locale: locale,
                                 isDefault: account.id == defaultAccountID
                             )
-                            NavigationLink(value: AccountsRoute.detail(account.id)) {
+                            // 两栏时换掉右栏；行距紧，选中底色往外扩一点
+                            TabRouteLink(value: AccountsRoute.detail(account.id), selectionOutset: 6) {
                                 AccountListRow(
                                     presentation: presentation,
                                     voiceMarkToken: voiceMark.flatMap { $0.accountIDs.contains(account.id) ? $0.token : nil }
                                 )
+                                // 列表里的按钮会把标签染成强调色，原来的 NavigationLink 是主文字色
+                                .foregroundStyle(Color.primary)
                             }
                             .navigationLinkIndicatorVisibility(.hidden)
                             .ledgerRow(
@@ -259,6 +263,8 @@ struct AccountListView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            // 宽屏单栏时居中排成阅读宽度
+            .readableContentWidth(sideMargin: ReadableContentWidth.listSideMargin)
             .onChange(of: voiceMark) { _, mark in
                 guard let mark, let first = accounts.first(where: { mark.accountIDs.contains($0.id) }) else { return }
                 // 会话卡片压在列表下半部分，把账户滚到偏上的位置；列表一屏放得下时不会移动
@@ -269,14 +275,17 @@ struct AccountListView: View {
         }
     }
 
-    /// 汇总卡片；整张卡片点进资产分析页。还没记过账、画不出走势时也能进，构成和排行按当前余额就能看。
+    /// 汇总卡片；整张卡片点进资产分析页（两栏时换掉右栏）。还没记过账、画不出走势时也能进，构成和排行按当前余额就能看。
     ///
     /// - Parameters:
     ///   - summary: 资产、负债和净资产汇总。
     ///   - trend: 净资产近三个月的走势；还没记过账时为 `nil`，卡片里不画迷你走势。
     private func summaryCard(_ summary: AccountSummaryPresentation, trend: BalanceTrendSeries?) -> some View {
-        NavigationLink(value: AccountsRoute.assetAnalysis) {
+        // 卡片自带手绘方框，不再垫选中底色
+        TabRouteLink(value: AccountsRoute.assetAnalysis, marksSelection: false) {
             AccountSummaryCard(presentation: summary, trend: trend, showsDisclosure: true)
+                // 列表里的按钮会把标签染成强调色，原来的 NavigationLink 是主文字色
+                .foregroundStyle(Color.primary)
         }
         .navigationLinkIndicatorVisibility(.hidden)
     }

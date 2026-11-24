@@ -42,7 +42,7 @@ struct AccountTypeOrderView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button(text("account.type_order.reset")) {
+                Button(text("account.type_order.reset"), systemImage: "arrow.counterclockwise") {
                     save(.default)
                 }
                 .disabled(order == .default)

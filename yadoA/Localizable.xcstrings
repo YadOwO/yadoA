@@ -6116,6 +6116,60 @@
         }
       }
     },
+    "app.split.placeholder.accounts" : {
+      "comment" : "宽屏两栏时账户页右栏还没打开账户时的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select an account to see its details here"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择一个账户，在这里查看详情"
+          }
+        }
+      }
+    },
+    "app.split.placeholder.home" : {
+      "comment" : "宽屏两栏时记账页右栏还没打开流水时的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select an entry to see its details here"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择一笔记账，在这里查看详情"
+          }
+        }
+      }
+    },
+    "app.split.placeholder.profile" : {
+      "comment" : "宽屏两栏时“我的”右栏还没打开任何一项时的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose an item to open it here"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择一项，在这里打开"
+          }
+        }
+      }
+    },
     "app.tab.charts" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -117,7 +117,10 @@ struct CategoryManagementView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button(text(editMode.isEditing ? "common.done" : "category.management.sort")) {
+                Button(
+                    text(editMode.isEditing ? "common.done" : "category.management.sort"),
+                    systemImage: editMode.isEditing ? "checkmark" : "arrow.up.arrow.down"
+                ) {
                     withAnimation {
                         editMode = editMode.isEditing ? .inactive : .active
                     }
@@ -127,9 +130,8 @@ struct CategoryManagementView: View {
                 Button {
                     editorRoute = .create(direction)
                 } label: {
-                    Image(systemName: "plus")
+                    Label(text("category.management.add"), systemImage: "plus")
                 }
-                .accessibilityLabel(text("category.management.add"))
                 .accessibilityIdentifier("category-management-add")
                 .disabled(editMode.isEditing)
             }

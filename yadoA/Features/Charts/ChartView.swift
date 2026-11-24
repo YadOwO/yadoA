@@ -110,6 +110,8 @@ struct ChartView: View {
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
                 }
+                // 图表始终是单栏；宽屏时居中排成阅读宽度，内容自己带 20pt 左右留白
+                .readableContentWidth()
             }
         }
         .paperPage()

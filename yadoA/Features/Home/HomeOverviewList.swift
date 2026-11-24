@@ -130,6 +130,9 @@ struct HomeOverviewList: View {
                 .id(selectedMonth)
                 .transition(.opacity)
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: selectedMonth)
+                // 宽屏单栏时明细居中排成阅读宽度；只改左右外边距，不影响上下边界的拉动换月。
+                // 挂在按月份重建的那一层外面，换月时量好的宽度不丢，新列表首帧就是居中的
+                .readableContentWidth(sideMargin: ReadableContentWidth.listSideMargin)
             }
         }
         .overlay(alignment: interaction.pull?.direction == .earlier ? .bottom : .top) {
@@ -372,7 +375,7 @@ struct HomeRowActions {
     let onDelete: (HomeOverviewRowPresentation) -> Void
 }
 
-/// 首页单条流水行：整行点开进入详情，左滑删除，长按可再记一笔；纸面样式与变更提示由 `HomeOverviewRowContent` 负责。
+/// 首页单条流水行：整行点开进入详情（两栏时换掉右栏），左滑删除，长按可再记一笔；纸面样式与变更提示由 `HomeOverviewRowContent` 负责。
 private struct HomeOverviewRow: View {
     @Environment(\.locale) private var locale
 
@@ -404,7 +407,8 @@ private struct HomeOverviewRow: View {
     }
 
     var body: some View {
-        NavigationLink(value: HomeRoute.transactionDetail(row.id)) {
+        // 行距很紧，选中底色往外扩一点，不贴着文字
+        TabRouteLink(value: HomeRoute.transactionDetail(row.id), selectionOutset: 6) {
             HomeOverviewRowContent(row: row, mark: mark, markToken: markToken)
         }
         .buttonStyle(.plain)

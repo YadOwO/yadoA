@@ -126,7 +126,7 @@ struct AccountManagementView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(AccountLocalization.string("common.close", locale: locale)) {
+                Button(AccountLocalization.string("common.close", locale: locale), systemImage: "xmark") {
                     dismiss()
                 }
                 .accessibilityIdentifier("account-management-close")

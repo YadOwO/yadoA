@@ -53,14 +53,14 @@ struct HomeMonthPickerView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(AccountLocalization.string("common.cancel", locale: locale)) {
+                Button(AccountLocalization.string("common.cancel", locale: locale), systemImage: "xmark") {
                     onCancel()
                 }
                 .accessibilityIdentifier("home-month-picker-cancel")
             }
 
             ToolbarItem(placement: .confirmationAction) {
-                Button(AccountLocalization.string("common.done", locale: locale)) {
+                Button(AccountLocalization.string("common.done", locale: locale), systemImage: "checkmark") {
                     guard let month = HomeMonth(year: selectedYear, month: selectedMonth) else {
                         return
                     }

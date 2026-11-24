@@ -64,7 +64,7 @@ struct DiningExpenseEntryView: View {
         .toolbar {
             if screenshot != nil {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(AccountLocalization.string("common.close", locale: locale)) {
+                    Button(AccountLocalization.string("common.close", locale: locale), systemImage: "xmark") {
                         finishEntry()
                     }
                     .disabled(flow.isSaving)

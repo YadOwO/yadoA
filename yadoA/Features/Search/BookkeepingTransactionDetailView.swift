@@ -2,9 +2,14 @@ import SwiftData
 import SwiftUI
 
 /// 统一收支详情外层：管理编辑、删除和保存后的查询刷新。
+///
+/// 删除后关掉自己：作为两栏导航右栏的根页面时用容器的关闭动作（两栏展开时 `dismiss()` 对它没有效果），
+/// 在右栏里被推入、在导航栈里或弹层里打开时沿用 `dismiss()`。
 struct BookkeepingTransactionDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    /// 两栏导航右栏根页面关掉自己的动作；不是右栏根页面时为 nil。
+    @Environment(\.tabDetailClose) private var closeDetail
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
     @State private var editDraft: DiningExpenseEditDraft?
@@ -68,6 +73,8 @@ struct BookkeepingTransactionDetailView: View {
             Button(text("common.close"), role: .cancel) {}
         }
         .paperPage()
+        // 关闭动作只给这一页自己用，编辑弹层等下层页面不继承
+        .environment(\.tabDetailClose, nil)
     }
 
     /// 只有持久化成功才离开详情；失败保留当前页面和可重试入口。
@@ -84,7 +91,11 @@ struct BookkeepingTransactionDetailView: View {
             if let deletedRow {
                 HomeRecentEntryHighlight.shared.markDeleted(deletedRow)
             }
-            dismiss()
+            if let closeDetail {
+                closeDetail()
+            } else {
+                dismiss()
+            }
         } catch {
             queryRefreshToken = UUID()
             AppHaptics.play(.error)
@@ -181,11 +192,13 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                             onEdit(draft)
                         }
                     } label: {
-                        Text(
+                        // 标题加图标：iPhone Duo 外屏把工具栏竖排在侧边时只有带图标的按钮能竖排
+                        Label(
                             AccountLocalization.string(
                                 "bookkeeping.search.detail.edit",
                                 locale: locale
-                            )
+                            ),
+                            systemImage: "pencil"
                         )
                     }
                     .accessibilityIdentifier("bookkeeping-detail-edit")

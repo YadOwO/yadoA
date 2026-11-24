@@ -68,7 +68,7 @@ struct TransferView: View {
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(text("common.cancel")) {
+                Button(text("common.cancel"), systemImage: "xmark") {
                     dismiss()
                 }
                 .disabled(flow.isSaving)

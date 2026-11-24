@@ -68,7 +68,7 @@ struct CategoryDeleteView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(text("common.cancel")) { dismiss() }
+                Button(text("common.cancel"), systemImage: "xmark") { dismiss() }
             }
         }
         .safeAreaInset(edge: .bottom) {

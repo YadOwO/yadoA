@@ -360,19 +360,19 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 NavigationStack {
                     BookkeepingTransactionDetailView(transactionID: item.id)
                         .toolbar {
-                            // 卡片上点一行先看详情；想在记账页列表里看到这一笔，从这里去：关掉详情，切到记账页定位并标出来
+                            // 关闭按钮排在最左；卡片上点一行先看详情，想在记账页列表里看到这一笔，从右边的定位去：关掉详情，切到记账页定位并标出来
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(text("common.close"), systemImage: "xmark") { voice.presentedTransaction = nil }
+                            }
                             if let change = item.locateChange {
                                 ToolbarItem(placement: .topBarLeading) {
-                                    Button(text("voice.change.locate.action")) {
+                                    Button(text("voice.change.locate.action"), systemImage: "scope") {
                                         voice.presentedTransaction = nil
                                         voice.pendingLocate = change
                                     }
                                     .accessibilityHint(Text(text("voice.change.locate.hint")))
                                     .accessibilityIdentifier("voice-transaction-locate")
                                 }
-                            }
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button(text("common.done")) { voice.presentedTransaction = nil }
                             }
                         }
                 }
@@ -381,9 +381,9 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 NavigationStack {
                     AccountDetailView(accountID: item.id)
                         .toolbar {
-                            // 账户详情右侧已有编辑和更多菜单，完成放在左侧
-                            ToolbarItem(placement: .topBarLeading) {
-                                Button(text("common.done")) { voice.presentedAccount = nil }
+                            // 账户详情右侧已有编辑和更多菜单，关闭放在左侧
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(text("common.close"), systemImage: "xmark") { voice.presentedAccount = nil }
                             }
                         }
                 }
@@ -392,9 +392,9 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 NavigationStack {
                     RecurringRuleListView()
                         .toolbar {
-                            // 列表右侧已有新建按钮，完成放在左侧
-                            ToolbarItem(placement: .topBarLeading) {
-                                Button(text("common.done")) { voice.isRecurringRulesPresented = false }
+                            // 列表右侧已有新建按钮，关闭放在左侧
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(text("common.close"), systemImage: "xmark") { voice.isRecurringRulesPresented = false }
                             }
                         }
                 }
@@ -415,8 +415,8 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 NavigationStack {
                     AIModelTierView(scope: .quickVoice)
                         .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button(text("common.done")) { voice.isModelTierPresented = false }
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(text("common.close"), systemImage: "xmark") { voice.isModelTierPresented = false }
                             }
                         }
                 }

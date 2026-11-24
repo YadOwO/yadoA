@@ -8,7 +8,8 @@ import SwiftUI
 /// 签到得到连签礼包时，这段动画结束后直接弹出开礼包的整屏（`CheckInGiftOpeningView`）。
 ///
 /// 语言、外观、默认账户、导入导出、退出登录等低频项统一收进 `SettingsView`，已停用账户由“账户”Tab 承载。
-/// 进入二级页面都走路径导航（见 `ProfileRoute`），根导航据此判断是否显示语音入口。
+/// 进入二级页面都走路径导航（见 `ProfileRoute`），根导航据此判断是否显示语音入口；
+/// 入口用 `TabRouteLink`，宽屏两栏时换掉右栏，而不是在右栏里继续往下推。
 struct ProfileView: View {
     @Environment(\.locale) private var locale
     /// 全局登录状态；登录与否只影响页头身份，不影响本地账本。
@@ -86,21 +87,21 @@ struct ProfileView: View {
 
                     ProfileSettingsSection(nil, seed: "profile.section.bookkeeping") {
                         // 账单是按月、按年回看的汇总，不是日常记账操作，放在这里不占记账页导航栏。
-                        NavigationLink(value: ProfileRoute.bills) {
+                        TabRouteLink(value: ProfileRoute.bills, selectionOutset: -4) {
                             ProfileSettingsRow(titleKey: "bill.title", symbol: "doc.text")
                         }
                         .accessibilityIdentifier("profile-bills")
 
                         ProfileSettingsRowDivider()
 
-                        NavigationLink(value: ProfileRoute.recurringRules) {
+                        TabRouteLink(value: ProfileRoute.recurringRules, selectionOutset: -4) {
                             ProfileSettingsRow(titleKey: "recurring.title", symbol: "repeat")
                         }
                         .accessibilityIdentifier("profile-recurring")
 
                         ProfileSettingsRowDivider()
 
-                        NavigationLink(value: ProfileRoute.categories) {
+                        TabRouteLink(value: ProfileRoute.categories, selectionOutset: -4) {
                             ProfileSettingsRow(titleKey: "category.management.title", symbol: "square.grid.2x2")
                         }
                         .accessibilityIdentifier("profile-category-management")
@@ -109,7 +110,7 @@ struct ProfileView: View {
                     // 离线模式（没同意隐私政策）下 AI、云同步和反馈都要联网，入口整体隐藏
                     if isNetworkAllowed {
                         ProfileSettingsSection(nil, seed: "profile.section.ai") {
-                            NavigationLink(value: ProfileRoute.aiPoints) {
+                            TabRouteLink(value: ProfileRoute.aiPoints, selectionOutset: -4) {
                                 pointsRow
                             }
                             .animation(reduceMotion ? nil : .snappy, value: aiPoints?.balance)
@@ -133,7 +134,7 @@ struct ProfileView: View {
 
                     ProfileSettingsSection(nil, seed: "profile.section.data") {
                         if isNetworkAllowed {
-                            NavigationLink(value: ProfileRoute.sync) {
+                            TabRouteLink(value: ProfileRoute.sync, selectionOutset: -4) {
                                 ProfileSettingsRow(
                                     titleKey: "sync.title",
                                     symbol: "icloud",
@@ -147,7 +148,7 @@ struct ProfileView: View {
                             ProfileSettingsRowDivider()
                         }
 
-                        NavigationLink(value: ProfileRoute.settings) {
+                        TabRouteLink(value: ProfileRoute.settings, selectionOutset: -4) {
                             ProfileSettingsRow(titleKey: "settings.title", symbol: "gearshape")
                         }
                         .accessibilityIdentifier("profile-settings")
@@ -161,7 +162,7 @@ struct ProfileView: View {
                             if seriesCatalog?.products.isEmpty == false {
                                 ProfileSettingsRowDivider()
 
-                                NavigationLink(value: ProfileRoute.moreProducts) {
+                                TabRouteLink(value: ProfileRoute.moreProducts, selectionOutset: -4) {
                                     ProfileSettingsRow(titleKey: "series.title", symbol: "square.stack.3d.up")
                                 }
                                 .accessibilityIdentifier("profile-more-products")
@@ -182,6 +183,8 @@ struct ProfileView: View {
                     }
                 }
             }
+            // 宽屏单栏时居中排成阅读宽度；内容自己带 20pt 左右留白
+            .readableContentWidth()
             // 气泡把点数交出来后，在能拿到滚动代理的这一层接着飞
             .onChange(of: departingReward) { _, points in
                 guard let points else { return }
@@ -261,7 +264,7 @@ struct ProfileView: View {
     @ViewBuilder
     private var checkInEntry: some View {
         if authStore.isAuthenticated {
-            NavigationLink(value: ProfileRoute.checkIn) {
+            TabRouteLink(value: ProfileRoute.checkIn, selectionOutset: -4) {
                 checkInRow
             }
             .accessibilityIdentifier("profile-check-in-entry")
@@ -339,7 +342,7 @@ struct ProfileView: View {
     @ViewBuilder
     private var feedbackEntry: some View {
         if authStore.isAuthenticated {
-            NavigationLink(value: ProfileRoute.feedback) {
+            TabRouteLink(value: ProfileRoute.feedback, selectionOutset: -4) {
                 feedbackRow
             }
             .accessibilityIdentifier("profile-feedback")
@@ -635,7 +638,7 @@ struct ProfileView: View {
     #if DEBUG
     /// 头像右上角的「开发」页面入口，是否显示见 `DeveloperTools.isEnabled`。
     private var developerEntry: some View {
-        NavigationLink(value: ProfileRoute.developer) {
+        TabRouteLink(value: ProfileRoute.developer, marksSelection: false) {
             Image(systemName: "hammer")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.primary)

@@ -48,7 +48,7 @@ struct ExpenseAccountSelectionView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(AccountLocalization.string("common.cancel", locale: locale)) {
+                Button(AccountLocalization.string("common.cancel", locale: locale), systemImage: "xmark") {
                     dismiss()
                 }
             }

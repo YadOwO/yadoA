@@ -71,7 +71,7 @@ struct BalanceAdjustmentView: View {
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(AccountLocalization.string("common.cancel", locale: locale)) {
+                Button(AccountLocalization.string("common.cancel", locale: locale), systemImage: "xmark") {
                     dismiss()
                 }
                 .disabled(flow.isSaving)

@@ -433,6 +433,8 @@ private struct AccountDetailQueryContent: View {
             // 详情也会出现在设置和账户管理的导航栈中，直接目标无需依赖 Tab 路由注册。
             NavigationLink {
                 BookkeepingTransactionDetailView(transactionID: row.id)
+                    // 账户详情可能是两栏右栏的根页面；推入的记账详情删除后只返回账户详情，不能拿它的关闭动作把整栏关掉
+                    .environment(\.tabDetailClose, nil)
             } label: {
                 AccountTransactionHistoryRow(presentation: row)
             }
