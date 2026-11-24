@@ -315,6 +315,50 @@ struct TabSplitNavigationTests {
         #expect(leftover.path == [.search])
     }
 
+    @Test("点返回后动画没播完就切到别的 Tab：左栏先消失也不撤销，回来时停在一级页面", arguments: [true, false])
+    func switchingTabDuringReturnKeepsClear(containerFirst: Bool) {
+        // 切走 Tab 时左栏和整个容器同一批离开屏幕，先后不定；右栏根页面随后也离开
+        let probe = collapsedProbe(showing: ProfileRoute.settings)
+        probe.select(.sidebar)
+        probe.wait(.milliseconds(3))
+        #expect(probe.sidebarAppear() == .clear)
+        probe.wait(.milliseconds(200))
+        if containerFirst {
+            probe.containerDisappear()
+            #expect(probe.sidebarDisappear(confirmsRestore: false) == .keep)
+        } else {
+            #expect(probe.sidebarDisappear(confirmsRestore: false) == .confirmRestoreLater)
+            probe.containerDisappear()
+        }
+        probe.rootDisappear()
+        #expect(probe.confirmRestore() == .keep)
+        #expect(probe.path.isEmpty)
+        #expect(probe.tracker.undoPath == nil)
+        #expect(!probe.tracker.isRestorePending)
+
+        // 回到这个 Tab：左栏出现，没有留下的写回可配对，路径保持为空
+        probe.wait(.seconds(2))
+        #expect(probe.sidebarAppear() == .keep)
+        #expect(probe.path.isEmpty)
+    }
+
+    @Test("左栏消失后、确认撤销前根页面也离开了屏幕：返回其实完成了，不撤销")
+    func rootDisappearBeforeConfirmDropsRestore() {
+        let probe = collapsedProbe(showing: HomeRoute.search)
+        probe.select(.sidebar)
+        #expect(probe.sidebarAppear() == .clear)
+        probe.wait(.milliseconds(250))
+        #expect(probe.sidebarDisappear(confirmsRestore: false) == .confirmRestoreLater)
+        #expect(probe.tracker.isRestorePending)
+        probe.rootDisappear()
+        #expect(probe.confirmRestore() == .keep)
+        #expect(probe.path.isEmpty)
+
+        // 确认只做一次：再来一次也不会改路径
+        #expect(probe.confirmRestore() == .keep)
+        #expect(probe.path.isEmpty)
+    }
+
     @Test("清空后、根页面滑出前就从一级页面打开了新页面：撤销作废，推入过程中的写回也不会把新页面关掉")
     func openingPageAfterClearDropsUndo() {
         let probe = collapsedProbe(showing: HomeRoute.search)
@@ -664,9 +708,25 @@ private final class TabSplitBackProbe<Route: Hashable> {
     }
 
     /// 左栏消失。
+    ///
+    /// 容器遇到「稍后确认撤销」时会等一会儿再确认；默认当作这段时间里没有别的事件，立刻确认并返回确认的结果。
+    /// 要在中间插入事件（切走 Tab、根页面离开）时传 `confirmsRestore: false`，之后自己调用 `confirmRestore()`。
     @discardableResult
-    func sidebarDisappear(collapsed: Bool = true) -> Action {
-        apply(tracker.sidebarDisappeared(isCollapsed: collapsed, path: path))
+    func sidebarDisappear(collapsed: Bool = true, confirmsRestore: Bool = true) -> Action {
+        let action = apply(tracker.sidebarDisappeared(isCollapsed: collapsed, path: path))
+        guard confirmsRestore, action == .confirmRestoreLater else { return action }
+        return confirmRestore()
+    }
+
+    /// 左栏消失一会儿之后确认撤销。
+    @discardableResult
+    func confirmRestore() -> Action {
+        apply(tracker.confirmRestore(path: path))
+    }
+
+    /// 整个两栏容器离开屏幕：切到别的 Tab。
+    func containerDisappear() {
+        tracker.containerDisappeared()
     }
 
     /// 右栏根页面出现。
@@ -688,6 +748,8 @@ private final class TabSplitBackProbe<Route: Hashable> {
             navigate(to: [])
         case let .restore(oldPath):
             navigate(to: oldPath)
+        case .confirmRestoreLater:
+            break
         }
         return action
     }

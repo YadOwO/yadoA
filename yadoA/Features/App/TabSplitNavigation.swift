@@ -134,6 +134,10 @@ enum TabSplitPath {
 /// 清空后到右栏根页面滑出前可以撤销：这段时间里左栏又消失了（侧滑返回松手取消，或者右栏被推回来），
 /// 就把清空前的路径还回去，让路径和屏幕保持一致。根页面滑出后返回才算完成，撤销作废；展开、收起切换时同样作废。
 /// 清空时根页面本来就被推入的页面盖着（长按返回按钮直接跳回一级页面），这种返回取消不了，不留撤销。
+///
+/// 左栏消失后不马上撤销，等 `restoreConfirmDelay` 再确认：点返回后动画还没播完就切到别的 Tab 时，
+/// 左栏也会先于右栏根页面消失，看起来和侧滑取消一样，但同一批里整个容器、根页面随后也会离开屏幕，
+/// 撤销因此作废，回到这个 Tab 时停在一级页面，而不是又回到刚才返回的那一页。
 struct TabSplitBackTracker<Route: Hashable> {
     /// 一次事件之后容器该对路径做什么。
     enum Action: Equatable {
@@ -143,6 +147,15 @@ struct TabSplitBackTracker<Route: Hashable> {
         case clear
         /// 刚才的返回取消了：把路径恢复成给出的值。
         case restore([Route])
+        /// 返回可能取消了，等 `restoreConfirmDelay` 之后调用 `confirmRestore(path:)` 再定，期间别的消失事件可以让撤销作废。
+        case confirmRestoreLater
+    }
+
+    /// 左栏消失后等多久再确认撤销：留给同一次切 Tab 里容器和右栏根页面的消失事件到齐。
+    ///
+    /// 侧滑取消时这段时间里路径仍是空的，和侧滑过程中一样，右栏一直在屏幕上，不影响显示。
+    static var restoreConfirmDelay: Duration {
+        .milliseconds(150)
     }
 
     /// 系统写回 `.sidebar` 和左栏出现最多相隔多久，才算同一次返回。
@@ -164,8 +177,11 @@ struct TabSplitBackTracker<Route: Hashable> {
     /// 右栏根页面是否在屏幕上：出现后为 `true`；被推入的页面盖住、返回时滑出、切到别的 Tab 后为 `false`。
     private(set) var isDetailRootShown = false
 
-    /// 最近一次清空前的路径，右栏根页面滑出前用来撤销；返回完成、打开新页面、展开收起切换后为 `nil`。
+    /// 最近一次清空前的路径，右栏根页面滑出前用来撤销；返回完成、打开新页面、展开收起切换、切走 Tab 后为 `nil`。
     private(set) var undoPath: [Route]?
+
+    /// 左栏已经消失、撤销等着确认；确认过、作废后为 `false`。
+    private(set) var isRestorePending = false
 
     /// 创建判定状态。
     ///
@@ -186,6 +202,7 @@ struct TabSplitBackTracker<Route: Hashable> {
         requestTime = nil
         sidebarAppearTime = nil
         undoPath = nil
+        isRestorePending = false
         return true
     }
 
@@ -229,7 +246,8 @@ struct TabSplitBackTracker<Route: Hashable> {
 
     /// 左栏消失了：被右栏盖住、侧滑返回松手取消、切到别的 Tab。
     ///
-    /// 清空之后、右栏根页面滑出之前左栏就消失，说明返回没有完成，把路径恢复回去。
+    /// 清空之后、右栏根页面滑出之前左栏就消失，多半是返回没有完成，但也可能是返回动画中途切走了 Tab，
+    /// 所以只记下待确认，由容器稍后调用 `confirmRestore(path:)`。
     /// - Parameters:
     ///   - isCollapsed: 消失时是否收成一栏。
     ///   - path: 消失时的路径；已经不是清空后的空路径（例如打开了新页面）时不撤销。
@@ -237,9 +255,33 @@ struct TabSplitBackTracker<Route: Hashable> {
     mutating func sidebarDisappeared(isCollapsed: Bool, path: [Route]) -> Action {
         layoutChanged(isCollapsed: isCollapsed)
         sidebarAppearTime = nil
-        guard let undoPath, path.isEmpty else { return .keep }
+        guard undoPath != nil, path.isEmpty else { return .keep }
+        isRestorePending = true
+        return .confirmRestoreLater
+    }
+
+    /// 左栏消失 `restoreConfirmDelay` 之后确认撤销。
+    ///
+    /// 这段时间里撤销没有作废（没切走 Tab、根页面没离开屏幕、没打开新页面、没有展开收起）、路径仍为空，
+    /// 才把清空前的路径还回去。
+    /// - Parameter path: 确认时的路径。
+    /// - Returns: 撤销时为 `.restore`，否则 `.keep`。
+    mutating func confirmRestore(path: [Route]) -> Action {
+        guard isRestorePending else { return .keep }
+        isRestorePending = false
+        guard let undoPath, path.isEmpty, isDetailRootShown else { return .keep }
         self.undoPath = nil
         return .restore(undoPath)
+    }
+
+    /// 整个两栏容器离开了屏幕：切到了别的 Tab。
+    ///
+    /// 这时左栏、右栏的消失都是跟着 Tab 走的，不代表返回取消；之前的请求、左栏出现和撤销一并作废。
+    mutating func containerDisappeared() {
+        requestTime = nil
+        sidebarAppearTime = nil
+        undoPath = nil
+        isRestorePending = false
     }
 
     /// 右栏根页面出现了。
@@ -314,6 +356,7 @@ extension TabSplitBackTracker {
         }
         return "collapsed=\(isCollapsed ? 1 : 0) req=\(age(requestTime)) sidebar=\(age(sidebarAppearTime)) "
             + "root=\(isDetailRootShown ? 1 : 0) undo=\(undoPath.map { "\($0.count)" } ?? "-")"
+            + (isRestorePending ? " restorePending" : "")
     }
 }
 #endif
@@ -570,6 +613,11 @@ struct TabSplitNavigation<Route: TabSplitRoute, Sidebar: View, Placeholder: View
                     }
                 }
         }
+        // 切到别的 Tab：左栏、右栏随之消失都不算返回取消
+        .onDisappear {
+            backTracker.tracker.containerDisappeared()
+            trace("container disappear")
+        }
     }
 
     /// 分栏视图本体。
@@ -697,7 +745,7 @@ struct TabSplitNavigation<Route: TabSplitRoute, Sidebar: View, Placeholder: View
         apply(action)
     }
 
-    /// 左栏消失：被右栏盖住、侧滑返回松手取消、切到别的 Tab；刚清空、返回还没完成时撤销清空。
+    /// 左栏消失：被右栏盖住、侧滑返回松手取消、切到别的 Tab；刚清空、返回还没完成时稍后确认是否撤销清空。
     ///
     /// - Parameter isExpanded: 消失时是否展开成两栏。
     private func sidebarDisappeared(isExpanded: Bool) {
@@ -726,7 +774,7 @@ struct TabSplitNavigation<Route: TabSplitRoute, Sidebar: View, Placeholder: View
         }
     }
 
-    /// 按判定结果改路径：清空，或者把取消了的返回撤销回去。
+    /// 按判定结果改路径：清空，或者把取消了的返回撤销回去；撤销要等一会儿确认时，到点再问一次判定状态。
     ///
     /// 撤销时右栏根页面一直没离开屏幕，`retainedHead` 还是它，页面不会重建。
     /// - Parameter action: 判定状态给出的动作。
@@ -740,6 +788,15 @@ struct TabSplitNavigation<Route: TabSplitRoute, Sidebar: View, Placeholder: View
         case let .restore(oldPath):
             trace("restore: return cancelled, back to \(oldPath.count)")
             update(to: oldPath)
+        case .confirmRestoreLater:
+            Task {
+                try? await Task.sleep(for: TabSplitBackTracker<Route>.restoreConfirmDelay)
+                let confirmed = backTracker.tracker.confirmRestore(path: path)
+                if confirmed == .keep {
+                    trace("restore dropped")
+                }
+                apply(confirmed)
+            }
         }
     }
 
