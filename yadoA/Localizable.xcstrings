@@ -23041,6 +23041,978 @@
           }
         }
       }
+    },
+    "dataLink.title" : {
+      "comment" : "“我的”数据分组里的入口名，也是数据联动页的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data Linking"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据联动"
+          }
+        }
+      }
+    },
+    "dataLink.row.linked" : {
+      "comment" : "“我的”页数据联动行尾：已授权时的状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已联动"
+          }
+        }
+      }
+    },
+    "dataLink.source.name" : {
+      "comment" : "数据联动页和账户页分组里联动来源的名称，对应芽豆有物 App",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "yado Items"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆有物"
+          }
+        }
+      }
+    },
+    "dataLink.intro" : {
+      "comment" : "数据联动页顶部的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Once authorized, Yado Assets can read the total purchase price of your items in yado Items, turn it into a valuation, and show it in Accounts and net worth. You can revoke this at any time."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "授权后，芽豆资产可以读取你在芽豆有物里的物品购入价合计，折算成估值放进账户页和净资产。随时可以取消。"
+          }
+        }
+      }
+    },
+    "dataLink.unavailable" : {
+      "comment" : "数据联动页：没登录、离线或服务端没打开联动时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data linking isn’t available right now. Make sure you’re signed in and online, then check back later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时用不了数据联动。请确认已登录、网络畅通，稍后再来看看。"
+          }
+        }
+      }
+    },
+    "dataLink.state.notGranted" : {
+      "comment" : "数据联动页：芽豆有物还没授权",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not authorized"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未授权"
+          }
+        }
+      }
+    },
+    "dataLink.state.linked" : {
+      "comment" : "数据联动页：已授权",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已联动"
+          }
+        }
+      }
+    },
+    "dataLink.state.linkedNoItems" : {
+      "comment" : "数据联动页：已授权，但芽豆有物里没有同步到这个账号的物品",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linked, but no items have synced to this account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已联动，但没有同步到这个账号的物品"
+          }
+        }
+      }
+    },
+    "dataLink.state.linkedNoPrices" : {
+      "comment" : "数据联动页：已授权，但物品都没填购入价，没有可估值的",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linked, but none of the items has a purchase price"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已联动，但物品都没填购入价"
+          }
+        }
+      }
+    },
+    "dataLink.action.grant" : {
+      "comment" : "数据联动页：授权按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authorize"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "授权"
+          }
+        }
+      }
+    },
+    "dataLink.action.revoke" : {
+      "comment" : "数据联动页：取消授权按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revoke Authorization"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消授权"
+          }
+        }
+      }
+    },
+    "dataLink.revoke.confirm.title" : {
+      "comment" : "取消授权的二次确认标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revoke authorization?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消授权？"
+          }
+        }
+      }
+    },
+    "dataLink.revoke.confirm.message" : {
+      "comment" : "取消授权的二次确认说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After this, Yado Assets stops reading purchase prices from yado Items. The Item Valuation row disappears from Accounts and is no longer counted in net worth."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消后，芽豆资产不再读取芽豆有物的物品购入价，账户页的「物品估值」会消失，净资产也不再包含它。"
+          }
+        }
+      }
+    },
+    "dataLink.revoke.confirm.action" : {
+      "comment" : "取消授权的二次确认按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revoke"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消授权"
+          }
+        }
+      }
+    },
+    "dataLink.revoke.failed" : {
+      "comment" : "取消授权失败的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t revoke authorization. Try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消授权没有成功，请稍后重试"
+          }
+        }
+      }
+    },
+    "dataLink.updatedAt.format" : {
+      "comment" : "估值的更新时间，%@ 为日期时间",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新时间 %@"
+          }
+        }
+      }
+    },
+    "dataLink.loadFailed" : {
+      "comment" : "拉不到最新估值但有上次的数据时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t refresh just now. Showing the last data."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时没能更新，显示的是上次的数据。"
+          }
+        }
+      }
+    },
+    "dataLink.loadFailed.noCache" : {
+      "comment" : "拉不到估值又没有上次的数据时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t get the item valuation. Try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时没能取到物品估值，请稍后再试。"
+          }
+        }
+      }
+    },
+    "dataLink.error.unavailable" : {
+      "comment" : "授权时服务端说联动没打开",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data linking is unavailable right now. Try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据联动暂时不可用，请稍后再试。"
+          }
+        }
+      }
+    },
+    "dataLink.error.upgradeRequired" : {
+      "comment" : "授权时 App 版本过低",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update the app to the latest version before authorizing."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先把芽豆资产更新到最新版本再授权。"
+          }
+        }
+      }
+    },
+    "dataLink.consent.title" : {
+      "comment" : "授权弹层的大标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Count your yado Items in net worth"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把芽豆有物的物品估值算进净资产"
+          }
+        }
+      }
+    },
+    "dataLink.consent.intro" : {
+      "comment" : "授权弹层的简介",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Once authorized, Yado Assets reads the total purchase price of your items in yado Items through yado’s servers, turns it into a valuation shown in Accounts, and counts it in net worth by default."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "授权后，芽豆资产会通过芽豆的服务器，读取你在芽豆有物里的物品购入价合计，折算成估值显示在账户页，默认计入净资产。"
+          }
+        }
+      }
+    },
+    "dataLink.consent.read.title" : {
+      "comment" : "授权弹层第一段小标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What it reads"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "会读什么"
+          }
+        }
+      }
+    },
+    "dataLink.consent.read.body" : {
+      "comment" : "授权弹层第一段正文",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The combined purchase price of your in-service and retired items in yado Items, and how many items do and don’t have a price."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你在芽豆有物里「在用」和「退役」物品的购入价合计，以及填了价格、没填价格的物品件数。"
+          }
+        }
+      }
+    },
+    "dataLink.consent.notRead.title" : {
+      "comment" : "授权弹层第二段小标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What it doesn’t read"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不会读什么"
+          }
+        }
+      }
+    },
+    "dataLink.consent.notRead.body" : {
+      "comment" : "授权弹层第二段正文",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Item names, photos, categories, notes and any other details are never read. The valuation is kept only on this device — it isn’t added to your ledger, exports, backups or cloud sync, and it isn’t sent to AI."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不会读取物品的名称、照片、分类、备注等任何明细。估值只保存在这台设备上，不会进入账本、导出、备份或云端同步，也不会发给 AI。"
+          }
+        }
+      }
+    },
+    "dataLink.consent.cancel.title" : {
+      "comment" : "授权弹层第三段小标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How to cancel"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "怎么取消"
+          }
+        }
+      }
+    },
+    "dataLink.consent.cancel.body" : {
+      "comment" : "授权弹层第三段正文",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can revoke this at any time in Profile → Data Linking. The valuation data on this device is cleared when you do."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "随时可以在「我的 → 数据联动」里取消授权。取消后，这台设备上的估值数据会被清掉。"
+          }
+        }
+      }
+    },
+    "dataLink.consent.agree" : {
+      "comment" : "授权弹层的同意按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agree and Authorize"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同意并授权"
+          }
+        }
+      }
+    },
+    "dataLink.consent.decline" : {
+      "comment" : "授权弹层的暂不按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂不"
+          }
+        }
+      }
+    },
+    "dataLink.consent.failed" : {
+      "comment" : "授权失败时按钮上方的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t authorize. Check your connection and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "授权没有成功，请检查网络后重试。"
+          }
+        }
+      }
+    },
+    "dataLink.trend.excludes_item_value" : {
+      "comment" : "估值计入净资产时，汇总卡片迷你走势和资产分析走势卡片下面的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The trend doesn’t include yado Items valuation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "趋势不含芽豆有物物品估值"
+          }
+        }
+      }
+    },
+    "dataLink.series.available" : {
+      "comment" : "更多芽豆产品里芽豆有物卡片的联动邀请",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link up to count your items’ value in net worth"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可联动：把物品估值算进净资产"
+          }
+        }
+      }
+    },
+    "dataLink.series.linked" : {
+      "comment" : "更多芽豆产品里芽豆有物卡片：已联动",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已联动"
+          }
+        }
+      }
+    },
+    "itemValuation.title" : {
+      "comment" : "物品估值：账户页那一行的名称、估值详情页标题、资产构成里的名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Item Valuation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "物品估值"
+          }
+        }
+      }
+    },
+    "itemValuation.section.title" : {
+      "comment" : "账户页单独一组的名称，也是资产排行里物品估值的副标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "yado Items"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆有物"
+          }
+        }
+      }
+    },
+    "itemValuation.amount.label" : {
+      "comment" : "物品估值金额上方的标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valuation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "估值"
+          }
+        }
+      }
+    },
+    "itemValuation.notCounted" : {
+      "comment" : "物品估值不计入净资产时，金额上方的标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not in net worth"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不计入净资产"
+          }
+        }
+      }
+    },
+    "itemValuation.detail.format" : {
+      "comment" : "账户页物品估值的副标题：%1$@ 为购入价合计，%2$@ 为折扣（例如 7 折），%3$lld 为填了价格的件数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase price %1$@ × %2$@ · %3$lld item(s)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购入价 %1$@ × %2$@ · %3$lld 件"
+          }
+        }
+      }
+    },
+    "itemValuation.detail.unpriced.format" : {
+      "comment" : "物品估值副标题里没填价格的件数，%lld 为件数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld more without a price"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "另有 %lld 件没填价格"
+          }
+        }
+      }
+    },
+    "itemValuation.detail.join.format" : {
+      "comment" : "把物品估值副标题和没填价格的说明接在一起，%1$@ 是前一句，%2$@ 是后一句",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@，%2$@"
+          }
+        }
+      }
+    },
+    "itemValuation.discount.format" : {
+      "comment" : "折扣的写法：中文 %@ 是折数（7 折），英文 %@ 是百分比（70%）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@%%"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 折"
+          }
+        }
+      }
+    },
+    "itemValuation.discount.original" : {
+      "comment" : "折扣为 100% 时的写法（中文）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full price"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原价"
+          }
+        }
+      }
+    },
+    "itemValuation.setting.showsOnAccounts" : {
+      "comment" : "物品估值设置：是否显示在账户页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show on Accounts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示在账户页"
+          }
+        }
+      }
+    },
+    "itemValuation.setting.countsInNetWorth" : {
+      "comment" : "物品估值设置：是否计入净资产",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Count in Net Worth"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "计入净资产"
+          }
+        }
+      }
+    },
+    "itemValuation.setting.discount" : {
+      "comment" : "物品估值设置：折扣",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discount"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "折扣"
+          }
+        }
+      }
+    },
+    "itemValuation.settings.footnote" : {
+      "comment" : "物品估值设置下面的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valuation = total purchase price × discount. With “Count in Net Worth” on, the Accounts summary and Net Worth Analysis include it; the net worth trend does not."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "估值 = 购入价合计 × 折扣。打开「计入净资产」后，账户页汇总卡片和资产分析会加上它，净资产走势不含这一项。"
+          }
+        }
+      }
+    },
+    "itemValuation.detail.inService" : {
+      "comment" : "估值详情页：在用物品购入价合计",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In-service purchase price"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在用物品购入价"
+          }
+        }
+      }
+    },
+    "itemValuation.detail.retired" : {
+      "comment" : "估值详情页：退役物品购入价合计",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retired purchase price"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退役物品购入价"
+          }
+        }
+      }
+    },
+    "itemValuation.detail.unpriced" : {
+      "comment" : "估值详情页：没填价格的件数标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Without a price"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没填价格"
+          }
+        }
+      }
+    },
+    "itemValuation.detail.count.format" : {
+      "comment" : "估值详情页：件数，%@ 为数量",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ item(s)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 件"
+          }
+        }
+      }
+    },
+    "itemValuation.detail.updatedAt" : {
+      "comment" : "估值详情页：更新时间标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新时间"
+          }
+        }
+      }
+    },
+    "itemValuation.detail.unavailable" : {
+      "comment" : "估值详情页：已取消授权或没有数据时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There’s no valuation to show right now. Authorization may have been revoked, or the data hasn’t loaded yet. Check Profile → Data Linking."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这里暂时没有可显示的估值：可能已经取消授权，或者还没取到数据。可以到「我的 → 数据联动」里看看。"
+          }
+        }
+      }
+    },
+    "itemValuation.ranking.open_hint" : {
+      "comment" : "资产分析排行里物品估值那一行的读屏提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows the valuation details."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看估值详情"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

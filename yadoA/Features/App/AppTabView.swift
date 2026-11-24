@@ -112,6 +112,9 @@ enum AccountsRoute: Hashable, TabSplitRoute {
     /// 资产分析：从账户页汇总卡片进入，按净资产、资产、负债三个 tab 看走势、资产负债率、构成和排行。
     case assetAnalysis
 
+    /// 芽豆有物的物品估值详情：从账户页「芽豆有物」那一行或资产分析的排行进入；只有已授权数据联动、有估值时才有入口。
+    case itemValuation
+
     /// 账户的二级页面都没有自己的底栏，两栏时语音麦克风常显。
     var hasOwnBottomBar: Bool {
         false
@@ -134,6 +137,9 @@ enum ProfileRoute: Hashable, TabSplitRoute {
 
     /// 云端同步页面。
     case sync
+
+    /// 数据联动：授权芽豆有物的物品购入价汇总、查看估值、调整估值设置；登录、联网、hub 打开了来源时才有入口。
+    case dataLinks
 
     /// AI 点数页面：余额、明细与设置入口、扣点规则。
     case aiPoints
@@ -179,7 +185,7 @@ enum ProfileRoute: Hashable, TabSplitRoute {
         switch self {
         case .feedback, .aiProcessingConsent:
             true
-        case .bills, .categories, .recurringRules, .sync, .aiPoints, .aiPointLots, .aiCreditEntries,
+        case .bills, .categories, .recurringRules, .sync, .dataLinks, .aiPoints, .aiPointLots, .aiCreditEntries,
              .aiModelTier, .aiTraceConsent, .checkIn, .settings, .accountSecurity, .moreProducts, .developer:
             false
         }
@@ -197,6 +203,8 @@ enum ProfileRoute: Hashable, TabSplitRoute {
             RecurringRuleListView()
         case .sync:
             SyncSettingsView()
+        case .dataLinks:
+            DataLinksView()
         case .aiPoints:
             AIPointsView()
         case .aiPointLots:
@@ -432,6 +440,8 @@ struct AppTabView: View {
                     BookkeepingTransactionDetailView(transactionID: transactionID)
                 case .assetAnalysis:
                     AssetAnalysisView()
+                case .itemValuation:
+                    ItemValuationDetailView()
                 }
             }
         case .profile:

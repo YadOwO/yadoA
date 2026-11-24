@@ -21,6 +21,8 @@ struct AccountDeletionSheet: View {
     @Environment(SyncLifecycle.self) private var syncLifecycle: SyncLifecycle?
     /// AI 点数状态，注销时关闭当前账号的“帮助改进 AI”授权；预览中没有注入时为 nil。
     @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
+    /// 数据联动状态，注销时清掉当前账号的物品估值缓存和设置；预览中没有注入时为 nil。
+    @Environment(DataLinkStore.self) private var dataLinks: DataLinkStore?
 
     /// 用户选的本机账本处理方式；没选时不能注销。
     @State private var choice: SyncSignOutChoice?
@@ -301,7 +303,7 @@ struct AccountDeletionSheet: View {
         phase = AccountDeletionPhase(outcome: outcome)
     }
 
-    /// 注销的实际步骤：服务端删除 → 关闭“帮助改进 AI”授权 → 清除时顺带删撤销快照和搜索词 → 退出登录。
+    /// 注销的实际步骤：服务端删除 → 关闭“帮助改进 AI”授权、清掉联动缓存 → 清除时顺带删撤销快照和搜索词 → 退出登录。
     ///
     /// 服务端失败时什么都不改、不退出登录；只有“服务端已注销、本机清理失败”仍退出登录，因为账号已经不存在。
     ///
@@ -327,6 +329,8 @@ struct AccountDeletionSheet: View {
         guard outcome.signsOut else { return outcome }
         // 必须在 signOut 之前、userID 还在时关闭授权
         aiPoints?.setTraceConsented(false)
+        // 同样要在 signOut 之前：清掉这个账号的物品估值缓存和设置；服务端的授权记录已由 hub 在注销时删除
+        dataLinks?.forgetCurrentUser()
         if choice == .eraseFromDevice, outcome == .completed {
             DataUndoService(container: modelContext.container).discardSnapshot()
             UserDefaults.standard.removeObject(forKey: BookkeepingSearchHistory.storageKey)
