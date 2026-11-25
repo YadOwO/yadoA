@@ -19568,6 +19568,42 @@
         }
       }
     },
+    "account.unlinked.hint" : {
+      "comment" : "「不关联账户」的说明：记到它上面的收支不改变任何账户余额",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Counts as income or expense only. No balance changes."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只计入收支，不影响余额"
+          }
+        }
+      }
+    },
+    "account.unlinked.name" : {
+      "comment" : "系统内置的「不关联账户」名称：收支记到它上面时不动任何余额，用于选账户和流水列表",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不关联账户"
+          }
+        }
+      }
+    },
     "ai.chatHistory.clear" : {
       "comment" : "Button that clears AI chat history.",
       "extractionState" : "manual",

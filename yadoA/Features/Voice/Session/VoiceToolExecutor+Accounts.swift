@@ -6,7 +6,7 @@ extension VoiceToolExecutor {
 
     func adjustBalance(_ input: VoiceAdjustBalanceInput) -> (VoiceToolOutput, VoiceAccountChange?) {
         let context = container.makeManualSaveContext()
-        guard let accountID = UUID(uuidString: input.accountId), let account = try? context.account(id: accountID) else {
+        guard let accountID = UUID(uuidString: input.accountId), let account = try? context.managedAccount(id: accountID) else {
             return (.failure(.notFound), nil)
         }
         let before = account.balance
@@ -49,7 +49,7 @@ extension VoiceToolExecutor {
         /// 读取一边账户：没选时为 `nil`，选了却找不到时失败。
         func side(_ idText: String?) -> Result<Account?, VoiceToolErrorCode> {
             guard let idText else { return .success(nil) }
-            guard let id = UUID(uuidString: idText), let account = try? context.account(id: id) else {
+            guard let id = UUID(uuidString: idText), let account = try? context.managedAccount(id: id) else {
                 return .failure(.notFound)
             }
             return .success(account)
@@ -188,7 +188,7 @@ extension VoiceToolExecutor {
 
     func updateAccount(_ input: VoiceUpdateAccountInput) -> (VoiceToolOutput, VoiceAccountChange?) {
         let context = container.makeManualSaveContext()
-        guard let id = UUID(uuidString: input.accountId), let account = try? context.account(id: id) else {
+        guard let id = UUID(uuidString: input.accountId), let account = try? context.managedAccount(id: id) else {
             return (.failure(.notFound), nil)
         }
         let patch = input.patch
@@ -258,7 +258,7 @@ extension VoiceToolExecutor {
 
     func deleteAccount(_ input: VoiceDeleteAccountInput) -> (VoiceToolOutput, VoiceAccountChange?) {
         let context = container.makeManualSaveContext()
-        guard let id = UUID(uuidString: input.accountId), let account = try? context.account(id: id) else {
+        guard let id = UUID(uuidString: input.accountId), let account = try? context.managedAccount(id: id) else {
             return (.failure(.notFound), nil)
         }
         let snapshot = AccountSnapshot(account: account)

@@ -24,6 +24,34 @@ extension ModelContext {
         return try fetch(descriptor).first
     }
 
+    /// 按稳定 UUID 读取用户自己管理的账户；「不关联账户」视为不存在。
+    ///
+    /// 改名、停用、删除、恢复、调余额这类账户操作用它取账户，让「不关联账户」不会被这些操作改动。
+    /// - Parameter id: 账户 UUID。
+    /// - Returns: 找到的账户；不存在或是「不关联账户」时为 `nil`。
+    func managedAccount(id: UUID) throws -> Account? {
+        guard id != Account.unlinkedID else { return nil }
+        return try account(id: id)
+    }
+
+    /// 读取「不关联账户」，本机还没有时插入一个；不保存，由调用方和这次写入一起保存。
+    ///
+    /// 同步或导入带来的副本如果被停用过，在这里恢复启用，保证收支始终能记到它上面。
+    /// - Parameters:
+    ///   - locale: 新建时预填名称使用的语言环境。
+    ///   - now: 新建时的创建时间。
+    /// - Returns: 当前 context 里的「不关联账户」。
+    /// - Throws: 读取失败时抛出。
+    func unlinkedAccount(locale: Locale = .current, now: Date = .now) throws -> Account {
+        if let existing = try account(id: Account.unlinkedID) {
+            if !existing.isActive { existing.deactivatedAt = nil }
+            return existing
+        }
+        let account = Account.makeUnlinked(locale: locale, now: now)
+        insert(account)
+        return account
+    }
+
     /// 按稳定 UUID 读取任意类型的账户流水。
     func transaction(id: UUID) throws -> AccountTransaction? {
         let transactionID = id

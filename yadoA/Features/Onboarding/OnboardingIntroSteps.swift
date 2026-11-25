@@ -561,9 +561,9 @@ struct OnboardingAccountStep: View {
         }
     }
 
-    /// 本机所有启用中的账户。
+    /// 本机所有启用中的账户；「不关联账户」不是用户的账户，不算在内。
     private func activeAccounts() -> [Account] {
-        ((try? modelContext.fetch(FetchDescriptor<Account>())) ?? []).filter(\.isActive)
+        ((try? modelContext.fetch(FetchDescriptor<Account>())) ?? []).filter { $0.isActive && !$0.isUnlinked }
     }
 
     /// 本机所有启用中账户的标识。
