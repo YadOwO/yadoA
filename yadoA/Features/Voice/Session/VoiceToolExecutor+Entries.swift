@@ -183,7 +183,7 @@ extension VoiceToolExecutor {
             transactionID: snapshot.id,
             transactionDay: snapshot.transactionDay,
             row: row,
-            accountName: (try? context.account(id: snapshot.accountID))?.name,
+            accountName: (try? context.account(id: snapshot.accountID))?.localizedName(locale: locale),
             label: label(for: snapshot, catalog: catalog),
             formattedAmount: formattedAmount(snapshot.amount),
             inferredFields: inferredFields,

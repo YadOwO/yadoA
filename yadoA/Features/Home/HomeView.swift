@@ -306,7 +306,7 @@ extension HomeQueryContent {
     /// - Parameter transactionID: 流水 UUID。
     private func accountName(forTransaction transactionID: UUID) -> String {
         guard let accountID = transactions.first(where: { $0.id == transactionID })?.accountID else { return "" }
-        return accounts.first { $0.id == accountID }?.name ?? ""
+        return accounts.first { $0.id == accountID }?.localizedName(locale: locale) ?? ""
     }
 
     /// 按应用当前语言解析 String Catalog 文案。

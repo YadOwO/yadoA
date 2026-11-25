@@ -205,6 +205,16 @@ extension Account {
         )
     }
 
+    /// 面向用户展示的账户名称。
+    ///
+    /// 「不关联账户」的名称按当前语言取词，不读创建时写进 `name` 的文案，切换语言或从另一种语言的设备同步后也不会串语言；
+    /// 其他账户返回用户填的名称。
+    /// - Parameter locale: 解析「不关联账户」名称使用的语言环境。
+    /// - Returns: 展示用的账户名称。
+    func localizedName(locale: Locale = .current) -> String {
+        isUnlinked ? AccountLocalization.string("account.unlinked.name", locale: locale) : name
+    }
+
     /// 将资料编辑草稿应用到现有账户，保留余额、类型、模板和创建时间。
     ///
     /// - Parameters:

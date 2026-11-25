@@ -578,7 +578,7 @@ struct BookkeepingSearchPresentation {
         let categoryTitle = searchablePayload.categoryTitle
 
         let accountState = BookkeepingTransactionAccountState(account: account)
-        let accountName = account?.name
+        let accountName = account?.localizedName(locale: locale)
         let displayAmount = searchablePayload.entryType == .income ? amount : -amount
         let formattedAmount = displayAmount.formattedCurrency(locale: locale, currencyCode: transaction.currencyCode)
         let formattedDate = BookkeepingDateFormatting.shortDate(date, locale: locale, calendar: calendar)

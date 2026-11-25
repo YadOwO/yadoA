@@ -88,9 +88,9 @@ struct DiningExpenseEntryView: View {
 
     /// 从当前查询快照解析一次 canonical 默认，不将偏好变化绑定到现有草稿。
     ///
-    /// 一个账户都没有时先自动建一个「现金」账户并直接选上，用户不用先去建账户就能记第一笔。
+    /// 一个账户都没有（不算「不关联账户」）时先自动建一个「现金」账户并直接选上，用户不用先去建账户就能记第一笔。
     private func applyInitialDefaultIfNeeded() {
-        if accounts.isEmpty {
+        if accounts.allSatisfy(\.isUnlinked) {
             do {
                 let repository = LocalAccountRepository(container: modelContext.container)
                 if let starterID = try repository.createStarterAccountIfNeeded(locale: locale) {

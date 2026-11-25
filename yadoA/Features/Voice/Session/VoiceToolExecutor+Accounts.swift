@@ -334,6 +334,7 @@ extension VoiceToolExecutor {
 
     /// 账户在账户页显示的名称：银行卡、信用卡显示机构名称。
     func displayName(of account: Account) -> String {
+        if account.isUnlinked { return account.localizedName(locale: locale) }
         guard account.accountType?.showsEditableName == false, let template = template(of: account) else {
             return account.name
         }

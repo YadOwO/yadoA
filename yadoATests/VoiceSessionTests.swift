@@ -22,7 +22,8 @@ struct VoiceSessionTests {
         let request = try #require(fixture.api.requests.first)
         #expect(request.locale == "zh-Hans")
         #expect(request.events == [.user(text: "午饭 28", selectedOptionId: nil)])
-        #expect(request.accounts.map(\.isActive) == [true, false])
+        #expect(request.accounts.map(\.isActive) == [true, true, false])
+        #expect(request.accounts.map(\.id).dropFirst().first == Account.unlinkedID.uuidString)
         #expect(request.defaultAccountId == nil)
 
         let turn = try #require(fixture.session.latestTurn)

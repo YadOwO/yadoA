@@ -196,6 +196,31 @@ struct UnlinkedAccountTests {
         #expect(option.type == Account.unlinkedTypeRawValue)
     }
 
+    @Test("不关联账户的展示名称按当前语言取词，普通账户原样返回名称")
+    func localizedNameFollowsCurrentLocale() {
+        let chinese = Locale(identifier: "zh-Hans")
+        let unlinked = Account.makeUnlinked(locale: Locale(identifier: "en_US"))
+        #expect(
+            unlinked.localizedName(locale: chinese)
+                == AccountLocalization.string("account.unlinked.name", locale: chinese)
+        )
+
+        let cash = Account(
+            id: UUID(),
+            typeRawValue: AccountType.cash.rawValue,
+            templateID: nil,
+            name: "我的钱包",
+            note: nil,
+            lastFourDigits: nil,
+            balance: 10,
+            currencyCode: BookkeepingCurrency.code,
+            createdAt: .now,
+            updatedAt: .now,
+            deactivatedAt: nil
+        )
+        #expect(cash.localizedName(locale: chinese) == "我的钱包")
+    }
+
     // MARK: - 辅助
 
     /// 保存一个现金账户并返回它的 UUID。
