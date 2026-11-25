@@ -28,24 +28,23 @@ struct SyncLifecycleAccountDeletionTests {
         }
     }
 
-    @Test("意见反馈删除失败：注销中止，绑定和本机数据不变，不会删除账号")
-    func feedbackFailureChangesNothingAndSkipsAccountDeletion() async throws {
+    @Test("yado_hub 注销失败（某个服务没删掉）：注销接口的错误原样抛出，绑定和本机数据不变")
+    func hubDeletionFailureChangesNothing() async throws {
         try await SyncTestEnvironment.run { environment in
             let device = try environment.makeDevice()
             try saveAccount(in: device.container)
             let before = device.state
-            let deleter = FakeAccountDeleter(failing: .feedback, error: .serviceUnavailable)
+            let deleter = FakeAccountDeleter(error: .serviceUnavailable)
 
             await #expect(throws: AccountDeletionAPIError.serviceUnavailable) {
                 try await lifecycle(for: device, in: environment).deleteAccount(.eraseFromDevice) {
-                    try await deleter.deleteRemoteData()
+                    try await deleter.deleteAccount()
                 }
             }
             #expect(device.state == before)
             #expect(device.state.isBound)
             #expect(try accountCount(in: device.container) == 1)
-            #expect(deleter.calls == [.ai, .feedback])
-            #expect(!deleter.calls.contains(.account))
+            #expect(deleter.callCount == 1)
         }
     }
 

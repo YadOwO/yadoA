@@ -129,7 +129,7 @@ struct RecurringRuleEditView: View {
         .interactiveDismissDisabled(flow.isSaving)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(text("common.cancel")) { dismiss() }
+                Button(text("common.cancel"), systemImage: "xmark") { dismiss() }
                     .disabled(flow.isSaving)
             }
         }

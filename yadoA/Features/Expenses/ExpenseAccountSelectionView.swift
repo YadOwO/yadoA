@@ -2,6 +2,8 @@ import SwiftData
 import SwiftUI
 
 /// 支出流程中的账户选择框，负责选择现有账户或上下文创建首个账户。
+///
+/// 账户分组之后固定给出「不关联账户」：选它的收支只计入收支统计，不改变任何余额。
 struct ExpenseAccountSelectionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
@@ -48,7 +50,7 @@ struct ExpenseAccountSelectionView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(AccountLocalization.string("common.cancel", locale: locale)) {
+                Button(AccountLocalization.string("common.cancel", locale: locale), systemImage: "xmark") {
                     dismiss()
                 }
             }
@@ -87,6 +89,11 @@ struct ExpenseAccountSelectionView: View {
                 )
             }
             .accessibilityIdentifier("expense-account-selection-create")
+
+            Button(action: selectUnlinked) {
+                Text(AccountLocalization.string("account.unlinked.name", locale: locale))
+            }
+            .accessibilityIdentifier("expense-account-selection-unlinked-empty")
         }
     }
 
@@ -109,7 +116,48 @@ struct ExpenseAccountSelectionView: View {
                 .disabled(!account.supportsBookkeeping)
                 .accessibilityIdentifier("expense-account-selection-row-\(account.id.uuidString)")
             }
+
+            LedgerCard(seed: 919) {
+                Button(action: selectUnlinked) {
+                    unlinkedRow
+                        .ledgerCardRow()
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("expense-account-selection-unlinked")
+            }
         }
+    }
+
+    /// 「不关联账户」一行：图标、名称和「只计入收支，不影响余额」的说明，没有金额。
+    private var unlinkedRow: some View {
+        let presentation = AccountListPresentation.unlinkedRow(locale: locale)
+        return HStack(alignment: .center, spacing: 12) {
+            AccountIconView(presentation: presentation.icon)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(presentation.name)
+                    .font(.headline)
+                    .foregroundStyle(Color.primary)
+                Text(presentation.detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+
+    /// 选中「不关联账户」：本机还没有时先建好再回填，失败时按创建账户失败提示，不改变外层草稿。
+    private func selectUnlinked() {
+        do {
+            let repository = LocalAccountRepository(container: modelContext.container)
+            let accountID = try repository.ensureUnlinkedAccount(locale: locale)
+            onSelectAccount(accountID)
+        } catch {
+            onCreationFailed()
+        }
+        dismiss()
     }
 
     /// 创建 sheet 关闭后统一返回记账页；只有成功结果会替换所选账户。

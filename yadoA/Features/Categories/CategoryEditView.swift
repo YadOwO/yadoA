@@ -102,10 +102,10 @@ struct CategoryEditView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(text("common.cancel")) { dismiss() }
+                Button(text("common.cancel"), systemImage: "xmark") { dismiss() }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(text("common.save")) { save() }
+                Button(text("common.save"), systemImage: "checkmark") { save() }
                     .disabled(!canSave)
                     .accessibilityIdentifier("category-edit-save")
             }

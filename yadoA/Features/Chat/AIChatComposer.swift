@@ -684,8 +684,8 @@ struct AIChatImageGrid: View {
                 AIChatStoredImage(fileName: image.id, contentMode: .fit)
                     .padding(16)
                     .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(AccountLocalization.string("common.done", locale: locale)) {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(AccountLocalization.string("common.close", locale: locale), systemImage: "xmark") {
                                 previewFileName = nil
                             }
                         }

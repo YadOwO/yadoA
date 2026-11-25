@@ -28,7 +28,7 @@ struct DiningExpenseQuickEditView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(text("common.cancel")) {
+                Button(text("common.cancel"), systemImage: "xmark") {
                     // 流水已不存在时草稿没有保留价值，直接关闭。
                     if flow.draft != originalDraft && !flow.isTransactionRemoved {
                         isDiscardConfirmationPresented = true

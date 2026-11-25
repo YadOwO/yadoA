@@ -217,8 +217,8 @@ struct AIChatView: View {
             NavigationStack {
                 AIModelTierView(scope: .chat)
                     .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(text("common.done")) { isModelTierPresented = false }
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(text("common.close"), systemImage: "xmark") { isModelTierPresented = false }
                         }
                     }
             }

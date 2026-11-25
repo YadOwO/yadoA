@@ -79,10 +79,10 @@ struct AssetAnalysisPresentation: Equatable {
     /// 由账户生成分析数据。
     ///
     /// - Parameters:
-    ///   - accounts: 账户；停用的会被排除。
+    ///   - accounts: 账户；停用的和「不关联账户」会被排除。
     ///   - locale: 名称、金额和合并项使用的语言环境。
     init(accounts: [Account], locale: Locale = .current) {
-        let active = accounts.filter(\.isActive)
+        let active = accounts.filter { $0.isActive && !$0.isUnlinked }
         var assetAccounts: [Account] = []
         var liabilityAccounts: [Account] = []
         for account in active {

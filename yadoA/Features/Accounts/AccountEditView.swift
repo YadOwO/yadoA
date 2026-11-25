@@ -223,7 +223,7 @@ private struct AccountEditFormView: View {
                 Button {
                     dismiss()
                 } label: {
-                    Image(systemName: "xmark")
+                    Label(AccountLocalization.string("common.close", locale: locale), systemImage: "xmark")
                 }
                 .disabled(flow.isSaving)
                 .accessibilityLabel(AccountLocalization.string("common.close", locale: locale))

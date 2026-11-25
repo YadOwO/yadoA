@@ -70,7 +70,7 @@ struct AccountCredentialChangeView: View {
             .toolbar {
                 if !isFinished {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button(text("common.cancel")) {
+                        Button(text("common.cancel"), systemImage: "xmark") {
                             dismiss()
                         }
                         .disabled(flow.isWorking)

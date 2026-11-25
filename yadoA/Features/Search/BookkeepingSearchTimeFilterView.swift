@@ -116,6 +116,7 @@ struct BookkeepingSearchTimeFilterView: View {
                         "bookkeeping.search.filter.cancel",
                         locale: locale
                     ),
+                    systemImage: "xmark",
                     action: onCancel
                 )
                 .accessibilityIdentifier("bookkeeping-search-filter-cancel")
@@ -125,7 +126,8 @@ struct BookkeepingSearchTimeFilterView: View {
                     AccountLocalization.string(
                         "bookkeeping.search.filter.apply",
                         locale: locale
-                    )
+                    ),
+                    systemImage: "checkmark"
                 ) {
                     guard let filter else { return }
                     onConfirm(filter)

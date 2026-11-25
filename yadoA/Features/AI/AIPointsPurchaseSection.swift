@@ -202,6 +202,7 @@ struct AIPointsPurchaseSection: View {
         case .pending: text("ai.store.notice.pending.title")
         case .creditDelayed: text("ai.store.notice.delayed.title")
         case .otherAccount: text("ai.store.notice.otherAccount.title")
+        case .cannotCredit: text("ai.store.notice.cannotCredit.title")
         case .failed: text("ai.store.notice.failed.title")
         case nil: ""
         }
@@ -221,6 +222,7 @@ struct AIPointsPurchaseSection: View {
         case .pending: text("ai.store.notice.pending.message")
         case .creditDelayed: text("ai.store.notice.delayed.message")
         case .otherAccount: text("ai.store.notice.otherAccount.message")
+        case .cannotCredit: text("ai.store.notice.cannotCredit.message")
         case .failed: text("ai.store.notice.failed.message")
         }
     }

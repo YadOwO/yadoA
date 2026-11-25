@@ -28,22 +28,18 @@ struct VoiceSessionContext: Equatable {
             .sorted((try? context.fetch(FetchDescriptor<Account>())) ?? [])
         let catalog = VoiceToolExecutor.catalog(in: context)
 
-        // 停用账户也要发送，用于识别查询结果中的历史流水；超出上限时优先保留启用账户
-        let sortedAccounts = accounts.filter(\.isActive) + accounts.filter { !$0.isActive }
-        let accountOptions = sortedAccounts.prefix(VoiceSessionLimits.maxAccounts).compactMap { account -> VoiceAccountOption? in
-            let name = String(account.name.prefix(VoiceSessionLimits.maxOptionNameLength))
-            let type = String(account.typeRawValue.prefix(VoiceSessionLimits.maxAccountTypeLength))
-            // 名称或类型为空的是损坏数据，不符合契约，不发送
-            guard !name.isEmpty, !type.isEmpty else { return nil }
-            return VoiceAccountOption(
-                id: account.id.uuidString,
-                name: name,
-                // 只有可记账的 CNY 账户才能新增或改入流水
-                isActive: account.acceptsBookkeepingEntries,
-                type: type,
-                balance: balanceString(account.balance)
-            )
-        }
+        // 停用账户也要发送，用于识别查询结果中的历史流水；超出上限时优先保留启用账户。
+        // 「不关联账户」单独放在启用账户之后，本机还没建时也发送，用户说「不关联账户」「别动余额」时 AI 才能选它；
+        // 启用账户先截断一次，给它留一个名额，启用账户满额时它也不会被总上限截掉
+        let ownAccounts = accounts.filter { !$0.isUnlinked }
+        let activeOptions = ownAccounts.filter(\.isActive).compactMap { option(for: $0) }
+        let inactiveOptions = ownAccounts.filter { !$0.isActive }.compactMap { option(for: $0) }
+        let accountOptions = (
+            Array(activeOptions.prefix(VoiceSessionLimits.maxAccounts - 1))
+                + [unlinkedOption(locale: locale)]
+                + inactiveOptions
+        )
+        .prefix(VoiceSessionLimits.maxAccounts)
         let categoryOptions = BookkeepingEntryType.allCases.flatMap { direction in
             catalog.items(for: direction).map { item in
                 VoiceCategoryOption(
@@ -77,6 +73,41 @@ struct VoiceSessionContext: Equatable {
         var rounded = Decimal()
         NSDecimalRound(&rounded, &source, 2, .plain)
         return VoiceToolExecutor.amountString(rounded)
+    }
+
+    /// 把一个账户转成契约里的账户选项。
+    ///
+    /// - Parameter account: 本机账户。
+    /// - Returns: 账户选项；名称或类型为空的是损坏数据，不符合契约，返回 `nil` 不发送。
+    private static func option(for account: Account) -> VoiceAccountOption? {
+        let name = String(account.name.prefix(VoiceSessionLimits.maxOptionNameLength))
+        let type = String(account.typeRawValue.prefix(VoiceSessionLimits.maxAccountTypeLength))
+        guard !name.isEmpty, !type.isEmpty else { return nil }
+        return VoiceAccountOption(
+            id: account.id.uuidString,
+            name: name,
+            // 只有可记账的 CNY 账户才能新增或改入流水
+            isActive: account.acceptsBookkeepingEntries,
+            type: type,
+            balance: balanceString(account.balance)
+        )
+    }
+
+    /// 「不关联账户」的选项：始终可记账、余额为 0；本机还没建时，记第一笔时由仓库建好。
+    ///
+    /// - Parameter locale: 名称使用的语言环境。
+    /// - Returns: 「不关联账户」的账户选项。
+    static func unlinkedOption(locale: Locale) -> VoiceAccountOption {
+        VoiceAccountOption(
+            id: Account.unlinkedID.uuidString,
+            name: String(
+                AccountLocalization.string("account.unlinked.name", locale: locale)
+                    .prefix(VoiceSessionLimits.maxOptionNameLength)
+            ),
+            isActive: true,
+            type: Account.unlinkedTypeRawValue,
+            balance: balanceString(0)
+        )
     }
 
     /// 契约中的界面语言：中文界面为 `zh-Hans`，其余为 `en`。

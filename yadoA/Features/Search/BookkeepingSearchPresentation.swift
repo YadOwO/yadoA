@@ -444,7 +444,8 @@ struct BookkeepingSearchPresentation {
                     // 图标只为通过全部条件的流水解析，不增加被过滤流水的计算。
                     symbolName: payload.categorySymbolName(in: catalog) ?? Self.fallbackSymbolName,
                     matchesAmount: parsedAmount == amount,
-                    accountName: account?.name,
+                    // 「不关联账户」对用户只是「这笔不动余额」，列表里不写账户名
+                    accountName: account?.isUnlinked == true ? nil : account?.name,
                     accountState: BookkeepingTransactionAccountState(account: account),
                     note: note
                 )
@@ -577,7 +578,7 @@ struct BookkeepingSearchPresentation {
         let categoryTitle = searchablePayload.categoryTitle
 
         let accountState = BookkeepingTransactionAccountState(account: account)
-        let accountName = account?.name
+        let accountName = account?.localizedName(locale: locale)
         let displayAmount = searchablePayload.entryType == .income ? amount : -amount
         let formattedAmount = displayAmount.formattedCurrency(locale: locale, currencyCode: transaction.currencyCode)
         let formattedDate = BookkeepingDateFormatting.shortDate(date, locale: locale, calendar: calendar)

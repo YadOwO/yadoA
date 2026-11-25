@@ -63,7 +63,7 @@ struct AccountSummaryPresentation: Equatable {
 
     /// 从账户列表生成资产、负债和净资产汇总。
     ///
-    /// 未知账户类型按资产处理，以避免损坏或未来类型的余额从总览中无提示消失。
+    /// 未知账户类型按资产处理，以避免损坏或未来类型的余额从总览中无提示消失；「不关联账户」不是资产，不计入。
     static func summary(
         for accounts: [Account],
         locale: Locale = .current
@@ -71,7 +71,7 @@ struct AccountSummaryPresentation: Equatable {
         var assets = Decimal.zero
         var liabilities = Decimal.zero
 
-        for account in accounts where account.isActive {
+        for account in accounts where account.isActive && !account.isUnlinked {
             if account.accountType?.expenseBalanceEffect == .increaseDebt {
                 liabilities += account.balance
             } else {
@@ -125,14 +125,16 @@ struct AccountSummaryPresentation: Equatable {
 
 /// 账户列表查询结果的确定性排序与展示转换边界。
 enum AccountListPresentation {
-    /// 只保留启用账户，并按全 App 统一的账户顺序排列。
+    /// 只保留用户自己的启用账户，并按全 App 统一的账户顺序排列。
     ///
+    /// 「不关联账户」不是用户的资产，账户页、转账、默认账户和记账选择框的账户分组都不列它；
+    /// 记账选择框另外在最后单独给出这一项。
     /// - Parameters:
     ///   - accounts: 查询到的全部账户。
     ///   - order: 当前账户分类顺序，由 `AccountDisplayOrder(preferences:)` 从记账偏好读取。
     /// - Returns: 排好序的启用账户。
     static func sorted(_ accounts: [Account], order: AccountDisplayOrder) -> [Account] {
-        order.sorted(accounts.filter { $0.isActive })
+        order.sorted(accounts.filter { $0.isActive && !$0.isUnlinked })
     }
 
     /// 将持久模型安全转换为当前语言环境的行展示数据。
@@ -141,7 +143,10 @@ enum AccountListPresentation {
         locale: Locale = .current,
         isDefault: Bool = false
     ) -> AccountRowPresentation {
-        row(
+        if account.isUnlinked {
+            return unlinkedRow(locale: locale)
+        }
+        return row(
             id: account.id,
             accountType: account.accountType,
             templateID: account.templateID,
@@ -217,6 +222,30 @@ enum AccountListPresentation {
                 brandImageName: template?.brandImageName,
                 symbolName: template?.symbolName ?? accountType?.symbolName ?? "questionmark.circle.fill",
                 tint: accountType?.tint ?? .secondary
+            )
+        )
+    }
+
+    /// 「不关联账户」的行展示：名称按当前语言显示，说明代替类型，不显示金额（它没有余额）。
+    ///
+    /// 本机还没建这个账户时，记账选择框也用它画出这一项。
+    /// - Parameter locale: 文案使用的语言环境。
+    /// - Returns: 「不关联账户」的行展示数据。
+    static func unlinkedRow(locale: Locale = .current) -> AccountRowPresentation {
+        let hint = AccountLocalization.string("account.unlinked.hint", locale: locale)
+        return AccountRowPresentation(
+            id: Account.unlinkedID,
+            name: AccountLocalization.string("account.unlinked.name", locale: locale),
+            detail: hint,
+            formattedAmount: "",
+            amountLabel: "",
+            amountAccessibilityLabel: hint,
+            amountTone: .neutral,
+            isDefault: false,
+            icon: AccountIconPresentation(
+                brandImageName: nil,
+                symbolName: "circle.dashed",
+                tint: .secondary
             )
         )
     }

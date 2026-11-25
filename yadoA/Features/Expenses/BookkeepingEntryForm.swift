@@ -361,7 +361,10 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow, Accessory: View>: Vi
                         VStack(alignment: .leading, spacing: 2) {
                             Text(row.name)
                                 .foregroundStyle(Color.primary)
-                            Text(verbatim: "\(row.amountLabel) \(row.formattedAmount)")
+                            // 「不关联账户」没有余额，改为说明这笔不影响余额
+                            Text(verbatim: account.isUnlinked
+                                ? row.detail
+                                : "\(row.amountLabel) \(row.formattedAmount)")
                                 .font(.system(.caption, design: .serif))
                                 .monospacedDigit()
                                 .foregroundStyle(.secondary)
@@ -811,7 +814,7 @@ private struct BookkeepingCategorySelectionView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(AccountLocalization.string("common.cancel", locale: locale)) {
+                    Button(AccountLocalization.string("common.cancel", locale: locale), systemImage: "xmark") {
                         dismiss()
                     }
                 }

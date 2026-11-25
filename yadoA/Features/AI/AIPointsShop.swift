@@ -36,6 +36,9 @@ final class AIPointsShop {
         /// 已付款，但这笔购买属于另一个芽豆账号；换回那个账号登录后入账。
         case otherAccount
 
+        /// 已付款，但这笔购买永远入不了账（买它的账号已注销，或不属于这套环境），交易已结束，用户需要向 Apple 申请退款。
+        case cannotCredit
+
         /// 没能发起购买（商品已下架、App Store 暂时不可用等），没有扣款。
         case failed
 
@@ -45,6 +48,7 @@ final class AIPointsShop {
             case .pending: "pending"
             case .creditDelayed: "creditDelayed"
             case .otherAccount: "otherAccount"
+            case .cannotCredit: "cannotCredit"
             case .failed: "failed"
             }
         }
@@ -280,7 +284,7 @@ final class AIPointsShop {
         case let .delivered(purchase):
             purchase.status == .revoked ? nil : .credited(points: purchase.points)
         case .abandoned:
-            .otherAccount
+            .cannotCredit
         case .deferred(.otherAccount):
             .otherAccount
         case .deferred:

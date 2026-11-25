@@ -30,9 +30,10 @@ struct HomeView: View {
             // 标题仅供返回按钮和辅助功能使用，导航栏中部由月份入口占据。
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // 两栏时这两个入口换掉右栏，不在右栏里继续往下推
                 if !anyBookkeepingEntry.isEmpty {
                     ToolbarItem(placement: .topBarTrailing) {
-                        NavigationLink(value: HomeRoute.search) {
+                        TabRouteLink(value: HomeRoute.search, marksSelection: false) {
                             Label(
                                 AccountLocalization.string("bookkeeping.search.title", locale: locale),
                                 systemImage: "magnifyingglass"
@@ -43,7 +44,7 @@ struct HomeView: View {
                 }
                 // 悬浮按钮留给语音记账，手动记一笔放在导航栏最右侧
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(value: HomeRoute.expenseEntry) {
+                    TabRouteLink(value: HomeRoute.expenseEntry, marksSelection: false) {
                         Label(AccountLocalization.string("expense.entry.action", locale: locale), systemImage: "plus")
                     }
                     .accessibilityIdentifier("home-add-expense")
@@ -139,6 +140,7 @@ private struct HomeQueryContent: View {
                     ScrollView {
                         header
                     }
+                    .readableContentWidth()
                     .frame(maxHeight: geometry.size.height * 0.5)
                 }
 
@@ -167,7 +169,12 @@ private struct HomeQueryContent: View {
                     }
                 )
                 // 常规布局下汇总作为明细的顶部栏：流水从它下方滑过并在边缘柔和淡出，而不是被一刀切掉。
-                .paperTopBar(isEnabled: !usesStackedHeader) { header }
+                // 宽屏单栏时与明细一样居中排成阅读宽度，见 `readableContentWidth(sideMargin:)`
+                .paperTopBar(isEnabled: !usesStackedHeader) {
+                    header
+                        .frame(maxWidth: ReadableContentWidth.maxContentWidth)
+                        .frame(maxWidth: .infinity)
+                }
             }
         }
         .paperPage()
@@ -299,7 +306,7 @@ extension HomeQueryContent {
     /// - Parameter transactionID: 流水 UUID。
     private func accountName(forTransaction transactionID: UUID) -> String {
         guard let accountID = transactions.first(where: { $0.id == transactionID })?.accountID else { return "" }
-        return accounts.first { $0.id == accountID }?.name ?? ""
+        return accounts.first { $0.id == accountID }?.localizedName(locale: locale) ?? ""
     }
 
     /// 按应用当前语言解析 String Catalog 文案。

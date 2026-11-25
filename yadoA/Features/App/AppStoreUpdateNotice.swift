@@ -309,7 +309,7 @@ struct AppUpdateNoticeModifier: ViewModifier {
     /// 全局提示状态。
     @State private var notice = AppUpdateNotice.shared
 
-    /// 现在能不能查：允许联网，而且首次引导、同意卡都不在屏幕上。
+    /// 现在能不能查：允许联网，而且首次引导、同意卡和登录页都不在屏幕上。
     let canCheck: Bool
 
     func body(content: Content) -> some View {

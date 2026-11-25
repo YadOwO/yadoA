@@ -61,8 +61,8 @@ enum AppTab: String, CaseIterable, Hashable {
     }
 }
 
-/// 记账页导航栈支持的二级页面。
-enum HomeRoute: Hashable {
+/// 记账页导航支持的二级页面；宽屏两栏时显示在右栏，见 `TabSplitNavigation`。
+enum HomeRoute: Hashable, TabSplitRoute {
     /// 新增支出页面。
     case expenseEntry
 
@@ -74,6 +74,16 @@ enum HomeRoute: Hashable {
 
     /// 统一收支详情入口。
     case transactionDetail(UUID)
+
+    /// 记一笔页面底部有保存栏，两栏时右栏是它就收起语音麦克风。
+    var hasOwnBottomBar: Bool {
+        switch self {
+        case .expenseEntry, .repeatEntry:
+            true
+        case .search, .transactionDetail:
+            false
+        }
+    }
 }
 
 /// 图表导航栈支持的二级页面。
@@ -91,8 +101,8 @@ enum ChartsRoute: Hashable {
     }
 }
 
-/// 账户导航栈支持的二级页面。
-enum AccountsRoute: Hashable {
+/// 账户导航支持的二级页面；宽屏两栏时显示在右栏，见 `TabSplitNavigation`。
+enum AccountsRoute: Hashable, TabSplitRoute {
     /// 指定账户的详情页面。
     case detail(UUID)
 
@@ -101,13 +111,18 @@ enum AccountsRoute: Hashable {
 
     /// 资产分析：从账户页汇总卡片进入，按净资产、资产、负债三个 tab 看走势、资产负债率、构成和排行。
     case assetAnalysis
+
+    /// 账户的二级页面都没有自己的底栏，两栏时语音麦克风常显。
+    var hasOwnBottomBar: Bool {
+        false
+    }
 }
 
-/// “我的”导航栈支持的二级页面。
+/// “我的”导航支持的二级页面；宽屏两栏时显示在右栏，见 `TabSplitNavigation`。
 ///
 /// 根页面进入的二级页面都走路径导航：根导航据路径判断是否停在一级页面，决定语音入口是否显示；
 /// 在设置页修改启动页面会重建 TabView，路径保存在根导航，重建后仍停留在原处。
-enum ProfileRoute: Hashable {
+enum ProfileRoute: Hashable, TabSplitRoute {
     /// 账单页面。
     case bills
 
@@ -159,6 +174,17 @@ enum ProfileRoute: Hashable {
     /// 开发调试页面；只在 DEBUG 包有入口和页面。
     case developer
 
+    /// 意见反馈底部有输入栏、AI 记账说明底部有同意按钮，两栏时右栏最上面是它们就收起语音麦克风。
+    var hasOwnBottomBar: Bool {
+        switch self {
+        case .feedback, .aiProcessingConsent:
+            true
+        case .bills, .categories, .recurringRules, .sync, .aiPoints, .aiPointLots, .aiCreditEntries,
+             .aiModelTier, .aiTraceConsent, .checkIn, .settings, .accountSecurity, .moreProducts, .developer:
+            false
+        }
+    }
+
     /// 路由对应的页面。
     @MainActor @ViewBuilder
     var destination: some View {
@@ -208,9 +234,10 @@ enum ProfileRoute: Hashable {
 }
 
 /// 应用根级导航：记账、图表、账户与“我的”四个一级入口。
+///
+/// 记账、账户、“我的”在宽屏（例如 iPhone Duo 打开横拿）上是列表 + 详情两栏，其余情况与原来的导航栈一致，见 `TabSplitNavigation`。
 struct AppTabView: View {
     @Environment(\.locale) private var locale
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     /// 全局登录状态；换账号或退出登录时重新查询意见反馈的未读数。
     @Environment(AuthStore.self) private var authStore
@@ -232,6 +259,8 @@ struct AppTabView: View {
     @State private var voice = VoiceBookkeepingState()
     /// 余额走势的数据缓存，账户页、资产分析页和账户详情共用；切 Tab 时保留，回来不用重新汇总流水。
     @State private var balanceHistory = BalanceHistoryStore()
+    /// 记账、账户、“我的”是否展开成两栏；由当前显示的两栏容器按可用宽度回报，几个 Tab 宽度相同，共用一个值。
+    @State private var isSplitExpanded = false
 
     /// 冷启动落在哪个 Tab：用户选的启动页面；Debug 构建截 App Store 宣传图时按截图场景指定。
     private static var launchTab: AppTab {
@@ -246,15 +275,20 @@ struct AppTabView: View {
         privacyAgreement?.allowsNetwork ?? true
     }
 
-    /// 当前 Tab 是否停在一级页面；语音入口和会话卡片只在一级页面出现。
+    /// 当前 Tab 的一级页面是否露在外面；语音入口和会话卡片只在一级页面出现。
     ///
-    /// 各一级页面进入二级页面都走路径导航，路径为空即停在一级页面。
+    /// 各一级页面进入二级页面都走路径导航：单栏时路径为空即停在一级页面；两栏时左栏一直是一级页面，
+    /// 只有右栏最上面的页面自带底栏时收起，规则见 `TabSplitLayout.showsRootAccessory(path:isExpanded:)`。图表始终是单栏。
     private var isAtTabRoot: Bool {
         switch selectedTab {
-        case .home: homePath.isEmpty
-        case .charts: chartsPath.isEmpty
-        case .accounts: accountsPath.isEmpty
-        case .profile: profilePath.isEmpty
+        case .home:
+            TabSplitLayout.showsRootAccessory(path: homePath, isExpanded: isSplitExpanded)
+        case .charts:
+            chartsPath.isEmpty
+        case .accounts:
+            TabSplitLayout.showsRootAccessory(path: accountsPath, isExpanded: isSplitExpanded)
+        case .profile:
+            TabSplitLayout.showsRootAccessory(path: profilePath, isExpanded: isSplitExpanded)
         }
     }
 
@@ -302,10 +336,13 @@ struct AppTabView: View {
         .onChange(of: profilePath.count) { oldDepth, newDepth in
             closeVoiceCardIfPushed(on: .profile, from: oldDepth, to: newDepth)
         }
-        // 卡片上点了一笔流水：回到记账页根页面，由记账页取走请求并定位；路径变浅不会收起卡片
+        // 卡片上点了一笔流水：回到记账页根页面，由记账页取走请求并定位；路径变浅不会收起卡片。
+        // 两栏时记账页一直在左栏，右栏（可能是填到一半的记一笔）不用动
         .onChange(of: voice.pendingLocate) { _, change in
             guard change != nil else { return }
-            homePath = []
+            if !isSplitExpanded {
+                homePath = []
+            }
             selectedTab = .home
         }
         // 引导盖在首页上，写入时首页不整棵重建，只在这里切到选好的启动页面；挂在 .id 外面，重排 Tab 时不会漏掉
@@ -328,41 +365,44 @@ struct AppTabView: View {
         voice.closeCard()
     }
 
-    /// 记账页导航栈里的新增页面，保存到本地账本。
+    /// 记账页路由对应的页面；右栏根页面和右栏里推入的页面共用。
     ///
-    /// - Parameter draft: 预填好的草稿；为空时新建一笔。
-    private func expenseEntry(draft: DiningExpenseDraft? = nil) -> some View {
-        DiningExpenseEntryView(draft: draft) { draft in
-            let repository = LocalExpenseRepository(
-                container: modelContext.container
-            )
-            try repository.save(draft)
+    /// - Parameter route: 记账页路由。
+    @ViewBuilder
+    private func homeDestination(_ route: HomeRoute) -> some View {
+        switch route {
+        case .expenseEntry:
+            HomeExpenseEntryPage(draft: nil, isSplitExpanded: isSplitExpanded)
+        case let .repeatEntry(draft):
+            HomeExpenseEntryPage(draft: draft, isSplitExpanded: isSplitExpanded)
+        case .search:
+            // 搜索页里点开的详情在右栏里往下推
+            BookkeepingSearchView { transactionID in
+                homePath.append(.transactionDetail(transactionID))
+            }
+        case let .transactionDetail(transactionID):
+            BookkeepingTransactionDetailView(transactionID: transactionID)
         }
     }
 
-    /// 各一级 Tab 的根页面及其导航栈。
+    /// 各一级 Tab 的根页面及其导航。
+    ///
+    /// 记账、账户、“我的”用两栏容器：窄屏收成一栏，与原来的导航栈一致；宽屏左栏是一级页面、右栏是二级页面。图表始终是单栏导航栈。
     @ViewBuilder
     private func content(for tab: AppTab) -> some View {
         switch tab {
         case .home:
-            NavigationStack(path: $homePath) {
+            TabSplitNavigation(path: $homePath, onExpandedChange: { isSplitExpanded = $0 }) {
                 HomeView { draft in
-                    homePath.append(.repeatEntry(draft))
+                    // 长按流水选「再记一笔」：两栏时换掉右栏
+                    homePath = TabSplitPath.opening(HomeRoute.repeatEntry(draft))
                 }
-                .navigationDestination(for: HomeRoute.self) { route in
-                    switch route {
-                    case .expenseEntry:
-                        expenseEntry()
-                    case let .repeatEntry(draft):
-                        expenseEntry(draft: draft)
-                    case .search:
-                        BookkeepingSearchView { transactionID in
-                            homePath.append(.transactionDetail(transactionID))
-                        }
-                    case let .transactionDetail(transactionID):
-                        BookkeepingTransactionDetailView(transactionID: transactionID)
-                    }
+            } placeholder: {
+                TabDetailPlaceholder(messageKey: "app.split.placeholder.home") {
+                    HandDrawnSlipIllustration()
                 }
+            } destination: { route in
+                homeDestination(route)
             }
         case .charts:
             NavigationStack(path: $chartsPath) {
@@ -377,29 +417,79 @@ struct AppTabView: View {
                 }
             }
         case .accounts:
-            NavigationStack(path: $accountsPath) {
+            TabSplitNavigation(path: $accountsPath, onExpandedChange: { isSplitExpanded = $0 }) {
                 AccountListView()
                     .voiceBookkeepingDock()
-                    .navigationDestination(for: AccountsRoute.self) { route in
-                        switch route {
-                        case let .detail(accountID):
-                            AccountDetailView(accountID: accountID)
-                        case let .transactionDetail(transactionID):
-                            BookkeepingTransactionDetailView(transactionID: transactionID)
-                        case .assetAnalysis:
-                            AssetAnalysisView()
-                        }
-                    }
+            } placeholder: {
+                TabDetailPlaceholder(messageKey: "app.split.placeholder.accounts") {
+                    HandDrawnCardIllustration()
+                }
+            } destination: { route in
+                switch route {
+                case let .detail(accountID):
+                    AccountDetailView(accountID: accountID)
+                case let .transactionDetail(transactionID):
+                    BookkeepingTransactionDetailView(transactionID: transactionID)
+                case .assetAnalysis:
+                    AssetAnalysisView()
+                }
             }
         case .profile:
-            NavigationStack(path: $profilePath) {
+            TabSplitNavigation(path: $profilePath, onExpandedChange: { isSplitExpanded = $0 }) {
                 ProfileView()
                     .voiceBookkeepingDock()
-                    .navigationDestination(for: ProfileRoute.self) { route in
-                        route.destination
-                    }
+            } placeholder: {
+                TabDetailPlaceholder(messageKey: "app.split.placeholder.profile") {
+                    // 与“我的”页末尾的品牌落款同一个标记，深浅色各有一份
+                    Image(.brandMark)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 56, height: 56)
+                        .accessibilityHidden(true)
+                }
+            } destination: { route in
+                route.destination
             }
         }
+    }
+}
+
+/// 记账页导航里的新增页面，保存到本地账本。
+///
+/// 作为右栏根页面时，保存或关闭后用容器的关闭动作清空路径：两栏展开时 `dismiss()` 对右栏根页面没有效果。
+/// 不是右栏根页面时（取不到关闭动作）沿用页面自己的 `dismiss()`。
+/// 两栏展开时右栏根页面没有系统返回按钮，因此左上角额外显示关闭按钮；单栏时有系统返回按钮，不显示。
+private struct HomeExpenseEntryPage: View {
+    @Environment(\.modelContext) private var modelContext
+    /// 右栏根页面关掉自己的动作；不是右栏根页面时为 nil。
+    @Environment(\.tabDetailClose) private var closeDetail
+
+    /// 预填好的草稿；为空时新建一笔。
+    let draft: DiningExpenseDraft?
+
+    /// 记账 Tab 当前是否为两栏展开。
+    let isSplitExpanded: Bool
+
+    var body: some View {
+        // 单栏时根页面也能取到关闭动作，所以必须同时判断两栏展开
+        DiningExpenseEntryView(
+            draft: draft,
+            onFinish: finishAction,
+            showsCloseButton: isSplitExpanded && closeDetail != nil
+        ) { draft in
+            let repository = LocalExpenseRepository(
+                container: modelContext.container
+            )
+            try repository.save(draft)
+        }
+        // 关闭动作已经交给 onFinish，表单里的弹层不再继承
+        .environment(\.tabDetailClose, nil)
+    }
+
+    /// 保存或关闭后的收尾：右栏根页面清空路径，其他情况交给页面自己的 `dismiss()`。
+    private var finishAction: (@MainActor () -> Void)? {
+        guard let closeDetail else { return nil }
+        return { closeDetail() }
     }
 }
 

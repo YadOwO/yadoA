@@ -12,7 +12,7 @@
 
 **什么时候要改：** 新增一种上传到服务器的数据、新接一个 AI 服务商或 SDK、用到新的 required-reason API（文件时间戳、开机时间、磁盘空间、键盘列表、UserDefaults）。
 
-整理日期：2026-11-15，依据当时 `dev` 上的代码（含 App 内注销、意见反馈附带诊断、应用锁）；2026-11-22 补上 App 内购买点数。
+整理日期：2026-11-15，依据当时 `dev` 上的代码（含 App 内注销、意见反馈附带诊断、应用锁）；2026-11-22 补上 App 内购买点数；2026-11-23 补上出口合规。
 
 ## 一、数据从哪来、到哪去
 
@@ -97,10 +97,11 @@
 
 ## 四、上架前还要对上的事
 
-这些是隐私政策已经承诺、但要在上架前确认的：
+这些是隐私政策已经承诺、或上架时要向 App Store 申报的事，要在上架前确认：
 
 - yado_ai 的模型从魔搭切到阿里云百炼，与共享清单一致；
 - 首次使用 AI 记账前单独征得同意（共享清单里写了「首次使用前会单独征得你的同意」）；
 - ~~Release 版隐藏「帮助改进 AI」入口，Langfuse 上线前政策里没有这一项~~（已完成 2026-11-14：连线上的包（Release、DebugProd）不显示入口和页面，`AIPointsStore.isTraceConsented` 恒为 false，本机留着的旧授权也不会让请求带 `X-AI-Trace-Consent`；开关在 `Features/Auth/AuthConfig.swift` 的 `isAITraceConsentAvailable`，Langfuse 写进隐私政策和共享清单后再把 prod 改为 true）；
 - ~~中国区首次启动的隐私政策同意弹窗~~（已完成 2026-11-12：系统地区为中国大陆时首次启动先出同意卡，同意前不发任何请求，不同意进入离线模式；见 `Features/Legal/PrivacyAgreementStore.swift`）；
-- Logto 托管登录页填上用户协议和隐私政策链接。
+- Logto 托管登录页填上用户协议和隐私政策链接；
+- ~~出口合规：在 Info.plist 声明 App 只用豁免类加密~~（已完成 2026-11-18：`yadoA-Info.plist` 声明 `ITSAppUsesNonExemptEncryption` 为 NO（`<false/>`），Debug、DebugProd、Release 都用这份 plist，上传构建后不用再在 App Store Connect 回答出口合规问题；依据：网络只走系统 HTTPS（URLSession / TLS），登录凭证由 Logto Swift SDK 存在系统 Keychain；CryptoKit 只用来算 SHA256 摘要和 HMAC 签名（`OSSRequestSigner` 的 OSS V4 签名、`SyncPayloadCoder` 的同步载荷摘要、周期规则和分类的固定 ID），不加密任何数据；现有 SPM 依赖 Logto Swift SDK（带 JOSESwift、KeychainAccess）只用来校验登录令牌签名和存取凭证，属于认证用途；没有自带或自己实现的加密算法，属于豁免。以后引入自定义加密（例如同步做端到端加密、用 CryptoKit 的 AES / ChaChaPoly 加密数据、新接入带加密算法的第三方库）时，要重新评估这个键，必要时改为 YES，并在 App Store Connect 提交出口合规文件）。

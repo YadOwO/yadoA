@@ -6116,6 +6116,60 @@
         }
       }
     },
+    "app.split.placeholder.accounts" : {
+      "comment" : "宽屏两栏时账户页右栏还没打开账户时的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select an account to see its details here"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择一个账户，在这里查看详情"
+          }
+        }
+      }
+    },
+    "app.split.placeholder.home" : {
+      "comment" : "宽屏两栏时记账页右栏还没打开流水时的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select an entry to see its details here"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择一笔记账，在这里查看详情"
+          }
+        }
+      }
+    },
+    "app.split.placeholder.profile" : {
+      "comment" : "宽屏两栏时“我的”右栏还没打开任何一项时的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose an item to open it here"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择一项，在这里打开"
+          }
+        }
+      }
+    },
     "app.tab.charts" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -17818,6 +17872,42 @@
         }
       }
     },
+    "ai.store.notice.cannotCredit.title" : {
+      "comment" : "购买永远入不了账提示的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Points Can't Be Added"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点数无法到账"
+          }
+        }
+      }
+    },
+    "ai.store.notice.cannotCredit.message" : {
+      "comment" : "购买永远入不了账提示的说明（买它的账号已注销，或不属于这套环境），引导用户向 Apple 申请退款",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Yado account this purchase was made for no longer exists, so the points can't be added. You can request a refund from Apple at reportaproblem.apple.com."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这笔购买对应的芽豆账号已不存在，点数无法到账。可以在 Apple 的「报告问题」页面（reportaproblem.apple.com）申请退款。"
+          }
+        }
+      }
+    },
     "ai.store.notice.failed.title" : {
       "comment" : "没能发起购买提示的标题",
       "extractionState" : "manual",
@@ -19474,6 +19564,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已开启"
+          }
+        }
+      }
+    },
+    "account.unlinked.hint" : {
+      "comment" : "「不关联账户」的说明：记到它上面的收支不改变任何账户余额",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Counts as income or expense only. No balance changes."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只计入收支，不影响余额"
+          }
+        }
+      }
+    },
+    "account.unlinked.name" : {
+      "comment" : "系统内置的「不关联账户」名称：收支记到它上面时不动任何余额，用于选账户和流水列表",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不关联账户"
           }
         }
       }

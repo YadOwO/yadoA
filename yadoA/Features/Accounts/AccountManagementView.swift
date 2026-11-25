@@ -14,7 +14,7 @@ struct AccountManagementView: View {
 
     /// 已停用账户的数量；为 0 时隐藏入口。
     private var deactivatedAccountCount: Int {
-        queriedAccounts.count { !$0.isActive }
+        queriedAccounts.count { !$0.isActive && !$0.isUnlinked }
     }
 
     var body: some View {
@@ -126,7 +126,7 @@ struct AccountManagementView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(AccountLocalization.string("common.close", locale: locale)) {
+                Button(AccountLocalization.string("common.close", locale: locale), systemImage: "xmark") {
                     dismiss()
                 }
                 .accessibilityIdentifier("account-management-close")
