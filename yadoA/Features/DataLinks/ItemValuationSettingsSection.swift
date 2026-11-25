@@ -3,7 +3,8 @@ import SwiftUI
 /// 物品估值的三个设置：显示在账户页、计入净资产、折扣；数据联动页和估值详情页共用。
 ///
 /// 设置读写 `DataLinkStore.settings`，按 Logto 用户 ID 存在本机，写入时折扣会夹进 10%～100% 并对齐到 5%。
-/// 「显示在账户页」和「计入净资产」互相独立：关掉显示、开着计入时，估值仍算进汇总卡片和资产分析。
+/// 关掉「显示在账户页」时估值也不计入净资产：「计入净资产」置灰并显示为关，下面一行说明原因；
+/// 用户存的「计入净资产」不改，重新打开显示后恢复。
 struct ItemValuationSettingsSection: View {
     @Environment(\.locale) private var locale
 
@@ -25,13 +26,25 @@ struct ItemValuationSettingsSection: View {
 
                 ProfileSettingsRowDivider()
 
-                Toggle(isOn: binding(\.countsInNetWorth)) {
-                    Label(text("itemValuation.setting.countsInNetWorth"), systemImage: "chart.line.uptrend.xyaxis")
-                        .labelStyle(ProfileSettingsLabelStyle())
+                VStack(alignment: .leading, spacing: 6) {
+                    Toggle(isOn: countsInNetWorthBinding) {
+                        Label(text("itemValuation.setting.countsInNetWorth"), systemImage: "chart.line.uptrend.xyaxis")
+                            .labelStyle(ProfileSettingsLabelStyle())
+                    }
+                    .disabled(!settings.showsOnAccounts)
+                    .accessibilityHint(settings.showsOnAccounts ? "" : text("itemValuation.setting.countsInNetWorth.needsShow"))
+                    .accessibilityIdentifier("item-valuation-counts-in-net-worth")
+
+                    if !settings.showsOnAccounts {
+                        Text(text("itemValuation.setting.countsInNetWorth.needsShow"))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityHidden(true)
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
-                .accessibilityIdentifier("item-valuation-counts-in-net-worth")
 
                 ProfileSettingsRowDivider()
 
@@ -68,6 +81,19 @@ struct ItemValuationSettingsSection: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 20)
         }
+    }
+
+    /// 「计入净资产」开关的绑定：关掉「显示在账户页」时显示为关（实际也不计入），并且不写入，用户原来的选择保留到重新打开显示。
+    private var countsInNetWorthBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.countsTowardNetWorth },
+            set: { newValue in
+                var updated = store.settings
+                guard updated.showsOnAccounts else { return }
+                updated.countsInNetWorth = newValue
+                store.settings = updated
+            }
+        )
     }
 
     /// 某个开关的双向绑定：读最新设置，写时整份写回，让存储统一夹取折扣。

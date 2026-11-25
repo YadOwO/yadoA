@@ -18,11 +18,18 @@ nonisolated struct ItemValuationSettings: Codable, Equatable {
     /// 账户页是否显示「物品估值」那一行。
     var showsOnAccounts = true
 
-    /// 是否把估值计入账户页汇总卡片和资产分析的资产、净资产。
+    /// 用户选的「计入净资产」。实际是否计入看 `countsTowardNetWorth`：关掉「显示在账户页」时这项暂不生效，但值保留。
     var countsInNetWorth = true
 
     /// 折扣百分比：估值 = 购入价合计 × 折扣 ÷ 100。默认 70（七折）。
     var discountPercent = 70
+
+    /// 估值实际是否计入账户页汇总卡片和资产分析的资产、净资产：「显示在账户页」「计入净资产」都打开才计入。
+    ///
+    /// 关掉显示时一并不计入，免得总资产里有一笔在账户页看不到的钱。
+    var countsTowardNetWorth: Bool {
+        showsOnAccounts && countsInNetWorth
+    }
 
     private enum CodingKeys: String, CodingKey {
         case showsOnAccounts, countsInNetWorth, discountPercent
@@ -149,7 +156,7 @@ enum ItemValuationPresentation {
             amount: ItemValuation.amount(summary: summary, discountPercent: settings.discountPercent),
             detail: detail(summary: summary, discountPercent: settings.discountPercent, locale: locale),
             amountLabel: AccountLocalization.string(
-                settings.countsInNetWorth ? "itemValuation.amount.label" : "itemValuation.notCounted",
+                settings.countsTowardNetWorth ? "itemValuation.amount.label" : "itemValuation.notCounted",
                 locale: locale
             ),
             locale: locale

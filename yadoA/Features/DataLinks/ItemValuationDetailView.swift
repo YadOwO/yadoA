@@ -53,7 +53,7 @@ struct ItemValuationDetailView: View {
     private func valuationCard(store: DataLinkStore, summary: ItemValueSummary) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 5) {
-                Text(text(store.settings.countsInNetWorth ? "itemValuation.amount.label" : "itemValuation.notCounted"))
+                Text(text(store.settings.countsTowardNetWorth ? "itemValuation.amount.label" : "itemValuation.notCounted"))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
 

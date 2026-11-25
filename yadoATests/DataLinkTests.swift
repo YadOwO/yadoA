@@ -391,6 +391,14 @@ struct DataLinkTests {
         )
         #expect(notCounted.amountLabel == "不计入净资产")
 
+        // 关掉「显示在账户页」时实际不计入，标签跟着变
+        let hidden = ItemValuationPresentation.row(
+            summary: summary,
+            settings: ItemValuationSettings(showsOnAccounts: false, countsInNetWorth: true),
+            locale: chinese
+        )
+        #expect(hidden.amountLabel == "不计入净资产")
+
         let allPriced = Self.summary(priced: 5, unpriced: 0)
         let noUnpriced = ItemValuationPresentation.row(summary: allPriced, settings: ItemValuationSettings(), locale: chinese)
         #expect(!noUnpriced.detail.contains("另有"))
@@ -461,7 +469,7 @@ struct DataLinkTests {
         await store.refreshLinks()
         #expect(store.isItemValueGranted)
 
-        // 授权在服务端为准，之后离线就不再显示
+        // 隐私离线模式（不允许联网）下不显示
         env.isNetworkAllowed = false
         #expect(!store.isItemValueLinkAvailable)
         #expect(store.accountValuation == nil)
@@ -487,6 +495,101 @@ struct DataLinkTests {
         #expect(!store.isItemValueGranted)
         #expect(store.cachedSummary == nil)
         #expect(env.defaults.data(forKey: DataLinkStore.summaryKey(userID: "user-1")) == nil)
+    }
+
+    @Test("授权过的账号重新打开 App：还没问到 hub、断网或 hub 出错时照样用缓存显示；隐私离线模式下不显示")
+    func showsCachedValuationBeforeHubConfirms() async {
+        let env = DataLinkEnvironment()
+        env.api.linksResult = .success(Self.grantedLinks)
+        env.api.summaryResult = .success(Self.summary())
+        let first = env.makeStore()
+        await first.refreshLinks()
+        await first.refreshItemValueIfStale()
+        #expect(first.accountValuation == 840)
+
+        // 重新打开 App：新的 store，还没问过 hub
+        let relaunched = env.makeStore()
+        #expect(relaunched.links == nil)
+        #expect(relaunched.isItemValueLinkAvailable)
+        #expect(relaunched.isItemValueGranted)
+        #expect(relaunched.accountValuation == 840)
+        #expect(relaunched.showsAccountRow)
+        #expect(relaunched.netWorthValuation == 840)
+
+        // 断网：列表拉不到，照样显示
+        env.api.linksResult = .failure(.network)
+        await relaunched.refreshLinks()
+        #expect(relaunched.links == nil)
+        #expect(relaunched.isItemValueGranted)
+        #expect(relaunched.accountValuation == 840)
+
+        // hub 或芽豆有物服务出错：汇总拉不到，保留缓存并记下原因
+        env.now += 301
+        env.api.summaryResult = .failure(.upstreamFailed)
+        await relaunched.refreshItemValueIfStale()
+        #expect(env.api.summaryCalls == 2)
+        #expect(relaunched.lastSummaryFailure == .upstreamFailed)
+        #expect(relaunched.accountValuation == 840)
+
+        // 只靠缓存判定已授权时，拉到新的汇总照样写进缓存
+        let newer = Self.summary(inService: 2000)
+        env.api.summaryResult = .success(newer)
+        await relaunched.refreshItemValueIfStale(force: true)
+        #expect(relaunched.cachedSummary == newer)
+        #expect(relaunched.lastSummaryFailure == nil)
+
+        // 隐私离线模式下照旧什么都不显示
+        env.isNetworkAllowed = false
+        #expect(!relaunched.isItemValueLinkAvailable)
+        #expect(!relaunched.isItemValueGranted)
+        #expect(relaunched.accountValuation == nil)
+    }
+
+    @Test("授权过的账号重新打开 App：hub 说没授权、来源没开时隐藏并清缓存")
+    func cachedValuationHiddenOnceHubSaysNo() async {
+        let env = DataLinkEnvironment()
+        env.api.linksResult = .success(Self.grantedLinks)
+        env.api.summaryResult = .success(Self.summary())
+        let first = env.makeStore()
+        await first.refreshLinks()
+        await first.refreshItemValueIfStale()
+
+        // 列表显示没授权（例如在另一台设备上取消了）
+        let relaunched = env.makeStore()
+        #expect(relaunched.isItemValueGranted)
+        env.api.linksResult = .success(Self.notGrantedLinks)
+        await relaunched.refreshLinks()
+        #expect(relaunched.isItemValueLinkAvailable)
+        #expect(!relaunched.isItemValueGranted)
+        #expect(relaunched.cachedSummary == nil)
+
+        // 重新授权后再打开 App：列表拉不到，汇总接口说没授权
+        env.api.grantResult = .success(DataLinkStatus(granted: true, grantedAt: Self.fetchedAt))
+        _ = await relaunched.grant()
+        #expect(relaunched.cachedSummary != nil)
+        let second = env.makeStore()
+        env.api.linksResult = .failure(.network)
+        await second.refreshLinks()
+        #expect(second.isItemValueGranted)
+        env.now += 301
+        env.api.summaryResult = .failure(.notGranted)
+        await second.refreshItemValueIfStale()
+        #expect(!second.isItemValueGranted)
+        #expect(!second.isItemValueLinkAvailable)
+        #expect(second.cachedSummary == nil)
+
+        // 再授权一次，然后 hub 关掉了这个来源
+        env.api.linksResult = .success(Self.grantedLinks)
+        env.api.summaryResult = .success(Self.summary())
+        await second.refreshLinks()
+        await second.refreshItemValueIfStale()
+        #expect(second.cachedSummary != nil)
+        let third = env.makeStore()
+        env.api.linksResult = .success(DataLinkList(links: []))
+        await third.refreshLinks()
+        #expect(!third.isItemValueLinkAvailable)
+        #expect(!third.isItemValueGranted)
+        #expect(third.cachedSummary == nil)
     }
 
     // MARK: - Store：缓存与节流
@@ -789,8 +892,8 @@ struct DataLinkTests {
         #expect(store.linkState == .linkedNoItems)
     }
 
-    @Test("「显示在账户页」和「计入净资产」互相独立；折扣改了估值跟着变")
-    func switchesAreIndependent() async {
+    @Test("关掉「显示在账户页」时也不计入净资产，原来的「计入净资产」选择保留；折扣改了估值跟着变")
+    func hidingRowAlsoExcludesFromNetWorth() async {
         let env = DataLinkEnvironment()
         env.api.linksResult = .success(Self.grantedLinks)
         env.api.summaryResult = .success(Self.summary(inService: 1000, retired: 200, priced: 3, unpriced: 0))
@@ -803,9 +906,16 @@ struct DataLinkTests {
         #expect(store.showsAccountRow)
         #expect(store.netWorthValuation == 840)
 
-        // 只关显示：账户页没有这一行，估值仍计入净资产
+        // 只关显示：账户页没有这一行，估值也不计入净资产；存的「计入净资产」仍是开
         store.settings = ItemValuationSettings(showsOnAccounts: false, countsInNetWorth: true, discountPercent: 70)
         #expect(!store.showsAccountRow)
+        #expect(store.netWorthValuation == nil)
+        #expect(store.settings.countsInNetWorth)
+        #expect(!store.settings.countsTowardNetWorth)
+
+        // 重新打开显示：恢复计入
+        store.settings = ItemValuationSettings(showsOnAccounts: true, countsInNetWorth: true, discountPercent: 70)
+        #expect(store.showsAccountRow)
         #expect(store.netWorthValuation == 840)
 
         // 只关计入：这一行还在，但不计入净资产

@@ -23852,6 +23852,24 @@
         }
       }
     },
+    "itemValuation.setting.countsInNetWorth.needsShow" : {
+      "comment" : "物品估值设置：关掉「显示在账户页」时，「计入净资产」置灰，下面这行说明原因",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on “Show on Accounts” to count it in net worth."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先打开「显示在账户页」，才能计入净资产。"
+          }
+        }
+      }
+    },
     "itemValuation.setting.discount" : {
       "comment" : "物品估值设置：折扣",
       "extractionState" : "manual",
@@ -23877,13 +23895,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Valuation = total purchase price × discount. With “Count in Net Worth” on, the Accounts summary and Net Worth Analysis include it; the net worth trend does not."
+            "value" : "Valuation = total purchase price × discount. With both “Show on Accounts” and “Count in Net Worth” on, the Accounts summary and Net Worth Analysis include it; the net worth trend does not."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "估值 = 购入价合计 × 折扣。打开「计入净资产」后，账户页汇总卡片和资产分析会加上它，净资产走势不含这一项。"
+            "value" : "估值 = 购入价合计 × 折扣。「显示在账户页」和「计入净资产」都打开时，账户页汇总卡片和资产分析会加上它，净资产走势不含这一项。"
           }
         }
       }

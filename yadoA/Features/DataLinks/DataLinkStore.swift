@@ -3,8 +3,10 @@ import Observation
 
 /// 数据联动的状态：hub 打开了哪些联动、用户是否授权、最近一次的物品购入价汇总，以及三个估值设置。
 ///
-/// 是否授权以 hub 为准，只在内存里记最近一次成功的 `GET /v1/links`，不往本机写授权；
-/// 冷启动还没拉到、离线或没登录时 `links` 里没有芽豆有物，任何联动入口、账户页那一行都不出现，估值也不计入净资产。
+/// 是否授权以 hub 为准，只在内存里记最近一次成功的 `GET /v1/links`，不往本机写授权。
+/// 还没问到 hub（刚启动、断网、hub 或芽豆有物服务出错）时，看本机有没有这个账号的汇总缓存：
+/// 缓存只在已授权时写入，hub 一说没授权、来源没开就清掉，所以有缓存就说明上次确认过已授权，照旧显示缓存的估值和更新时间。
+/// 从没授权过、本机没缓存的账号，要等 hub 确认后才出现入口。没登录或不允许联网（隐私离线模式）时什么都不显示。
 /// 汇总（带本机保存时间）和设置按 Logto 用户 ID 存在 UserDefaults，换账号互不串；估值不落 SwiftData，不是 `Account`。
 /// 每次 await 回来都要核对账号还是不是发起时的那个，旧账号晚到的结果直接丢掉；
 /// 授权列表的写入编号：刷新在发起时取号，授权、取消授权在结果回来时取号，晚到的旧刷新结果不再覆盖更新的状态。
@@ -111,17 +113,22 @@ final class DataLinkStore {
 
     // MARK: - 状态
 
-    /// 联动是否可用：已登录、允许联网，并且最近一次成功拉到的列表里有芽豆有物。
+    /// 联动是否可用：已登录、允许联网，并且 hub 列出了芽豆有物。
     ///
-    /// 列表属于别的账号时（刚换了账号还没刷新）按不可用处理。
+    /// 还没问到当前账号的列表时（刚启动、断网、hub 出错、刚换了账号），本机有这个账号的汇总缓存就按可用处理，见类型说明。
     var isItemValueLinkAvailable: Bool {
-        guard isNetworkAllowed(), let userID = currentUserID(), ownerUserID == userID else { return false }
-        return itemValueLink != nil
+        guard isNetworkAllowed(), currentUserID() != nil else { return false }
+        guard let links = confirmedLinks else { return cachedRecord != nil }
+        return links.contains { $0.source == DataLinkCode.source }
     }
 
     /// 联动可用并且用户已授权。
+    ///
+    /// 还没问到当前账号的列表时，本机有这个账号的汇总缓存就按已授权处理。
     var isItemValueGranted: Bool {
-        isItemValueLinkAvailable && itemValueLink?.granted == true
+        guard isNetworkAllowed(), currentUserID() != nil else { return false }
+        guard let links = confirmedLinks else { return cachedRecord != nil }
+        return links.first { $0.source == DataLinkCode.source }?.granted == true
     }
 
     /// 当前账号的估值设置；没存过时是默认值。写入时折扣夹进范围并对齐到步长，没登录时忽略。
@@ -173,9 +180,11 @@ final class DataLinkStore {
         accountValuation != nil && settings.showsOnAccounts
     }
 
-    /// 要计入汇总卡片和资产分析的估值：有估值，并且打开了「计入净资产」；否则为 nil。
+    /// 要计入汇总卡片和资产分析的估值：有估值，并且「显示在账户页」「计入净资产」都打开；否则为 nil。
+    ///
+    /// 关掉显示时一并不计入，免得总资产里有一笔在账户页看不到的钱；用户存的「计入净资产」不改，重新打开显示后照旧生效。
     var netWorthValuation: Decimal? {
-        guard let valuation = accountValuation, settings.countsInNetWorth else { return nil }
+        guard let valuation = accountValuation, settings.countsTowardNetWorth else { return nil }
         return valuation
     }
 
@@ -210,6 +219,8 @@ final class DataLinkStore {
     /// - Parameter force: 为 true 时不看缓存的新鲜度，授权成功后立即拉一次用它。
     func refreshItemValueIfStale(force: Bool = false) async {
         guard isItemValueGranted, let userID = currentUserID() else { return }
+        // 只靠本机缓存判定已授权时（还没成功拉过列表），内存状态可能还没归到这个账号
+        adopt(userID)
         if !force, let record = cachedRecord {
             let age = now().timeIntervalSince(record.savedAt)
             // 本机时间被往回调过时 age 为负，按过期处理，不让缓存永远不刷新
@@ -313,6 +324,12 @@ final class DataLinkStore {
     /// 列表里芽豆有物那一项。
     private var itemValueLink: DataLinkStatus? {
         links?.first { $0.source == DataLinkCode.source }
+    }
+
+    /// 属于当前账号、已经从 hub 拉到过的联动列表；还没拉到或属于别的账号时为 nil。
+    private var confirmedLinks: [DataLinkStatus]? {
+        guard let userID = currentUserID(), ownerUserID == userID else { return nil }
+        return links
     }
 
     /// 当前账号本机保存的汇总缓存。
