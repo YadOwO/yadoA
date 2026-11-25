@@ -152,7 +152,7 @@ extension VoiceToolExecutor {
             deletedRow: HomeOverviewPresentation.deletedRow(
                 for: transaction, locale: locale, calendar: calendar, catalog: catalog
             ),
-            accountName: account.name,
+            accountName: account.localizedName(locale: locale),
             catalog: catalog
         ))
     }
