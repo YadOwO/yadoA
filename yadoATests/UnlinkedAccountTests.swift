@@ -196,6 +196,19 @@ struct UnlinkedAccountTests {
         #expect(option.type == Account.unlinkedTypeRawValue)
     }
 
+    @Test("启用账户已满上限时，语音上下文仍保留不关联账户")
+    func voiceContextKeepsUnlinkedOptionWhenActiveAccountsFillLimit() throws {
+        let dataContainer = try AccountDataContainer.inMemory()
+        let container = dataContainer.modelContainer
+        for _ in 0..<VoiceSessionLimits.maxAccounts {
+            _ = try saveCash(amountText: "10", in: container)
+        }
+
+        let context = VoiceSessionContext.make(container: container, locale: Locale(identifier: "zh-Hans"))
+        #expect(context.accounts.count == VoiceSessionLimits.maxAccounts)
+        #expect(context.accounts.map(\.id).contains(Account.unlinkedID.uuidString))
+    }
+
     @Test("不关联账户的展示名称按当前语言取词，普通账户原样返回名称")
     func localizedNameFollowsCurrentLocale() {
         let chinese = Locale(identifier: "zh-Hans")

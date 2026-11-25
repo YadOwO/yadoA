@@ -176,7 +176,7 @@ struct AccountListView: View {
         } actions: {
             VStack(spacing: 12) {
                 addButton(identifier: "account-list-empty-add")
-                if queriedAccounts.contains(where: { !$0.isActive }) {
+                if queriedAccounts.contains(where: { !$0.isActive && !$0.isUnlinked }) {
                     Button {
                         isPresentingDeactivated = true
                     } label: {

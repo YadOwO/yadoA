@@ -29,12 +29,17 @@ struct VoiceSessionContext: Equatable {
         let catalog = VoiceToolExecutor.catalog(in: context)
 
         // 停用账户也要发送，用于识别查询结果中的历史流水；超出上限时优先保留启用账户。
-        // 「不关联账户」单独放在启用账户之后，本机还没建时也发送，用户说「不关联账户」「别动余额」时 AI 才能选它
+        // 「不关联账户」单独放在启用账户之后，本机还没建时也发送，用户说「不关联账户」「别动余额」时 AI 才能选它；
+        // 启用账户先截断一次，给它留一个名额，启用账户满额时它也不会被总上限截掉
         let ownAccounts = accounts.filter { !$0.isUnlinked }
         let activeOptions = ownAccounts.filter(\.isActive).compactMap { option(for: $0) }
         let inactiveOptions = ownAccounts.filter { !$0.isActive }.compactMap { option(for: $0) }
-        let accountOptions = (activeOptions + [unlinkedOption(locale: locale)] + inactiveOptions)
-            .prefix(VoiceSessionLimits.maxAccounts)
+        let accountOptions = (
+            Array(activeOptions.prefix(VoiceSessionLimits.maxAccounts - 1))
+                + [unlinkedOption(locale: locale)]
+                + inactiveOptions
+        )
+        .prefix(VoiceSessionLimits.maxAccounts)
         let categoryOptions = BookkeepingEntryType.allCases.flatMap { direction in
             catalog.items(for: direction).map { item in
                 VoiceCategoryOption(
