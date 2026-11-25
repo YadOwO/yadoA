@@ -72,11 +72,18 @@ final class Account {
 
     /// 账户当前能否接收收支、周期记账等写入：在 `supportsBookkeeping` 的基础上，还要求币种是当前唯一支持的币种。
     ///
+    /// 「不关联账户」不是已知账户类型，但可以记收支（只是不动余额），这里单独放行。
     /// 记账表单、首页、搜索、周期记账和语音判断「这个账户能不能记进去 / 改进去」时统一使用该属性，
     /// 与 `LocalExpenseRepository` 写入前的账户校验保持一致。
     var acceptsBookkeepingEntries: Bool {
-        supportsBookkeeping && currencyCode == BookkeepingCurrency.code
+        (supportsBookkeeping || (isUnlinked && isActive)) && currencyCode == BookkeepingCurrency.code
     }
+
+    /// 是否是系统内置的「不关联账户」。
+    ///
+    /// 收支记到它上面时只计入收支统计，不改变任何余额；它不属于用户的资产，
+    /// 不出现在账户列表、净资产、转账和默认账户里，也不能改名、调余额、停用或删除。
+    var isUnlinked: Bool { id == Self.unlinkedID }
 
     /// 直接构造已完成校验的持久化账户。
     ///
@@ -165,6 +172,49 @@ final class Account {
 }
 
 extension Account {
+    /// 「不关联账户」的固定 UUID；各设备用同一个值，同步时不会各建一个。
+    static let unlinkedID = UUID(uuidString: "00000000-0000-0000-0000-0000000000AA")!
+
+    /// 「不关联账户」持久化的类型值。
+    ///
+    /// 故意不加进 `AccountType`：解析为未知类型后，转账、调余额、默认账户、余额重算这些按已知类型工作的流程自然把它排除在外；
+    /// 旧版本 App 同步到它时也只当成一个余额为 0 的未知账户，不影响净资产。
+    static let unlinkedTypeRawValue = "unlinked"
+
+    /// 生成尚未插入 context 的「不关联账户」：余额恒为 0，名称按当前语言预填。
+    ///
+    /// 只在第一次有收支要记到它上面时创建，见 `ModelContext.unlinkedAccount(locale:now:)`。
+    /// - Parameters:
+    ///   - locale: 预填名称使用的语言环境。
+    ///   - now: 注入的创建时间。
+    /// - Returns: 新的「不关联账户」。
+    static func makeUnlinked(locale: Locale = .current, now: Date = .now) -> Account {
+        Account(
+            id: unlinkedID,
+            typeRawValue: unlinkedTypeRawValue,
+            templateID: nil,
+            name: AccountLocalization.string("account.unlinked.name", locale: locale),
+            note: nil,
+            lastFourDigits: nil,
+            balance: 0,
+            openingBalance: 0,
+            currencyCode: BookkeepingCurrency.code,
+            createdAt: now,
+            updatedAt: now,
+            deactivatedAt: nil
+        )
+    }
+
+    /// 面向用户展示的账户名称。
+    ///
+    /// 「不关联账户」的名称按当前语言取词，不读创建时写进 `name` 的文案，切换语言或从另一种语言的设备同步后也不会串语言；
+    /// 其他账户返回用户填的名称。
+    /// - Parameter locale: 解析「不关联账户」名称使用的语言环境。
+    /// - Returns: 展示用的账户名称。
+    func localizedName(locale: Locale = .current) -> String {
+        isUnlinked ? AccountLocalization.string("account.unlinked.name", locale: locale) : name
+    }
+
     /// 将资料编辑草稿应用到现有账户，保留余额、类型、模板和创建时间。
     ///
     /// - Parameters:

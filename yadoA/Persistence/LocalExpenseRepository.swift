@@ -72,7 +72,7 @@ final class LocalExpenseRepository {
             draft: draft,
             savedAt: savedAt
         )
-        let (account, accountType) = try Self.bookkeepingAccount(id: transaction.accountID, in: modelContext)
+        let (account, effect) = try Self.bookkeepingAccount(id: transaction.accountID, in: modelContext)
         let payload = try transaction.validatedPayload()
         try requireAvailableCategory(of: payload, in: modelContext)
         guard let (entryType, amount) = payload.bookkeepingAmount else {
@@ -81,7 +81,7 @@ final class LocalExpenseRepository {
         let updatedBalance = try Self.updatedBalance(
             account.balance,
             by: amount,
-            effect: accountType.expenseBalanceEffect,
+            effect: effect,
             entryType: entryType
         )
 
@@ -142,11 +142,11 @@ final class LocalExpenseRepository {
                 throw ExpenseRepositoryError.duplicateID(snapshot.id)
             }
             let transaction = try snapshot.validatedTransaction()
-            let (account, accountType) = try Self.bookkeepingAccount(id: transaction.accountID, in: modelContext)
+            let (account, effect) = try Self.bookkeepingAccount(id: transaction.accountID, in: modelContext)
             try requireAvailableCategory(of: transaction.validatedPayload(), in: modelContext)
             account.balance = try Self.updatedBalance(
                 account.balance, by: snapshot.amount,
-                effect: accountType.expenseBalanceEffect, entryType: snapshot.entryType
+                effect: effect, entryType: snapshot.entryType
             )
             modelContext.insert(transaction)
         case let .replace(snapshot):
@@ -180,22 +180,22 @@ final class LocalExpenseRepository {
         let (oldAmount, oldEntryType) = try Self.editableAmountAndType(for: transaction)
         let (newAmount, newEntryType) = try Self.editableAmountAndType(for: replacement)
         try requireAvailableCategory(of: replacement.validatedPayload(), in: modelContext)
-        let (source, sourceType) = try Self.bookkeepingAccount(id: transaction.accountID, in: modelContext)
+        let (source, sourceEffect) = try Self.bookkeepingAccount(id: transaction.accountID, in: modelContext)
 
         if source.id == replacement.accountID {
             source.balance = try Self.updatedBalance(
                 source.balance, from: oldAmount, oldEntryType: oldEntryType,
-                to: newAmount, newEntryType: newEntryType, effect: sourceType.expenseBalanceEffect
+                to: newAmount, newEntryType: newEntryType, effect: sourceEffect
             )
         } else {
-            let (target, targetType) = try Self.bookkeepingAccount(id: replacement.accountID, in: modelContext)
+            let (target, targetEffect) = try Self.bookkeepingAccount(id: replacement.accountID, in: modelContext)
             let restoredBalance = try Self.updatedBalance(
                 source.balance, by: -oldAmount,
-                effect: sourceType.expenseBalanceEffect, entryType: oldEntryType
+                effect: sourceEffect, entryType: oldEntryType
             )
             let targetBalance = try Self.updatedBalance(
                 target.balance, by: newAmount,
-                effect: targetType.expenseBalanceEffect, entryType: newEntryType
+                effect: targetEffect, entryType: newEntryType
             )
             source.balance = restoredBalance
             target.balance = targetBalance
@@ -233,10 +233,10 @@ final class LocalExpenseRepository {
     ) throws {
         for transaction in transactions {
             let (amount, entryType) = try editableAmountAndType(for: transaction)
-            let (account, accountType) = try bookkeepingAccount(id: transaction.accountID, in: context)
+            let (account, effect) = try bookkeepingAccount(id: transaction.accountID, in: context)
             account.balance = try updatedBalance(
                 account.balance, by: -amount,
-                effect: accountType.expenseBalanceEffect, entryType: entryType
+                effect: effect, entryType: entryType
             )
             context.delete(transaction)
         }
@@ -266,7 +266,18 @@ final class LocalExpenseRepository {
     }
 
     /// 最终写入前重新校验账户，避免编辑期间停用、删除或类型变化绕过限制。
-    static func bookkeepingAccount(id: UUID, in context: ModelContext) throws -> (Account, AccountType) {
+    ///
+    /// 「不关联账户」本机还没有时在这里插入，和这笔收支一起保存；它的收支不改变余额。
+    /// - Parameters:
+    ///   - id: 收支要记入的账户 UUID。
+    ///   - context: 调用方的 manual-save context。
+    /// - Returns: 可以记账的账户，以及收支对它余额的影响方向。
+    /// - Throws: 账户不存在、已停用、币种或类型不支持时抛出 `ExpenseRepositoryError`。
+    static func bookkeepingAccount(id: UUID, in context: ModelContext) throws -> (Account, ExpenseBalanceEffect) {
+        if id == Account.unlinkedID {
+            let account = try context.unlinkedAccount()
+            return (account, .unchanged)
+        }
         guard let account = try context.account(id: id) else {
             throw ExpenseRepositoryError.accountNotFound(id)
         }
@@ -277,7 +288,7 @@ final class LocalExpenseRepository {
         guard account.supportsBookkeeping, let type = account.accountType else {
             throw ExpenseRepositoryError.unsupportedAccountType(account.typeRawValue)
         }
-        return (account, type)
+        return (account, type.expenseBalanceEffect)
     }
 
     /// 根据账户语义计算收支后的精确金额，并拒绝溢出或精度损失；转账按转出记支出、转入记收入复用这套方向规则。
@@ -307,6 +318,7 @@ final class LocalExpenseRepository {
         switch (entryType, effect) {
         case (.expense, .decreaseValue), (.income, .increaseDebt): -amount
         case (.expense, .increaseDebt), (.income, .decreaseValue): amount
+        case (_, .unchanged): 0
         }
     }
 

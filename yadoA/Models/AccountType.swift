@@ -8,6 +8,9 @@ enum ExpenseBalanceEffect: Equatable, Sendable {
 
     /// 信用卡或负债记录的正数债务随支出增加。
     case increaseDebt
+
+    /// 收支不改变余额，只用于「不关联账户」；账户类型本身不会给出这个值。
+    case unchanged
 }
 
 /// 账户功能使用的本地化查询边界。

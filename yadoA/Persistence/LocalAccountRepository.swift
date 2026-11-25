@@ -280,7 +280,7 @@ final class LocalAccountRepository {
         }
     }
 
-    /// 本机一个账户都没有时（包括已停用的），自动建一个余额为 0 的「现金」账户并设为默认记账账户。
+    /// 本机一个账户都没有时（包括已停用的，不算「不关联账户」），自动建一个余额为 0 的「现金」账户并设为默认记账账户。
     ///
     /// 用户跳过了引导里的建账户，第一次进记账页时调用，省得先去建账户才能记第一笔。
     /// 选现金是因为它不分地区、不挑支付方式，名字按当前语言预填；用户之后可以在账户页改名或换默认账户。
@@ -295,10 +295,29 @@ final class LocalAccountRepository {
         locale: Locale = .current,
         now: Date = .now
     ) throws -> UUID? {
-        guard try allAccounts(in: makeContext()).isEmpty else { return nil }
+        guard try allAccounts(in: makeContext()).allSatisfy(\.isUnlinked) else { return nil }
         let draft = AccountDraft(accountType: .cash, amountText: "0", locale: locale)
         try save(draft, locale: locale, now: now)
         return draft.id
+    }
+
+    /// 确保本机有「不关联账户」，没有时建一个并保存。
+    ///
+    /// 用户在账户选择框里点「不关联账户」时调用，让记账页能像其他账户一样显示它。
+    /// - Parameters:
+    ///   - locale: 新建时预填名称使用的语言环境。
+    ///   - now: 新建时的创建时间。
+    /// - Returns: 「不关联账户」的固定 UUID。
+    /// - Throws: 读取或保存失败时抛出，此时不写入任何内容。
+    @discardableResult
+    func ensureUnlinkedAccount(locale: Locale = .current, now: Date = .now) throws -> UUID {
+        let context = makeContext()
+        let existing = try context.account(id: Account.unlinkedID)
+        guard existing?.isActive != true else { return Account.unlinkedID }
+        try persistChanges(in: context) {
+            _ = try context.unlinkedAccount(locale: locale, now: now)
+        }
+        return Account.unlinkedID
     }
 
     /// 校验并原子更新已有账户资料，不改变余额、状态或账户流水。
@@ -307,7 +326,7 @@ final class LocalAccountRepository {
         now: Date = .now
     ) throws {
         let context = makeContext()
-        guard let account = try context.account(id: draft.id) else {
+        guard let account = try context.managedAccount(id: draft.id) else {
             throw AccountRepositoryError.accountNotFound(draft.id)
         }
         guard account.isActive else {
@@ -379,7 +398,7 @@ final class LocalAccountRepository {
     /// 生成删除或停用确认界面使用的值类型预检快照。
     func disposalPlan(for accountID: UUID) throws -> AccountDisposalPlan {
         let context = makeContext()
-        guard let account = try context.account(id: accountID) else {
+        guard let account = try context.managedAccount(id: accountID) else {
             throw AccountRepositoryError.accountNotFound(accountID)
         }
         let accounts = try allAccounts(in: context)
@@ -407,7 +426,7 @@ final class LocalAccountRepository {
         now: Date = .now
     ) throws {
         let context = makeContext()
-        guard let account = try context.account(id: expectation.accountID) else {
+        guard let account = try context.managedAccount(id: expectation.accountID) else {
             throw AccountRepositoryError.accountNotFound(expectation.accountID)
         }
         guard account.isActive else {
@@ -463,7 +482,7 @@ final class LocalAccountRepository {
     /// 恢复停用账户；无有效默认时，合格账户在同一次保存中自动成为默认。
     func restore(id: UUID) throws {
         let context = makeContext()
-        guard let account = try context.account(id: id) else {
+        guard let account = try context.managedAccount(id: id) else {
             throw AccountRepositoryError.accountNotFound(id)
         }
         guard !account.isActive else {
@@ -495,7 +514,7 @@ final class LocalAccountRepository {
     /// - Throws: `AccountRepositoryError` 或 `AccountValidationError`。
     func apply(_ change: AccountChange, toAccount id: UUID, now: Date = .now) throws {
         let context = makeContext()
-        guard let account = try context.account(id: id) else {
+        guard let account = try context.managedAccount(id: id) else {
             throw AccountRepositoryError.accountNotFound(id)
         }
 

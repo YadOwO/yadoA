@@ -280,7 +280,8 @@ struct AccountBalanceHistory {
         func ledgers(for accounts: [Account], calendar sourceCalendar: Calendar) -> [UUID: Ledger] {
             let calendar = TransactionDay.gregorianCalendar(basedOn: sourceCalendar)
             var ledgers: [UUID: Ledger] = [:]
-            for account in accounts {
+            // 「不关联账户」不是资产，余额恒为 0，不参与走势
+            for account in accounts where !account.isUnlinked {
                 let changes = changesByAccount[account.id] ?? [:]
                 let createdDay = TransactionDay.encode(account.createdAt, calendar: calendar)
                 let openingDay = changes.keys.min()

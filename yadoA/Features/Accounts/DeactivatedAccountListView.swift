@@ -9,7 +9,8 @@ struct DeactivatedAccountListView: View {
     @Query private var preferences: [BookkeepingPreference]
 
     var body: some View {
-        let accounts = queriedAccounts.filter { !$0.isActive }
+        // 「不关联账户」不由用户管理，即使同步来的副本是停用状态也不列出
+        let accounts = queriedAccounts.filter { !$0.isActive && !$0.isUnlinked }
 
         Group {
             if accounts.isEmpty {

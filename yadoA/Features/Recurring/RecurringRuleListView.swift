@@ -126,7 +126,7 @@ enum RecurringRuleListPresentation {
             subtitle: subtitle(
                 for: rule,
                 status: ruleStatus,
-                accountName: accounts.first { $0.id == rule.accountID }?.name,
+                accountName: accounts.first { $0.id == rule.accountID }?.localizedName(locale: locale),
                 locale: locale,
                 calendar: calendar
             ),
