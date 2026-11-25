@@ -56,6 +56,19 @@ struct yadoAApp: App {
                     : try AccountDataContainer.inMemory()
                 // 最近搜索存在 UserDefaults 里，隔离启动时清掉，避免上一次自动化的搜索词串进来。
                 UserDefaults.standard.removeObject(forKey: BookkeepingSearchHistory.storageKey)
+                // 上次备份时间存在 UserDefaults 里，隔离启动时清掉，避免上一次自动化的备份记录让提醒卡片不出现。
+                UserDefaults.standard.removeObject(forKey: BackupReminderStore.lastExportedAtKey)
+                if BackupReminderUITestFixture.isEnabled {
+                    // 暂缓记录同样要清掉，保证夹具启动时卡片一定显示；再写入够多、够久的流水。
+                    UserDefaults.standard.removeObject(forKey: BackupReminderStore.snoozedUntilKey)
+                    try BackupReminderUITestFixture.seed(in: container.modelContainer)
+                } else {
+                    // 其他用例的夹具流水可能凑够 20 笔，卡片会冒出来干扰原有用例，所以把暂缓期设到无限远。
+                    UserDefaults.standard.set(
+                        Date.distantFuture.timeIntervalSince1970,
+                        forKey: BackupReminderStore.snoozedUntilKey
+                    )
+                }
                 // 启动页面偏好同样存在 UserDefaults 里，隔离启动时恢复为记账页，保证自动化落点与 Tab 顺序稳定。
                 UserDefaults.standard.removeObject(forKey: AppStartPage.storageKey)
                 // 首次引导会盖住首页，自动化默认跳过；显式传入参数时从头演示引导

@@ -68,4 +68,53 @@ struct LocalDataResetServiceTests {
         }
         #expect(try recordCounts(in: container) == before)
     }
+
+    /// 创建只给一个用例使用的独立 UserDefaults 套件。
+    private func makeIsolatedDefaults() -> (defaults: UserDefaults, suiteName: String) {
+        let suiteName = "backup-reminder-reset-\(UUID())"
+        return (UserDefaults(suiteName: suiteName)!, suiteName)
+    }
+
+    @Test("清除成功后，备份提醒的两个记录一起清掉")
+    func eraseAllClearsBackupReminderKeys() throws {
+        let container = try makeSeededContainer()
+        let (defaults, suiteName) = makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        BackupReminderStore.recordBackup(at: Date(timeIntervalSince1970: 1_000), in: defaults)
+        BackupReminderStore.snooze(from: Date(timeIntervalSince1970: 2_000), in: defaults)
+        #expect(BackupReminderStore.lastBackupAt(in: defaults) != nil)
+        #expect(BackupReminderStore.snoozedUntil(in: defaults) != nil)
+
+        try LocalDataResetService(container: container.modelContainer, defaults: defaults).eraseAll()
+
+        #expect(BackupReminderStore.lastBackupAt(in: defaults) == nil)
+        #expect(BackupReminderStore.snoozedUntil(in: defaults) == nil)
+    }
+
+    @Test("保存失败时，备份提醒的两个记录保持原值")
+    func failedEraseKeepsBackupReminderKeys() throws {
+        let container = try makeSeededContainer()
+        let (defaults, suiteName) = makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let backupAt = Date(timeIntervalSince1970: 1_000)
+        let snoozeStart = Date(timeIntervalSince1970: 2_000)
+        BackupReminderStore.recordBackup(at: backupAt, in: defaults)
+        BackupReminderStore.snooze(from: snoozeStart, in: defaults)
+        struct InjectedFailure: Error {}
+        let service = LocalDataResetService(
+            container: container.modelContainer,
+            beforeSave: { throw InjectedFailure() },
+            defaults: defaults
+        )
+
+        #expect(throws: LocalDataResetError.resetFailed) {
+            try service.eraseAll()
+        }
+
+        #expect(BackupReminderStore.lastBackupAt(in: defaults) == backupAt)
+        #expect(
+            BackupReminderStore.snoozedUntil(in: defaults)
+                == snoozeStart.addingTimeInterval(BackupReminderPolicy.snoozeInterval)
+        )
+    }
 }

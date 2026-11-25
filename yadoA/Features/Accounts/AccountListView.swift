@@ -25,6 +25,14 @@ struct AccountListView: View {
     @State private var voiceMark: AccountListVoiceMark?
     /// 用户确认过「确实多还了」、不再提示欠款为负的账户，逗号分隔的 UUID。
     @AppStorage(NegativeDebtHint.dismissedStorageKey) private var dismissedNegativeDebtIDs = ""
+    /// 云同步生命周期；刚启动、引擎还没建好或预览里没有注入时为 nil。
+    @Environment(SyncLifecycle.self) private var syncLifecycle: SyncLifecycle?
+    /// 备份提醒用的流水样本：按保存时间升序最多 20 笔，条数即 min(总数, 20)，第一笔就是最早的一笔；记账后自动刷新。
+    @Query(BackupReminderPolicy.transactionSampleDescriptor) private var backupReminderSample: [AccountTransaction]
+    /// 上次备份时间戳；导出流程写入后卡片随之消失。
+    @AppStorage(BackupReminderStore.lastExportedAtKey) private var lastExportedAt: Double?
+    /// 提醒暂缓截止时间戳；点「以后再说」后写入。
+    @AppStorage(BackupReminderStore.snoozedUntilKey) private var backupSnoozedUntil: Double?
 
     /// 语音改动提示从出现到笔迹淡出所需的总时长，之后清除标记。
     private static let voiceMarkLifetime: Duration = .milliseconds(4000)
@@ -106,6 +114,20 @@ struct AccountListView: View {
                 voiceMark = nil
             }
         }
+    }
+
+    /// 是否在列表顶部显示备份提醒卡片，判断规则见 `BackupReminderPolicy`。
+    ///
+    /// 取不到同步生命周期（刚启动、引擎还没建好）时按已开同步处理，不显示，避免开了同步的用户看到卡片一闪。
+    private var showsBackupReminder: Bool {
+        BackupReminderPolicy(
+            now: .now,
+            isSyncEnabled: syncLifecycle?.state.isEnabled ?? true,
+            transactionCount: backupReminderSample.count,
+            earliestTransactionSavedAt: backupReminderSample.first?.savedAt,
+            lastBackupAt: BackupReminderStore.date(fromStored: lastExportedAt),
+            snoozedUntil: BackupReminderStore.date(fromStored: backupSnoozedUntil)
+        ).showsReminder
     }
 
     /// 从账户列表发起转账时预选的转出账户：有默认记账账户时用它，否则先不选。
@@ -209,6 +231,17 @@ struct AccountListView: View {
 
         return ScrollViewReader { proxy in
             List {
+                // 没开云同步、账本有一定量记录又很久没备份时，提醒导出备份；点「以后再说」暂缓 30 天
+                if showsBackupReminder {
+                    BackupReminderCard(
+                        container: modelContext.container,
+                        onLater: { BackupReminderStore.snooze(from: .now) }
+                    )
+                    .listRowInsets(EdgeInsets(top: 12, leading: 2, bottom: 0, trailing: 2))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                }
+
                 summaryCard(summary, trend: netWorthTrend(of: accounts))
                     .listRowInsets(
                         EdgeInsets(top: 12, leading: 2, bottom: 8, trailing: 2)
