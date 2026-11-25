@@ -25,6 +25,9 @@ enum AccountDeletionAPIError: Error, Equatable {
 
     /// App 版本低于服务端要求，需要升级后才能继续。
     case upgradeRequired
+
+    /// 注销票据无效、已过期或不属于当前用户（hub 返回 403 `ACCOUNT_VERIFICATION_REQUIRED`），要重新验证身份。
+    case verificationRequired
 }
 
 /// 注销账号的服务端动作；测试注入假实现。
@@ -32,19 +35,24 @@ protocol AccountDeleting {
     /// 注销芽豆账号：调 yado_hub 的 `DELETE /v1/account`，由 hub 依次删除这个账号在意见反馈、AI 点数和各芽豆产品云端的数据，
     /// 全部成功后删除 Logto 用户（所有芽豆 App 共用这一个账号）。
     ///
-    /// 任何一步失败 hub 都会停下并返回错误，已删的部分不用回滚；可重复调用，失败后用同一个账号直接重试。
+    /// 任何一步失败 hub 都会停下并返回错误，已删的部分不用回滚；失败后在票据有效期内可以用同一张票据直接重试。
     ///
-    /// - Throws: `AccountDeletionAPIError`。
-    func deleteAccount() async throws
+    /// - Parameter ticket: 注销票据，验证身份后由 hub 签发（`AccountDeletionVerifying.verify`），10 分钟有效，放进请求头。
+    /// - Throws: `AccountDeletionAPIError`；票据失效时为 `.verificationRequired`。
+    func deleteAccount(ticket: String) async throws
 }
 
 /// 调用 yado_hub 注销接口的网络客户端。
 ///
 /// 注销统一由 yado_hub 编排：App 只调这一个接口、只要 hub 的 token，不再挨个调 yado_ai、yadoA_be 等服务，
 /// 也不用关心删除顺序（Logto 用户由 hub 最后删除）。
+/// 调用时必须带注销票据（`X-Account-Deletion-Ticket`），票据要先验证身份才能换到，见 `AccountDeletionVerificationAPI`。
 final class AccountDeletionAPI: AccountDeleting {
     /// 注销接口的路径：yado_hub 的 `DELETE /v1/account`。
     static let path = "v1/account"
+
+    /// 放注销票据的请求头名称。
+    static let ticketHeaderName = "X-Account-Deletion-Ticket"
 
     /// 注销接口返回的 `{"deleted": true}`。
     private struct Response: Decodable {
@@ -82,7 +90,7 @@ final class AccountDeletionAPI: AccountDeleting {
         self.hubEndpointOverride = hubEndpoint
     }
 
-    func deleteAccount() async throws {
+    func deleteAccount(ticket: String) async throws {
         let token: String
         do {
             token = try await hubAccessToken()
@@ -97,7 +105,7 @@ final class AccountDeletionAPI: AccountDeleting {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await session.data(for: makeURLRequest(token: token))
+            (data, response) = try await session.data(for: makeURLRequest(token: token, ticket: ticket))
         } catch let error as URLError where error.code == .timedOut {
             throw AccountDeletionAPIError.timeout
         } catch {
@@ -106,7 +114,7 @@ final class AccountDeletionAPI: AccountDeleting {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AccountDeletionAPIError.invalidContract
         }
-        // hub 目前不拦低版本，这里只是兜底
+        // 不带票据的旧版会收到 426
         if AppUpdatePrompt.checkUpgradeRequired(httpResponse) {
             throw AccountDeletionAPIError.upgradeRequired
         }
@@ -120,15 +128,18 @@ final class AccountDeletionAPI: AccountDeleting {
 
     /// 构造注销请求。
     ///
-    /// - Parameter token: hub 服务的 access token。
-    /// - Returns: DELETE 请求，带鉴权头、版本头和超时设置，不带请求体。
-    func makeURLRequest(token: String) -> URLRequest {
+    /// - Parameters:
+    ///   - token: hub 服务的 access token。
+    ///   - ticket: 注销票据，放进 `ticketHeaderName` 请求头。
+    /// - Returns: DELETE 请求，带鉴权头、票据头、版本头和超时设置，不带请求体。
+    func makeURLRequest(token: String, ticket: String) -> URLRequest {
         let endpoint = hubEndpointOverride ?? AuthConfig.hubServiceURL
         var request = URLRequest(url: endpoint.appending(path: Self.path))
         request.httpMethod = "DELETE"
         request.timeoutInterval = Self.requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(ticket, forHTTPHeaderField: Self.ticketHeaderName)
         AppVersion.apply(to: &request)
         return request
     }
@@ -141,6 +152,8 @@ final class AccountDeletionAPI: AccountDeleting {
         switch statusCode {
         case 401:
             .unauthorized
+        case 403:
+            .verificationRequired
         case 426:
             .upgradeRequired
         case 429, 500...599:

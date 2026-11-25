@@ -7,7 +7,7 @@ import SwiftUI
 /// 邮箱行在 `AuthConfig.isEmailAccountAvailable` 打开时可点、密码行在 `AuthConfig.isPasswordChangeAvailable` 打开时可点、
 /// Apple 行在未关联且 `AuthConfig.isAppleLinkAvailable` 时可点，都进入 `AccountCredentialChangeView`；否则只读显示。
 /// 新增 `email` / `identities` scope 之前登录的会话读不到邮箱，页面顶部提示重新登录一次（同一账号回来后刷新）。
-/// 注销在页面底部，点开 `AccountDeletionSheet` 一个弹层走完确认、选本机账本处理方式、进度和结果；退出登录仍在设置页。
+/// 注销在页面底部，点开 `AccountDeletionSheet` 一个弹层走完确认（含各产品的云端数据清单）、选本机账本处理方式、验证身份、进度和结果；退出登录仍在设置页。
 /// 退出登录后（注销完成、重新登录时换了账号、凭证失效）自动返回设置页；弹层和要先给用户看的提示关掉后再返回。
 /// 入口只在已登录且允许联网时显示，与设置页「账号」分组的条件一致；走路径导航（`ProfileRoute.accountSecurity`），
 /// 入口随退出登录消失时页面仍留在栈里。注销进行中弹层盖住整个界面且不能关闭，Tab Bar 和返回都点不到，页面不会被移出栈。
@@ -29,7 +29,7 @@ struct AccountSecurityView: View {
     @State private var isAccountSwitchedAlertPresented = false
     /// 已经请求返回设置页，避免重复调用 `dismiss()`。
     @State private var hasRequestedDismiss = false
-    /// 注销芽豆账号的弹层（`AccountDeletionSheet`）是否打开；确认、进度和结果都在弹层里，不再叠系统弹窗。
+    /// 注销芽豆账号的弹层（`AccountDeletionSheet`）是否打开；确认、验证身份、进度和结果都在弹层里，不再叠系统弹窗。
     @State private var isDeletionSheetPresented = false
     /// 顶部的轻提示：重新登录成功时弹出。
     @State private var toast: AppToast?

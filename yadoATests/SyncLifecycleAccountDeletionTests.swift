@@ -38,7 +38,7 @@ struct SyncLifecycleAccountDeletionTests {
 
             await #expect(throws: AccountDeletionAPIError.serviceUnavailable) {
                 try await lifecycle(for: device, in: environment).deleteAccount(.eraseFromDevice) {
-                    try await deleter.deleteAccount()
+                    try await deleter.deleteAccount(ticket: "ticket-1")
                 }
             }
             #expect(device.state == before)

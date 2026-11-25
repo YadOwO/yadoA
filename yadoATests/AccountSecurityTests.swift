@@ -395,6 +395,9 @@ struct AccountSecurityTests {
         #expect(AccountDeletionOutcome.completed.signsOut)
         #expect(AccountDeletionOutcome.localCleanupFailed.signsOut)
         #expect(!AccountDeletionOutcome.failed(.network).signsOut)
+        // 票据失效时服务端什么都没删，不退出登录
+        #expect(AccountDeletionOutcome(remoteDeletionError: AccountDeletionAPIError.verificationRequired) == .failed(.verificationRequired))
+        #expect(!AccountDeletionOutcome.failed(.verificationRequired).signsOut)
     }
 
     @Test("注销没完成的原因：按接口错误区分网络、服务、登录失效和需要升级；接口没部署（404 归为契约错误）按服务暂时不可用提示")
@@ -407,6 +410,8 @@ struct AccountSecurityTests {
         #expect(AccountDeletionFailure(AccountDeletionAPIError.sessionExpired) == .sessionExpired)
         #expect(AccountDeletionFailure(AccountDeletionAPIError.unauthorized) == .sessionExpired)
         #expect(AccountDeletionFailure(AccountDeletionAPIError.upgradeRequired) == .upgradeRequired)
+        #expect(AccountDeletionFailure(AccountDeletionAPIError.verificationRequired) == .verificationRequired)
+        #expect(AccountDeletionFailure.verificationRequired.messageKey == "account.email.error.verification_required")
         #expect(AccountDeletionFailure(ServiceAuthError.unavailable) == .network)
         #expect(AccountDeletionFailure(ServiceAuthError.notSignedIn) == .sessionExpired)
         #expect(AccountDeletionFailure(SyncLifecycleError.api(.network)) == .network)
@@ -415,8 +420,9 @@ struct AccountSecurityTests {
         #expect(AccountDeletionAPI.error(statusCode: 404) == .invalidContract)
     }
 
-    @Test("注销结束后的阶段：没删完回到确认并带上原因，删完了显示结果")
+    @Test("注销结束后的阶段：票据失效回到验证身份，没删完回到确认并带上原因，删完了显示结果")
     func deletionPhaseAfterOutcome() {
+        #expect(AccountDeletionPhase(outcome: .failed(.verificationRequired)) == .verifying)
         #expect(AccountDeletionPhase(outcome: .failed(.network)) == .confirming(lastFailure: .network))
         #expect(AccountDeletionPhase(outcome: .completed) == .finished(.completed))
         #expect(AccountDeletionPhase(outcome: .localCleanupFailed) == .finished(.localCleanupFailed))
@@ -451,6 +457,20 @@ struct AccountSecurityTests {
             "account.delete.failed.upgrade",
             "account.delete.finished.title",
             "account.delete.finished.message",
+            "account.delete.verify.error.login_not_recent",
+            "account.delete.verify.error.rate_limited",
+            "account.delete.verify.back",
+            "account.delete.verify.reload",
+            "account.delete.verify.message",
+            "account.delete.verify.step_up.message",
+            "account.delete.summary.title",
+            "account.delete.summary.loading",
+            "account.delete.summary.empty",
+            "account.delete.summary.failed",
+            "account.delete.summary.unavailable",
+            "account.delete.summary.product.yadoa",
+            "account.delete.summary.product.yadoi",
+            "account.delete.summary.product.ai",
             "account.security.email.bind",
             "account.security.email.change",
             "account.email.step_up.message",

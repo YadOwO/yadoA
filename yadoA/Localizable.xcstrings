@@ -14560,6 +14560,348 @@
         }
       }
     },
+    "account.delete.summary.title" : {
+      "comment" : "注销确认页：各产品云端数据清单的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloud data that will be deleted"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将被删除的云端数据"
+          }
+        }
+      }
+    },
+    "account.delete.summary.loading" : {
+      "comment" : "数据清单查询中",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking data in each app…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在查询各产品的数据…"
+          }
+        }
+      }
+    },
+    "account.delete.summary.empty" : {
+      "comment" : "数据清单查到了，但每个产品里都是 0",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No cloud data was found for this account in any Yado app."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "各芽豆产品里没有查到这个账号的云端数据。"
+          }
+        }
+      }
+    },
+    "account.delete.summary.failed" : {
+      "comment" : "整个数据清单请求失败时的提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't check data in each app right now. You can still delete your account."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时查不到各产品的数据，不影响注销。"
+          }
+        }
+      }
+    },
+    "account.delete.summary.yadoa.synced_records" : {
+      "comment" : "数据清单：芽豆资产同步到云端的记录数，%lld 为条数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Yado Asset: %lld record synced"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Yado Asset: %lld records synced"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆资产：同步了 %lld 条记录"
+          }
+        }
+      }
+    },
+    "account.delete.summary.yadoi.items" : {
+      "comment" : "数据清单：芽豆有物的物品件数，%lld 为件数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Yado Items: %lld item"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Yado Items: %lld items"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆有物：%lld 件物品"
+          }
+        }
+      }
+    },
+    "account.delete.summary.ai.points_balance" : {
+      "comment" : "数据清单：剩余 AI 点数，%lld 为点数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "AI Points: %lld point left (forfeited and non-refundable once deleted)"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "AI Points: %lld points left (forfeited and non-refundable once deleted)"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 点数：剩 %lld 点（注销后作废、不退款）"
+          }
+        }
+      }
+    },
+    "account.delete.summary.product.yadoa" : {
+      "comment" : "数据清单里的产品名：芽豆资产，与应用显示名一致",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado Asset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆资产"
+          }
+        }
+      }
+    },
+    "account.delete.summary.product.yadoi" : {
+      "comment" : "数据清单里的产品名：芽豆有物",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yado Items"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆有物"
+          }
+        }
+      }
+    },
+    "account.delete.summary.product.ai" : {
+      "comment" : "数据清单里的产品名：AI 点数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI Points"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 点数"
+          }
+        }
+      }
+    },
+    "account.delete.summary.unavailable" : {
+      "comment" : "数据清单里某个产品查不到，%@ 为产品名",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: unavailable right now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@：暂时查不到"
+          }
+        }
+      }
+    },
+    "account.delete.verify.message" : {
+      "comment" : "注销前验证身份这一步的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Before deleting, we need to confirm it's you. After you verify, you have 10 minutes to finish deleting."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "注销前要先确认是你本人。验证后 10 分钟内可以完成注销。"
+          }
+        }
+      }
+    },
+    "account.delete.verify.step_up.message" : {
+      "comment" : "注销前只能靠重新登录验证身份时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Yado account only signs in with Apple or another third-party method. Before deleting, you need to sign in again on the Yado account page."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的芽豆账号只用 Apple 等第三方方式登录。注销前需要在芽豆账号页面重新登录一次。"
+          }
+        }
+      }
+    },
+    "account.delete.verify.error.login_not_recent" : {
+      "comment" : "重新登录后 hub 认为登录时间不够新，或没拿到 ID token",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-in wasn't completed. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有完成重新登录，请再试一次。"
+          }
+        }
+      }
+    },
+    "account.delete.verify.error.rate_limited" : {
+      "comment" : "注销前验证身份被限流（429）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many attempts. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尝试太频繁，请稍后再试。"
+          }
+        }
+      }
+    },
+    "account.delete.verify.back" : {
+      "comment" : "验证身份阶段：回到确认页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回"
+          }
+        }
+      }
+    },
+    "account.delete.verify.reload" : {
+      "comment" : "验证身份阶段：读取账号信息失败后重新加载",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reload"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新加载"
+          }
+        }
+      }
+    },
     "auth.sign_out.failed" : {
       "extractionState" : "manual",
       "localizations" : {
