@@ -845,6 +845,29 @@ struct DataLinkTests {
         #expect(store.settings == custom)
     }
 
+    @Test("凭证被清掉后按被退出的账号清汇总缓存：已经取不到当前账号也能清，设置保留，不动别的账号")
+    func clearsCacheForSignedOutUser() async {
+        let env = DataLinkEnvironment()
+        env.api.linksResult = .success(Self.grantedLinks)
+        env.api.summaryResult = .success(Self.summary())
+        let store = env.makeStore()
+        await store.refreshLinks()
+        await store.refreshItemValueIfStale()
+        let custom = ItemValuationSettings(showsOnAccounts: false, countsInNetWorth: true, discountPercent: 85)
+        store.settings = custom
+        env.defaults.set(Data("other".utf8), forKey: DataLinkStore.summaryKey(userID: "user-2"))
+        #expect(env.defaults.data(forKey: DataLinkStore.summaryKey(userID: "user-1")) != nil)
+
+        // 凭证失效自动退出时 AuthStore 先清凭证再回调，此时已取不到当前账号
+        env.userID = nil
+        store.clearCache(forUserID: "user-1")
+        #expect(env.defaults.data(forKey: DataLinkStore.summaryKey(userID: "user-1")) == nil)
+        #expect(env.defaults.data(forKey: DataLinkStore.summaryKey(userID: "user-2")) != nil)
+
+        env.userID = "user-1"
+        #expect(store.settings == custom)
+    }
+
     @Test("存储的键带账号 ID；设置写入时折扣夹进范围并对齐，没登录时写入被忽略")
     func settingsStorage() {
         #expect(DataLinkStore.summaryKey(userID: "u1") == "dataLink.yadoi.itemValue.summary.u1")

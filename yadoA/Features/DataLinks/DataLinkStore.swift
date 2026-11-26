@@ -84,6 +84,10 @@ final class DataLinkStore {
             currentUserID: { authStore.userID },
             isNetworkAllowed: isNetworkAllowed
         )
+        // 凭证失效自动退出、重新登录换了账号时不经过设置页，也要清掉被退出账号的汇总缓存
+        authStore.onSignedOut = { [weak self] userID in
+            self?.clearCache(forUserID: userID)
+        }
     }
 
     // MARK: - 本机存储的键
@@ -306,6 +310,13 @@ final class DataLinkStore {
     /// 必须在 `AuthStore.signOut()` 之前调，之后就取不到账号 ID 了。
     func clearCurrentUserCache() {
         guard let userID = currentUserID() else { return }
+        removeSummaryCache(for: userID)
+    }
+
+    /// 清掉指定账号的汇总缓存，设置保留；本机凭证被清掉后由 `AuthStore.onSignedOut` 调用。
+    ///
+    /// - Parameter userID: 被退出的账号 ID。
+    func clearCache(forUserID userID: String) {
         removeSummaryCache(for: userID)
     }
 
