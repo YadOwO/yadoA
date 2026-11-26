@@ -31620,6 +31620,12 @@
             "state" : "translated",
             "value" : "新版本 %@ 可用 · 前往更新"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新版本 %@ 已推出 · 前往更新"
+          }
         }
       }
     },
