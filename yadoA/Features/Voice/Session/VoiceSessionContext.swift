@@ -110,9 +110,12 @@ struct VoiceSessionContext: Equatable {
         )
     }
 
-    /// 契约中的界面语言：中文界面为 `zh-Hans`，其余为 `en`。
+    /// 契约中的界面语言：繁体中文界面为 `zh-Hant`，其他中文界面为 `zh-Hans`，其余为 `en`。
+    ///
+    /// `zh-Hant` 要等 yado_ai 支持后才能发，老版本服务端会拒绝不认识的语言。
     static func localeCode(for locale: Locale) -> String {
-        locale.language.languageCode == .chinese ? "zh-Hans" : "en"
+        guard locale.language.languageCode == .chinese else { return "en" }
+        return locale.isTraditionalChinese ? "zh-Hant" : "zh-Hans"
     }
 
     /// 带时区偏移的 ISO 8601 时刻；服务端取前 10 位作为用户本地的今天。

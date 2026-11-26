@@ -16,6 +16,12 @@
             "state" : "translated",
             "value" : "芽豆资产"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆資產"
+          }
         }
       }
     },
@@ -46,6 +52,12 @@
             "state" : "translated",
             "value" : "芽豆资产备份"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆資產備份"
+          }
         }
       }
     },
@@ -63,6 +75,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "芽豆资产使用相机拍摄你要记账的小票。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆資產使用相機拍攝你要記帳的收據。"
           }
         }
       }
@@ -82,6 +100,12 @@
             "state" : "translated",
             "value" : "芽豆资产使用面容 ID 解锁 App，防止他人查看你的账本。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆資產使用 Face ID 解鎖 App，防止他人查看你的帳本。"
+          }
         }
       }
     },
@@ -100,6 +124,12 @@
             "state" : "translated",
             "value" : "芽豆资产在语音记账时使用麦克风收听你说的话。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆資產在語音記帳時使用麥克風收聽你說的話。"
+          }
         }
       }
     },
@@ -117,6 +147,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "芽豆资产使用 Apple 语音识别把你说的话转成文字，用来记录收支；录音不会发送到芽豆的服务器。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "芽豆資產使用 Apple 語音辨識把你說的話轉成文字，用來記錄收支；錄音不會傳送到芽豆的伺服器。"
           }
         }
       }
