@@ -137,6 +137,19 @@ struct VoiceSessionTests {
         #expect(fixture.session.undoableTurn == nil)
     }
 
+    @Test("全站总量用完时本轮失败，提示稍后再试")
+    func capacityExhaustedFailsTurn() async throws {
+        let fixture = try Fixture()
+        fixture.api.responses = [.failure(.capacityExhausted)]
+
+        await fixture.session.send("午饭 28")
+
+        let turn = try #require(fixture.session.latestTurn)
+        #expect(turn.outcome == .failed(.capacityExhausted))
+        #expect(!turn.isInContext)
+        #expect(fixture.session.events.isEmpty)
+    }
+
     @Test("计费轮次 ID：同一句的续步沿用，回答追问时换新的")
     func reusesBillingTurnIDWithinSentence() async throws {
         let fixture = try Fixture()

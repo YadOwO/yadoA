@@ -16546,6 +16546,23 @@
         }
       }
     },
+    "voice.failure.capacityExhausted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI is a bit busy today. Please try again later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 今天有点忙，请稍后再试。"
+          }
+        }
+      }
+    },
     "voice.failure.network" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -18579,6 +18596,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "同步服務暫時無法使用，請稍後再試。"
+          }
+        }
+      }
+    },
+    "sync.error.quotaExceeded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your sync storage is full. Please contact us."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步空间已满，请联系我们。"
           }
         }
       }
