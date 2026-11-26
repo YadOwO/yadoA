@@ -18,10 +18,12 @@ struct AIPointsPurchaseSection: View {
     @State private var isRestoring = false
 
     var body: some View {
-        if let shop, !shop.offers.isEmpty {
+        // 资格已到期的新人包不显示；「还剩 N 天」和这里一样按显示那一刻算，不做定时刷新
+        let offers = shop?.visibleOffers(now: Date()) ?? []
+        if let shop, !offers.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 ProfileSettingsSection("ai.store.title") {
-                    ForEach(Array(shop.offers.enumerated()), id: \.element.id) { index, offer in
+                    ForEach(Array(offers.enumerated()), id: \.element.id) { index, offer in
                         if index > 0 {
                             ProfileSettingsRowDivider()
                         }
@@ -210,13 +212,15 @@ struct AIPointsPurchaseSection: View {
 
     /// 限时多送的结束日期，取用户本地时区的月日，例如“11/30”。
     ///
-    /// - Parameter date: 活动结束的时刻。
+    /// 服务端给的结束时刻不含在活动内（配置成次日 00:00 就是活动到前一天结束），所以按它前 1 秒，也就是活动的最后一刻取日期。
+    ///
+    /// - Parameter date: 活动结束的时刻（不含）。
     private func endDateText(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = locale
         formatter.timeZone = .current
         formatter.setLocalizedDateFormatFromTemplate("Md")
-        return formatter.string(from: date)
+        return formatter.string(from: AIPointsShop.bonusLastMoment(endsAt: date))
     }
 
     /// 标题里的点数文字。

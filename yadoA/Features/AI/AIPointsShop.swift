@@ -142,9 +142,22 @@ final class AIPointsShop {
         offers.contains { $0.product.isSubscription }
     }
 
-    /// 当前账号可以买的新人包；没有资格、没开放购买或还没加载时为 nil。
+    /// 当前账号可以买的新人包；没有资格、资格已到期、没开放购买或还没加载时为 nil。
     var starterOffer: Offer? {
-        offers.first { $0.item.isStarter }
+        visibleOffers(now: Date()).first { $0.item.isStarter }
+    }
+
+    /// 此刻应该展示的商品：`offers` 去掉资格已到期的新人包，其余商品原样保留，顺序不变。
+    ///
+    /// 资格在页面停留期间到期时，新人包不再显示；`offers` 本身要等下次刷新才会更新。
+    ///
+    /// - Parameter now: 当前时间。
+    /// - Returns: 展示用的商品。
+    func visibleOffers(now: Date) -> [Offer] {
+        offers.filter { offer in
+            guard offer.item.isStarter, let endsAt = offer.item.promotionEndsAt else { return true }
+            return endsAt > now
+        }
     }
 
     // MARK: - 生命周期
@@ -262,6 +275,8 @@ final class AIPointsShop {
         do {
             let result = try await api.submitPurchase(signedTransaction: transaction.signedTransaction)
             await transaction.finish()
+            // 服务端只要有这个账号的任何购买记录，新人包资格就没了；不重新拉列表，免得和补传交易互相调用
+            offers.removeAll { $0.item.isStarter }
             await didCredit()
             return .delivered(result)
         } catch let error as AIStoreUploadError {
@@ -310,6 +325,16 @@ final class AIPointsShop {
         let remaining = endsAt.timeIntervalSince(now)
         guard remaining > 0 else { return nil }
         return max(Int((remaining / 86_400).rounded(.up)), 1)
+    }
+
+    /// 限时多送结束日期的显示时刻。
+    ///
+    /// 限时多送的结束时刻不含在活动内，显示日期取它前 1 秒，也就是活动的最后一刻。
+    ///
+    /// - Parameter endsAt: 服务端给的活动结束时刻（不含）。
+    /// - Returns: 用来取显示日期的时刻。
+    static func bonusLastMoment(endsAt: Date) -> Date {
+        endsAt.addingTimeInterval(-1)
     }
 
     /// 找出点数价值的折算依据：服务端指定的锚点商品，要在商品列表和 StoreKit 结果里都找得到。
