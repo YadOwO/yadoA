@@ -55,6 +55,8 @@ struct AccountListView: View {
             }
         }
         .navigationTitle(AccountLocalization.string("account.list.title", locale: locale))
+        // 和记账、图表、「我的」三个一级页面一样用居中的小标题，不用大标题。
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             // 添加账户是这一页最常要找的操作：有账户时右上角直接放「＋」，一点就打开；没有账户时添加按钮在页面中间。
             if AccountListState.showsToolbarAdd(accountCount: accounts.count) {
