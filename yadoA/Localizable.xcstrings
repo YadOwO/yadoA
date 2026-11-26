@@ -23559,6 +23559,24 @@
         }
       }
     },
+    "profile.updateAvailable" : {
+      "comment" : "「我的」页底部版本号下方的一行，App Store 上有更新的版本时才出现，点了打开 App Store；%@ 为新版本号",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@ available · Update"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新版本 %@ 可用 · 前往更新"
+          }
+        }
+      }
+    },
     "developer.app.previewUpdateNotice" : {
       "comment" : "开发页按钮：用示例版本预览「发现新版本」弹层",
       "extractionState" : "manual",

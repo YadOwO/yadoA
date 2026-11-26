@@ -31,6 +31,11 @@ struct ProfileView: View {
     /// 隐私政策同意状态；离线模式下隐藏所有联网入口。预览中没有注入时为 nil，按允许联网处理。
     @Environment(PrivacyAgreementStore.self) private var privacyAgreement: PrivacyAgreementStore?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 打开 App Store 产品页。
+    @Environment(\.openURL) private var openURL
+
+    /// 「发现新版本」的全局状态；App Store 上有更新的版本时，页面底部版本号下面多一行「前往更新」。
+    @State private var updateNotice = AppUpdateNotice.shared
 
     /// 修改个人资料弹层，打开时携带当时的资料快照。
     @State private var editingProfile: AccountProfile?
@@ -766,9 +771,34 @@ struct ProfileView: View {
                 .font(.system(.caption, design: .serif))
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("profile-version")
+
+            if let release = updateNotice.availableRelease {
+                updateAvailableButton(release)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 12)
+    }
+
+    /// 版本号下面的「新版本 x 可用 · 前往更新」：只在 App Store 上有更新的版本时出现，点了打开 App Store。
+    ///
+    /// 和版本号同一套衬线小字，只是用主色加粗一档，不加底色和图标，保持落款的克制。
+    ///
+    /// - Parameter release: App Store 上比本机新的版本。
+    private func updateAvailableButton(_ release: AppStoreRelease) -> some View {
+        Button {
+            openURL(release.storeURL)
+        } label: {
+            Text(AccountLocalization.formatted("profile.updateAvailable", value: release.version, locale: locale))
+                .font(.system(.caption, design: .serif, weight: .semibold))
+                .foregroundStyle(.primary)
+                .underline()
+                .multilineTextAlignment(.center)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("profile-update-available")
     }
 
     /// 营销版本号与构建号，形如 `1.0 (1)`；缺少构建号时只显示版本号。

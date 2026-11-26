@@ -95,7 +95,7 @@ struct DeveloperView: View {
                 infoRow("developer.app.version", value: Self.appVersion)
                 infoRow("developer.app.bundleID", value: Bundle.main.bundleIdentifier ?? "—")
                 infoRow("developer.app.environment", value: AppEnvironment.current.rawValue)
-                // dev 包的 Bundle ID 没上架，查不到新版本；用示例版本看弹层的样子
+                // dev 包的 Bundle ID 没上架，查不到新版本；用示例版本看弹层和「我的」页底部那一行的样子
                 Button(text("developer.app.previewUpdateNotice")) {
                     AppUpdateNotice.shared.presentPreview()
                 }

@@ -170,6 +170,7 @@ nonisolated enum AppStoreLookup {
 /// - 查到后先记为待弹（`pendingRelease`），等界面上没有别的弹层（记账页、聊天页、登录页、426 提示等）时才真正弹出：
 ///   弹层挂在根视图上，别的弹层还开着时 SwiftUI 弹不出来，这个版本会就此错过。
 /// - 查到的产品页地址存下来，426 提示里没有配置 App Store 数字 ID 时也能跳转。
+/// - 查到的版本号也存下来：只要本机还没更新，「我的」页底部就一直显示「新版本可用」（`availableRelease`），不受「只弹一次」限制。
 @MainActor
 @Observable
 final class AppUpdateNotice {
@@ -185,11 +186,20 @@ final class AppUpdateNotice {
     /// 上次查到的 App Store 产品页地址的存储键。
     nonisolated static let storeURLKey = "appUpdate.notice.storeURL"
 
+    /// 上次查到的 App Store 版本号的存储键；一天只查一次，没查的那几次启动靠它显示「有新版本」。
+    nonisolated static let latestVersionKey = "appUpdate.notice.latestVersion"
+
     /// 两次查询的最短间隔：一天。
     nonisolated static let checkInterval: TimeInterval = 24 * 60 * 60
 
     /// 正在弹出的新版本；为 nil 时不显示弹层。
     var presentedRelease: AppStoreRelease?
+
+    /// App Store 上比本机新的版本，「我的」页底部据此显示「新版本可用 · 前往更新」；没有更新的版本时为 nil。
+    ///
+    /// 和弹层不同，这里不管弹没弹过、426 提示有没有出过，只要还没更新就一直显示。
+    /// 启动时从上次查到的版本号和产品页地址算出来，本机更新到这个版本后自然消失；不带更新说明。
+    private(set) var availableRelease: AppStoreRelease?
 
     /// 已经查到、还没弹出的新版本：等界面上没有别的弹层时由 `presentPending()` 弹出；没有待弹的版本时为 nil。
     private(set) var pendingRelease: AppStoreRelease?
@@ -238,6 +248,22 @@ final class AppUpdateNotice {
         self.countryCodes = countryCodes ?? AppStoreLookup.countryCodes(region: Locale.current.region)
         self.fetch = fetch
         self.upgradePrompt = upgradePrompt
+        if let version = defaults.string(forKey: Self.latestVersionKey),
+           let storeURL = defaults.url(forKey: Self.storeURLKey) {
+            availableRelease = Self.newerRelease(
+                AppStoreRelease(version: version, releaseNotes: nil, storeURL: storeURL),
+                currentVersion: currentVersion
+            )
+        }
+    }
+
+    /// 查到的版本比本机新时原样返回，否则为 nil。
+    ///
+    /// - Parameters:
+    ///   - release: App Store 上的版本。
+    ///   - currentVersion: 本机营销版本号。
+    private static func newerRelease(_ release: AppStoreRelease, currentVersion: String) -> AppStoreRelease? {
+        AppStoreLookup.isVersion(release.version, newerThan: currentVersion) ? release : nil
     }
 
     /// 上次查到的 App Store 产品页地址；还没查到过时为 nil。
@@ -267,10 +293,17 @@ final class AppUpdateNotice {
             return
         }
         defaults.set(now, forKey: Self.lastCheckedKey)
-        guard let release else { return }
+        guard let release else {
+            // 各店面都查不到（下架等）：不再提示有新版本；产品页地址留着给 426 提示用
+            defaults.removeObject(forKey: Self.latestVersionKey)
+            availableRelease = nil
+            return
+        }
         defaults.set(release.storeURL, forKey: Self.storeURLKey)
+        defaults.set(release.version, forKey: Self.latestVersionKey)
+        availableRelease = Self.newerRelease(release, currentVersion: currentVersion)
 
-        guard AppStoreLookup.isVersion(release.version, newerThan: currentVersion),
+        guard availableRelease != nil,
               defaults.string(forKey: Self.notifiedVersionKey) != release.version,
               !(upgradePrompt ?? .shared).hasPrompted
         else { return }
@@ -292,9 +325,10 @@ final class AppUpdateNotice {
         defaults.set(release.version, forKey: Self.notifiedVersionKey)
     }
 
-    /// 「开发」页预览弹层：用示例版本，不联网、不记录。
+    /// 「开发」页预览：用示例版本弹出弹层，同时让「我的」页底部出现「新版本可用」那一行（重启 App 后消失）；不联网、不记录。
     func presentPreview() {
         presentedRelease = .preview
+        availableRelease = .preview
     }
 }
 
