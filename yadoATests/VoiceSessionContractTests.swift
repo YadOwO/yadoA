@@ -439,10 +439,10 @@ struct VoiceSessionContractTests {
         #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh-Hans")) == "zh-Hans")
         #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh")) == "zh-Hans")
         #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh-Hans-HK")) == "zh-Hans")
-        // 繁体中文界面要求繁体回复：写明繁体，或没写文字但地区默认繁体
-        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh-Hant")) == "zh-Hant")
-        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh_TW")) == "zh-Hant")
-        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh-HK")) == "zh-Hant")
+        // 繁体中文界面（写明繁体，或没写文字但地区默认繁体）在服务端支持 zh-Hant 之前也发 zh-Hans
+        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh-Hant")) == "zh-Hans")
+        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh_TW")) == "zh-Hans")
+        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh-HK")) == "zh-Hans")
         #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "en_US")) == "en")
         let timeZone = try #require(TimeZone(secondsFromGMT: 8 * 3600))
         let date = Date(timeIntervalSince1970: 1_792_470_600) // 2026-10-20T04:30:00Z
