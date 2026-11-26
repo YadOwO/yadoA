@@ -218,7 +218,7 @@ struct OnboardingStoreTests {
     @Test("演示的结果提示与语音记账同一套文案")
     func voiceDemoSummaryMatchesVoiceBookkeeping() {
         let locale = Locale(identifier: "zh-Hans")
-        let text = VoiceSessionSummary.text(forItems: OnboardingSamples.summaryItems(locale: locale), locale: locale)
+        let text = VoiceSessionSummary.text(forItems: OnboardingSamples.summaryItems(locale: locale, currencyCode: "CNY"), locale: locale)
 
         #expect(text.contains("已记 2 笔"))
         #expect(text.contains("已删除"))

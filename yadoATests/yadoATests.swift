@@ -143,7 +143,7 @@ struct yadoATests {
 
         let draft = AccountDraft(accountType: .virtualAccount, template: template, locale: locale)
         #expect(draft.name == "虚拟账户")
-        let account = try Account.validating(draft: draft, locale: locale)
+        let account = try Account.validating(draft: draft, currencyCode: "CNY", locale: locale)
         #expect(account.templateID == "virtualAccount.other")
 
         for accountType in AccountType.allCases where accountType != .virtualAccount {

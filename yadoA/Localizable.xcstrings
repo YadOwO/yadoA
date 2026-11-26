@@ -22302,6 +22302,204 @@
         }
       }
     },
+    "settings.currency.title" : {
+      "comment" : "「我的 › 设置 › 记账」分组里记账币种那一行的标题，也是币种选择页的导航标题。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Currency"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记账币种"
+          }
+        }
+      }
+    },
+    "settings.currency.section.common" : {
+      "comment" : "币种选择页里「常用币种」分组的标题。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Common"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常用"
+          }
+        }
+      }
+    },
+    "settings.currency.section.all" : {
+      "comment" : "币种选择页里「全部币种」分组的标题，列出常用之外的其余币种。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Currencies"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部币种"
+          }
+        }
+      }
+    },
+    "settings.currency.search" : {
+      "comment" : "币种选择页搜索栏的占位文字；可按代码、名称或符号搜索。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search currencies"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索币种"
+          }
+        }
+      }
+    },
+    "settings.currency.confirm.title" : {
+      "comment" : "更换记账币种的确认弹窗标题，%@ 为新币种的名称。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change currency to %@?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把记账币种改为 %@？"
+          }
+        }
+      }
+    },
+    "settings.currency.confirm.message" : {
+      "comment" : "更换记账币种的确认弹窗正文，%@ 为新币种的名称；说明只换符号、不换算金额。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only the symbol changes; amounts are not converted. All accounts and transactions will use %@, and other devices will follow if sync is on."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只换符号，金额不换算。所有账户和流水都会改为 %@，开了云同步时其他设备也会跟着改。"
+          }
+        }
+      }
+    },
+    "settings.currency.confirm.action" : {
+      "comment" : "更换记账币种确认弹窗里的确认按钮。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改"
+          }
+        }
+      }
+    },
+    "settings.currency.failed" : {
+      "comment" : "更换记账币种保存失败时的提示。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't change the currency. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没能更改记账币种，请稍后再试"
+          }
+        }
+      }
+    },
+    "onboarding.accounts.currency" : {
+      "comment" : "首次引导建账户一步里显示当前记账币种的一行，%@ 为币种名称加符号，例如「美元 US$」。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Currency: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记账币种：%@"
+          }
+        }
+      }
+    },
+    "onboarding.accounts.currency.change" : {
+      "comment" : "首次引导建账户一步里「更改记账币种」的按钮。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改"
+          }
+        }
+      }
+    },
+    "account.management.import.confirm.currency" : {
+      "comment" : "恢复备份确认弹窗里的币种说明：备份币种和当前账本币种不同时出现；%1$@ 为备份的币种，%2$@ 为当前的币种。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The backup's currency is %1$@; the current one is %2$@. After restoring, the ledger will use %1$@, and amounts are not converted."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "备份的记账币种是 %1$@，当前是 %2$@。恢复后账本改用 %1$@，金额不换算。"
+          }
+        }
+      }
+    },
     "onboarding.accounts.title" : {
       "comment" : "首次引导建账户的标题",
       "extractionState" : "manual",

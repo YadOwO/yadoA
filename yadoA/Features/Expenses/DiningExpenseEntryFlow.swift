@@ -93,16 +93,18 @@ final class DiningExpenseEntryFlow: ObservableObject {
             ?? calendar.startOfDay(for: .now)
     }
 
-    /// 接收系统数字键盘输入，统一小数点格式并限制最多两位小数。
+    /// 接收系统数字键盘输入，统一小数点格式并按账本币种限制小数位。
     ///
     /// - Parameters:
     ///   - amountText: 文本框当前尝试写入的金额字符。
     ///   - decimalSeparator: 当前系统区域使用的小数分隔符。
-    func updateAmountText(_ amountText: String, decimalSeparator: String) {
+    ///   - fractionDigits: 允许的小数位数，取 `BookkeepingCurrency.inputFractionDigits(for:)`；默认是存储精度两位。
+    func updateAmountText(_ amountText: String, decimalSeparator: String, fractionDigits: Int = 2) {
         guard !isSaving,
               let normalizedAmountText = AccountAmountParser.normalizedCNYAmountText(
                   amountText,
-                  decimalSeparator: decimalSeparator
+                  decimalSeparator: decimalSeparator,
+                  fractionDigits: fractionDigits
               )
         else { return }
 

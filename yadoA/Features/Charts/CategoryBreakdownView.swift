@@ -6,6 +6,7 @@ import SwiftUI
 struct CategoryBreakdownView: View {
     @Environment(\.calendar) private var calendar
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Query private var transactions: [AccountTransaction]
     @Query private var categories: [BookkeepingCategory]
 
@@ -33,6 +34,7 @@ struct CategoryBreakdownView: View {
             transactions: transactions,
             calendar: calendar,
             locale: locale,
+            currencyCode: currencyCode,
             catalog: BookkeepingCategoryCatalog(categories: categories)
         )
 
@@ -55,7 +57,8 @@ struct CategoryBreakdownView: View {
                             : "category.ranking.income.title",
                         locale: locale
                     ),
-                    items: chart.categoryRanking
+                    items: chart.categoryRanking,
+                    currencyCode: currencyCode
                 )
             }
             .padding(.horizontal, 20)

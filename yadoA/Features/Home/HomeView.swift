@@ -56,6 +56,7 @@ struct HomeView: View {
 /// 首页跨账户查询内容，负责把 SwiftData 结果转换为当前月份展示。
 private struct HomeQueryContent: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var ledgerCurrencyCode
     @Environment(\.calendar) private var environmentCalendar
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -154,7 +155,8 @@ private struct HomeQueryContent: View {
                     rowActions: HomeRowActions(
                         editableTransactionIDs: HomeOverviewPresentation.editableTransactionIDs(
                             transactions: transactions,
-                            accounts: accounts
+                            accounts: accounts,
+                            ledgerCurrencyCode: ledgerCurrencyCode
                         ),
                         onRepeat: { transactionID in
                             repeatEntry(transactionID: transactionID)
@@ -266,6 +268,7 @@ extension HomeQueryContent {
               let draft = DiningExpenseDraft(
                   repeating: transaction,
                   accounts: accounts,
+                  ledgerCurrencyCode: ledgerCurrencyCode,
                   transactionDay: TransactionDay.encode(.now, calendar: environmentCalendar),
                   catalog: catalog
               )

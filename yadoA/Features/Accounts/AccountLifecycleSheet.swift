@@ -4,6 +4,7 @@ import SwiftUI
 struct AccountLifecycleSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @State private var replacementAccountID: UUID?
     @State private var allowsNoDefault = false
     @StateObject private var flow: AccountLifecycleFlow
@@ -51,7 +52,7 @@ struct AccountLifecycleSheet: View {
 
                 if plan.balance != .zero {
                     LedgerFormRow(title: text("account.lifecycle.current_balance")) {
-                        Text(plan.balance.formattedCurrency(locale: locale))
+                        Text(plan.balance.formattedCurrency(locale: locale, currencyCode: currencyCode))
                             .font(.system(.body, design: .serif))
                             .monospacedDigit()
                     }

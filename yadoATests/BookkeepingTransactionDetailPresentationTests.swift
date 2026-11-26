@@ -12,6 +12,7 @@ struct BookkeepingTransactionDetailPresentationTests {
             id: UUID(),
             accountID: accountID,
             amount: Decimal(string: "30.50")!,
+            currencyCode: "CNY",
             transactionDay: 20260826,
             note: "工作午餐"
         )
@@ -22,6 +23,7 @@ struct BookkeepingTransactionDetailPresentationTests {
                 transactionID: transaction.id,
                 transactions: [transaction],
                 accounts: [account],
+                ledgerCurrencyCode: "CNY",
                 calendar: utcCalendar,
                 locale: chineseLocale
             )
@@ -48,6 +50,7 @@ struct BookkeepingTransactionDetailPresentationTests {
             id: UUID(),
             accountID: accountID,
             amount: 18,
+            currencyCode: "CNY",
             transactionDay: 20260826
         )
         let account = Account(
@@ -68,6 +71,7 @@ struct BookkeepingTransactionDetailPresentationTests {
                 transactionID: transaction.id,
                 transactions: [transaction],
                 accounts: [account],
+                ledgerCurrencyCode: "CNY",
                 calendar: utcCalendar,
                 locale: chineseLocale
             )
@@ -83,6 +87,7 @@ struct BookkeepingTransactionDetailPresentationTests {
             id: UUID(),
             accountID: accountID,
             amount: 12,
+            currencyCode: "CNY",
             transactionDay: 20260826
         )
 
@@ -91,6 +96,7 @@ struct BookkeepingTransactionDetailPresentationTests {
                 transactionID: transaction.id,
                 transactions: [transaction],
                 accounts: [makeAccount(id: accountID, name: "日常现金")],
+                ledgerCurrencyCode: "CNY",
                 calendar: utcCalendar,
                 locale: chineseLocale
             )
@@ -107,6 +113,7 @@ struct BookkeepingTransactionDetailPresentationTests {
             id: UUID(),
             accountID: inactiveID,
             amount: 10,
+            currencyCode: "CNY",
             transactionDay: 20260826
         )
         let inactive = makeAccount(
@@ -119,6 +126,7 @@ struct BookkeepingTransactionDetailPresentationTests {
                 transactionID: inactiveTransaction.id,
                 transactions: [inactiveTransaction],
                 accounts: [inactive],
+                ledgerCurrencyCode: "CNY",
                 calendar: utcCalendar,
                 locale: englishLocale
             )
@@ -127,6 +135,7 @@ struct BookkeepingTransactionDetailPresentationTests {
             id: UUID(),
             accountID: UUID(),
             amount: 10,
+            currencyCode: "CNY",
             transactionDay: 20260826
         )
         let orphanDetail = try #require(
@@ -134,6 +143,7 @@ struct BookkeepingTransactionDetailPresentationTests {
                 transactionID: orphanTransaction.id,
                 transactions: [orphanTransaction],
                 accounts: [],
+                ledgerCurrencyCode: "CNY",
                 calendar: utcCalendar,
                 locale: chineseLocale
             )
@@ -154,6 +164,7 @@ struct BookkeepingTransactionDetailPresentationTests {
                 transactionID: UUID(),
                 transactions: [],
                 accounts: [],
+                ledgerCurrencyCode: "CNY",
                 calendar: utcCalendar,
                 locale: englishLocale
             ) == nil
@@ -167,6 +178,7 @@ struct BookkeepingTransactionDetailPresentationTests {
             id: UUID(),
             accountID: accountID,
             amount: 10,
+            currencyCode: "CNY",
             transactionDay: 20260826
         )
         let active = makeAccount(id: accountID, name: "现金")
@@ -175,6 +187,7 @@ struct BookkeepingTransactionDetailPresentationTests {
                 transactionID: transaction.id,
                 transactions: [transaction],
                 accounts: [active],
+                ledgerCurrencyCode: "CNY",
                 calendar: utcCalendar,
                 locale: englishLocale
             )
@@ -185,6 +198,7 @@ struct BookkeepingTransactionDetailPresentationTests {
                 transactionID: transaction.id,
                 transactions: [transaction],
                 accounts: [active],
+                ledgerCurrencyCode: "CNY",
                 calendar: utcCalendar,
                 locale: englishLocale
             )
@@ -200,17 +214,17 @@ struct BookkeepingTransactionDetailPresentationTests {
         let account = makeAccount(id: UUID(), name: "现金")
         let transaction = try AccountTransaction.validatingIncome(
             id: UUID(), accountID: account.id, category: .bonus,
-            amount: 10, transactionDay: 20260915
+            amount: 10, currencyCode: "CNY", transactionDay: 20260915
         )
         account.typeRawValue = "futureAccountType"
         let unknown = BookkeepingSearchPresentation.detail(
-            transactionID: transaction.id, transactions: [transaction], accounts: [account]
+            transactionID: transaction.id, transactions: [transaction], accounts: [account], ledgerCurrencyCode: "CNY"
         )
         #expect(unknown?.canEdit == false)
         account.typeRawValue = AccountType.cash.rawValue
         account.currencyCode = "USD"
         let unsupportedCurrency = BookkeepingSearchPresentation.detail(
-            transactionID: transaction.id, transactions: [transaction], accounts: [account]
+            transactionID: transaction.id, transactions: [transaction], accounts: [account], ledgerCurrencyCode: "CNY"
         )
         #expect(unsupportedCurrency?.canEdit == false)
     }

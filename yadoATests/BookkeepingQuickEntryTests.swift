@@ -25,18 +25,22 @@ struct BookkeepingQuickEntryTests {
         let accountID = UUID()
         context.insert(try AccountTransaction.validatingExpense(
             id: UUID(), accountID: accountID, category: .dining, amount: 10,
+            currencyCode: "CNY",
             transactionDay: 20260930, savedAt: Date(timeIntervalSince1970: 100)
         ))
         context.insert(try AccountTransaction.validatingExpense(
             id: UUID(), accountID: accountID, category: .travel, amount: 20,
+            currencyCode: "CNY",
             transactionDay: 20260101, savedAt: Date(timeIntervalSince1970: 200)
         ))
         context.insert(try AccountTransaction.validatingIncome(
             id: UUID(), accountID: accountID, category: .salary, amount: 30,
+            currencyCode: "CNY",
             transactionDay: 20260930, savedAt: Date(timeIntervalSince1970: 150)
         ))
         context.insert(try AccountTransaction.validatingBalanceAdjustment(
             id: UUID(), accountID: accountID, balanceBefore: 0, balanceAfter: 5,
+            currencyCode: "CNY",
             transactionDay: 20260930, savedAt: Date(timeIntervalSince1970: 300)
         ))
         try context.save()
@@ -55,7 +59,7 @@ struct BookkeepingQuickEntryTests {
         try repository.delete(key: "pets", direction: .expense, transactions: .migrate(to: "other"))
         let context = ModelContext(container)
         context.insert(try AccountTransaction.validatingExpense(
-            id: UUID(), accountID: UUID(), categoryKey: "pets", amount: 10, transactionDay: 20260930
+            id: UUID(), accountID: UUID(), categoryKey: "pets", amount: 10, currencyCode: "CNY", transactionDay: 20260930
         ))
         try context.save()
 
@@ -137,11 +141,12 @@ struct BookkeepingQuickEntryTests {
         let account = makeAccount()
         let source = try AccountTransaction.validatingExpense(
             id: UUID(), accountID: account.id, category: .travel, amount: Decimal(string: "35.5")!,
+            currencyCode: "CNY",
             transactionDay: 20260101, note: "打车"
         )
 
         let draft = try #require(DiningExpenseDraft(
-            repeating: source, accounts: [account], transactionDay: 20260930
+            repeating: source, accounts: [account], ledgerCurrencyCode: "CNY", transactionDay: 20260930
         ))
 
         #expect(draft.id != source.id)
@@ -157,11 +162,11 @@ struct BookkeepingQuickEntryTests {
     func repeatDraftSupportsIncome() throws {
         let account = makeAccount()
         let source = try AccountTransaction.validatingIncome(
-            id: UUID(), accountID: account.id, category: .bonus, amount: 100, transactionDay: 20260101
+            id: UUID(), accountID: account.id, category: .bonus, amount: 100, currencyCode: "CNY", transactionDay: 20260101
         )
 
         let draft = try #require(DiningExpenseDraft(
-            repeating: source, accounts: [account], transactionDay: 20260930
+            repeating: source, accounts: [account], ledgerCurrencyCode: "CNY", transactionDay: 20260930
         ))
 
         #expect(draft.entryType == .income)
@@ -172,11 +177,11 @@ struct BookkeepingQuickEntryTests {
     func repeatDraftDropsUnavailableAccount() throws {
         let account = makeAccount(deactivatedAt: .now)
         let source = try AccountTransaction.validatingExpense(
-            id: UUID(), accountID: account.id, category: .dining, amount: 10, transactionDay: 20260101
+            id: UUID(), accountID: account.id, category: .dining, amount: 10, currencyCode: "CNY", transactionDay: 20260101
         )
 
         let draft = try #require(DiningExpenseDraft(
-            repeating: source, accounts: [account], transactionDay: 20260930
+            repeating: source, accounts: [account], ledgerCurrencyCode: "CNY", transactionDay: 20260930
         ))
 
         #expect(draft.accountID == nil)
@@ -186,10 +191,10 @@ struct BookkeepingQuickEntryTests {
     func repeatDraftRejectsBalanceAdjustment() throws {
         let account = makeAccount()
         let source = try AccountTransaction.validatingBalanceAdjustment(
-            id: UUID(), accountID: account.id, balanceBefore: 0, balanceAfter: 5, transactionDay: 20260101
+            id: UUID(), accountID: account.id, balanceBefore: 0, balanceAfter: 5, currencyCode: "CNY", transactionDay: 20260101
         )
 
-        #expect(DiningExpenseDraft(repeating: source, accounts: [account], transactionDay: 20260930) == nil)
+        #expect(DiningExpenseDraft(repeating: source, accounts: [account], ledgerCurrencyCode: "CNY", transactionDay: 20260930) == nil)
     }
 
     // MARK: - 首页可否删除
@@ -199,18 +204,19 @@ struct BookkeepingQuickEntryTests {
         let active = makeAccount()
         let deactivated = makeAccount(deactivatedAt: .now)
         let editable = try AccountTransaction.validatingExpense(
-            id: UUID(), accountID: active.id, category: .dining, amount: 1, transactionDay: 20260930
+            id: UUID(), accountID: active.id, category: .dining, amount: 1, currencyCode: "CNY", transactionDay: 20260930
         )
         let archived = try AccountTransaction.validatingExpense(
-            id: UUID(), accountID: deactivated.id, category: .dining, amount: 1, transactionDay: 20260930
+            id: UUID(), accountID: deactivated.id, category: .dining, amount: 1, currencyCode: "CNY", transactionDay: 20260930
         )
         let orphaned = try AccountTransaction.validatingExpense(
-            id: UUID(), accountID: UUID(), category: .dining, amount: 1, transactionDay: 20260930
+            id: UUID(), accountID: UUID(), category: .dining, amount: 1, currencyCode: "CNY", transactionDay: 20260930
         )
 
         let ids = HomeOverviewPresentation.editableTransactionIDs(
             transactions: [editable, archived, orphaned],
-            accounts: [active, deactivated]
+            accounts: [active, deactivated],
+            ledgerCurrencyCode: "CNY"
         )
 
         #expect(ids == [editable.id])

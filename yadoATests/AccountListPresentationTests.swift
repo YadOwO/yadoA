@@ -70,7 +70,8 @@ struct AccountListPresentationTests {
                 makeAccount(typeRawValue: AccountType.creditCard.rawValue, balance: 30),
                 makeAccount(typeRawValue: AccountType.liability.rawValue, balance: 20)
             ],
-            locale: Locale(identifier: "en_US")
+            locale: Locale(identifier: "en_US"),
+            currencyCode: "CNY"
         )
 
         #expect(summary.assets == 150)
@@ -87,7 +88,8 @@ struct AccountListPresentationTests {
     func unknownAccountTypeFallsBackToAssets() {
         let summary = AccountSummaryPresentation.summary(
             for: [makeAccount(typeRawValue: "futureType", balance: 40)],
-            locale: Locale(identifier: "en_US")
+            locale: Locale(identifier: "en_US"),
+            currencyCode: "CNY"
         )
 
         #expect(summary.assets == 40)
@@ -105,8 +107,8 @@ struct AccountListPresentationTests {
         ]
         let locale = Locale(identifier: "en_US")
 
-        let base = AccountSummaryPresentation.summary(for: accounts, locale: locale)
-        let withValuation = AccountSummaryPresentation.summary(for: accounts, additionalAssets: 840, locale: locale)
+        let base = AccountSummaryPresentation.summary(for: accounts, locale: locale, currencyCode: "CNY")
+        let withValuation = AccountSummaryPresentation.summary(for: accounts, additionalAssets: 840, locale: locale, currencyCode: "CNY")
 
         #expect(base.assets == 150)
         #expect(withValuation.assets == 990)
@@ -118,7 +120,7 @@ struct AccountListPresentationTests {
         #expect(withValuation.formattedAssets.contains("990"))
         #expect(withValuation.formattedNetAssets.contains("940"))
 
-        #expect(AccountSummaryPresentation.summary(for: accounts, additionalAssets: .zero, locale: locale) == base)
+        #expect(AccountSummaryPresentation.summary(for: accounts, additionalAssets: .zero, locale: locale, currencyCode: "CNY") == base)
     }
 
     @Test("估值只加进启用账户的汇总：停用账户仍然不算，没有账户时资产就是估值本身")
@@ -138,7 +140,7 @@ struct AccountListPresentationTests {
         )
         let locale = Locale(identifier: "en_US")
 
-        let summary = AccountSummaryPresentation.summary(for: [deactivated], additionalAssets: 500, locale: locale)
+        let summary = AccountSummaryPresentation.summary(for: [deactivated], additionalAssets: 500, locale: locale, currencyCode: "CNY")
         #expect(summary.assets == 500)
         #expect(summary.liabilities == 0)
         #expect(summary.netAssets == 500)
@@ -237,11 +239,11 @@ struct AccountListPresentationTests {
 
     @Test("汇总卡片只在有欠款或净资产为负时上负向色")
     func summaryTonesHighlightOnlyNegativeSide() {
-        let healthy = AccountSummaryPresentation.summary(assets: 100, liabilities: 0)
+        let healthy = AccountSummaryPresentation.summary(assets: 100, liabilities: 0, currencyCode: "CNY")
         #expect(healthy.netAssetsTone == .neutral)
         #expect(healthy.liabilitiesTone == .neutral)
 
-        let indebted = AccountSummaryPresentation.summary(assets: 100, liabilities: 300)
+        let indebted = AccountSummaryPresentation.summary(assets: 100, liabilities: 300, currencyCode: "CNY")
         #expect(indebted.netAssetsTone == .negative)
         #expect(indebted.liabilitiesTone == .negative)
     }

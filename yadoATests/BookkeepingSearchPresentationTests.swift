@@ -12,29 +12,29 @@ struct BookkeepingSearchPresentationTests {
             .enumerated().map { index, category in
                 try AccountTransaction.validatingExpense(
                     id: UUID(), accountID: accountID, category: category,
-                    amount: 30, transactionDay: 20260826 - index
+                    amount: 30, currencyCode: "CNY", transactionDay: 20260826 - index
                 )
             }
         let recentShopping = try AccountTransaction.validatingExpense(
             id: UUID(), accountID: accountID, category: .shopping,
-            amount: 30, transactionDay: 20260828
+            amount: 30, currencyCode: "CNY", transactionDay: 20260828
         )
         let salary = try AccountTransaction.validatingIncome(
             id: UUID(), accountID: accountID, category: .salary,
-            amount: 500, transactionDay: 20260829
+            amount: 500, currencyCode: "CNY", transactionDay: 20260829
         )
         let adjustment = try AccountTransaction.validatingBalanceAdjustment(
             id: UUID(), accountID: accountID, balanceBefore: 100,
-            balanceAfter: 200, transactionDay: 20260831
+            balanceAfter: 200, currencyCode: "CNY", transactionDay: 20260831
         )
         let invalidDate = try AccountTransaction.validatingExpense(
             id: UUID(), accountID: accountID, category: .pets,
-            amount: 30, transactionDay: 20260831
+            amount: 30, currencyCode: "CNY", transactionDay: 20260831
         )
         invalidDate.transactionDay = 20260230
         let corrupted = try AccountTransaction.validatingExpense(
             id: UUID(), accountID: accountID, category: .education,
-            amount: 30, transactionDay: 20260831
+            amount: 30, currencyCode: "CNY", transactionDay: 20260831
         )
         corrupted.amount = nil
         let transactions = expenses + [recentShopping, salary, adjustment, invalidDate, corrupted]
@@ -67,6 +67,7 @@ struct BookkeepingSearchPresentationTests {
             accountID: UUID(),
             category: .salary,
             amount: 500,
+            currencyCode: "CNY",
             transactionDay: 20260902
         )
         let account = account(id: transaction.accountID, name: "Cash")
@@ -79,6 +80,7 @@ struct BookkeepingSearchPresentationTests {
         let detail = BookkeepingSearchPresentation.detail(
             for: transaction,
             account: account,
+            ledgerCurrencyCode: "CNY",
             locale: chineseLocale
         )
 
@@ -153,6 +155,7 @@ struct BookkeepingSearchPresentationTests {
             accountID: UUID(),
             category: .medical,
             amount: 50,
+            currencyCode: "CNY",
             transactionDay: 20260831
         )
         let account = account(id: transaction.accountID, name: "Cash")
@@ -172,6 +175,7 @@ struct BookkeepingSearchPresentationTests {
         let detail = BookkeepingSearchPresentation.detail(
             for: transaction,
             account: account,
+            ledgerCurrencyCode: "CNY",
             locale: chineseLocale
         )
 
@@ -347,6 +351,7 @@ struct BookkeepingSearchPresentationTests {
             accountID: accountID,
             balanceBefore: 100,
             balanceAfter: 120,
+            currencyCode: "CNY",
             transactionDay: 20260826,
             note: "命中"
         )
@@ -455,7 +460,7 @@ struct BookkeepingSearchPresentationTests {
         let dinner = try dining(id: UUID(), accountID: accountID, amount: "30.5", transactionDay: 20260816, note: "晚餐")
         let salary = try AccountTransaction.validatingIncome(
             id: UUID(), accountID: accountID, category: .salary,
-            amount: 500, transactionDay: 20260817
+            amount: 500, currencyCode: "CNY", transactionDay: 20260817
         )
         let transactions = [lunch, dinner, salary]
         let account = account(id: accountID, name: "Cash")
@@ -572,6 +577,7 @@ struct BookkeepingSearchPresentationTests {
             id: id,
             accountID: accountID,
             amount: try #require(Decimal(string: amount)),
+            currencyCode: "CNY",
             transactionDay: transactionDay,
             note: note,
             savedAt: savedAt

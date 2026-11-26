@@ -11,6 +11,7 @@ import SwiftUI
 /// 构成和排行按各账户当前余额算，这一页都不读流水。
 struct AssetAnalysisView: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.calendar) private var calendar
     @Query private var accounts: [Account]
     /// 各账户每天余额变化的缓存。
@@ -27,7 +28,12 @@ struct AssetAnalysisView: View {
     var body: some View {
         let activeAccounts = accounts.filter(\.isActive)
         let itemValuation = dataLinks?.netWorthValuation
-        let analysis = AssetAnalysisPresentation(accounts: activeAccounts, itemValuation: itemValuation, locale: locale)
+        let analysis = AssetAnalysisPresentation(
+            accounts: activeAccounts,
+            itemValuation: itemValuation,
+            locale: locale,
+            currencyCode: currencyCode
+        )
 
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -134,6 +140,7 @@ struct AssetAnalysisView: View {
 /// 资产不为正时比率没有意义，写成「—」，也不画比例条。说明只陈述事实，不评价好坏。
 private struct DebtRatioCard: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
@@ -208,7 +215,7 @@ private struct DebtRatioCard: View {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text(amount.formattedCurrency(locale: locale))
+            Text(amount.formattedCurrency(locale: locale, currencyCode: currencyCode))
                 .font(.system(.subheadline, design: .serif).monospacedDigit())
                 .amountTone(tone)
                 .lineLimit(1)

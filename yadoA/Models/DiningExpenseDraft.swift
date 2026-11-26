@@ -80,17 +80,23 @@ struct DiningExpenseDraft: Hashable, Sendable {
     /// - Parameters:
     ///   - transaction: 作为模板的流水；不是合法收支时返回 `nil`。
     ///   - accounts: 当前账户快照；原账户已不能记账时不带账户，由记账页面填入默认账户。
+    ///   - ledgerCurrencyCode: 当前账本币种；流水或账户的币种和它不同时不能再记。
     ///   - transactionDay: 新草稿的 `YYYYMMDD` 记账日。
     ///   - catalog: 解析另一方向默认分类使用的分类目录。
     init?(
         repeating transaction: AccountTransaction,
         accounts: [Account],
+        ledgerCurrencyCode: String,
         transactionDay: Int,
         catalog: BookkeepingCategoryCatalog = .presets
     ) {
-        guard let source = DiningExpenseEditDraft(transaction: transaction, catalog: catalog) else { return nil }
+        guard let source = DiningExpenseEditDraft(
+            transaction: transaction,
+            ledgerCurrencyCode: ledgerCurrencyCode,
+            catalog: catalog
+        ) else { return nil }
         let isAccountAvailable = accounts.contains {
-            $0.id == source.accountID && $0.acceptsBookkeepingEntries
+            $0.id == source.accountID && $0.acceptsBookkeepingEntries(ledgerCurrencyCode: ledgerCurrencyCode)
         }
         self.init(
             accountID: isAccountAvailable ? source.accountID : nil,
@@ -122,11 +128,13 @@ extension AccountTransaction {
     ///
     /// - Parameters:
     ///   - draft: 页面提交时复制的记账草稿。
+    ///   - currencyCode: 写进流水的币种，即当前账本币种。
     ///   - savedAt: 注入的真实保存时间。
     /// - Returns: 已校验账户选择、金额、日期和备注的流水。
     /// - Throws: 账户未选择或流水字段无效时抛出对应校验错误。
     static func validating(
         draft: DiningExpenseDraft,
+        currencyCode: String,
         savedAt: Date = .now
     ) throws -> AccountTransaction {
         guard let accountID = draft.accountID else {
@@ -143,6 +151,7 @@ extension AccountTransaction {
                 accountID: accountID,
                 categoryKey: draft.expenseCategoryKey,
                 amount: amount,
+                currencyCode: currencyCode,
                 transactionDay: draft.transactionDay,
                 note: draft.note,
                 savedAt: savedAt
@@ -153,6 +162,7 @@ extension AccountTransaction {
                 accountID: accountID,
                 categoryKey: draft.incomeCategoryKey,
                 amount: amount,
+                currencyCode: currencyCode,
                 transactionDay: draft.transactionDay,
                 note: draft.note,
                 savedAt: savedAt

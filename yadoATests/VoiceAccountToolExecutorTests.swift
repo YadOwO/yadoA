@@ -523,7 +523,7 @@ struct VoiceAccountToolExecutorTests {
     // MARK: - 辅助
 
     private func makeExecutor(_ container: ModelContainer) -> VoiceToolExecutor {
-        VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: { savedAt })
+        VoiceToolExecutor(container: container, locale: locale, calendar: calendar, currencyCode: "CNY", now: { savedAt })
     }
 
     private func makeAccount(

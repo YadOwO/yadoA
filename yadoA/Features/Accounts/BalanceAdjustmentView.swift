@@ -5,6 +5,7 @@ import UIKit
 struct BalanceAdjustmentView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @FocusState private var focusedField: FocusedField?
     @AccessibilityFocusState private var isSaveErrorFocused: Bool
@@ -178,7 +179,8 @@ struct BalanceAdjustmentView: View {
                 isSaveErrorFocused = false
                 flow.updateAmountText(
                     magnitudeText,
-                    decimalSeparator: locale.decimalSeparator ?? "."
+                    decimalSeparator: locale.decimalSeparator ?? ".",
+                    fractionDigits: BookkeepingCurrency.inputFractionDigits(for: currencyCode)
                 )
             }
         )
@@ -384,9 +386,9 @@ struct BalanceAdjustmentView: View {
         .accessibilityIdentifier("balance-adjustment-save")
     }
 
-    /// 使用当前语言环境展示精确 CNY 总余额。
+    /// 使用当前语言环境和账本币种展示精确总余额。
     private func formattedCurrency(_ amount: Decimal) -> String {
-        amount.formattedCurrency(locale: locale)
+        amount.formattedCurrency(locale: locale, currencyCode: currencyCode)
     }
 
     /// 保存成功后提供系统触觉和 VoiceOver 公告。

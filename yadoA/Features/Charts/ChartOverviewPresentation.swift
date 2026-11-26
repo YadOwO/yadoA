@@ -149,6 +149,7 @@ struct ChartOverviewPresentation: Equatable {
     ///   - now: 没有显式锚点时用于选择初始周期的当前日期。
     ///   - calendar: 提供时区和周起始规则的日历。
     ///   - locale: 用于周期、横轴和金额展示的语言环境。
+    ///   - currencyCode: 金额展示使用的账本币种。
     ///   - catalog: 分类排行解析名称与图标使用的分类目录。
     init(
         period: ChartPeriod,
@@ -158,6 +159,7 @@ struct ChartOverviewPresentation: Equatable {
         now: Date = .now,
         calendar sourceCalendar: Calendar = .current,
         locale: Locale = .current,
+        currencyCode: String,
         catalog: BookkeepingCategoryCatalog = .presets
     ) {
         let calendar = Self.chartCalendar(
@@ -246,7 +248,7 @@ struct ChartOverviewPresentation: Equatable {
                 formattedLabel: pointFormatter.string(from: bucketDate),
                 formattedDetailLabel: pointDetailFormatter.string(from: bucketDate),
                 amount: amount,
-                formattedAmount: amount.formattedCurrency(locale: locale),
+                formattedAmount: amount.formattedCurrency(locale: locale, currencyCode: currencyCode),
                 transactionCount: bucketTransactions.count
             )
         }

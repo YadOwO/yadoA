@@ -21,8 +21,8 @@ struct CategoryRankingView: View {
     let title: String
     /// 每个分类一项的汇总数据；零额分类不展示。
     let items: [CategoryRankingItem]
-    /// 金额展示使用的货币代码，默认与现有记账保持一致。
-    var currencyCode = BookkeepingCurrency.code
+    /// 金额展示使用的货币代码，由调用方传入（图表取账本币种）。
+    let currencyCode: String
 
     var body: some View {
         let rankedItems = items.filter { $0.amount > 0 }.sorted {
@@ -157,14 +157,15 @@ struct LedgerRankingBar: View {
             .init(id: "dining", title: "餐饮", symbolName: "fork.knife", amount: 407.55),
             .init(id: "shopping", title: "购物", symbolName: "bag", amount: 500.13),
             .init(id: "entertainment", title: "娱乐", symbolName: "gamecontroller", amount: 1525.34)
-        ]
+        ],
+        currencyCode: BookkeepingCurrency.fallbackCode
     )
     .padding()
     .paperPage()
 }
 
 #Preview("Empty ranking") {
-    CategoryRankingView(title: "Income ranking", items: [])
+    CategoryRankingView(title: "Income ranking", items: [], currencyCode: BookkeepingCurrency.fallbackCode)
         .padding()
         .preferredColorScheme(.dark)
 }

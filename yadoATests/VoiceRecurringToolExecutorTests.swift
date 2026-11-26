@@ -446,7 +446,7 @@ struct VoiceRecurringToolExecutorTests {
 
     private func makeExecutor(_ container: ModelContainer, now: Date? = nil) -> VoiceToolExecutor {
         let date = now ?? savedAt
-        return VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: { date })
+        return VoiceToolExecutor(container: container, locale: locale, calendar: calendar, currencyCode: "CNY", now: { date })
     }
 
     private func createCall(

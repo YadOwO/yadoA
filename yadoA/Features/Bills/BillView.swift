@@ -91,6 +91,7 @@ struct BillView: View {
 /// 延续首页的墨线框和衬线数字，以结余为主、收入支出为辅。
 private struct BillSummaryCard<Accessory: View>: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// 当前模式对应的汇总与文案范围。
     let totals: BillTotals
@@ -113,7 +114,7 @@ private struct BillSummaryCard<Accessory: View>: View {
                 }
                 // 无论右侧是否有年份选择，标题行都保持同一高度。
                 .frame(minHeight: 44)
-                Text(totals.balance.formattedCurrency(locale: locale))
+                Text(totals.balance.formattedCurrency(locale: locale, currencyCode: currencyCode))
                     .font(.system(.largeTitle, design: .serif, weight: .medium).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
@@ -153,7 +154,7 @@ private struct BillSummaryCard<Accessory: View>: View {
             Label(AccountLocalization.string(titleKey, locale: locale), systemImage: symbol)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text(value.formattedCurrency(locale: locale))
+            Text(value.formattedCurrency(locale: locale, currencyCode: currencyCode))
                 .font(.system(.title3, design: .serif, weight: .medium).monospacedDigit())
                 .foregroundStyle(Color.primary)
                 .lineLimit(1)
@@ -171,6 +172,7 @@ private struct BillSummaryCard<Accessory: View>: View {
 /// 需要时再读下面的收支。
 private struct BillTable: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// 已按时间倒序排列的账单行。
     let rows: [BillRowPresentation]
@@ -265,9 +267,11 @@ private struct BillTable: View {
             .accessibilityHidden(true)
     }
 
-    /// Decimal 直接格式化，避免经过 Double 丢失精度。
+    /// Decimal 直接格式化，避免经过 Double 丢失精度；小数位按账本币种自己的规则。
     private func formatted(_ amount: Decimal) -> String {
-        amount.formatted(.number.precision(.fractionLength(2)).locale(locale))
+        amount.formatted(
+            .number.precision(.fractionLength(BookkeepingCurrency.fractionDigits(for: currencyCode))).locale(locale)
+        )
     }
 
     /// VoiceOver 逐行读出周期、收入、支出和结余，避免丢失列含义。

@@ -191,7 +191,8 @@ struct VoiceSessionContractTests {
                 .toolResult(VoiceToolResult(toolCallId: "c1", name: .deleteTransaction, output: .failure(.notFound))),
                 .toolResult(VoiceToolResult(toolCallId: "c2", name: .createTransaction, output: .created(id: "T2"))),
                 .assistant(text: "已记 1 笔"),
-            ]
+            ],
+            currency: "CNY"
         )
         let object = try jsonObject(request)
         #expect(object["defaultAccountId"] is NSNull)
@@ -219,7 +220,8 @@ struct VoiceSessionContractTests {
             defaultAccountId: nil,
             accounts: [],
             categories: [],
-            events: [.userWithImages(text: "记一下", images: [VoiceSessionImage(data: "AAEC", mediaType: "image/jpeg")])]
+            events: [.userWithImages(text: "记一下", images: [VoiceSessionImage(data: "AAEC", mediaType: "image/jpeg")])],
+            currency: "CNY"
         )
         let object = try jsonObject(request)
         let event = try #require((object["events"] as? [[String: Any]])?.first)
@@ -340,7 +342,7 @@ struct VoiceSessionContractTests {
     func declaresCapabilities() throws {
         let request = VoiceSessionTurnRequest(
             locale: "zh-Hans", capabilities: VoiceSessionCapability.declared, now: "2026-10-20T12:30:00+08:00",
-            defaultAccountId: nil, accounts: [], categories: [], events: []
+            defaultAccountId: nil, accounts: [], categories: [], events: [], currency: "CNY"
         )
         #expect(try jsonObject(request)["capabilities"] as? [String] == ["account_tools", "recurring_tools"])
     }
@@ -355,7 +357,7 @@ struct VoiceSessionContractTests {
         let endpoint = try #require(URL(string: "https://example.invalid"))
         let request = VoiceSessionTurnRequest(
             locale: "zh-Hans", capabilities: [], now: "2026-10-20T12:30:00-07:00", defaultAccountId: nil,
-            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)]
+            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)], currency: "CNY"
         )
         for (authError, expected) in cases {
             // 模拟凭证过期后刷新很慢、最终失败
@@ -378,7 +380,7 @@ struct VoiceSessionContractTests {
         let endpoint = try #require(URL(string: "https://example.invalid"))
         let request = VoiceSessionTurnRequest(
             locale: "zh-Hans", capabilities: [], now: "2026-10-20T12:30:00-07:00", defaultAccountId: nil,
-            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)]
+            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)], currency: "CNY"
         )
         let trace = VoiceRequestTrace(sessionID: "S", turn: 1, request: 1)
         func consentHeader(of api: VoiceSessionAPI) throws -> String? {
@@ -403,7 +405,7 @@ struct VoiceSessionContractTests {
         let endpoint = try #require(URL(string: "https://example.invalid"))
         let request = VoiceSessionTurnRequest(
             locale: "zh-Hans", capabilities: [], now: "2026-10-20T12:30:00-07:00", defaultAccountId: nil,
-            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)]
+            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)], currency: "CNY"
         )
         let trace = VoiceRequestTrace(sessionID: "S", turn: 1, request: 1)
         let api = VoiceSessionAPI(endpoint: endpoint) { "token" }

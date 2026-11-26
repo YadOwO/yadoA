@@ -62,12 +62,14 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
     ///
     /// - Parameters:
     ///   - transaction: 需要编辑的流水。
+    ///   - ledgerCurrencyCode: 当前账本币种；流水币种和它不同时不进入编辑流程。
     ///   - catalog: 解析另一方向默认分类使用的分类目录。
     init?(
         transaction: AccountTransaction,
+        ledgerCurrencyCode: String,
         catalog: BookkeepingCategoryCatalog = .presets
     ) {
-        guard transaction.currencyCode == BookkeepingCurrency.code,
+        guard transaction.currencyCode == ledgerCurrencyCode,
               TransactionDay.isValid(transaction.transactionDay),
               let payload = try? transaction.validatedPayload(),
               let entry = payload.bookkeepingAmount,
@@ -94,13 +96,18 @@ struct DiningExpenseEditDraft: Equatable, Sendable, Identifiable {
     }
 
     /// 复用新增收支的校验工厂，生成用于替换现有字段的已校验值。
-    func validatedTransaction(savedAt: Date) throws -> AccountTransaction {
+    ///
+    /// - Parameters:
+    ///   - currencyCode: 写进替换值的币种，即当前账本币种。
+    ///   - savedAt: 替换值的保存时间。
+    func validatedTransaction(currencyCode: String, savedAt: Date) throws -> AccountTransaction {
         try AccountTransaction.validating(
             draft: DiningExpenseDraft(
                 id: id, accountID: accountID, entryType: entryType,
                 expenseCategoryKey: expenseCategoryKey, incomeCategoryKey: incomeCategoryKey,
                 amountText: amountText, transactionDay: transactionDay, note: note
             ),
+            currencyCode: currencyCode,
             savedAt: savedAt
         )
     }
@@ -218,16 +225,18 @@ final class DiningExpenseEditFlow: ObservableObject {
         isTransactionRemoved = true
     }
 
-    /// 接收系统数字键盘输入，统一小数点格式并限制最多两位小数。
+    /// 接收系统数字键盘输入，统一小数点格式并按账本币种限制小数位。
     ///
     /// - Parameters:
     ///   - amountText: 文本框当前尝试写入的金额字符。
     ///   - decimalSeparator: 当前系统区域使用的小数分隔符。
-    func updateAmountText(_ amountText: String, decimalSeparator: String) {
+    ///   - fractionDigits: 允许的小数位数，取 `BookkeepingCurrency.inputFractionDigits(for:)`；默认是存储精度两位。
+    func updateAmountText(_ amountText: String, decimalSeparator: String, fractionDigits: Int = 2) {
         guard !isSaving,
               let normalizedAmountText = AccountAmountParser.normalizedCNYAmountText(
                   amountText,
-                  decimalSeparator: decimalSeparator
+                  decimalSeparator: decimalSeparator,
+                  fractionDigits: fractionDigits
               )
         else { return }
 

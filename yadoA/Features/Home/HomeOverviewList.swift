@@ -280,6 +280,7 @@ private struct HomeLedgerRule: View {
 /// 首页原生列表中的日期分组标题。
 private struct HomeOverviewDayHeader: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
 
     /// 当前日期组数据。
     let day: HomeOverviewDayPresentation
@@ -331,8 +332,8 @@ private struct HomeOverviewDayHeader: View {
 
     /// 当前日期组的收入和支出摘要。
     private var daySummary: String {
-        let income = day.incomeTotal.formattedCurrency(locale: locale)
-        let expense = day.expenseTotal.formattedCurrency(locale: locale)
+        let income = day.incomeTotal.formattedCurrency(locale: locale, currencyCode: currencyCode)
+        let expense = day.expenseTotal.formattedCurrency(locale: locale, currencyCode: currencyCode)
         return String(
             format: AccountLocalization.string("home.day.summary", locale: locale),
             locale: locale,

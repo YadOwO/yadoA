@@ -815,7 +815,7 @@ struct AIPointsTests {
         let api = VoiceSessionAPI(endpoint: endpoint, isTraceConsented: { store2.isTraceConsented }) { "token" }
         let request = VoiceSessionTurnRequest(
             locale: "zh-Hans", capabilities: [], now: "2026-10-20T12:30:00-07:00", defaultAccountId: nil,
-            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)]
+            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)], currency: "CNY"
         )
         let trace = VoiceRequestTrace(sessionID: "S", turn: 1, request: 1)
         let urlRequest = try api.makeURLRequest(request, turnID: UUID(), tier: nil, trace: trace, token: "abc")

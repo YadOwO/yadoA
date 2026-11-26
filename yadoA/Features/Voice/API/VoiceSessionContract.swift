@@ -1276,8 +1276,11 @@ nonisolated struct VoiceSessionTurnRequest: Encodable, Equatable, Sendable {
     /// 本次会话的全部事件，最多 80 条。
     var events: [VoiceSessionEvent]
 
+    /// 账本币种，ISO 4217 三位大写字母；模型按它记账，用户说的货币单位不换算。总是编码，服务端不带时按 `CNY` 处理。
+    var currency: String
+
     private enum CodingKeys: String, CodingKey {
-        case locale, capabilities, now, defaultAccountId, accounts, categories, events
+        case locale, capabilities, now, defaultAccountId, accounts, categories, events, currency
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1289,6 +1292,7 @@ nonisolated struct VoiceSessionTurnRequest: Encodable, Equatable, Sendable {
         try container.encode(accounts, forKey: .accounts)
         try container.encode(categories, forKey: .categories)
         try container.encode(events, forKey: .events)
+        try container.encode(currency, forKey: .currency)
     }
 }
 

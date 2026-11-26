@@ -113,7 +113,7 @@ enum AppStoreScreenshotFixture {
                 note: nil,
                 lastFourDigits: lastFour,
                 balance: balance,
-                currencyCode: BookkeepingCurrency.code,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 createdAt: createdAt,
                 updatedAt: now
             ))
@@ -148,11 +148,11 @@ enum AppStoreScreenshotFixture {
             let transaction = row.isIncome
                 ? try AccountTransaction.validatingIncome(
                     id: id, accountID: accountID(row.account), categoryKey: row.category,
-                    amount: amount, transactionDay: day, note: note, savedAt: saved
+                    amount: amount, currencyCode: BookkeepingCurrency.fallbackCode, transactionDay: day, note: note, savedAt: saved
                 )
                 : try AccountTransaction.validatingExpense(
                     id: id, accountID: accountID(row.account), categoryKey: row.category,
-                    amount: amount, transactionDay: day, note: note, savedAt: saved
+                    amount: amount, currencyCode: BookkeepingCurrency.fallbackCode, transactionDay: day, note: note, savedAt: saved
                 )
             context.insert(transaction)
         }

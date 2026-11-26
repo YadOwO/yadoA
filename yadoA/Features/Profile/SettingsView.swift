@@ -9,6 +9,7 @@ import UIKit
 /// 「截图记账」和「重看引导」按环境开关显示，线上暂时隐藏（`AuthConfig.isScreenshotShortcutAvailable` / `isOnboardingReplayAvailable`）。
 struct SettingsView: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var ledgerCurrencyCode
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     /// 全局登录状态；只决定是否显示退出登录分组。
@@ -31,7 +32,7 @@ struct SettingsView: View {
     /// 与窗口根部共享外观偏好，修改后立即同步亮暗色。
     @AppStorage(AppAppearance.storageKey) private var appearance: AppAppearance = .system
     /// 全局正负颜色，账单、账户、点数等页面的金额都读同一个键，修改后立即生效。
-    @AppStorage(AmountColorConvention.storageKey) private var amountColors: AmountColorConvention = .positiveRed
+    @AppStorage(AmountColorConvention.storageKey) private var amountColors: AmountColorConvention = .regionDefault()
     /// 启动页面偏好：底部导航顺序立即更新，落点在下次冷启动时生效。
     @AppStorage(AppStartPage.storageKey) private var startPage: AppStartPage = .home
     /// 全局触感开关，所有 `appHaptic` 与 `AppHaptics.play` 都读同一个键，修改后立即生效。
@@ -46,6 +47,16 @@ struct SettingsView: View {
     @State private var isAppLockPasscodeRequiredPresented = false
     /// 默认账户选择沿用现有独立弹层流程。
     @State private var isDefaultSelectionPresented = false
+    /// 记账币种选择弹层。
+    @State private var isCurrencyPickerPresented = false
+    /// 用户最近选的、等确认「只换符号，金额不换算」的新币种；确认框收起时保留，免得标题在收起动画里闪成空白。
+    @State private var pendingCurrencyCode: String?
+    /// 选了不同的币种、选择弹层收起后要弹出确认框。
+    @State private var isCurrencyConfirmationQueued = false
+    /// 是否弹出更换币种的确认框；要等选择弹层完全收起后再弹，所以由 `onDismiss` 置位。
+    @State private var isCurrencyConfirmationPresented = false
+    /// 更换币种保存失败的提示。
+    @State private var isCurrencyChangeFailed = false
     /// 退出登录前的二次确认（本机数据没有同步到当前账号时）。
     @State private var isSignOutConfirmationPresented = false
     /// 退出登录时选择保留还是清除本机数据（本机数据已同步到当前账号时）。
@@ -109,6 +120,19 @@ struct SettingsView: View {
                         ProfileSettingsRow(titleKey: "account.management.default.title", symbol: "star", value: defaultAccountName)
                     }
                     .accessibilityIdentifier("profile-default-account")
+
+                    ProfileSettingsRowDivider()
+
+                    Button {
+                        isCurrencyPickerPresented = true
+                    } label: {
+                        ProfileSettingsRow(
+                            titleKey: "settings.currency.title",
+                            symbol: "dollarsign.circle",
+                            value: currencyValue(for: ledgerCurrencyCode)
+                        )
+                    }
+                    .accessibilityIdentifier("settings-ledger-currency")
 
                     ProfileSettingsRowDivider()
 
@@ -216,6 +240,46 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $isDefaultSelectionPresented) {
             NavigationStack { DefaultAccountSelectionView() }
+        }
+        .sheet(
+            isPresented: $isCurrencyPickerPresented,
+            onDismiss: {
+                // 选择页收起后再弹确认框，两层弹层不能同时出现
+                if isCurrencyConfirmationQueued {
+                    isCurrencyConfirmationQueued = false
+                    isCurrencyConfirmationPresented = true
+                }
+            }
+        ) {
+            LedgerCurrencyPicker(selection: ledgerCurrencyCode) { code in
+                // 选了和当前相同的币种直接关掉，什么都不改
+                if code != ledgerCurrencyCode {
+                    pendingCurrencyCode = code
+                    isCurrencyConfirmationQueued = true
+                }
+                isCurrencyPickerPresented = false
+            }
+        }
+        .alert(
+            currencyConfirmationTitle,
+            isPresented: $isCurrencyConfirmationPresented,
+            presenting: pendingCurrencyCode
+        ) { code in
+            Button(text("settings.currency.confirm.action")) {
+                changeCurrency(to: code)
+            }
+            .accessibilityIdentifier("settings-ledger-currency-confirm")
+
+            Button(text("common.cancel"), role: .cancel) {}
+        } message: { code in
+            Text(String(
+                format: text("settings.currency.confirm.message"),
+                locale: locale,
+                BookkeepingCurrency.displayName(for: code, locale: locale)
+            ))
+        }
+        .alert(text("settings.currency.failed"), isPresented: $isCurrencyChangeFailed) {
+            Button(text("common.close"), role: .cancel) {}
         }
         .legalDocumentSheet($presentedLegalDocument)
         // 用 item 呈现：同一次点击里先建状态再置 isPresented 时，封面内容会读到旧的空值而白屏
@@ -492,6 +556,34 @@ struct SettingsView: View {
         // 必须在 signOut 之前、userID 还在时清掉这个账号的联动缓存
         dataLinks?.clearCurrentUserCache()
         await authStore.signOut()
+    }
+
+    /// 币种在设置行里的写法：名称加符号，例如「美元 US$」。
+    private func currencyValue(for code: String) -> String {
+        "\(BookkeepingCurrency.displayName(for: code, locale: locale)) \(BookkeepingCurrency.symbol(for: code, locale: locale))"
+    }
+
+    /// 更换币种确认框的标题，带新币种的名称；没有待确认的币种时为空。
+    private var currencyConfirmationTitle: String {
+        guard let code = pendingCurrencyCode else { return "" }
+        return String(
+            format: text("settings.currency.confirm.title"),
+            locale: locale,
+            BookkeepingCurrency.displayName(for: code, locale: locale)
+        )
+    }
+
+    /// 确认后把整个账本换成新币种：所有账户和流水在一次保存里改写，失败时提示且数据不变。
+    ///
+    /// - Parameter code: 新币种代码。
+    private func changeCurrency(to code: String) {
+        do {
+            try LocalLedgerCurrencyRepository(container: modelContext.container).change(to: code)
+            AppHaptics.play(.success)
+        } catch {
+            AppHaptics.play(.error)
+            isCurrencyChangeFailed = true
+        }
     }
 
     /// 显示当前生效的默认账户，保持与记账入口相同的解析规则。

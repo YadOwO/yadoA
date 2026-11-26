@@ -146,20 +146,28 @@ enum ItemValuationPresentation {
     ///   - summary: 芽豆有物的购入价汇总。
     ///   - settings: 当前用户的估值设置。
     ///   - locale: 文案与金额使用的语言环境。
+    ///   - currencyCode: 金额使用的账本币种；估值数字直接按它显示，不换算。
     /// - Returns: 沿用账户行结构的展示数据。
     static func row(
         summary: ItemValueSummary,
         settings: ItemValuationSettings,
-        locale: Locale
+        locale: Locale,
+        currencyCode: String
     ) -> AccountRowPresentation {
         row(
             amount: ItemValuation.amount(summary: summary, discountPercent: settings.discountPercent),
-            detail: detail(summary: summary, discountPercent: settings.discountPercent, locale: locale),
+            detail: detail(
+                summary: summary,
+                discountPercent: settings.discountPercent,
+                locale: locale,
+                currencyCode: currencyCode
+            ),
             amountLabel: AccountLocalization.string(
                 settings.countsTowardNetWorth ? "itemValuation.amount.label" : "itemValuation.notCounted",
                 locale: locale
             ),
-            locale: locale
+            locale: locale,
+            currencyCode: currencyCode
         )
     }
 
@@ -168,13 +176,15 @@ enum ItemValuationPresentation {
     /// - Parameters:
     ///   - amount: 折算后的估值金额。
     ///   - locale: 文案与金额使用的语言环境。
+    ///   - currencyCode: 金额使用的账本币种。
     /// - Returns: 沿用账户行结构的展示数据。
-    static func row(amount: Decimal, locale: Locale) -> AccountRowPresentation {
+    static func row(amount: Decimal, locale: Locale, currencyCode: String) -> AccountRowPresentation {
         row(
             amount: amount,
             detail: AccountLocalization.string("itemValuation.section.title", locale: locale),
             amountLabel: AccountLocalization.string("itemValuation.amount.label", locale: locale),
-            locale: locale
+            locale: locale,
+            currencyCode: currencyCode
         )
     }
 
@@ -185,13 +195,15 @@ enum ItemValuationPresentation {
     ///   - detail: 名称下面的副标题。
     ///   - amountLabel: 金额上方的标签。
     ///   - locale: 文案与金额使用的语言环境。
+    ///   - currencyCode: 金额使用的账本币种。
     private static func row(
         amount: Decimal,
         detail: String,
         amountLabel: String,
-        locale: Locale
+        locale: Locale,
+        currencyCode: String
     ) -> AccountRowPresentation {
-        let formattedAmount = amount.formattedCurrency(locale: locale)
+        let formattedAmount = amount.formattedCurrency(locale: locale, currencyCode: currencyCode)
         return AccountRowPresentation(
             id: rowID,
             name: AccountLocalization.string("itemValuation.title", locale: locale),
@@ -216,12 +228,18 @@ enum ItemValuationPresentation {
     ///   - summary: 芽豆有物的购入价汇总。
     ///   - discountPercent: 折扣百分比。
     ///   - locale: 文案与金额使用的语言环境。
-    static func detail(summary: ItemValueSummary, discountPercent: Int, locale: Locale) -> String {
+    ///   - currencyCode: 金额使用的账本币种。
+    static func detail(
+        summary: ItemValueSummary,
+        discountPercent: Int,
+        locale: Locale,
+        currencyCode: String
+    ) -> String {
         let purchaseTotal = summary.inServicePurchaseTotal + summary.retiredPurchaseTotal
         let base = String(
             format: AccountLocalization.string("itemValuation.detail.format", locale: locale),
             locale: locale,
-            purchaseTotal.formattedCurrency(locale: locale),
+            purchaseTotal.formattedCurrency(locale: locale, currencyCode: currencyCode),
             ItemValuation.discountText(percent: discountPercent, locale: locale),
             summary.pricedItemCount
         )

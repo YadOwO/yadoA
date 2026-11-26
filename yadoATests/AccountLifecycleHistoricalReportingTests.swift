@@ -46,7 +46,8 @@ struct AccountLifecycleHistoricalReportingTests {
             anchorDate: date(year: 2026, month: 8, day: 21),
             transactions: beforeTransactions,
             calendar: utcCalendar,
-            locale: Locale(identifier: "en_US")
+            locale: Locale(identifier: "en_US"),
+            currencyCode: "CNY"
         )
 
         try repository.dispose(
@@ -72,7 +73,8 @@ struct AccountLifecycleHistoricalReportingTests {
             anchorDate: date(year: 2026, month: 8, day: 21),
             transactions: afterTransactions,
             calendar: utcCalendar,
-            locale: Locale(identifier: "en_US")
+            locale: Locale(identifier: "en_US"),
+            currencyCode: "CNY"
         )
 
         #expect(afterTransactions.map(\.id) == beforeTransactions.map(\.id))

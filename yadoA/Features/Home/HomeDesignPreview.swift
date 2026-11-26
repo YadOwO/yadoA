@@ -38,7 +38,7 @@ enum HomeDesignPreviewData {
                 note: nil,
                 lastFourDigits: nil,
                 balance: 8_640,
-                currencyCode: BookkeepingCurrency.code,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 createdAt: now,
                 updatedAt: now
             )
@@ -61,6 +61,7 @@ enum HomeDesignPreviewData {
                     accountID: accountID,
                     category: expense.category,
                     amount: expense.amount,
+                    currencyCode: BookkeepingCurrency.fallbackCode,
                     transactionDay: month.year * 10_000 + month.month * 100 + expense.day,
                     note: expense.note,
                     savedAt: now.addingTimeInterval(-Double(index))
@@ -74,6 +75,7 @@ enum HomeDesignPreviewData {
                 accountID: accountID,
                 category: .salary,
                 amount: 12_800,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 transactionDay: month.year * 10_000 + month.month * 100 + 25,
                 savedAt: now
             )
@@ -86,6 +88,7 @@ enum HomeDesignPreviewData {
                     accountID: accountID,
                     category: .clothing,
                     amount: 299,
+                    currencyCode: BookkeepingCurrency.fallbackCode,
                     transactionDay: previousMonth.year * 10_000 + previousMonth.month * 100 + 18,
                     note: "UNIQLO",
                     savedAt: now

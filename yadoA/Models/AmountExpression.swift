@@ -58,27 +58,29 @@ enum AmountExpression {
         return result + operation.rawValue
     }
 
-    /// 判断编辑中的文字能否继续作为算式：只有数字、小数点和运算符，每个数字最多两位小数。
+    /// 判断编辑中的文字能否继续作为算式：只有数字、小数点和运算符，每个数字最多 `fractionDigits` 位小数。
     ///
-    /// 末尾的运算符和小数点属于合法的编辑中状态。
+    /// 末尾的运算符和小数点属于合法的编辑中状态；`fractionDigits` 为 0 时不接受小数点。
     ///
-    /// - Parameter text: 输入框的文字，使用英文句点。
-    static func isValidInput(_ text: String) -> Bool {
-        var fractionDigits: Int?
+    /// - Parameters:
+    ///   - text: 输入框的文字，使用英文句点。
+    ///   - fractionDigits: 允许的小数位数，取 `BookkeepingCurrency.inputFractionDigits(for:)`；默认是存储精度两位。
+    static func isValidInput(_ text: String, fractionDigits: Int = 2) -> Bool {
+        var currentDigits: Int?
         var hasDigitInNumber = false
         for character in text {
             if character == "." {
-                guard fractionDigits == nil else { return false }
-                fractionDigits = 0
+                guard fractionDigits > 0, currentDigits == nil else { return false }
+                currentDigits = 0
             } else if character >= "0", character <= "9" {
                 hasDigitInNumber = true
-                if let digits = fractionDigits {
-                    guard digits < 2 else { return false }
-                    fractionDigits = digits + 1
+                if let digits = currentDigits {
+                    guard digits < fractionDigits else { return false }
+                    currentDigits = digits + 1
                 }
             } else if Operator(rawValue: String(character)) != nil {
                 guard hasDigitInNumber else { return false }
-                fractionDigits = nil
+                currentDigits = nil
                 hasDigitInNumber = false
             } else {
                 return false
@@ -87,11 +89,13 @@ enum AmountExpression {
         return true
     }
 
-    /// 计算算式的结果：先乘除后加减，四舍五入到两位小数；末尾多余的运算符忽略。
+    /// 计算算式的结果：先乘除后加减，四舍五入到 `fractionDigits` 位小数；末尾多余的运算符忽略。
     ///
-    /// - Parameter text: 算式，使用英文句点。
+    /// - Parameters:
+    ///   - text: 算式，使用英文句点。
+    ///   - fractionDigits: 结果保留的小数位数；默认是存储精度两位，无小数的币种传 0。
     /// - Returns: 大于零的结果；算式不完整、除以零、溢出或结果不大于零时返回 `nil`。
-    static func result(of text: String) -> Decimal? {
+    static func result(of text: String, fractionDigits: Int = 2) -> Decimal? {
         guard var tokens = tokens(of: text) else { return nil }
         if case .operation? = tokens.last { tokens.removeLast() }
         guard !tokens.isEmpty else { return nil }
@@ -126,7 +130,7 @@ enum AmountExpression {
             total = next
         }
         var rounded = Decimal()
-        NSDecimalRound(&rounded, &total, 2, .plain)
+        NSDecimalRound(&rounded, &total, fractionDigits, .plain)
         return rounded > 0 ? rounded : nil
     }
 

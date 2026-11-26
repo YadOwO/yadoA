@@ -60,6 +60,7 @@ struct FinanceSchemaMigrationTests {
                     accountID: accountID,
                     category: .dining,
                     amount: expenseAmount,
+                    currencyCode: "CNY",
                     transactionDay: 20261115,
                     note: "午饭",
                     savedAt: timestamp

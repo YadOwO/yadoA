@@ -321,8 +321,10 @@ struct BackupImportServiceTests {
             makeBackup(transactions: [makeExpense(amount: "1.234")]),
             // 金额不是纯十进制字符串。
             makeBackup(transactions: [makeExpense(amount: "1e2")]),
-            // 当前版本不支持的流水币种。
+            // 一个账本一种币：流水币种和账户币种不一致。
             makeBackup(transactions: [makeExpense(currencyCode: "USD")]),
+            // 币种不是三位大写字母。
+            makeBackup(transactions: [makeExpense(currencyCode: "usd")]),
             // 非法记账日。
             makeBackup(transactions: [makeExpense(transactionDay: 20261340)]),
             // 转账的转入账户不在备份中。

@@ -309,6 +309,7 @@ struct RecurringRuleTests {
         let context = ModelContext(fixture.container)
         context.insert(try AccountTransaction.validatingExpense(
             id: UUID(), accountID: fixture.accountID, category: .dining, amount: 10,
+            currencyCode: "CNY",
             transactionDay: 20261001, savedAt: Date(timeIntervalSince1970: 100)
         ))
         try context.save()
@@ -327,7 +328,7 @@ struct RecurringRuleTests {
 
         let context = ModelContext(fixture.container)
         context.insert(try AccountTransaction.validatingExpense(
-            id: UUID(), accountID: fixture.accountID, category: .dining, amount: 10, transactionDay: 20261101
+            id: UUID(), accountID: fixture.accountID, category: .dining, amount: 10, currencyCode: "CNY", transactionDay: 20261101
         ))
         try context.save()
         #expect(BookkeepingReminderScheduler.hasEntry(onDay: 20261101, in: fixture.container))
@@ -364,6 +365,7 @@ struct RecurringRuleTests {
         let rows = RecurringRuleListPresentation.rows(
             rules: try context.fetch(FetchDescriptor<RecurringRule>()),
             accounts: try context.fetch(FetchDescriptor<Account>()),
+            ledgerCurrencyCode: "CNY",
             catalog: .presets,
             locale: Locale(identifier: "zh-Hans"),
             calendar: Calendar(identifier: .gregorian)
@@ -453,7 +455,7 @@ struct RecurringRuleTests {
     @Test("手动记的流水同步内容里没有来源字段，哈希不因升级变化")
     func manualEntryPayloadHasNoRuleField() throws {
         let transaction = try AccountTransaction.validatingExpense(
-            id: UUID(), accountID: UUID(), category: .dining, amount: 1, transactionDay: 20261101
+            id: UUID(), accountID: UUID(), category: .dining, amount: 1, currencyCode: "CNY", transactionDay: 20261101
         )
         let record = try #require(try SyncPayloadCoder.record(for: transaction))
         let object = try #require(try JSONSerialization.jsonObject(with: record.payload) as? [String: Any])

@@ -125,6 +125,7 @@ struct BookkeepingCategoryCatalogTests {
             accountID: UUID(),
             categoryKey: customKey,
             amount: 10,
+            currencyCode: "CNY",
             transactionDay: 20261020
         )
         #expect(try custom.validatedPayload() == .expense(categoryKey: customKey, amount: 10))
@@ -133,13 +134,13 @@ struct BookkeepingCategoryCatalogTests {
         #expect(throws: AccountTransactionValidationError.invalidPayload) {
             try AccountTransaction.validatingExpense(
                 id: UUID(), accountID: UUID(), categoryKey: "custom.oops",
-                amount: 10, transactionDay: 20261020
+                amount: 10, currencyCode: "CNY", transactionDay: 20261020
             )
         }
         #expect(throws: AccountTransactionValidationError.invalidPayload) {
             try AccountTransaction.validatingIncome(
                 id: UUID(), accountID: UUID(), categoryKey: "dining",
-                amount: 10, transactionDay: 20261020
+                amount: 10, currencyCode: "CNY", transactionDay: 20261020
             )
         }
     }

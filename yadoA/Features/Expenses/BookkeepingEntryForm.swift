@@ -68,6 +68,7 @@ struct BookkeepingEntryFormConfiguration {
 /// `Accessory` 是接在日期后面的额外几行，周期记账用它放重复频率和结束日期。
 struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow, Accessory: View>: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.calendar) private var calendar
     @Query private var accounts: [Account]
     @Query private var categories: [BookkeepingCategory]
@@ -302,13 +303,19 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow, Accessory: View>: Vi
                 .frame(height: 3)
                 .accessibilityHidden(true)
 
-            if let amountExpression, let result = AmountExpression.result(of: amountExpression) {
-                Text(verbatim: "= \(result.formattedCurrency(locale: locale))")
+            if let amountExpression,
+               let result = AmountExpression.result(of: amountExpression, fractionDigits: amountFractionDigits) {
+                Text(verbatim: "= \(result.formattedCurrency(locale: locale, currencyCode: currencyCode))")
                     .font(.system(.callout, design: .serif).monospacedDigit())
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("\(configuration.identifierPrefix)-amount-result")
             }
         }
+    }
+
+    /// 金额框允许的小数位数：按账本币种，无小数的币种（JPY、KRW 等）不能输入小数点。
+    private var amountFractionDigits: Int {
+        BookkeepingCurrency.inputFractionDigits(for: currencyCode)
     }
 
     /// 接收金额框的输入：带运算符时按算式处理，把结果写入草稿；否则走原来的金额规则。
@@ -319,15 +326,17 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow, Accessory: View>: Vi
         let canonical = AccountAmountParser.canonicalized(input, decimalSeparator: decimalSeparator)
         guard AmountExpression.containsOperator(canonical) else {
             amountExpression = nil
-            flow.updateAmountText(input, decimalSeparator: decimalSeparator)
+            flow.updateAmountText(input, decimalSeparator: decimalSeparator, fractionDigits: amountFractionDigits)
             return
         }
-        guard AmountExpression.isValidInput(canonical) else { return }
+        guard AmountExpression.isValidInput(canonical, fractionDigits: amountFractionDigits) else { return }
         amountExpression = canonical
         // 算式还算不出结果（如结果不大于零）时清空金额，保存按钮随之不可用
         flow.updateAmountText(
-            AmountExpression.result(of: canonical).map(AmountExpression.amountText) ?? "",
-            decimalSeparator: "."
+            AmountExpression.result(of: canonical, fractionDigits: amountFractionDigits)
+                .map(AmountExpression.amountText) ?? "",
+            decimalSeparator: ".",
+            fractionDigits: amountFractionDigits
         )
     }
 
@@ -670,7 +679,7 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow, Accessory: View>: Vi
     private var selectedAccount: Account? {
         guard let accountID = flow.formAccountID else { return nil }
         return accounts.first {
-            $0.id == accountID && $0.acceptsBookkeepingEntries
+            $0.id == accountID && $0.acceptsBookkeepingEntries(ledgerCurrencyCode: currencyCode)
         }
     }
 

@@ -274,6 +274,7 @@ final class AccountTransaction {
         accountID: UUID,
         categoryKey: String,
         amount: Decimal,
+        currencyCode: String,
         transactionDay: Int,
         note: String = "",
         savedAt: Date = .now
@@ -287,6 +288,7 @@ final class AccountTransaction {
             balanceBefore: nil,
             balanceAfter: nil,
             balanceDelta: nil,
+            currencyCode: currencyCode,
             transactionDay: transactionDay,
             note: note,
             savedAt: savedAt
@@ -299,6 +301,7 @@ final class AccountTransaction {
         accountID: UUID,
         category: ExpenseCategory,
         amount: Decimal,
+        currencyCode: String,
         transactionDay: Int,
         note: String = "",
         savedAt: Date = .now
@@ -308,6 +311,7 @@ final class AccountTransaction {
             accountID: accountID,
             categoryKey: category.rawValue,
             amount: amount,
+            currencyCode: currencyCode,
             transactionDay: transactionDay,
             note: note,
             savedAt: savedAt
@@ -320,6 +324,7 @@ final class AccountTransaction {
         accountID: UUID,
         categoryKey: String,
         amount: Decimal,
+        currencyCode: String,
         transactionDay: Int,
         note: String = "",
         savedAt: Date = .now
@@ -333,6 +338,7 @@ final class AccountTransaction {
             balanceBefore: nil,
             balanceAfter: nil,
             balanceDelta: nil,
+            currencyCode: currencyCode,
             transactionDay: transactionDay,
             note: note,
             savedAt: savedAt
@@ -345,6 +351,7 @@ final class AccountTransaction {
         accountID: UUID,
         category: IncomeCategory,
         amount: Decimal,
+        currencyCode: String,
         transactionDay: Int,
         note: String = "",
         savedAt: Date = .now
@@ -354,6 +361,7 @@ final class AccountTransaction {
             accountID: accountID,
             categoryKey: category.rawValue,
             amount: amount,
+            currencyCode: currencyCode,
             transactionDay: transactionDay,
             note: note,
             savedAt: savedAt
@@ -365,6 +373,7 @@ final class AccountTransaction {
         id: UUID,
         accountID: UUID,
         amount: Decimal,
+        currencyCode: String,
         transactionDay: Int,
         note: String = "",
         savedAt: Date = .now
@@ -374,6 +383,7 @@ final class AccountTransaction {
             accountID: accountID,
             category: .dining,
             amount: amount,
+            currencyCode: currencyCode,
             transactionDay: transactionDay,
             note: note,
             savedAt: savedAt
@@ -397,6 +407,7 @@ final class AccountTransaction {
         accountID: UUID,
         balanceBefore: Decimal,
         balanceAfter: Decimal,
+        currencyCode: String,
         transactionDay: Int,
         note: String = "",
         savedAt: Date = .now
@@ -414,6 +425,7 @@ final class AccountTransaction {
             balanceBefore: balanceBefore,
             balanceAfter: balanceAfter,
             balanceDelta: balanceDelta,
+            currencyCode: currencyCode,
             transactionDay: transactionDay,
             note: note,
             savedAt: savedAt
@@ -437,6 +449,7 @@ final class AccountTransaction {
         fromAccountID: UUID,
         toAccountID: UUID,
         amount: Decimal,
+        currencyCode: String,
         transactionDay: Int,
         note: String = "",
         savedAt: Date = .now
@@ -451,6 +464,7 @@ final class AccountTransaction {
             balanceAfter: nil,
             balanceDelta: nil,
             counterpartAccountID: toAccountID,
+            currencyCode: currencyCode,
             transactionDay: transactionDay,
             note: note,
             savedAt: savedAt
@@ -471,6 +485,7 @@ final class AccountTransaction {
         balanceAfter: Decimal?,
         balanceDelta: Decimal?,
         counterpartAccountID: UUID? = nil,
+        currencyCode: String,
         transactionDay: Int,
         note: String = "",
         savedAt: Date = .now
@@ -503,7 +518,7 @@ final class AccountTransaction {
             balanceAfter: balanceAfter,
             balanceDelta: balanceDelta,
             counterpartAccountID: counterpartAccountID,
-            currencyCode: BookkeepingCurrency.code,
+            currencyCode: currencyCode,
             transactionDay: transactionDay,
             note: sanitizedOptionalText(note),
             savedAt: savedAt

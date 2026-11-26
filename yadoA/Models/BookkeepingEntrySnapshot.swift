@@ -17,7 +17,7 @@ struct BookkeepingEntrySnapshot: Equatable, Sendable {
     /// 当前方向下的分类 key（预置 rawValue 或 `custom.<uuid>`）。
     var categoryKey: String
 
-    /// 大于零、最多两位小数的 CNY 金额。
+    /// 大于零、最多两位小数的账本币种金额。
     var amount: Decimal
 
     /// `YYYYMMDD` 公历记账日。
@@ -55,11 +55,13 @@ struct BookkeepingEntrySnapshot: Equatable, Sendable {
         self.recurringRuleID = recurringRuleID
     }
 
-    /// 从合法的收入或支出流水生成快照；余额调整、非 CNY 或损坏数据返回 `nil`。
+    /// 从合法的收入或支出流水生成快照；余额调整、币种和账本币种不同或损坏数据返回 `nil`。
     ///
-    /// - Parameter transaction: 需要拷贝的流水。
-    init?(transaction: AccountTransaction) {
-        guard transaction.currencyCode == BookkeepingCurrency.code,
+    /// - Parameters:
+    ///   - transaction: 需要拷贝的流水。
+    ///   - ledgerCurrencyCode: 当前账本币种；流水币种和它不同时不能再按收支处理。
+    init?(transaction: AccountTransaction, ledgerCurrencyCode: String) {
+        guard transaction.currencyCode == ledgerCurrencyCode,
               let payload = try? transaction.validatedPayload(),
               let entry = payload.bookkeepingAmount,
               let reference = payload.categoryReference
@@ -79,18 +81,21 @@ struct BookkeepingEntrySnapshot: Equatable, Sendable {
 
     /// 复用收支校验工厂生成尚未插入 context 的流水。
     ///
+    /// - Parameter currencyCode: 写进流水的币种，即已校验账户的币种（等于账本币种）。
     /// - Returns: 已校验金额、日期、分类 key 格式并清理备注的流水。
     /// - Throws: 字段不符合持久化约束时抛出 `AccountTransactionValidationError`。
-    func validatedTransaction() throws -> AccountTransaction {
+    func validatedTransaction(currencyCode: String) throws -> AccountTransaction {
         let transaction = switch entryType {
         case .expense:
             try AccountTransaction.validatingExpense(
                 id: id, accountID: accountID, categoryKey: categoryKey, amount: amount,
+                currencyCode: currencyCode,
                 transactionDay: transactionDay, note: note ?? "", savedAt: savedAt
             )
         case .income:
             try AccountTransaction.validatingIncome(
                 id: id, accountID: accountID, categoryKey: categoryKey, amount: amount,
+                currencyCode: currencyCode,
                 transactionDay: transactionDay, note: note ?? "", savedAt: savedAt
             )
         }

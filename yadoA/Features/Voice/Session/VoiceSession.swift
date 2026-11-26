@@ -319,7 +319,7 @@ final class VoiceSession {
         }
         events.append(userEvent(text: text, selectedOption: selectedOption, images: images))
 
-        let executor = VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: now)
+        let executor = makeExecutor()
         do {
             for requestIndex in 1...Self.maxRequestsPerTurn {
                 let requestStartedAt = VoiceTimingClock.now
@@ -415,7 +415,7 @@ final class VoiceSession {
     /// 失败时数据保持撤销前的状态，`hasUndoFailure` 置为真。
     func undoLatestTurn() {
         guard let turn = undoableTurn else { return }
-        let executor = VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: now)
+        let executor = makeExecutor()
         do {
             let highlights = try executor.revert(turn.changes)
             for entryHighlight in highlights {
@@ -452,7 +452,7 @@ final class VoiceSession {
               entry.kind == .created,
               entry.inferredFields.contains(.account)
         else { return false }
-        let executor = VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: now)
+        let executor = makeExecutor()
         let execution = executor.execute(.updateTransaction(id: UUID().uuidString, input: VoiceUpdateTransactionInput(
             id: entry.transactionID.uuidString,
             patch: VoiceTransactionPatch(accountId: accountID.uuidString)
@@ -481,7 +481,7 @@ final class VoiceSession {
 
     /// 读取今天的收支概况，聊天页顶部显示。
     func todaySummary() -> VoiceTodaySummary {
-        VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: now).todaySummary()
+        makeExecutor().todaySummary()
     }
 
     /// 用户关闭卡片（点关闭、点卡片外或进入二级页面）：只收起卡片，对话段不结束；
@@ -642,7 +642,20 @@ final class VoiceSession {
             defaultAccountId: context.defaultAccountID,
             accounts: context.accounts,
             categories: context.categories,
-            events: events
+            events: events,
+            currency: context.currencyCode
+        )
+    }
+
+    /// 创建执行工具调用的执行器，币种取当前账本币种；读取失败时按 CNY 处理，与请求里带的币种一致。
+    private func makeExecutor() -> VoiceToolExecutor {
+        VoiceToolExecutor(
+            container: container,
+            locale: locale,
+            calendar: calendar,
+            currencyCode: (try? BookkeepingCurrency.current(in: container.makeManualSaveContext()))
+                ?? BookkeepingCurrency.fallbackCode,
+            now: now
         )
     }
 
