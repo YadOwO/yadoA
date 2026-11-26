@@ -4,6 +4,8 @@ import SwiftUI
 enum AppLanguage: String, CaseIterable, Identifiable {
     case system
     case simplifiedChinese = "zh-Hans"
+    /// 繁体中文，给香港、台湾用户；文案用台湾通行的说法。
+    case traditionalChinese = "zh-Hant"
     case english = "en"
 
     /// 在本机保存的语言偏好键，不修改系统或其他应用的语言。
@@ -17,6 +19,7 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         switch self {
         case .system: "profile.preference.system"
         case .simplifiedChinese: "profile.language.simplified_chinese"
+        case .traditionalChinese: "profile.language.traditional_chinese"
         case .english: "profile.language.english"
         }
     }
@@ -24,6 +27,20 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     /// 根据选择解析语言；系统选项直接使用上层环境，避免缓存旧语言。
     func resolvedLocale(systemLocale: Locale) -> Locale {
         self == .system ? systemLocale : Locale(identifier: rawValue)
+    }
+}
+
+extension Locale {
+    /// 是否是繁体中文：写明了繁体（`zh-Hant`、`zh-Hant-HK`），或没写文字、按地区默认用繁体（`zh-TW`、`zh-HK`、`zh-MO`）。
+    ///
+    /// 要区分简繁体的地方（语音记账回复语言、语音识别语言）都用它判断，不要各处自己比较文字或地区。
+    nonisolated var isTraditionalChinese: Bool {
+        guard language.languageCode == .chinese else { return false }
+        if let script = language.script {
+            return script == .hanTraditional
+        }
+        // 没写文字时按地区补全，例如 zh-TW 补全为 zh-Hant-TW、zh 补全为 zh-Hans-CN
+        return Locale.Language(identifier: language.maximalIdentifier).script == .hanTraditional
     }
 }
 

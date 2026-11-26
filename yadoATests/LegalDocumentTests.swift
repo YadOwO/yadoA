@@ -8,8 +8,10 @@ struct LegalDocumentTests {
     private let english = Locale(identifier: "en")
     /// 简体中文环境。
     private let simplifiedChinese = Locale(identifier: "zh-Hans")
+    /// 繁体中文环境；网站只有简体中文版，繁体界面也打开中文版。
+    private let traditionalChinese = Locale(identifier: "zh-Hant")
 
-    @Test("中文界面打开中文版，其他语言打开英文版；路径与网站、App Store Connect 填写的一致")
+    @Test("中文界面（含繁体）打开中文版，其他语言打开英文版；路径与网站、App Store Connect 填写的一致")
     func urlFollowsAppLanguage() {
         #expect(LegalDocument.privacy.url(locale: simplifiedChinese).absoluteString
             == "https://my.yado1225.top/zh/legal/yadoa/privacy/")
@@ -17,6 +19,8 @@ struct LegalDocumentTests {
             == "https://my.yado1225.top/legal/yadoa/terms/")
         #expect(LegalDocument.sharing.url(locale: Locale(identifier: "zh-Hans-CN")).absoluteString
             == "https://my.yado1225.top/zh/legal/yadoa/sharing/")
+        #expect(LegalDocument.terms.url(locale: traditionalChinese).absoluteString
+            == "https://my.yado1225.top/zh/legal/yadoa/terms/")
         #expect(LegalDocument.sharing.url(locale: Locale(identifier: "ja")).absoluteString
             == "https://my.yado1225.top/legal/yadoa/sharing/")
     }
@@ -30,18 +34,19 @@ struct LegalDocumentTests {
         #expect(LegalDocument(linkURL: URL(string: "yadoa-legal://unknown")!) == nil)
     }
 
-    @Test("设置页的协议标题都有中英文文案")
+    @Test("设置页的协议标题都有中英文和繁体中文文案")
     func titlesAreLocalized() {
         for document in LegalDocument.allCases {
             let key = document.titleLocalizationKey
             #expect(AccountLocalization.string(key, locale: english) != key)
             #expect(AccountLocalization.string(key, locale: simplifiedChinese) != key)
+            #expect(AccountLocalization.string(key, locale: traditionalChinese) != key)
         }
     }
 
-    @Test("登录页同意文案在中英文下都链到用户协议和隐私政策")
+    @Test("登录页同意文案在中英文和繁体中文下都链到用户协议和隐私政策")
     func signInAgreementLinksBothDocuments() {
-        for locale in [english, simplifiedChinese] {
+        for locale in [english, simplifiedChinese, traditionalChinese] {
             #expect(SignInAgreement.linkedDocuments(locale: locale) == [.terms, .privacy])
             // 解析后不应残留 Markdown 语法
             let plain = String(SignInAgreement.attributedText(locale: locale).characters)
@@ -50,9 +55,9 @@ struct LegalDocumentTests {
         }
     }
 
-    @Test("隐私政策同意卡文案在中英文下都链到用户协议和隐私政策")
+    @Test("隐私政策同意卡文案在中英文和繁体中文下都链到用户协议和隐私政策")
     func privacyAgreementLinksBothDocuments() {
-        for locale in [english, simplifiedChinese] {
+        for locale in [english, simplifiedChinese, traditionalChinese] {
             let documents = LegalDocument.linkedDocuments(in: "privacy.agreement.links", locale: locale)
             #expect(documents.contains(.terms))
             #expect(documents.contains(.privacy))

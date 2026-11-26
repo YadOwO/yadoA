@@ -437,6 +437,12 @@ struct VoiceSessionContractTests {
     @Test("上下文的语言与时刻格式")
     func formatsLocaleAndTimestamp() throws {
         #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh-Hans")) == "zh-Hans")
+        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh")) == "zh-Hans")
+        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh-Hans-HK")) == "zh-Hans")
+        // 繁体中文界面要求繁体回复：写明繁体，或没写文字但地区默认繁体
+        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh-Hant")) == "zh-Hant")
+        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh_TW")) == "zh-Hant")
+        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh-HK")) == "zh-Hant")
         #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "en_US")) == "en")
         let timeZone = try #require(TimeZone(secondsFromGMT: 8 * 3600))
         let date = Date(timeIntervalSince1970: 1_792_470_600) // 2026-10-20T04:30:00Z
