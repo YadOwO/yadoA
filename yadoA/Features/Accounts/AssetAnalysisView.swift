@@ -4,9 +4,10 @@ import SwiftUI
 /// 资产分析页：从账户页的汇总卡片点进来，顶部切换「净资产 / 资产 / 负债」三个 tab。
 ///
 /// - 净资产：净资产走势，资产负债率（负债 ÷ 资产）和一句大白话说明，一道「负债 | 净资产」的比例条。
-/// - 资产、负债：这一侧的走势，按账户类型的构成环形图（只有一类时不画），按账户的排行，点一行进账户详情。
+/// - 资产、负债：这一侧的走势，按账户类型的构成环形图（只有一类时不画），按账户的排行，点一行进账户详情（物品估值那一行进估值详情）。
 ///
-/// 与汇总卡片同一口径：只算启用中的账户，未知类型按资产算。走势用 `BalanceHistoryStore` 汇总好的材料，
+/// 与汇总卡片同一口径：只算启用中的账户，未知类型按资产算；计入净资产的芽豆有物物品估值作为一项额外的资产，
+/// 进资产合计、构成和排行，走势不含它，走势卡片下面有一句说明。走势用 `BalanceHistoryStore` 汇总好的材料，
 /// 构成和排行按各账户当前余额算，这一页都不读流水。
 struct AssetAnalysisView: View {
     @Environment(\.locale) private var locale
@@ -14,6 +15,8 @@ struct AssetAnalysisView: View {
     @Query private var accounts: [Account]
     /// 各账户每天余额变化的缓存。
     @Environment(BalanceHistoryStore.self) private var balanceHistory
+    /// 数据联动状态：计入净资产的物品估值；预览中没有注入时为 nil。
+    @Environment(DataLinkStore.self) private var dataLinks: DataLinkStore?
 
     /// 当前看的 tab，默认净资产。
     @State private var tab: NetWorthTrendMetric = .netAssets
@@ -23,13 +26,14 @@ struct AssetAnalysisView: View {
 
     var body: some View {
         let activeAccounts = accounts.filter(\.isActive)
-        let analysis = AssetAnalysisPresentation(accounts: activeAccounts, locale: locale)
+        let itemValuation = dataLinks?.netWorthValuation
+        let analysis = AssetAnalysisPresentation(accounts: activeAccounts, itemValuation: itemValuation, locale: locale)
 
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 tabSwitch
 
-                trendCard(activeAccounts: activeAccounts)
+                trendCard(activeAccounts: activeAccounts, excludesItemValuation: itemValuation != nil)
 
                 switch tab {
                 case .netAssets:
@@ -75,8 +79,10 @@ struct AssetAnalysisView: View {
 
     /// 当前 tab 的走势卡片，右上角切换三个月、一年、全部。
     ///
-    /// - Parameter activeAccounts: 启用中的账户，走势只算它们。
-    private func trendCard(activeAccounts: [Account]) -> some View {
+    /// - Parameters:
+    ///   - activeAccounts: 启用中的账户，走势只算它们。
+    ///   - excludesItemValuation: 物品估值已计入资产合计时为 true：走势不含它，卡片底部补一句说明。
+    private func trendCard(activeAccounts: [Account], excludesItemValuation: Bool) -> some View {
         let ledgers = balanceHistory.ledgers
         let history = AccountBalanceHistory(
             ledgers: ledgers ?? [:],
@@ -102,6 +108,14 @@ struct AssetAnalysisView: View {
                     .frame(maxWidth: .infinity, minHeight: 200)
                     .multilineTextAlignment(.center)
                     .accessibilityIdentifier("asset-analysis-trend-not-enough")
+            }
+
+            if excludesItemValuation {
+                Text(AccountLocalization.string("dataLink.trend.excludes_item_value", locale: locale))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("asset-analysis-trend-excludes-item-value")
             }
         }
         .padding(.horizontal, 20)
@@ -310,7 +324,7 @@ private struct AssetCompositionCard: View {
 
 // MARK: - 排行
 
-/// 资产或负债按账户的排行，与图表页的分类排行同一种写法：直接写在纸面上，每行一道比例线；点一行进账户详情。
+/// 资产或负债按账户的排行，与图表页的分类排行同一种写法：直接写在纸面上，每行一道比例线；点一行进账户详情，物品估值那一行进估值详情。
 private struct AssetRankingSection: View {
     @Environment(\.locale) private var locale
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -354,7 +368,7 @@ private struct AssetRankingSection: View {
                 .accessibilityIdentifier("asset-analysis-ranking-empty")
             } else {
                 ForEach(rows) { row in
-                    NavigationLink(value: AccountsRoute.detail(row.id)) {
+                    NavigationLink(value: row.destination) {
                         rankingRow(row, maximum: maximum)
                     }
                     .buttonStyle(.plain)
@@ -411,7 +425,10 @@ private struct AssetRankingSection: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: "\(item.row.name), \(item.row.detail)"))
         .accessibilityValue(Text([item.row.formattedAmount, percentage].compactMap { $0 }.joined(separator: ", ")))
-        .accessibilityHint(AccountLocalization.string("account.analysis.ranking.open_hint", locale: locale))
+        .accessibilityHint(AccountLocalization.string(
+            item.destination == .itemValuation ? "itemValuation.ranking.open_hint" : "account.analysis.ranking.open_hint",
+            locale: locale
+        ))
     }
 
     /// 账户名称和占比。

@@ -26,6 +26,8 @@ struct yadoAApp: App {
     @State private var feedback: FeedbackStore
     /// 芽豆系列的产品目录，“我的”入口和「更多芽豆产品」页共用；公开数据，与登录状态无关。
     @State private var seriesCatalog: SeriesCatalogStore
+    /// 数据联动状态：授权、物品估值汇总缓存和估值设置；授权以 hub 为准，凭证与账号取自 `authStore`。
+    @State private var dataLinks: DataLinkStore
 
     init() {
         // 同意状态最先建好，后面所有会联网的 store 都要靠它判断能不能发请求
@@ -42,6 +44,7 @@ struct yadoAApp: App {
         )
         _feedback = State(initialValue: FeedbackStore(authStore: authStore, isNetworkAllowed: isNetworkAllowed))
         _seriesCatalog = State(initialValue: SeriesCatalogStore(isNetworkAllowed: isNetworkAllowed))
+        _dataLinks = State(initialValue: DataLinkStore(authStore: authStore, isNetworkAllowed: isNetworkAllowed))
         // Release 同样启用；诊断只存本机，只有用户在意见反馈里勾选后才上传
         MetricKitCollector.shared.start()
         #if DEBUG
@@ -181,11 +184,34 @@ struct yadoAApp: App {
             .environment(aiPointsShop)
             .environment(feedback)
             .environment(seriesCatalog)
+            .environment(dataLinks)
             .environment(appLock)
             .modifier(AppDisplayPreferencesModifier())
             // 付了款还没入账的交易：启动时开始监听交易更新，并在启动和每次换账号登录后补传
             .task { aiPointsShop.startObservingTransactions() }
             .task(id: authStore.userID) { await aiPointsShop.processUnfinishedTransactions() }
+            // 冷启动、换账号、同意隐私政策后刷新联动列表；没登录或不允许联网时 store 里什么都不发
+            .task(
+                id: DataLinkRefreshTrigger(
+                    isAuthenticated: authStore.isAuthenticated,
+                    userID: authStore.userID,
+                    isNetworkAllowed: privacyAgreement.allowsNetwork
+                )
+            ) {
+                await dataLinks.refreshLinks()
+            }
         }
     }
+}
+
+/// 触发刷新联动列表的条件：账号变化，或同意隐私政策后允许联网。
+private struct DataLinkRefreshTrigger: Hashable {
+    /// 本地是否持有有效凭证；读它是为了登录状态一变就重新求值。
+    let isAuthenticated: Bool
+
+    /// 当前登录账号；退出登录时为 nil。
+    let userID: String?
+
+    /// 是否允许联网；同意隐私政策后变为 true，立即重新刷新一次。
+    let isNetworkAllowed: Bool
 }

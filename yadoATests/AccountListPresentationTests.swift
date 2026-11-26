@@ -95,6 +95,55 @@ struct AccountListPresentationTests {
         #expect(summary.netAssets == 40)
     }
 
+    @Test("汇总可以额外加上芽豆有物的物品估值：资产和净资产都加上它，负债不变；不传或传 0 与原来一致")
+    func summaryAddsItemValuationToAssets() {
+        let accounts = [
+            makeAccount(typeRawValue: AccountType.cash.rawValue, balance: 100),
+            makeAccount(typeRawValue: AccountType.investment.rawValue, balance: 50),
+            makeAccount(typeRawValue: AccountType.creditCard.rawValue, balance: 30),
+            makeAccount(typeRawValue: AccountType.liability.rawValue, balance: 20)
+        ]
+        let locale = Locale(identifier: "en_US")
+
+        let base = AccountSummaryPresentation.summary(for: accounts, locale: locale)
+        let withValuation = AccountSummaryPresentation.summary(for: accounts, additionalAssets: 840, locale: locale)
+
+        #expect(base.assets == 150)
+        #expect(withValuation.assets == 990)
+        #expect(withValuation.netAssets == 940)
+        #expect(withValuation.liabilities == 50)
+        #expect(withValuation.liabilities == base.liabilities)
+        #expect(withValuation.assets == base.assets + 840)
+        #expect(withValuation.netAssets == base.netAssets + 840)
+        #expect(withValuation.formattedAssets.contains("990"))
+        #expect(withValuation.formattedNetAssets.contains("940"))
+
+        #expect(AccountSummaryPresentation.summary(for: accounts, additionalAssets: .zero, locale: locale) == base)
+    }
+
+    @Test("估值只加进启用账户的汇总：停用账户仍然不算，没有账户时资产就是估值本身")
+    func itemValuationOnTopOfActiveAccountsOnly() {
+        let deactivated = Account(
+            id: UUID(),
+            typeRawValue: AccountType.cash.rawValue,
+            templateID: nil,
+            name: "旧钱包",
+            note: nil,
+            lastFourDigits: nil,
+            balance: 9_999,
+            currencyCode: "CNY",
+            createdAt: Date(timeIntervalSince1970: 1),
+            updatedAt: Date(timeIntervalSince1970: 1),
+            deactivatedAt: Date(timeIntervalSince1970: 2)
+        )
+        let locale = Locale(identifier: "en_US")
+
+        let summary = AccountSummaryPresentation.summary(for: [deactivated], additionalAssets: 500, locale: locale)
+        #expect(summary.assets == 500)
+        #expect(summary.liabilities == 0)
+        #expect(summary.netAssets == 500)
+    }
+
     @Test("账户列表只保留启用账户，并按统一顺序排列")
     func sortedKeepsActiveAccountsInDisplayOrder() {
         let credit = makeAccount(typeRawValue: AccountType.creditCard.rawValue)

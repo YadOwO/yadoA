@@ -4,11 +4,16 @@ import SwiftUI
 ///
 /// 数据来自根部注入的 `SeriesCatalogStore`（网站下发的目录，已去掉本 App 自己）。已上架的产品给「获取」，跳到 App Store；
 /// 即将上线的只标状态。有产品介绍页的给「了解更多」，在 App 内用 Safari 视图打开网站上的产品页。
+/// 芽豆有物那张卡片在数据联动可用时多一句联动提示（未授权「可联动：把物品估值算进净资产」、已授权「已联动」），点了进数据联动页。
 struct SeriesProductsView: View {
     @Environment(\.locale) private var locale
     @Environment(\.openURL) private var openURL
     /// 产品目录；预览中没有注入时为 nil。
     @Environment(SeriesCatalogStore.self) private var catalog: SeriesCatalogStore?
+    /// 数据联动状态；预览中没有注入时为 nil。
+    @Environment(DataLinkStore.self) private var dataLinks: DataLinkStore?
+    /// 全局登录状态；读它是为了登录和退出登录时联动提示跟着变。预览中没有注入时为 nil。
+    @Environment(AuthStore.self) private var authStore: AuthStore?
 
     /// 正在 App 内打开的产品介绍页。
     @State private var presentedPage: SeriesWebPage?
@@ -25,6 +30,7 @@ struct SeriesProductsView: View {
                 ForEach(products) { product in
                     SeriesProductCard(
                         product: product,
+                        linkNote: linkNote(for: product),
                         onGet: { url in openURL(url) },
                         onLearnMore: { url in presentedPage = SeriesWebPage(url: url) }
                     )
@@ -52,6 +58,18 @@ struct SeriesProductsView: View {
         catalog?.products ?? []
     }
 
+    /// 产品卡片上的联动提示：只有芽豆有物的卡片、已登录并且 hub 打开了联动时才有；未授权是邀请，已授权是状态。
+    ///
+    /// - Parameter product: 目录里的产品。
+    private func linkNote(for product: SeriesProduct) -> String? {
+        guard product.code == DataLinkCode.source,
+              authStore?.isAuthenticated ?? true,
+              let dataLinks,
+              dataLinks.isItemValueLinkAvailable
+        else { return nil }
+        return text(dataLinks.isItemValueGranted ? "dataLink.series.linked" : "dataLink.series.available")
+    }
+
     /// 按应用当前语言解析 String Catalog 文案。
     private func text(_ key: String) -> String {
         AccountLocalization.string(key, locale: locale)
@@ -67,12 +85,14 @@ private struct SeriesWebPage: Identifiable {
     var id: URL { url }
 }
 
-/// 一个产品的卡片：图标、名称、一句话介绍，右侧是「获取」或「即将上线」，下方可选「了解更多」。
+/// 一个产品的卡片：图标、名称、一句话介绍，右侧是「获取」或「即将上线」，下方可选「了解更多」和联动提示。
 private struct SeriesProductCard: View {
     @Environment(\.locale) private var locale
 
     /// 要展示的产品。
     let product: SeriesProduct
+    /// 数据联动提示，点了进数据联动页；没有联动或联动不可用时为 nil。
+    var linkNote: String?
     /// 点「获取」时调用，参数是 App Store 上的产品页地址。
     let onGet: (URL) -> Void
     /// 点「了解更多」时调用，参数是当前语言的产品介绍页地址。
@@ -118,6 +138,25 @@ private struct SeriesProductCard: View {
                     AccountLocalization.formatted("series.action.learnMore.accessibility", value: name, locale: locale)
                 )
                 .accessibilityIdentifier("series-learn-more-\(product.code)")
+            }
+
+            // 本页是二级页面，用 NavigationLink 打开数据联动页
+            if let linkNote {
+                NavigationLink(value: ProfileRoute.dataLinks) {
+                    HStack(spacing: 4) {
+                        Text(linkNote)
+                            .multilineTextAlignment(.leading)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .accessibilityHidden(true)
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("series-data-link-\(product.code)")
             }
         }
         .padding(20)

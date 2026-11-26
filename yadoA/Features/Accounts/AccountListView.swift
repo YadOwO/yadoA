@@ -14,6 +14,12 @@ struct AccountListView: View {
     @Query private var preferences: [BookkeepingPreference]
     /// 汇总卡片里净资产走势的材料；在数据变化后汇总一次，账户页不再读全部流水。
     @Environment(BalanceHistoryStore.self) private var balanceHistory
+    /// 数据联动状态：芽豆有物的物品估值；预览中没有注入时为 nil。
+    @Environment(DataLinkStore.self) private var dataLinks: DataLinkStore?
+    /// 全局登录状态；读它是为了登录和退出登录时重绘估值。预览中没有注入时为 nil。
+    @Environment(AuthStore.self) private var authStore: AuthStore?
+    /// 隐私政策同意状态；读它是为了允许或禁止联网时重绘估值。预览中没有注入时为 nil。
+    @Environment(PrivacyAgreementStore.self) private var privacyAgreement: PrivacyAgreementStore?
     @State private var isPresentingCreation = false
     @State private var isPresentingManagement = false
     @State private var isPresentingDeactivated = false
@@ -64,6 +70,8 @@ struct AccountListView: View {
         .onAppear { isVisible = true }
         .onDisappear { isVisible = false }
         .refreshesBalanceHistory()
+        // 出现时刷新一次物品估值；5 分钟内不重复拉由 store 负责
+        .task { await refreshItemValuation() }
         // 用户正看着账户页时语音改了账户：在这些账户的名称和金额下补一道笔迹，并把第一个滚到可见处
         .onChange(of: voice?.session?.latestTurn?.outcome) { _, outcome in
             guard isVisible, outcome != .processing, let turn = voice?.session?.latestTurn else { return }
@@ -103,6 +111,20 @@ struct AccountListView: View {
             .presentationDragIndicator(.visible)
         }
         .paperPage()
+    }
+
+    /// 物品估值的数据来源：已登录并且允许联网时才是联动状态，否则为 nil，账户页就不出现估值。
+    ///
+    /// 在这里读登录和联网状态，它们变化时账户页会重绘。
+    private var valuationStore: DataLinkStore? {
+        guard authStore?.isAuthenticated ?? true, privacyAgreement?.allowsNetwork ?? true else { return nil }
+        return dataLinks
+    }
+
+    /// 刷新联动列表和物品估值；下拉刷新和页面出现都走这里，不允许联网或没登录时 store 什么都不发。
+    private func refreshItemValuation() async {
+        await dataLinks?.refreshLinks()
+        await dataLinks?.refreshItemValueIfStale()
     }
 
     /// 播放一次语音改动提示，到期后只清除这一次，不影响之后的新提示。
@@ -219,7 +241,13 @@ struct AccountListView: View {
     ///   - accounts: 按统一顺序排好的启用账户。
     ///   - sections: 同一批账户按分类分好的组。
     private func accountList(_ accounts: [Account], sections: [AccountTypeSection]) -> some View {
-        let summary = AccountSummaryPresentation.summary(for: accounts, locale: locale)
+        // 估值只在「计入净资产」打开时加进资产；走势不含它
+        let netWorthValuation = valuationStore?.netWorthValuation
+        let summary = AccountSummaryPresentation.summary(
+            for: accounts,
+            additionalAssets: netWorthValuation ?? 0,
+            locale: locale
+        )
         let defaultAccountID = BookkeepingPreference.resolvedAccountID(
             preference: BookkeepingPreference.canonical(in: preferences),
             accounts: accounts
@@ -242,7 +270,13 @@ struct AccountListView: View {
                     .listRowSeparator(.hidden)
                 }
 
-                summaryCard(summary, trend: netWorthTrend(of: accounts))
+                summaryCard(
+                    summary,
+                    trend: netWorthTrend(of: accounts),
+                    trendFootnote: netWorthValuation == nil
+                        ? nil
+                        : AccountLocalization.string("dataLink.trend.excludes_item_value", locale: locale)
+                )
                     .listRowInsets(
                         EdgeInsets(top: 12, leading: 2, bottom: 8, trailing: 2)
                     )
@@ -294,8 +328,36 @@ struct AccountListView: View {
                             .accessibilityIdentifier("account-list-section-\(section.id)")
                     }
                 }
+
+                // 芽豆有物的物品估值：账户类型分组后面单独一组，只有一行、只读；只出现在这里和资产分析，空状态页不加
+                if let store = valuationStore, store.showsAccountRow, let itemSummary = store.cachedSummary {
+                    Section {
+                        TabRouteLink(value: AccountsRoute.itemValuation, selectionOutset: 6) {
+                            AccountListRow(
+                                presentation: ItemValuationPresentation.row(
+                                    summary: itemSummary,
+                                    settings: store.settings,
+                                    locale: locale
+                                )
+                            )
+                            // 列表里的按钮会把标签染成强调色，原来的 NavigationLink 是主文字色
+                            .foregroundStyle(Color.primary)
+                        }
+                        .navigationLinkIndicatorVisibility(.hidden)
+                        .ledgerRow(seed: ItemValuationPresentation.rowID.handDrawnSeed, showsRule: false)
+                        .accessibilityIdentifier("account-list-item-valuation")
+                    } header: {
+                        AccountSectionHeader(
+                            title: AccountLocalization.string("itemValuation.section.title", locale: locale),
+                            seed: "itemValuation.section".handDrawnSeed
+                        )
+                        .accessibilityIdentifier("account-list-section-item-valuation")
+                    }
+                }
             }
             .listStyle(.insetGrouped)
+            // 下拉刷新联动列表和物品估值；5 分钟内不重复拉由 store 负责
+            .refreshable { await refreshItemValuation() }
             // 宽屏单栏时居中排成阅读宽度
             .readableContentWidth(sideMargin: ReadableContentWidth.listSideMargin)
             .onChange(of: voiceMark) { _, mark in
@@ -313,10 +375,15 @@ struct AccountListView: View {
     /// - Parameters:
     ///   - summary: 资产、负债和净资产汇总。
     ///   - trend: 净资产近三个月的走势；还没记过账时为 `nil`，卡片里不画迷你走势。
-    private func summaryCard(_ summary: AccountSummaryPresentation, trend: BalanceTrendSeries?) -> some View {
+    ///   - trendFootnote: 走势下面的说明；估值计入净资产时说明走势不含它，否则为 `nil`。
+    private func summaryCard(
+        _ summary: AccountSummaryPresentation,
+        trend: BalanceTrendSeries?,
+        trendFootnote: String?
+    ) -> some View {
         // 卡片自带手绘方框，不再垫选中底色
         TabRouteLink(value: AccountsRoute.assetAnalysis, marksSelection: false) {
-            AccountSummaryCard(presentation: summary, trend: trend, showsDisclosure: true)
+            AccountSummaryCard(presentation: summary, trend: trend, showsDisclosure: true, trendFootnote: trendFootnote)
                 // 列表里的按钮会把标签染成强调色，原来的 NavigationLink 是主文字色
                 .foregroundStyle(Color.primary)
         }

@@ -576,12 +576,13 @@ struct TabSplitNavigationTests {
         #expect(!AccountsRoute.detail(Self.transactionID).hasOwnBottomBar)
         #expect(!AccountsRoute.transactionDetail(Self.transactionID).hasOwnBottomBar)
         #expect(!AccountsRoute.assetAnalysis.hasOwnBottomBar)
+        #expect(!AccountsRoute.itemValuation.hasOwnBottomBar)
 
         let withBottomBar: Set<ProfileRoute> = [.feedback, .aiProcessingConsent]
         let allProfileRoutes: [ProfileRoute] = [
-            .bills, .categories, .recurringRules, .sync, .aiPoints, .aiPointLots, .aiCreditEntries, .aiModelTier,
-            .aiTraceConsent, .aiProcessingConsent, .checkIn, .settings, .accountSecurity, .feedback, .moreProducts,
-            .developer
+            .bills, .categories, .recurringRules, .sync, .dataLinks, .aiPoints, .aiPointLots, .aiCreditEntries,
+            .aiModelTier, .aiTraceConsent, .aiProcessingConsent, .checkIn, .settings, .accountSecurity, .feedback,
+            .moreProducts, .developer
         ]
         for route in allProfileRoutes {
             #expect(route.hasOwnBottomBar == withBottomBar.contains(route))

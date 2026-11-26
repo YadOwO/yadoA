@@ -19,6 +19,8 @@ struct SettingsView: View {
     @Environment(PrivacyAgreementStore.self) private var privacyAgreement: PrivacyAgreementStore?
     /// 应用锁状态机：开关和上锁时长只由它读写。预览中没有注入时为 nil，整个「隐私与安全」分组不显示。
     @Environment(AppLockController.self) private var appLock: AppLockController?
+    /// 数据联动状态，退出登录时清掉当前账号的物品估值缓存；预览中没有注入时为 nil。
+    @Environment(DataLinkStore.self) private var dataLinks: DataLinkStore?
     @Query private var accounts: [Account]
     @Query private var preferences: [BookkeepingPreference]
 
@@ -232,7 +234,11 @@ struct SettingsView: View {
         }
         .alert(text("auth.sign_out.confirm.title"), isPresented: $isSignOutConfirmationPresented) {
             Button(text("auth.sign_out.action"), role: .destructive) {
-                Task { await authStore.signOut() }
+                Task {
+                    // 必须在 signOut 之前、userID 还在时清掉这个账号的联动缓存
+                    dataLinks?.clearCurrentUserCache()
+                    await authStore.signOut()
+                }
             }
             .accessibilityIdentifier("profile-sign-out-confirm")
 
@@ -483,6 +489,8 @@ struct SettingsView: View {
             DataUndoService(container: modelContext.container).discardSnapshot()
             UserDefaults.standard.removeObject(forKey: BookkeepingSearchHistory.storageKey)
         }
+        // 必须在 signOut 之前、userID 还在时清掉这个账号的联动缓存
+        dataLinks?.clearCurrentUserCache()
         await authStore.signOut()
     }
 
