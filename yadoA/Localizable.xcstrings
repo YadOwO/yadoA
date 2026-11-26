@@ -1492,6 +1492,24 @@
         }
       }
     },
+    "profile.checkIn.value" : {
+      "comment" : "「我的」页签到成功后，气泡里「+N 点」下方和 VoiceOver 播报里的价值，%@ 为已按当地货币格式化的金额",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worth %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "价值 %@"
+          }
+        }
+      }
+    },
     "profile.checkIn.announcement" : {
       "comment" : "签到成功的 VoiceOver 播报，%1$@ 为点数，%2$@ 为有效小时数",
       "extractionState" : "manual",
@@ -17128,6 +17146,24 @@
         }
       }
     },
+    "ai.points.balance.value" : {
+      "comment" : "AI 点数页余额数字下面的小字，约值，%@ 为已按当地货币格式化的金额",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "≈ %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "约值 %@"
+          }
+        }
+      }
+    },
     "ai.points.exhausted" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -20985,6 +21021,24 @@
         }
       }
     },
+    "checkIn.milestone.maxValue" : {
+      "comment" : "签到页礼包里程碑规则末尾的最高价值（这档礼包所有开启次数的点数上限合计折算），%@ 为已按当地货币格式化的金额",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worth up to %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高价值 %@"
+          }
+        }
+      }
+    },
     "checkIn.milestone.daysLeft" : {
       "comment" : "离下一个礼包还要签几天，%@ 为天数",
       "extractionState" : "manual",
@@ -21413,6 +21467,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "点 AI 点数"
+          }
+        }
+      }
+    },
+    "checkIn.opening.value" : {
+      "comment" : "开礼包后点数下面和 VoiceOver 播报里的价值，%@ 为已按当地货币格式化的金额",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worth %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "价值 %@"
           }
         }
       }

@@ -17,6 +17,15 @@ nonisolated struct AIStoreProduct: Equatable, Identifiable, Sendable {
     /// 当地价格文本，例如“¥6.00”“$0.99”。
     let displayPrice: String
 
+    /// StoreKit 的 `Product.price`：当地货币的价格数值，用来折算点数价值；显示价格用 `displayPrice`。
+    let price: Decimal
+
+    /// 价格的币种代码（取自 `Product.priceFormatStyle`），例如 `CNY`、`USD`。
+    let currencyCode: String
+
+    /// 价格的地区格式（取自 `Product.priceFormatStyle`），决定金额的小数位、分隔符和货币符号位置。
+    let priceLocale: Locale
+
     /// 自动续期订阅的周期，例如 1 个月；不是订阅时为 nil。以后服务端开卖订阅时，旧版 App 也能据此显示周期和续订说明。
     let subscriptionPeriod: (unit: PeriodUnit, value: Int)?
 
@@ -26,15 +35,27 @@ nonisolated struct AIStoreProduct: Equatable, Identifiable, Sendable {
     }
 
     /// 逐字段创建。
-    init(id: String, displayName: String, displayPrice: String, subscriptionPeriod: (unit: PeriodUnit, value: Int)? = nil) {
+    init(
+        id: String,
+        displayName: String,
+        displayPrice: String,
+        price: Decimal,
+        currencyCode: String,
+        priceLocale: Locale,
+        subscriptionPeriod: (unit: PeriodUnit, value: Int)? = nil
+    ) {
         self.id = id
         self.displayName = displayName
         self.displayPrice = displayPrice
+        self.price = price
+        self.currencyCode = currencyCode
+        self.priceLocale = priceLocale
         self.subscriptionPeriod = subscriptionPeriod
     }
 
     static func == (lhs: AIStoreProduct, rhs: AIStoreProduct) -> Bool {
         lhs.id == rhs.id && lhs.displayName == rhs.displayName && lhs.displayPrice == rhs.displayPrice
+            && lhs.price == rhs.price && lhs.currencyCode == rhs.currencyCode && lhs.priceLocale == rhs.priceLocale
             && lhs.subscriptionPeriod?.unit == rhs.subscriptionPeriod?.unit
             && lhs.subscriptionPeriod?.value == rhs.subscriptionPeriod?.value
     }
@@ -170,6 +191,9 @@ final class AIStoreKitClient: AIStoreKitProviding {
             id: product.id,
             displayName: product.displayName,
             displayPrice: product.displayPrice,
+            price: product.price,
+            currencyCode: product.priceFormatStyle.currencyCode,
+            priceLocale: product.priceFormatStyle.locale,
             subscriptionPeriod: period.map { (unit: periodUnit($0.unit), value: $0.value) }
         )
     }

@@ -9,6 +9,9 @@ import Observation
 ///
 /// 商品由服务端列出（入账点数、角标），名称和价格以 StoreKit 为准；只展示两边都有的商品。
 /// 以后服务端开卖订阅时，这里按 StoreKit 的商品类型显示周期和续订说明，旧版 App 不用更新也能买（入账由服务端处理）。
+///
+/// 同一次加载还会算出 `pointValue`：服务端指定的锚点商品在 StoreKit 里的当地价格，用来在得到点数的地方（签到、开礼包、
+/// 礼包里程碑、点数页余额）显示这些点数值多少钱。拿不到价值时它是 nil，各处整行不显示，也不影响签到和页面加载。
 @Observable
 final class AIPointsShop {
     /// 界面上的一个商品：服务端给的点数和角标，加上 StoreKit 给的名称和价格。
@@ -56,6 +59,9 @@ final class AIPointsShop {
 
     /// 可以买的商品，按服务端的顺序；未登录、没开放购买或还没加载时为空。
     private(set) var offers: [Offer] = []
+
+    /// 点数价值的折算依据；未登录、没开放购买、后端没给锚点、StoreKit 查不到锚点商品或还没加载时为 nil。
+    private(set) var pointValue: AIPointValue?
 
     /// 是否正在加载商品。
     private(set) var isLoading = false
@@ -177,10 +183,19 @@ final class AIPointsShop {
             guard currentUserID() == userID else { return }
             self.catalog = catalog
             offers = Self.offers(items: catalog.items, products: products)
+            pointValue = Self.pointValue(catalog: catalog, products: products)
         } catch {
             // 保留上一次的商品，下次进入页面再试
         }
         await processUnfinishedTransactions()
+    }
+
+    /// 签到页和「我的」页用：本账号还没成功加载过商品列表、也没在加载时才刷新一次，失败不提示，下次进页面再试。
+    ///
+    /// 调用方不要让签到、余额、日历等加载等它：它只是在后台准备点数价值。
+    func refreshIfNeeded() async {
+        guard !isLoading, catalog == nil || ownerUserID != currentUserID() else { return }
+        await refresh()
     }
 
     /// 关掉购买结果提示。
@@ -259,6 +274,7 @@ final class AIPointsShop {
     private func clear() {
         catalog = nil
         offers = []
+        pointValue = nil
         ownerUserID = nil
     }
 
@@ -273,6 +289,20 @@ final class AIPointsShop {
         return items.compactMap { item in
             productsByID[item.productID].map { Offer(item: item, product: $0) }
         }
+    }
+
+    /// 找出点数价值的折算依据：服务端指定的锚点商品，要在商品列表和 StoreKit 结果里都找得到。
+    ///
+    /// - Parameters:
+    ///   - catalog: 服务端的在售商品列表。
+    ///   - products: StoreKit 查到的商品。
+    /// - Returns: 折算依据；没开放购买、没有锚点或任一边找不到锚点商品时为 nil。
+    static func pointValue(catalog: AIStoreCatalog, products: [AIStoreProduct]) -> AIPointValue? {
+        guard catalog.isEnabled,
+              let anchorID = catalog.valueAnchorProductID,
+              let item = catalog.items.first(where: { $0.productID == anchorID }),
+              let product = products.first(where: { $0.id == anchorID }) else { return nil }
+        return AIPointValue(item: item, product: product)
     }
 
     /// 把购买后的上传结果转成提示。
@@ -290,5 +320,48 @@ final class AIPointsShop {
         case .deferred:
             .creditDelayed
         }
+    }
+}
+
+/// 按锚点商品的当地价格折算点数价值，只在得到点数的地方显示。
+///
+/// 算法：N 点的价值 = 锚点价格 × N ÷ 锚点点数，全程用 `Decimal`，按锚点商品的币种和地区格式输出，小数位跟着货币走。
+nonisolated struct AIPointValue: Equatable, Sendable {
+    /// 锚点商品在 StoreKit 里的当地价格。
+    let anchorPrice: Decimal
+
+    /// 锚点商品入账的点数。
+    let anchorPoints: Int
+
+    /// 价格的币种代码，例如 `CNY`、`USD`。
+    let currencyCode: String
+
+    /// 价格的地区格式，决定货币符号和小数位的写法。
+    let priceLocale: Locale
+
+    /// 用服务端的锚点商品和 StoreKit 的同一个商品创建。
+    ///
+    /// - Parameters:
+    ///   - item: 服务端列出的锚点商品。
+    ///   - product: StoreKit 查到的锚点商品。
+    /// - Returns: 折算依据；两边不是同一个商品、点数或价格不大于 0 时为 nil（除数为 0 或价格为 0 都算不出有意义的价值）。
+    init?(item: AIStoreItem, product: AIStoreProduct) {
+        guard item.productID == product.id, item.points > 0, product.price > 0 else { return nil }
+        anchorPrice = product.price
+        anchorPoints = item.points
+        currencyCode = product.currencyCode
+        priceLocale = product.priceLocale
+    }
+
+    /// 折算 N 点值多少钱，已按币种格式化。
+    ///
+    /// 先乘后除，不先把每点的价格取整，小数位由货币的格式决定。
+    ///
+    /// - Parameter points: 点数。
+    /// - Returns: 例如 `¥1.20`；点数不大于 0 时为 nil。
+    func amountText(points: Int) -> String? {
+        guard points > 0 else { return nil }
+        let amount = anchorPrice * Decimal(points) / Decimal(anchorPoints)
+        return amount.formatted(Decimal.FormatStyle.Currency(code: currencyCode, locale: priceLocale))
     }
 }

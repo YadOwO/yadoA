@@ -18,16 +18,21 @@ nonisolated struct AIStoreCatalog: Decodable, Equatable, Sendable {
     /// 在售商品，按展示顺序。
     let items: [AIStoreItem]
 
+    /// 用来折算点数价值的商品 ID，一定在 `items` 里；服务端没给（旧服务端）、为 null 或空字符串时为 nil，表示不显示价值。
+    let valueAnchorProductID: String?
+
     private enum CodingKeys: String, CodingKey {
         case isEnabled = "enabled"
         case appAccountToken, items
+        case valueAnchorProductID = "valueAnchorProductId"
     }
 
     /// 逐字段创建，供测试使用。
-    init(isEnabled: Bool, appAccountToken: UUID?, items: [AIStoreItem]) {
+    init(isEnabled: Bool, appAccountToken: UUID?, items: [AIStoreItem], valueAnchorProductID: String? = nil) {
         self.isEnabled = isEnabled
         self.appAccountToken = appAccountToken
         self.items = items
+        self.valueAnchorProductID = valueAnchorProductID
     }
 
     init(from decoder: Decoder) throws {
@@ -35,12 +40,14 @@ nonisolated struct AIStoreCatalog: Decodable, Equatable, Sendable {
         isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? false
         appAccountToken = try container.decodeIfPresent(String.self, forKey: .appAccountToken).flatMap(UUID.init(uuidString:))
         items = try container.decodeIfPresent([AIStoreItem].self, forKey: .items) ?? []
+        // 旧服务端没有这个字段，null 或空字符串也都表示没有锚点，不让整个列表解码失败
+        valueAnchorProductID = try container.decodeIfPresent(String.self, forKey: .valueAnchorProductID).flatMap { $0.isEmpty ? nil : $0 }
     }
 }
 
 /// 一个在售商品：服务端只给商品 ID 和入账点数，名称、价格、是不是订阅都以 StoreKit 为准。
 nonisolated struct AIStoreItem: Decodable, Equatable, Identifiable, Sendable {
-    /// 完整的 App Store 商品 ID，例如 `top.yado1225.yadoA.points_300`。
+    /// 完整的 App Store 商品 ID，例如 `top.yado1225.yadoA.points_s`。
     let productID: String
 
     /// 买一次入账的点数，永不过期。

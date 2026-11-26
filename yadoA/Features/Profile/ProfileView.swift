@@ -20,6 +20,8 @@ struct ProfileView: View {
     @Environment(SyncLifecycle.self) private var syncLifecycle: SyncLifecycle?
     /// 当前账号的 AI 点数；预览中没有注入时为 nil。
     @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
+    /// 点数充值，这里只用它折算签到点数的价值；预览中没有注入时为 nil。
+    @Environment(AIPointsShop.self) private var aiPointsShop: AIPointsShop?
     /// 意见反馈的未读回复数；预览中没有注入时为 nil。
     @Environment(FeedbackStore.self) private var feedback: FeedbackStore?
     /// 芽豆系列的产品目录；预览中没有注入时为 nil。
@@ -218,6 +220,7 @@ struct ProfileView: View {
         .fullScreenCover(item: $openingGift) { gift in
             CheckInGiftOpeningView(
                 gift: gift,
+                pointValue: aiPointsShop?.pointValue,
                 onOpen: { await aiPoints?.openGift($0) ?? .failure(.notSignedIn) },
                 onClose: { openingGift = nil }
             )
@@ -251,6 +254,11 @@ struct ProfileView: View {
             await aiPoints?.refresh()
             // 再刷新今天的签到状态；登录成功后也走这里，只刷新状态，不自动签到
             await aiPoints?.refreshCheckInStatus()
+        }
+        .task(id: refreshTrigger) {
+            // 在后台准备点数价值（锚点商品的当地价格），和余额、签到状态并行；它只影响签到后「价值 ¥X」的显示，
+            // 不能塞进上面刷新余额的 task 里串行执行，免得拖慢签到；失败时下次进页面再试
+            await aiPointsShop?.refreshIfNeeded()
         }
         .task(id: refreshTrigger) {
             // 每次回到“我的”都刷新一次反馈未读数；从反馈页返回时已在标记已读后更新过，这里再对一次
@@ -497,6 +505,7 @@ struct ProfileView: View {
                     placement: checkInPlacement,
                     messageWidth: sideGap,
                     protectionOffer: authStore.isAuthenticated ? aiPoints?.checkInStatus?.protectionOffer : nil,
+                    pointValue: authStore.isAuthenticated ? aiPointsShop?.pointValue : nil,
                     onTap: handleCheckInTap,
                     onFinished: finishCheckIn,
                     onRewardDeparting: { points in
