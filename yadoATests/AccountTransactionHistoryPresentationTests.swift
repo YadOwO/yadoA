@@ -290,7 +290,7 @@ struct AccountTransactionHistoryPresentationTests {
         name: String,
         in container: ModelContainer
     ) throws {
-        let repository = LocalAccountRepository(container: container)
+        let repository = LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny)
         try repository.save(
             AccountDraft(
                 id: id,

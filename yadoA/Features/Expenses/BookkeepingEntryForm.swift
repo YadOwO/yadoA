@@ -323,7 +323,11 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow, Accessory: View>: Vi
     /// - Parameter input: 输入框当前的文字。
     private func updateAmountInput(_ input: String) {
         let decimalSeparator = locale.decimalSeparator ?? "."
-        let canonical = AccountAmountParser.canonicalized(input, decimalSeparator: decimalSeparator)
+        // 无小数的币种里，旧金额带的小数不能卡住算式：先把小数部分丢掉
+        let canonical = AmountExpression.droppingFractionDigits(
+            from: AccountAmountParser.canonicalized(input, decimalSeparator: decimalSeparator),
+            fractionDigits: amountFractionDigits
+        )
         guard AmountExpression.containsOperator(canonical) else {
             amountExpression = nil
             flow.updateAmountText(input, decimalSeparator: decimalSeparator, fractionDigits: amountFractionDigits)

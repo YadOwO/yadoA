@@ -10,7 +10,7 @@ struct AccountLifecycleHistoricalReportingTests {
     func deactivationPreservesHistoricalReporting() throws {
         let container = try AccountDataContainer.inMemory()
         let accountID = UUID()
-        let repository = LocalAccountRepository(container: container.modelContainer)
+        let repository = LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
         try repository.save(
             AccountDraft(id: accountID, accountType: .cash, name: "历史现金", amountText: "30"),
             locale: Locale(identifier: "en_US")

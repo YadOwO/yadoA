@@ -13,7 +13,7 @@ struct AccountPersistenceTests {
     func rejectsExcessPrecision(localeID: String, amountText: String) throws {
         let locale = Locale(identifier: localeID)
         let dataContainer = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         var draft = AccountDraft(accountType: .cash, name: "现金", amountText: amountText)
 
         #expect(!draft.isFormValid(locale: locale))
@@ -34,7 +34,7 @@ struct AccountPersistenceTests {
     func blankOpeningBalanceSavesAsZero() throws {
         let locale = Locale(identifier: "en_US")
         let dataContainer = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         let draft = AccountDraft(accountType: .cash, name: "现金", amountText: "  ")
 
         #expect(draft.isFormValid(locale: locale))
@@ -52,7 +52,7 @@ struct AccountPersistenceTests {
     func createsStarterCashAccountWhenEmpty() throws {
         let locale = Locale(identifier: "zh-Hans")
         let dataContainer = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
 
         let starterID = try #require(try repository.createStarterAccountIfNeeded(locale: locale))
         let account = try #require(try repository.account(id: starterID))
@@ -69,7 +69,7 @@ struct AccountPersistenceTests {
     @Test("已有账户时不自动建现金账户")
     func skipsStarterAccountWhenAccountsExist() throws {
         let dataContainer = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         let wechat = AccountDraft(
             accountType: .virtualAccount,
             template: AccountTemplate.virtualAccounts[1],
@@ -84,7 +84,7 @@ struct AccountPersistenceTests {
     @Test("内存存储显式保存并拒绝重复 UUID")
     func savesAndRejectsDuplicateID() throws {
         let dataContainer = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         let id = UUID()
         let draft = AccountDraft(
             id: id,
@@ -104,7 +104,7 @@ struct AccountPersistenceTests {
     @Test("编辑账户仅更新资料并保留余额、类型和创建时间")
     func updatesProfileWithoutChangingFinancialIdentity() throws {
         let dataContainer = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         let id = UUID()
         let createdAt = Date(timeIntervalSince1970: 100)
         let updatedAt = Date(timeIntervalSince1970: 200)
@@ -140,7 +140,7 @@ struct AccountPersistenceTests {
     @Test("编辑保存失败会回滚资料并支持同一草稿重试")
     func failedUpdateRollsBackAndRetrySucceeds() throws {
         let dataContainer = try AccountDataContainer.inMemory()
-        let seedRepository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let seedRepository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         let id = UUID()
         try seedRepository.save(
             AccountDraft(
@@ -156,7 +156,8 @@ struct AccountPersistenceTests {
             container: dataContainer.modelContainer,
             beforeSave: {
                 if shouldFail { throw InjectedSaveFailure() }
-            }
+            },
+            defaults: LedgerTestDefaults.cny
         )
         var edit = AccountEditDraft(account: try #require(try repository.account(id: id)))
         edit.name = "旅行现金"
@@ -179,7 +180,8 @@ struct AccountPersistenceTests {
             container: dataContainer.modelContainer,
             beforeSave: {
                 if shouldFail { throw InjectedSaveFailure() }
-            }
+            },
+            defaults: LedgerTestDefaults.cny
         )
         let draft = AccountDraft(
             id: UUID(),
@@ -207,7 +209,8 @@ struct AccountPersistenceTests {
         let dataContainer = try AccountDataContainer.fileBacked(storeURL: storeURL)
         let repository = LocalAccountRepository(
             container: dataContainer.modelContainer,
-            beforeSave: { throw InjectedSaveFailure() }
+            beforeSave: { throw InjectedSaveFailure() },
+            defaults: LedgerTestDefaults.cny
         )
         let draft = AccountDraft(
             accountType: .cash,
@@ -222,7 +225,7 @@ struct AccountPersistenceTests {
         #expect(try repository.accounts().isEmpty)
 
         let reopened = try AccountDataContainer.fileBacked(storeURL: storeURL)
-        let reopenedRepository = LocalAccountRepository(container: reopened.modelContainer)
+        let reopenedRepository = LocalAccountRepository(container: reopened.modelContainer, defaults: LedgerTestDefaults.cny)
         #expect(try reopenedRepository.accounts().isEmpty)
     }
 
@@ -244,7 +247,7 @@ struct AccountPersistenceTests {
 
         do {
             let dataContainer = try AccountDataContainer.fileBacked(storeURL: storeURL)
-            let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+            let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
             try repository.save(
                 draft,
                 locale: Locale(identifier: "en_US"),
@@ -253,7 +256,7 @@ struct AccountPersistenceTests {
         }
 
         let reopened = try AccountDataContainer.fileBacked(storeURL: storeURL)
-        let repository = LocalAccountRepository(container: reopened.modelContainer)
+        let repository = LocalAccountRepository(container: reopened.modelContainer, defaults: LedgerTestDefaults.cny)
         let account = try #require(try repository.account(id: id))
 
         #expect(account.typeRawValue == AccountType.debitCard.rawValue)
@@ -276,7 +279,7 @@ struct AccountPersistenceTests {
 
         do {
             let dataContainer = try AccountDataContainer.fileBacked(storeURL: storeURL)
-            let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+            let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
             try repository.save(
                 AccountDraft(
                     id: accountID,
@@ -306,7 +309,7 @@ struct AccountPersistenceTests {
         }
 
         let reopened = try AccountDataContainer.fileBacked(storeURL: storeURL)
-        let repository = LocalAccountRepository(container: reopened.modelContainer)
+        let repository = LocalAccountRepository(container: reopened.modelContainer, defaults: LedgerTestDefaults.cny)
         let account = try #require(try repository.account(id: accountID))
 
         #expect(account.deactivatedAt == deactivatedAt)

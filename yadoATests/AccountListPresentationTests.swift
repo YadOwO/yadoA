@@ -268,7 +268,7 @@ struct AccountListPresentationTests {
     func repositorySaveFeedsRealQueryAndPresentation() throws {
         let dataContainer = try AccountDataContainer.inMemory()
         let queryContext = ModelContext(dataContainer.modelContainer)
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         let draft = AccountDraft(
             id: UUID(),
             accountType: .cash,
@@ -292,7 +292,7 @@ struct AccountListPresentationTests {
     @Test("记账不更新时间戳或改变账户相对顺序")
     func expenseSaveDoesNotReorderAccounts() throws {
         let dataContainer = try AccountDataContainer.inMemory()
-        let accountRepository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let accountRepository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         let firstID = UUID()
         let secondID = UUID()
         let firstUpdatedAt = Date(timeIntervalSince1970: 200)
@@ -342,7 +342,7 @@ struct AccountListPresentationTests {
     @Test("余额调整不更新时间戳或改变账户相对顺序")
     func balanceAdjustmentDoesNotReorderAccounts() throws {
         let dataContainer = try AccountDataContainer.inMemory()
-        let accountRepository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let accountRepository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         let firstID = UUID()
         let secondID = UUID()
         let firstUpdatedAt = Date(timeIntervalSince1970: 200)

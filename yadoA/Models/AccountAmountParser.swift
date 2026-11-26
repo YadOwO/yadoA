@@ -84,6 +84,40 @@ enum AccountAmountParser {
         return normalizedText
     }
 
+    /// 归一文本框里的实时输入；没有小数的币种遇到小数点时，丢掉小数点和后面的小数再归一。
+    ///
+    /// 严格的 `normalizedCNYAmountText` 在 `fractionDigits` 为 0 时连末尾的小数点都拒绝，但账本改成 JPY、KRW 这类币种后，
+    /// 打开一笔原来带小数的旧金额（例如 12.50）编辑，按退格会先退到「12.」，被拒绝就删不动了。
+    /// 所以文本框的实时输入走这里：「12.5」「12.」都落成「12」，旧金额可以一位位删掉，也输不进新的小数；
+    /// 币种有小数位（`fractionDigits` 大于 0）时与 `normalizedCNYAmountText` 完全一致。
+    ///
+    /// - Parameters:
+    ///   - text: 文本框当前尝试写入的金额字符。
+    ///   - decimalSeparator: 当前系统区域使用的小数分隔符。
+    ///   - fractionDigits: 允许的小数位数，取 `BookkeepingCurrency.inputFractionDigits(for:)`。
+    /// - Returns: 使用英文句点的非负金额字符；非法输入返回 `nil`。
+    static func normalizedLiveAmountText(
+        _ text: String,
+        decimalSeparator: String,
+        fractionDigits: Int = 2
+    ) -> String? {
+        if let normalized = normalizedCNYAmountText(
+            text,
+            decimalSeparator: decimalSeparator,
+            fractionDigits: fractionDigits
+        ) {
+            return normalized
+        }
+        guard fractionDigits == 0, !decimalSeparator.isEmpty else { return nil }
+        let canonical = canonicalized(text, decimalSeparator: decimalSeparator)
+        guard let decimalPoint = canonical.firstIndex(of: ".") else { return nil }
+        return normalizedCNYAmountText(
+            String(canonical[..<decimalPoint]),
+            decimalSeparator: ".",
+            fractionDigits: 0
+        )
+    }
+
     /// 把已经归一的非负金额字符解析为精确十进制数。
     ///
     /// - Parameters:

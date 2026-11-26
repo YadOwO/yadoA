@@ -89,6 +89,33 @@ enum AmountExpression {
         return true
     }
 
+    /// 没有小数的币种里，丢掉算式中每个数字的小数点和小数部分；有小数位的币种原样返回。
+    ///
+    /// 打开一笔带小数的旧金额（例如 12.5）再点运算符时，「12.5+」在无小数币种里是非法输入；
+    /// 先过一遍这里变成「12+」，旧金额里的小数就不会卡住算式。
+    ///
+    /// - Parameters:
+    ///   - text: 输入框的文字，使用英文句点。
+    ///   - fractionDigits: 允许的小数位数；为 0 时才会丢小数。
+    static func droppingFractionDigits(from text: String, fractionDigits: Int) -> String {
+        guard fractionDigits == 0 else { return text }
+        var result = ""
+        var isInFraction = false
+        for character in text {
+            if character == "." {
+                isInFraction = true
+                continue
+            }
+            if Operator(rawValue: String(character)) != nil {
+                isInFraction = false
+            }
+            if !isInFraction {
+                result.append(character)
+            }
+        }
+        return result
+    }
+
     /// 计算算式的结果：先乘除后加减，四舍五入到 `fractionDigits` 位小数；末尾多余的运算符忽略。
     ///
     /// - Parameters:

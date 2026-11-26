@@ -54,7 +54,7 @@ struct VoiceAccountToolExecutorTests {
         )))
         #expect(execution.result.output == .balanceAdjusted(before: "500", after: "0"))
         // 余额为 0 后，用户在 App 里停用了这个账户
-        let repository = LocalAccountRepository(container: container)
+        let repository = LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny)
         try repository.dispose(repository.disposalExpectation(for: wallet, action: .deactivate))
 
         #expect(throws: BalanceAdjustmentRepositoryError.accountDeactivated(wallet)) {
@@ -71,7 +71,7 @@ struct VoiceAccountToolExecutorTests {
         let container = try AccountDataContainer.inMemory().modelContainer
         let wallet = try makeAccount(.virtualAccount, templateID: "virtualAccount.wechat", name: "微信", balance: 500, in: container)
         let cash = try makeAccount(.cash, balance: 100, in: container)
-        let repository = LocalAccountRepository(container: container)
+        let repository = LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny)
         try repository.setDefaultAccount(id: cash)
         let executor = makeExecutor(container)
 
@@ -202,7 +202,7 @@ struct VoiceAccountToolExecutorTests {
     func revertCreateFailsWhenAccountBecameDefault() throws {
         let container = try AccountDataContainer.inMemory().modelContainer
         let cash = try makeAccount(.cash, balance: 100, in: container)
-        let repository = LocalAccountRepository(container: container)
+        let repository = LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny)
         try repository.setDefaultAccount(id: cash)
         let executor = makeExecutor(container)
 
@@ -279,7 +279,7 @@ struct VoiceAccountToolExecutorTests {
         let container = try AccountDataContainer.inMemory().modelContainer
         let cash = try makeAccount(.cash, balance: 10, in: container)
         let bank = try makeAccount(.debitCard, templateID: "debitCard.cmb", balance: 0, in: container)
-        try LocalAccountRepository(container: container).setDefaultAccount(id: bank)
+        try LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny).setDefaultAccount(id: bank)
         let executor = makeExecutor(container)
         func update(_ id: UUID, _ patch: VoiceAccountPatch) -> VoiceToolOutput {
             executor.execute(.updateAccount(id: "c", input: VoiceUpdateAccountInput(
@@ -369,7 +369,7 @@ struct VoiceAccountToolExecutorTests {
         let wallet = try makeAccount(
             .virtualAccount, templateID: "virtualAccount.wechat", name: "微信", balance: 0, isActive: false, in: container
         )
-        let repository = LocalAccountRepository(container: container)
+        let repository = LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny)
         try repository.setDefaultAccount(id: cash)
         let executor = makeExecutor(container)
 
@@ -390,7 +390,7 @@ struct VoiceAccountToolExecutorTests {
         let container = try AccountDataContainer.inMemory().modelContainer
         let cash = try makeAccount(.cash, balance: 100, in: container)
         let bank = try makeAccount(.debitCard, templateID: "debitCard.cmb", balance: 0, in: container)
-        let repository = LocalAccountRepository(container: container)
+        let repository = LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny)
         try repository.setDefaultAccount(id: cash)
         let executor = makeExecutor(container)
 

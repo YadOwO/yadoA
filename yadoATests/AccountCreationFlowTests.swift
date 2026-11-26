@@ -8,7 +8,7 @@ struct AccountCreationFlowTests {
     @Test("有效现金账户只保存一次且成功后才关闭")
     func validCashSavesOnceAndDismissesAfterSuccess() async throws {
         let dataContainer = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         let draft = AccountDraft(
             id: UUID(),
             accountType: .cash,

@@ -15,7 +15,7 @@ struct BackupExportServiceTests {
     /// 构造覆盖启用/停用账户、三类流水与默认偏好的完整夹具。
     private func makeSeededContainer() throws -> (AccountDataContainer, UUID) {
         let container = try AccountDataContainer.inMemory()
-        let accountRepository = LocalAccountRepository(container: container.modelContainer)
+        let accountRepository = LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
         let activeID = UUID()
         let deactivatedID = UUID()
 

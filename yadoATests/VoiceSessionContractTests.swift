@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import yadoA
 
@@ -196,6 +197,7 @@ struct VoiceSessionContractTests {
         )
         let object = try jsonObject(request)
         #expect(object["defaultAccountId"] is NSNull)
+        #expect(object["currency"] as? String == "CNY")
         #expect(object["capabilities"] as? [String] == ["account_tools"])
         let accounts = try #require(object["accounts"] as? [[String: Any]])
         #expect(accounts.map { $0["type"] as? String } == ["virtualAccount", "creditCard"])
@@ -209,6 +211,44 @@ struct VoiceSessionContractTests {
         let created = try #require((events[3]["toolResult"] as? [String: Any])?["output"] as? [String: Any])
         #expect(created["ok"] as? Bool == true)
         #expect(created["id"] as? String == "T2")
+    }
+
+    @Test("请求总是带账本币种，值就是传入的币种")
+    func requestAlwaysEncodesLedgerCurrency() throws {
+        for code in ["CNY", "USD", "JPY"] {
+            let request = VoiceSessionTurnRequest(
+                locale: "en",
+                capabilities: [],
+                now: "2026-10-20T12:30:00-07:00",
+                defaultAccountId: nil,
+                accounts: [],
+                categories: [],
+                events: [.user(text: "lunch 35 dollars", selectedOptionId: nil)],
+                currency: code
+            )
+            let object = try jsonObject(request)
+            #expect(object["currency"] as? String == code)
+        }
+    }
+
+    @Test("会话上下文带账本币种，币种不同的账户不能记账")
+    func sessionContextCarriesLedgerCurrency() throws {
+        let container = try AccountDataContainer.inMemory().modelContainer
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        let earliest = makeAccount(name: "美元账户", currency: "USD", createdAt: 1_000)
+        let later = makeAccount(name: "人民币账户", currency: "CNY", createdAt: 2_000)
+        context.insert(earliest)
+        context.insert(later)
+        try context.save()
+
+        let sessionContext = VoiceSessionContext.make(container: container, locale: Locale(identifier: "zh-Hans"))
+
+        // 账本币种取最早建的账户：USD；人民币账户和账本币种不一致，不能记账
+        #expect(sessionContext.currencyCode == "USD")
+        let options = Dictionary(uniqueKeysWithValues: sessionContext.accounts.map { ($0.id, $0.isActive) })
+        #expect(options[earliest.id.uuidString] == true)
+        #expect(options[later.id.uuidString] == false)
     }
 
     @Test("带图片的一句话编码为 user 事件和 images")
@@ -468,6 +508,22 @@ struct VoiceSessionContractTests {
         #expect(!AuthStore.isRevokedTokenResponse(statusCode: 400, body: Data(#"{"error":"invalid_request"}"#.utf8)))
         #expect(!AuthStore.isRevokedTokenResponse(statusCode: 500, body: Data(#"{"error":"invalid_grant"}"#.utf8)))
         #expect(!AuthStore.isRevokedTokenResponse(statusCode: 400, body: nil))
+    }
+
+    /// 只带币种和创建时间的现金账户。
+    private func makeAccount(name: String, currency: String, createdAt: TimeInterval) -> Account {
+        Account(
+            id: UUID(),
+            typeRawValue: AccountType.cash.rawValue,
+            templateID: nil,
+            name: name,
+            note: nil,
+            lastFourDigits: nil,
+            balance: 0,
+            currencyCode: currency,
+            createdAt: Date(timeIntervalSince1970: createdAt),
+            updatedAt: Date(timeIntervalSince1970: createdAt)
+        )
     }
 
     /// 编码为 JSON 对象，便于检查字段是否出现、是否为 null。

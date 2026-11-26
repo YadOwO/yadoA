@@ -476,7 +476,7 @@ struct RecurringRuleTests {
         try LocalDataResetService(container: fixture.container).eraseAll()
         #expect(try ModelContext(fixture.container).fetchCount(FetchDescriptor<RecurringRule>()) == 0)
 
-        let service = BackupImportService(container: fixture.container)
+        let service = BackupImportService(container: fixture.container, defaults: LedgerTestDefaults.cny)
         try service.restore(try service.prepare(from: encoded))
 
         #expect(try fixture.rule(ruleID).nextDueDay == 20261201)

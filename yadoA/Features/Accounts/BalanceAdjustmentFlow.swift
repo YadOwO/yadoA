@@ -73,7 +73,7 @@ final class BalanceAdjustmentFlow: ObservableObject {
     ///   - fractionDigits: 允许的小数位数，取 `BookkeepingCurrency.inputFractionDigits(for:)`；默认是存储精度两位。
     func updateAmountText(_ amountText: String, decimalSeparator: String, fractionDigits: Int = 2) {
         guard !isSaving,
-              let normalizedText = AccountAmountParser.normalizedCNYAmountText(
+              let normalizedText = AccountAmountParser.normalizedLiveAmountText(
                   amountText,
                   decimalSeparator: decimalSeparator,
                   fractionDigits: fractionDigits

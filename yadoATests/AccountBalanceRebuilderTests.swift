@@ -135,7 +135,7 @@ struct AccountBalanceRebuilderTests {
         amountText: String,
         in container: ModelContainer
     ) throws {
-        try LocalAccountRepository(container: container).save(
+        try LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny).save(
             AccountDraft(
                 id: id,
                 accountType: accountType,

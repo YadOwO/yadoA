@@ -11,6 +11,8 @@ struct OnboardingStoreTests {
         let suiteName = "OnboardingStoreTests.\(name)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defaults.removePersistentDomain(forName: suiteName)
+        // 账本为空时账本币种取决于模拟器地区；先存好 CNY，用例才不受地区影响
+        defaults.set("CNY", forKey: BookkeepingCurrency.storageKey)
         return defaults
     }
 
@@ -130,7 +132,7 @@ struct OnboardingStoreTests {
 
         try store.commit(container: container, locale: Locale(identifier: "en_US"))
 
-        let repository = LocalAccountRepository(container: container)
+        let repository = LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny)
         let accounts = try repository.accounts()
         #expect(accounts.count == 3)
         let wechat = try #require(accounts.first { $0.templateID == "virtualAccount.wechat" })
@@ -157,7 +159,7 @@ struct OnboardingStoreTests {
             try store.commit(container: container, locale: Locale(identifier: "en_US"))
         }
 
-        #expect(try LocalAccountRepository(container: container).accounts().isEmpty)
+        #expect(try LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny).accounts().isEmpty)
         #expect(defaults.string(forKey: AppStartPage.storageKey) == nil)
         #expect(!OnboardingStore.isCompleted(in: defaults))
         #expect(!store.isCommitted)
@@ -174,7 +176,7 @@ struct OnboardingStoreTests {
 
         try store.commit(container: container, locale: Locale(identifier: "en_US"))
 
-        #expect(try LocalAccountRepository(container: container).accounts().isEmpty)
+        #expect(try LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny).accounts().isEmpty)
         #expect(OnboardingStore.isCompleted(in: defaults))
     }
 
@@ -187,7 +189,7 @@ struct OnboardingStoreTests {
 
         try store.commit(container: container, locale: Locale(identifier: "en_US"))
 
-        #expect(try LocalAccountRepository(container: container).accounts().isEmpty)
+        #expect(try LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny).accounts().isEmpty)
         #expect(!OnboardingStore.isCompleted(in: defaults))
     }
 
@@ -213,6 +215,101 @@ struct OnboardingStoreTests {
 
         #expect(items.map(\.text) == ["账本：已开启云同步", "芽豆账号：小豆", "打开先看：账户", "账户：微信和现金"])
         #expect(items.map(\.step) == [.account, .account, .startPage, .accounts])
+    }
+
+    @Test("草稿选了币种：写入时账户按它建，本机存的值也跟着改")
+    func commitCreatesAccountsInDraftCurrency() throws {
+        let defaults = try makeDefaults("commitUSD")
+        let container = try AccountDataContainer.inMemory().modelContainer
+        let store = OnboardingStore(defaults: defaults)
+        store.draft.currencyCode = "USD"
+        store.draft.accounts = [.cash, .wechat]
+        store.draft.balances = [OnboardingAccountOption.wechat.rawValue: "12.5"]
+
+        try store.commit(container: container, locale: Locale(identifier: "en_US"))
+
+        let context = container.makeManualSaveContext()
+        let accounts = try context.fetch(FetchDescriptor<Account>())
+        #expect(accounts.count == 2)
+        #expect(accounts.allSatisfy { $0.currencyCode == "USD" })
+        #expect(accounts.first { $0.templateID == "virtualAccount.wechat" }?.balance == Decimal(string: "12.5"))
+        #expect(defaults.string(forKey: BookkeepingCurrency.storageKey) == "USD")
+        #expect(try BookkeepingCurrency.current(in: context, defaults: defaults) == "USD")
+    }
+
+    @Test("草稿选了没有小数的币种：余额带小数时拒绝写入，存的值和账户都不变")
+    func commitRejectsDecimalBalanceForZeroDigitCurrency() throws {
+        let defaults = try makeDefaults("commitJPYDecimal")
+        let container = try AccountDataContainer.inMemory().modelContainer
+        let store = OnboardingStore(defaults: defaults)
+        store.draft.currencyCode = "JPY"
+        store.draft.accounts = [.cash]
+        store.draft.balances = [OnboardingAccountOption.cash.rawValue: "100.5"]
+
+        #expect(throws: AccountValidationError.invalidAmount) {
+            try store.commit(container: container, locale: Locale(identifier: "en_US"))
+        }
+
+        #expect(try container.makeManualSaveContext().fetchCount(FetchDescriptor<Account>()) == 0)
+        // 存的值恢复成写入前的样子
+        #expect(defaults.string(forKey: BookkeepingCurrency.storageKey) == "CNY")
+        #expect(!store.isCommitted)
+    }
+
+    @Test("本机已有账户时不写币种：账本币种以已有账户为准")
+    func commitKeepsLedgerCurrencyWhenAccountsExist() throws {
+        let defaults = try makeDefaults("commitExisting")
+        let container = try AccountDataContainer.inMemory().modelContainer
+        try LocalAccountRepository(container: container, defaults: defaults).save(
+            AccountDraft(id: UUID(), accountType: .cash, name: "已有现金", amountText: "1"),
+            locale: Locale(identifier: "en_US")
+        )
+        let store = OnboardingStore(defaults: defaults)
+        store.draft.currencyCode = "USD"
+        store.draft.accounts = [.wechat]
+
+        try store.commit(container: container, locale: Locale(identifier: "en_US"))
+
+        let accounts = try container.makeManualSaveContext().fetch(FetchDescriptor<Account>())
+        #expect(accounts.count == 2)
+        #expect(accounts.allSatisfy { $0.currencyCode == "CNY" })
+        #expect(defaults.string(forKey: BookkeepingCurrency.storageKey) == "CNY")
+    }
+
+    @Test("云端已有账户时不写币种")
+    func commitKeepsStoredCurrencyWhenCloudHasAccounts() throws {
+        let defaults = try makeDefaults("commitCloudCurrency")
+        let container = try AccountDataContainer.inMemory().modelContainer
+        let store = OnboardingStore(defaults: defaults)
+        store.draft.syncChoice = .cloud
+        store.draft.hasCloudAccounts = true
+        store.draft.currencyCode = "USD"
+
+        try store.commit(container: container, locale: Locale(identifier: "en_US"))
+
+        #expect(defaults.string(forKey: BookkeepingCurrency.storageKey) == "CNY")
+    }
+
+    @Test("重看引导不写币种")
+    func replayCommitDoesNotWriteCurrency() throws {
+        let defaults = try makeDefaults("replayCurrency")
+        let container = try AccountDataContainer.inMemory().modelContainer
+        let store = OnboardingStore(mode: .replay, defaults: defaults)
+        store.draft.currencyCode = "USD"
+        store.draft.accounts = [.cash]
+
+        try store.commit(container: container, locale: Locale(identifier: "en_US"))
+
+        #expect(try container.makeManualSaveContext().fetchCount(FetchDescriptor<Account>()) == 0)
+        #expect(defaults.string(forKey: BookkeepingCurrency.storageKey) == "CNY")
+    }
+
+    @Test("旧进度里没有币种字段时能解码，币种为空")
+    func oldProgressWithoutCurrencyStillDecodes() throws {
+        let json = #"{"step":"accounts","draft":{"accounts":["cash"],"balances":{},"hasAnsweredAccounts":false,"hasCloudAccounts":false},"answered":[]}"#
+        let progress = try JSONDecoder().decode(OnboardingProgress.self, from: Data(json.utf8))
+        #expect(progress.draft.currencyCode == nil)
+        #expect(progress.draft.accounts == [.cash])
     }
 
     @Test("演示的结果提示与语音记账同一套文案")

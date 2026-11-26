@@ -9,7 +9,7 @@ struct DefaultBookkeepingAccountPersistenceTests {
     @Test("首个合格账户自动成为默认，非合格账户不会抢占默认")
     func firstEligibleAccountBecomesDefault() throws {
         let container = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: container.modelContainer)
+        let repository = LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
 
         try repository.save(
             AccountDraft(
@@ -46,7 +46,7 @@ struct DefaultBookkeepingAccountPersistenceTests {
     @Test("手动切换只接受启用合格账户，失败不改变旧默认")
     func switchingDefaultValidatesCandidate() throws {
         let container = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: container.modelContainer)
+        let repository = LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
         let cashID = UUID()
         let investmentID = UUID()
 
@@ -74,7 +74,7 @@ struct DefaultBookkeepingAccountPersistenceTests {
     @Test("默认账户接替与停用在同一次保存中完成")
     func deactivationReplacesDefaultAtomically() throws {
         let container = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: container.modelContainer)
+        let repository = LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
         let accountID = UUID()
         let replacementID = UUID()
 
@@ -109,7 +109,7 @@ struct DefaultBookkeepingAccountPersistenceTests {
     @Test("处置确认期间出现新候选时要求刷新确认")
     func disposalRejectsStaleNoDefaultConfirmation() throws {
         let container = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: container.modelContainer)
+        let repository = LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
         let accountID = UUID()
 
         try repository.save(
@@ -147,7 +147,7 @@ struct DefaultBookkeepingAccountPersistenceTests {
     @Test("有流水账户不能永久删除，非零余额不能停用")
     func lifecycleGuardsHistoryAndBalance() throws {
         let container = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: container.modelContainer)
+        let repository = LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
         let accountID = UUID()
 
         try repository.save(
@@ -203,16 +203,16 @@ struct DefaultBookkeepingAccountPersistenceTests {
         context.insert(BookkeepingPreference(defaultAccountID: nil))
         try context.save()
 
-        try LocalAccountRepository(container: container.modelContainer).restore(id: accountID)
+        try LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny).restore(id: accountID)
 
         #expect(try accountByID(accountID, in: container.modelContainer)?.isActive == true)
-        #expect(try LocalAccountRepository(container: container.modelContainer).defaultResolution() == .valid(accountID))
+        #expect(try LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny).defaultResolution() == .valid(accountID))
     }
 
     @Test("保存失败会回滚账户状态与默认接替")
     func failedLifecycleSaveRollsBackEverything() throws {
         let container = try AccountDataContainer.inMemory()
-        let seed = LocalAccountRepository(container: container.modelContainer)
+        let seed = LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
         let accountID = UUID()
         let replacementID = UUID()
         try seed.save(AccountDraft(id: accountID, accountType: .cash, name: "现金", amountText: "0"))
@@ -220,7 +220,8 @@ struct DefaultBookkeepingAccountPersistenceTests {
 
         let repository = LocalAccountRepository(
             container: container.modelContainer,
-            beforeSave: { throw InjectedLifecycleSaveFailure() }
+            beforeSave: { throw InjectedLifecycleSaveFailure() },
+            defaults: LedgerTestDefaults.cny
         )
         let expectation = AccountDisposalExpectation(
             accountID: accountID,

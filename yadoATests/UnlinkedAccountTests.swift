@@ -98,7 +98,7 @@ struct UnlinkedAccountTests {
     @Test("选择框点不关联账户时只建一次")
     func ensureUnlinkedAccountIsIdempotent() throws {
         let dataContainer = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
 
         #expect(try repository.ensureUnlinkedAccount(locale: Locale(identifier: "zh-Hans")) == Account.unlinkedID)
         #expect(try repository.ensureUnlinkedAccount() == Account.unlinkedID)
@@ -111,7 +111,7 @@ struct UnlinkedAccountTests {
     @Test("只有不关联账户时仍自动建现金账户，且不关联账户不能当默认")
     func starterCashIgnoresUnlinkedAccount() throws {
         let dataContainer = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         try repository.ensureUnlinkedAccount()
 
         let starterID = try #require(try repository.createStarterAccountIfNeeded())
@@ -125,7 +125,7 @@ struct UnlinkedAccountTests {
     @Test("不关联账户不能改名、停用或删除")
     func unlinkedAccountRejectsAccountOperations() throws {
         let dataContainer = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         try repository.ensureUnlinkedAccount()
         let unlinked = try #require(try repository.account(id: Account.unlinkedID))
 
@@ -239,7 +239,7 @@ struct UnlinkedAccountTests {
     /// 保存一个现金账户并返回它的 UUID。
     private func saveCash(amountText: String, in container: ModelContainer) throws -> UUID {
         let draft = AccountDraft(accountType: .cash, name: "现金", amountText: amountText)
-        try LocalAccountRepository(container: container).save(draft, locale: Locale(identifier: "en_US"))
+        try LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny).save(draft, locale: Locale(identifier: "en_US"))
         return draft.id
     }
 

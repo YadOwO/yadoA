@@ -203,14 +203,16 @@ struct DiningExpensePersistenceTests {
         )
     }
 
-    @Test("未知账户类型与非 CNY 账户不会被猜测处理")
+    @Test("未知账户类型与币种和账本币种不一致的账户不会被猜测处理")
     func unsupportedAccountMetadataIsRejected() throws {
         let dataContainer = try AccountDataContainer.inMemory()
         let context = ModelContext(dataContainer.modelContainer)
         context.autosaveEnabled = false
+        // 账本币种取最早建的账户的币种：未知类型的 CNY 账户建得更早，USD 账户才是币种不一致的那个
         let unknownTypeAccount = makePersistedAccount(
             id: UUID(),
-            typeRawValue: "futureAccountType"
+            typeRawValue: "futureAccountType",
+            createdAt: Date(timeIntervalSince1970: 1_786_000_000)
         )
         let foreignCurrencyAccount = makePersistedAccount(
             id: UUID(),
@@ -563,7 +565,7 @@ struct DiningExpensePersistenceTests {
         timestamp: Date = Date(timeIntervalSince1970: 1_786_608_000),
         in container: ModelContainer
     ) throws {
-        let repository = LocalAccountRepository(container: container)
+        let repository = LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny)
         try repository.save(
             AccountDraft(
                 id: id,
@@ -586,7 +588,8 @@ struct DiningExpensePersistenceTests {
     private func makePersistedAccount(
         id: UUID,
         typeRawValue: String,
-        currencyCode: String = "CNY"
+        currencyCode: String = "CNY",
+        createdAt: Date = Date(timeIntervalSince1970: 1_786_608_000)
     ) -> Account {
         Account(
             id: id,
@@ -597,7 +600,7 @@ struct DiningExpensePersistenceTests {
             lastFourDigits: nil,
             balance: 40,
             currencyCode: currencyCode,
-            createdAt: Date(timeIntervalSince1970: 1_786_608_000),
+            createdAt: createdAt,
             updatedAt: Date(timeIntervalSince1970: 1_786_608_000)
         )
     }

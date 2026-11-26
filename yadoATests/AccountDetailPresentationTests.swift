@@ -113,12 +113,12 @@ struct AccountDetailPresentationTests {
 
         do {
             let dataContainer = try AccountDataContainer.fileBacked(storeURL: storeURL)
-            let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+            let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
             try repository.save(draft, locale: Locale(identifier: "en_US"))
         }
 
         let reopened = try AccountDataContainer.fileBacked(storeURL: storeURL)
-        let reopenedRepository = LocalAccountRepository(container: reopened.modelContainer)
+        let reopenedRepository = LocalAccountRepository(container: reopened.modelContainer, defaults: LedgerTestDefaults.cny)
         let accounts = try reopenedRepository.accounts()
         let restored = try #require(
             AccountDetailPresentationFactory.account(id: id, in: accounts)
@@ -142,7 +142,7 @@ struct AccountDetailPresentationTests {
         let dataContainer = try AccountDataContainer.inMemory()
         let accountID = UUID()
         let transactionID = UUID()
-        let accountRepository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let accountRepository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         try accountRepository.save(
             AccountDraft(
                 id: accountID,
