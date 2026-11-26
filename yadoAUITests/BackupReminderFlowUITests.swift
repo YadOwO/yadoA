@@ -39,10 +39,11 @@ final class BackupReminderFlowUITests: XCTestCase {
         XCTAssertTrue(backup.exists)
         backup.tap()
 
-        // 和导出入口共用同一个确认弹窗
-        let confirm = app.alerts.buttons["account-management-export-confirm"]
+        // 和导出入口共用同一个确认弹窗。
+        // iOS 26/27 的系统弹窗会把同一个标识同时挂在外层和里面的按钮上，直接查询会命中两个元素，tap() 抛 Multiple matching elements，所以用 firstMatch
+        let confirm = app.alerts.buttons["account-management-export-confirm"].firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
-        let cancel = app.alerts.buttons["account-management-export-cancel"]
+        let cancel = app.alerts.buttons["account-management-export-cancel"].firstMatch
         XCTAssertTrue(cancel.exists)
         cancel.tap()
 
