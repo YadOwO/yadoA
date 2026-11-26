@@ -57,36 +57,55 @@ struct AIPointsPurchaseSection: View {
 
     // MARK: - 商品
 
-    /// 一个商品：左边点数和角标（订阅再加周期），右边价格按钮；购买中按钮转圈，其他商品的按钮暂时不能点。
+    /// 一个商品：左边点数和标签（订阅再加周期，活动再加结束时间），右边价格按钮；购买中按钮转圈，其他商品的按钮暂时不能点。
+    ///
+    /// 标签有活动（新人专享、限时多送）时优先显示活动标签，没有活动时才显示角标；没有活动的商品和以前完全一样。
+    /// 新人包整行突出：换成礼物图标，并铺一层浅浅的强调色底。
     ///
     /// - Parameters:
     ///   - offer: 商品。
     ///   - shop: 点数充值。
     private func offerRow(_ offer: AIPointsShop.Offer, shop: AIPointsShop) -> some View {
         let isPurchasing = shop.purchasingProductID == offer.id
+        let item = offer.item
+        let tag = tagText(item)
+        let titleText = titlePointsText(item)
+        // 朗读：点数（含多送）、活动标签（有活动时）、价格；没有活动时和以前一样只读点数和价格
+        var spokenParts = [titleText]
+        if hasPromotionTag(item), let tag {
+            spokenParts.append(tag)
+        }
+        spokenParts.append(offer.product.displayPrice)
         return HStack(spacing: 14) {
-            Image(systemName: "sparkles")
+            Image(systemName: item.isStarter ? "gift.fill" : "sparkles")
                 .font(.system(size: 19))
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 28)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Text(pointsText(offer.item.points))
-                        .font(.body.weight(.medium))
-                        .monospacedDigit()
-                    if let badge = offer.item.badge {
-                        Text(text(badge.titleKey))
-                            .font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 2)
-                            .foregroundStyle(Color.accentColor)
-                            .background(Color.accentColor.opacity(0.12), in: Capsule())
+                if hasPromotionTag(item), let tag {
+                    // 点数文字加上多送点数和标签可能一行放不下，放不下时标签换到点数下面
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 8) {
+                            pointsTitle(titleText)
+                            tagCapsule(tag)
+                        }
+                        VStack(alignment: .leading, spacing: 4) {
+                            pointsTitle(titleText)
+                            tagCapsule(tag)
+                        }
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        pointsTitle(titleText)
+                        if let tag {
+                            tagCapsule(tag)
+                        }
                     }
                 }
-                if let periodText = periodText(offer.product) {
-                    Text(periodText)
+                if let detailText = promotionDetailText(item) ?? periodText(offer.product) {
+                    Text(detailText)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -113,12 +132,21 @@ struct AIPointsPurchaseSection: View {
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.capsule)
             .disabled(shop.purchasingProductID != nil)
-            .accessibilityLabel(Text(verbatim: "\(pointsText(offer.item.points)), \(offer.product.displayPrice)"))
+            .accessibilityLabel(Text(verbatim: spokenParts.joined(separator: ", ")))
             .accessibilityHint(text("ai.store.purchase.hint"))
             .accessibilityIdentifier("ai-points-store-buy-\(offer.item.points)")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+        .background {
+            if item.isStarter {
+                // 用语义色的浅底，浅色和深色外观都正常；四周留一点边，不压住卡片的手绘边框
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.08))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+            }
+        }
     }
 
     /// 点数文本，例如“300 点”。
@@ -126,6 +154,90 @@ struct AIPointsPurchaseSection: View {
     /// - Parameter points: 点数。
     private func pointsText(_ points: Int) -> String {
         AccountLocalization.formatted("ai.store.points", value: points.formatted(.number.locale(locale)), locale: locale)
+    }
+
+    /// 商品标题里的点数文本：限时多送那一档在基础点数后面接上多送点数，例如“180 点 + 送 40”；其余只有基础点数。
+    ///
+    /// - Parameter item: 服务端的商品信息。
+    private func titlePointsText(_ item: AIStoreItem) -> String {
+        guard let bonusPoints = item.activeBonusPoints else { return pointsText(item.points) }
+        let bonusText = AccountLocalization.formatted(
+            "ai.store.promotion.bonusPoints",
+            value: bonusPoints.formatted(.number.locale(locale)),
+            locale: locale
+        )
+        return "\(pointsText(item.points)) \(bonusText)"
+    }
+
+    /// 商品是否带活动标签：新人包，或者有多送点数的限时多送档；活动类型不认识或没有多送点数时按普通商品。
+    ///
+    /// - Parameter item: 服务端的商品信息。
+    private func hasPromotionTag(_ item: AIStoreItem) -> Bool {
+        item.isStarter || item.activeBonusPoints != nil
+    }
+
+    /// 商品的标签文字：有活动时优先显示活动标签，没有活动时才显示角标；都没有为 nil。
+    ///
+    /// - Parameter item: 服务端的商品信息。
+    private func tagText(_ item: AIStoreItem) -> String? {
+        if item.isStarter {
+            return text("ai.store.promotion.starter")
+        }
+        if item.activeBonusPoints != nil {
+            return text("ai.store.promotion.bonus")
+        }
+        return item.badge.map { text($0.titleKey) }
+    }
+
+    /// 活动的副行文字：新人包是资格还剩几天（按此刻算，不足一天按 1 天），限时多送是结束日期；没有活动或没有结束时间为 nil。
+    ///
+    /// - Parameter item: 服务端的商品信息。
+    private func promotionDetailText(_ item: AIStoreItem) -> String? {
+        guard let endsAt = item.promotionEndsAt else { return nil }
+        if item.isStarter {
+            guard let days = AIPointsShop.starterDaysLeft(endsAt: endsAt, now: Date()) else { return nil }
+            return AccountLocalization.formatted(
+                "ai.store.promotion.daysLeft",
+                value: days.formatted(.number.locale(locale)),
+                locale: locale
+            )
+        }
+        if item.activeBonusPoints != nil {
+            return AccountLocalization.formatted("ai.store.promotion.endsOn", value: endDateText(endsAt), locale: locale)
+        }
+        return nil
+    }
+
+    /// 限时多送的结束日期，取用户本地时区的月日，例如“11/30”。
+    ///
+    /// - Parameter date: 活动结束的时刻。
+    private func endDateText(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = .current
+        formatter.setLocalizedDateFormatFromTemplate("Md")
+        return formatter.string(from: date)
+    }
+
+    /// 标题里的点数文字。
+    ///
+    /// - Parameter content: 已经格式化好的点数文本。
+    private func pointsTitle(_ content: String) -> some View {
+        Text(content)
+            .font(.body.weight(.medium))
+            .monospacedDigit()
+    }
+
+    /// 点数旁边的胶囊标签：活动标签和角标共用同一个样式。
+    ///
+    /// - Parameter content: 标签文字。
+    private func tagCapsule(_ content: String) -> some View {
+        Text(content)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .foregroundStyle(Color.accentColor)
+            .background(Color.accentColor.opacity(0.12), in: Capsule())
     }
 
     /// 订阅的周期文本，例如“每 1个月”；不是订阅时为 nil。

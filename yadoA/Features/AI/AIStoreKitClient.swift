@@ -125,6 +125,11 @@ protocol AIStoreKitProviding: AnyObject {
     /// - Parameter handler: 收到一笔通过本机校验的交易时调用。
     /// - Returns: 监听任务。
     func observeTransactionUpdates(_ handler: @escaping @MainActor (AIStoreTransaction) async -> Void) -> Task<Void, Never>
+
+    /// StoreKit 当前 Storefront 的国家代码（ISO 3166-1 三位字母码），取不到时为 nil。
+    ///
+    /// - Returns: 例如 `CHN`、`USA`；服务端据此只给对应地区的限时活动。
+    func storefrontCountryCode() async -> String?
 }
 
 /// 基于 StoreKit 2 的实现。
@@ -179,6 +184,10 @@ final class AIStoreKitClient: AIStoreKitProviding {
                 }
             }
         }
+    }
+
+    func storefrontCountryCode() async -> String? {
+        await Storefront.current?.countryCode
     }
 
     /// 把 StoreKit 的商品转成界面用的商品。

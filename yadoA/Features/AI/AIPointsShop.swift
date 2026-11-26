@@ -57,7 +57,7 @@ final class AIPointsShop {
         }
     }
 
-    /// 可以买的商品，按服务端的顺序；未登录、没开放购买或还没加载时为空。
+    /// 可以买的商品，按服务端的顺序，新人包（有的话）排在最前；未登录、没开放购买或还没加载时为空。
     private(set) var offers: [Offer] = []
 
     /// 点数价值的折算依据；未登录、没开放购买、后端没给锚点、StoreKit 查不到锚点商品或还没加载时为 nil。
@@ -142,6 +142,11 @@ final class AIPointsShop {
         offers.contains { $0.product.isSubscription }
     }
 
+    /// 当前账号可以买的新人包；没有资格、没开放购买或还没加载时为 nil。
+    var starterOffer: Offer? {
+        offers.first { $0.item.isStarter }
+    }
+
     // MARK: - 生命周期
 
     /// 开始监听交易更新（询问购买获批、银行验证完成、订阅续订等），App 启动时调用一次，重复调用无效。
@@ -175,7 +180,9 @@ final class AIPointsShop {
         isLoading = true
         defer { isLoading = false }
         do {
-            let catalog = try await api.fetchStoreCatalog()
+            // 商店地区只用来让服务端过滤限时活动；取不到时不带，服务端按不限地区处理
+            let storefront = await storeKit.storefrontCountryCode()
+            let catalog = try await api.fetchStoreCatalog(storefront: storefront)
             var products: [AIStoreProduct] = []
             if catalog.isEnabled, catalog.appAccountToken != nil {
                 products = try await storeKit.products(for: catalog.items.map(\.productID))
@@ -278,7 +285,7 @@ final class AIPointsShop {
         ownerUserID = nil
     }
 
-    /// 按服务端的顺序，留下 StoreKit 也查得到的商品。
+    /// 按服务端的顺序，留下 StoreKit 也查得到的商品；新人包挪到最前面，其余保持服务端顺序。
     ///
     /// - Parameters:
     ///   - items: 服务端列出的商品。
@@ -286,9 +293,23 @@ final class AIPointsShop {
     /// - Returns: 界面上展示的商品。
     static func offers(items: [AIStoreItem], products: [AIStoreProduct]) -> [Offer] {
         let productsByID = Dictionary(products.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        return items.compactMap { item in
+        let available = items.compactMap { item in
             productsByID[item.productID].map { Offer(item: item, product: $0) }
         }
+        // 稳定排序：先新人包，再其他
+        return available.filter { $0.item.isStarter } + available.filter { !$0.item.isStarter }
+    }
+
+    /// 新人包资格还剩几天：不足一天按 1 天算。
+    ///
+    /// - Parameters:
+    ///   - endsAt: 资格到期的时刻。
+    ///   - now: 当前时间。
+    /// - Returns: 剩余天数（向上取整，最小为 1）；已经到期时为 nil。
+    static func starterDaysLeft(endsAt: Date, now: Date) -> Int? {
+        let remaining = endsAt.timeIntervalSince(now)
+        guard remaining > 0 else { return nil }
+        return max(Int((remaining / 86_400).rounded(.up)), 1)
     }
 
     /// 找出点数价值的折算依据：服务端指定的锚点商品，要在商品列表和 StoreKit 结果里都找得到。

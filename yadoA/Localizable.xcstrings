@@ -16500,6 +16500,30 @@
         }
       }
     },
+    "voice.failure.insufficientPoints.starterHint" : {
+      "comment" : "语音记账因 AI 点数不足失败时，卡片里多一句引导：账号有新人专享点数包，可以去点数页购买；只是文字，不是按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have a new user points pack. Get it on the AI Points page."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你有一份新人专享点数包，可以去「AI 点数」页购买。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你有一份新人專享點數包，可以到「AI 點數」頁購買。"
+          }
+        }
+      }
+    },
     "voice.failure.turnInvalid" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -24413,6 +24437,126 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "每 %@"
+          }
+        }
+      }
+    },
+    "ai.store.promotion.starter" : {
+      "comment" : "点数包活动标签：新人专享（只有有资格的新账号看得到的新人包）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New User Offer"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新人专享"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新人專享"
+          }
+        }
+      }
+    },
+    "ai.store.promotion.bonus" : {
+      "comment" : "点数包活动标签：限时多送（活动期间买这一档多送点数）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limited-Time Bonus"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "限时多送"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "限時加贈"
+          }
+        }
+      }
+    },
+    "ai.store.promotion.bonusPoints" : {
+      "comment" : "限时多送那一档，接在基础点数后面的多送点数，%@ 是多送的点数，例如「180 点 + 送 40」",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+ %@ bonus"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+ 送 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+ 送 %@"
+          }
+        }
+      }
+    },
+    "ai.store.promotion.daysLeft" : {
+      "comment" : "新人包的资格还剩几天，%@ 是天数（不足一天按 1 天算）",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Days left: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还剩 %@ 天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "還剩 %@ 天"
+          }
+        }
+      }
+    },
+    "ai.store.promotion.endsOn" : {
+      "comment" : "限时多送的结束日期，%@ 是用户本地时区的月日，例如 11/30",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ends %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 结束"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 結束"
           }
         }
       }

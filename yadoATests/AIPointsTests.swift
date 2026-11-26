@@ -1242,6 +1242,8 @@ struct AIPointsTests {
             "ai.store.notice.delayed.message", "ai.store.notice.otherAccount.title", "ai.store.notice.otherAccount.message",
             "ai.store.notice.cannotCredit.title", "ai.store.notice.cannotCredit.message",
             "ai.store.notice.failed.title", "ai.store.notice.failed.message",
+            "ai.store.promotion.starter", "ai.store.promotion.bonus", "ai.store.promotion.bonusPoints",
+            "ai.store.promotion.daysLeft", "ai.store.promotion.endsOn", "voice.failure.insufficientPoints.starterHint",
         ]
         for key in storeKeys {
             for locale in [english, simplifiedChinese] {
@@ -1250,15 +1252,21 @@ struct AIPointsTests {
         }
     }
 
-    @Test("充值请求：商品列表带产品代号，上传交易是 POST 并带产品代号和签名交易")
+    @Test("充值请求：商品列表带产品代号和商店地区，上传交易是 POST 并带产品代号和签名交易")
     func buildsStoreRequests() throws {
         let endpoint = try #require(URL(string: "https://example.invalid"))
         let api = AIBillingAPI(endpoint: endpoint) { "token" }
 
-        let catalog = api.makeURLRequest(.storeCatalog, token: "abc")
+        let catalog = api.makeURLRequest(.storeCatalog(storefront: nil), token: "abc")
         #expect(catalog.httpMethod == "GET")
         #expect(catalog.url?.absoluteString == "https://example.invalid/v1/store/catalog?product=yadoa")
         #expect(catalog.httpBody == nil)
+
+        // 取到商店地区时才带上 storefront；空字符串等同于没有
+        let regional = api.makeURLRequest(.storeCatalog(storefront: "CHN"), token: "abc")
+        #expect(regional.url?.absoluteString == "https://example.invalid/v1/store/catalog?product=yadoa&storefront=CHN")
+        let empty = api.makeURLRequest(.storeCatalog(storefront: ""), token: "abc")
+        #expect(empty.url?.absoluteString == "https://example.invalid/v1/store/catalog?product=yadoa")
 
         let purchase = api.makeURLRequest(.submitPurchase(signedTransaction: "jws.payload.sig"), token: "abc")
         #expect(purchase.httpMethod == "POST")
