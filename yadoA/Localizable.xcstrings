@@ -16560,6 +16560,12 @@
             "state" : "translated",
             "value" : "AI 今天有点忙，请稍后再试。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 今天有點忙，請稍後再試。"
+          }
         }
       }
     },
@@ -18613,6 +18619,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "同步空间已满，请联系我们。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步空間已滿，請與我們聯絡。"
           }
         }
       }
