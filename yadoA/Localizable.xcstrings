@@ -5868,7 +5868,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這個帳戶還沒有任何收支紀錄，刪除後無法復原。"
+            "value" : "這個帳戶還沒有任何收支紀錄，刪除後無法還原。"
           }
         }
       }
@@ -6422,7 +6422,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "從備份還原"
+            "value" : "從備份回復"
           }
         }
       }
@@ -6445,7 +6445,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "要還原這份備份嗎？"
+            "value" : "要回復這份備份嗎？"
           }
         }
       }
@@ -6468,7 +6468,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "還原"
+            "value" : "回復"
           }
         }
       }
@@ -6491,7 +6491,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "還原後，現在的帳戶和收支紀錄會被這份備份取代。"
+            "value" : "回復後，現在的帳戶和收支紀錄會被這份備份取代。"
           }
         }
       }
@@ -6537,7 +6537,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "還原完成"
+            "value" : "回復完成"
           }
         }
       }
@@ -6560,7 +6560,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "無法還原備份"
+            "value" : "無法回復備份"
           }
         }
       }
@@ -6629,7 +6629,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這份備份由更新版本的芽豆資產產生，請先更新 App 再還原。"
+            "value" : "這份備份由更新版本的芽豆資產產生，請先更新 App 再回復。"
           }
         }
       }
@@ -6652,7 +6652,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "還原沒有成功，資料沒有變化，請重試。"
+            "value" : "回復沒有成功，資料沒有變化，請重試。"
           }
         }
       }
@@ -6721,7 +6721,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "所有帳戶和收支紀錄都會被刪除，語言、外觀等設定不受影響。\n\n如果後悔了，%1$lld 天內可以在這裡復原；超過 %1$lld 天就找不回了。"
+            "value" : "所有帳戶和收支紀錄都會被刪除，語言、外觀等設定不受影響。\n\n如果後悔了，%1$lld 天內可以在這裡還原；超過 %1$lld 天就找不回了。"
           }
         }
       }
@@ -6813,7 +6813,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "如果還原錯了，%lld 天內可以在「我的 → 資料」裡復原。"
+            "value" : "如果回復錯了，%lld 天內可以在「我的 → 資料」裡還原。"
           }
         }
       }
@@ -6836,7 +6836,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "如果後悔了，%lld 天內點「復原上次清除」就能把資料找回來。"
+            "value" : "如果後悔了，%lld 天內點「還原上次清除」就能把資料找回來。"
           }
         }
       }
@@ -6859,7 +6859,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "復原上次還原"
+            "value" : "還原上次回復"
           }
         }
       }
@@ -6882,7 +6882,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "復原上次清除"
+            "value" : "還原上次清除"
           }
         }
       }
@@ -6905,7 +6905,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@前可以復原"
+            "value" : "%@前可以還原"
           }
         }
       }
@@ -6928,7 +6928,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "要復原上次還原嗎？"
+            "value" : "要還原上次回復嗎？"
           }
         }
       }
@@ -6951,7 +6951,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "要復原上次清除嗎？"
+            "value" : "要還原上次清除嗎？"
           }
         }
       }
@@ -6974,7 +6974,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "帳本會回到還原之前的樣子（帳戶 %1$lld 個，收支紀錄 %2$lld 筆）。\n\n還原之後新記的帳和改動會遺失。"
+            "value" : "帳本會回到上次回復之前的樣子（帳戶 %1$lld 個，收支紀錄 %2$lld 筆）。\n\n回復之後新記的帳和改動會遺失。"
           }
         }
       }
@@ -7020,7 +7020,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "復原"
+            "value" : "還原"
           }
         }
       }
@@ -7043,7 +7043,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已復原"
+            "value" : "已還原"
           }
         }
       }
@@ -7066,7 +7066,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "帳本已經回到還原之前的樣子。"
+            "value" : "帳本已經回到上次回復之前的樣子。"
           }
         }
       }
@@ -7112,7 +7112,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "無法復原"
+            "value" : "無法還原"
           }
         }
       }
@@ -7135,7 +7135,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已經超過 %lld 天，無法復原了。"
+            "value" : "已經超過 %lld 天，無法還原了。"
           }
         }
       }
@@ -7158,7 +7158,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "復原沒有成功，資料沒有變化，請重試。"
+            "value" : "還原沒有成功，資料沒有變化，請重試。"
           }
         }
       }
@@ -9391,7 +9391,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · %2$@ · %3$@\n\n刪除會撤銷這筆紀錄對目前帳戶餘額的影響。此操作無法復原。"
+            "value" : "%1$@ · %2$@ · %3$@\n\n刪除會撤銷這筆紀錄對目前帳戶餘額的影響。此操作無法還原。"
           }
         }
       }
@@ -13006,7 +13006,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "刪除這些收支紀錄，帳戶餘額同步回復"
+            "value" : "刪除這些收支紀錄，帳戶餘額同步回退"
           }
         }
       }
@@ -13121,7 +13121,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "收支紀錄刪除後無法復原，相關帳戶餘額會同步回復。"
+            "value" : "收支紀錄刪除後無法還原，相關帳戶餘額會同步回退。"
           }
         }
       }
@@ -13213,7 +13213,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這個分類下沒有收支紀錄，刪除後無法復原。"
+            "value" : "這個分類下沒有收支紀錄，刪除後無法還原。"
           }
         }
       }
@@ -13259,7 +13259,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "刪除「%@」後，這些收支紀錄會歸到所選分類，無法復原。"
+            "value" : "刪除「%@」後，這些收支紀錄會歸到所選分類，無法還原。"
           }
         }
       }
@@ -15098,7 +15098,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "復原"
+            "value" : "還原"
           }
         }
       }
@@ -15121,7 +15121,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已復原"
+            "value" : "已還原"
           }
         }
       }
@@ -16794,7 +16794,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "復原失敗，資料保持不變。"
+            "value" : "還原失敗，資料保持不變。"
           }
         }
       }
@@ -19360,7 +19360,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "芽豆系列的所有 App 共用這一個芽豆帳號，刪除會影響全部芽豆 App，且無法復原：帳號會被永久刪除，在所有芽豆 App 裡都無法再用它登入；各芽豆 App 同步到雲端的資料都會被永久刪除；剩餘的 AI 點數立即作廢，不能恢復也不能撤回。"
+            "value" : "芽豆系列的所有 App 共用這一個芽豆帳號，刪除會影響全部芽豆 App，且無法還原：帳號會被永久刪除，在所有芽豆 App 裡都無法再用它登入；各芽豆 App 同步到雲端的資料都會被永久刪除；剩餘的 AI 點數立即作廢，不能恢復也不能撤回。"
           }
         }
       }
@@ -20218,7 +20218,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已開啟雲端同步。「僅清除本機」會保留雲端資料並關閉同步；「清除本機和雲端」會同時刪除雲端資料。\n\n如果後悔了，%1$lld 天內可以在這裡復原。"
+            "value" : "已開啟雲端同步。「僅清除本機」會保留雲端資料並關閉同步；「清除本機和雲端」會同時刪除雲端資料。\n\n如果後悔了，%1$lld 天內可以在這裡還原。"
           }
         }
       }
@@ -20241,7 +20241,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已開啟雲端同步，但目前處於離線模式，只能清除本機：雲端資料會保留，同步隨之關閉。\n\n如果後悔了，%1$lld 天內可以在這裡復原。"
+            "value" : "已開啟雲端同步，但目前處於離線模式，只能清除本機：雲端資料會保留，同步隨之關閉。\n\n如果後悔了，%1$lld 天內可以在這裡還原。"
           }
         }
       }
@@ -27064,7 +27064,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "對話紀錄不受影響，其中的結果可能與還原後的帳本不一致。"
+            "value" : "對話紀錄不受影響，其中的結果可能與回復後的帳本不一致。"
           }
         }
       }
