@@ -77,6 +77,8 @@ struct AIPointsView: View {
                         balanceFigure
                             .frame(minHeight: 64)
 
+                        balanceValueLine
+
                         Text(text("ai.points.balance.caption"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -131,6 +133,24 @@ struct AIPointsView: View {
                 .font(.system(size: 52, weight: .semibold, design: .serif))
                 .foregroundStyle(.tertiary)
         }
+    }
+
+    /// 余额数字下面的「约值 ¥X」小字；拿不到价值时整行不放，不留空白。
+    @ViewBuilder
+    private var balanceValueLine: some View {
+        if let balanceValueText {
+            Text(balanceValueText)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+    }
+
+    /// 余额折算出的价值文案；余额为 0、拿不到余额或拿不到价值（没有折算依据）时为 nil。
+    private var balanceValueText: String? {
+        guard let balance = points?.balance, balance > 0,
+              let amount = shop?.pointValue?.amountText(points: balance) else { return nil }
+        return String(format: text("ai.points.balance.value"), locale: locale, amount)
     }
 
     /// 余额下的到期提示：只有一批时是普通文字；有好几批时可以点开到期明细，末尾带箭头。

@@ -411,14 +411,24 @@ struct VoiceSessionContractTests {
         #expect(urlRequest.value(forHTTPHeaderField: AppVersion.headerName) == AppVersion.current)
     }
 
-    @Test("错误状态码映射：429 区分每分钟与每天，402 点数不足，409 轮次失效")
+    @Test("错误状态码映射：429 区分每分钟与每天，402 点数不足，409 轮次失效，503 区分全站总量用完")
     func mapsErrorStatusCodes() {
         let daily = Data(#"{"code":"TOO_MANY_REQUESTS","message":"x","details":{"rule":"per_day"}}"#.utf8)
         let minute = Data(#"{"code":"TOO_MANY_REQUESTS","message":"x","details":{"rule":"per_minute"}}"#.utf8)
+        let concurrent = Data(#"{"code":"TOO_MANY_REQUESTS","message":"x","details":{"rule":"concurrent"}}"#.utf8)
+        let capacityExhausted = Data(#"{"code":"AI_CAPACITY_EXHAUSTED","message":"x"}"#.utf8)
+        let notConfigured = Data(#"{"code":"AI_NOT_CONFIGURED","message":"x"}"#.utf8)
         #expect(VoiceSessionAPI.error(statusCode: 429, body: daily) == .rateLimited(isDaily: true))
         #expect(VoiceSessionAPI.error(statusCode: 429, body: minute) == .rateLimited(isDaily: false))
+        // 并发超限沿用普通限流的映射，只有 per_day 才当作每日用完
+        #expect(VoiceSessionAPI.error(statusCode: 429, body: concurrent) == .rateLimited(isDaily: false))
         #expect(VoiceSessionAPI.error(statusCode: 413, body: Data()) == .sessionTooLong)
+        #expect(VoiceSessionAPI.error(statusCode: 503, body: capacityExhausted) == .capacityExhausted)
+        #expect(VoiceSessionAPI.error(statusCode: 503, body: notConfigured) == .serviceUnavailable)
+        #expect(VoiceSessionAPI.error(statusCode: 503, body: Data()) == .serviceUnavailable)
         #expect(VoiceSessionAPI.error(statusCode: 502, body: Data()) == .serviceUnavailable)
+        // 只有 503 才认全站总量用完的错误码
+        #expect(VoiceSessionAPI.error(statusCode: 502, body: capacityExhausted) == .serviceUnavailable)
         #expect(VoiceSessionAPI.error(statusCode: 401, body: Data()) == .unauthorized)
         #expect(VoiceSessionAPI.error(statusCode: 402, body: Data()) == .insufficientPoints)
         #expect(VoiceSessionAPI.error(statusCode: 409, body: Data()) == .turnInvalid)
@@ -437,6 +447,12 @@ struct VoiceSessionContractTests {
     @Test("上下文的语言与时刻格式")
     func formatsLocaleAndTimestamp() throws {
         #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh-Hans")) == "zh-Hans")
+        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh")) == "zh-Hans")
+        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh-Hans-HK")) == "zh-Hans")
+        // 繁体中文界面（写明繁体，或没写文字但地区默认繁体）在服务端支持 zh-Hant 之前也发 zh-Hans
+        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh-Hant")) == "zh-Hans")
+        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh_TW")) == "zh-Hans")
+        #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "zh-HK")) == "zh-Hans")
         #expect(VoiceSessionContext.localeCode(for: Locale(identifier: "en_US")) == "en")
         let timeZone = try #require(TimeZone(secondsFromGMT: 8 * 3600))
         let date = Date(timeIntervalSince1970: 1_792_470_600) // 2026-10-20T04:30:00Z

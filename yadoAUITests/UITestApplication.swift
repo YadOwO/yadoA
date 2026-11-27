@@ -15,6 +15,22 @@ extension XCTestCase {
         return app
     }
 
+    /// 使用备份提醒夹具启动：隔离内存存储里有 20 笔十天前的流水，没备份过也没暂缓，账户页顶部会出现备份提醒卡片。
+    ///
+    /// 假设模拟器上这个 dev 包没有开启云同步。
+    @MainActor
+    func launchBackupReminderFixtureInEnglish() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "--ui-testing-in-memory",
+            "--ui-testing-backup-reminder-fixture",
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US"
+        ]
+        app.launch()
+        return app
+    }
+
     /// 模拟中国大陆地区启动，需要先同意隐私政策；使用隔离内存存储和固定英文环境。
     ///
     /// 地区靠启动参数模拟，不依赖系统地区。

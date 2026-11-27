@@ -76,12 +76,14 @@ struct SeriesCatalogTests {
         }
     }
 
-    @Test("中文界面取中文版，其他语言取英文版")
+    @Test("中文界面（含繁体）取中文版，其他语言取英文版")
     func localizedValueFollowsAppLanguage() throws {
         let catalog = try JSONDecoder().decode(SeriesCatalog.self, from: Data(Self.catalogJSON.utf8))
         let items = try #require(catalog.otherProducts.first)
         #expect(items.name.value(locale: simplifiedChinese) == "芽豆有物")
         #expect(items.name.value(locale: Locale(identifier: "zh-Hans-CN")) == "芽豆有物")
+        // 服务端只有简体中文内容，繁体界面也取中文版
+        #expect(items.name.value(locale: Locale(identifier: "zh-Hant-TW")) == "芽豆有物")
         #expect(items.name.value(locale: english) == "yado Items")
         #expect(items.name.value(locale: Locale(identifier: "ja")) == "yado Items")
         #expect(items.pageURL?.value(locale: simplifiedChinese).absoluteString == "https://my.yado1225.top/zh/works/yadoi/")

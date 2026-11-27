@@ -1255,7 +1255,7 @@ nonisolated enum VoiceSessionCapability: String, Encodable, Equatable, Sendable 
 
 /// 一次请求：会话上下文与截至目前的全部事件。
 nonisolated struct VoiceSessionTurnRequest: Encodable, Equatable, Sendable {
-    /// 界面语言：`zh-Hans` 或 `en`。
+    /// 界面语言：目前只有 `zh-Hans` 或 `en`（繁体界面暂时发 `zh-Hans`，等服务端支持后再改发 `zh-Hant`），由 `VoiceSessionContext.localeCode(for:)` 换算。
     var locale: String
 
     /// 客户端支持的能力。

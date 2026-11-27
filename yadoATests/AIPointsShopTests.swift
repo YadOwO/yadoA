@@ -11,30 +11,50 @@ struct AIPointsShopTests {
 
     // MARK: - 契约
 
-    @Test("商品列表解码：token 转成 UUID，不认识的角标不显示，没开放购买时为空")
+    @Test("商品列表解码：token 转成 UUID，不认识的角标不显示，没开放购买时为空，带上价值锚点")
     func decodesCatalog() throws {
         let json = """
         {"enabled":true,"appAccountToken":"7f1c2a8e-5b6d-4c3f-9a2b-1e4d5c6b7a89","items":[
-          {"productId":"top.yado1225.yadoA.points_300","kind":"consumable","points":300,"badge":null},
-          {"productId":"top.yado1225.yadoA.points_1000","kind":"consumable","points":1000,"badge":"popular"},
-          {"productId":"top.yado1225.yadoA.points_3000","kind":"consumable","points":3000,"badge":"best_value"},
+          {"productId":"top.yado1225.yadoA.points_s","kind":"consumable","points":60,"badge":null},
+          {"productId":"top.yado1225.yadoA.points_m","kind":"consumable","points":180,"badge":"popular"},
+          {"productId":"top.yado1225.yadoA.points_l","kind":"consumable","points":450,"badge":"best_value"},
           {"productId":"top.yado1225.yadoA.vip_month","kind":"subscription","points":0,"badge":"limited_time"}
-        ]}
+        ],"valueAnchorProductId":"top.yado1225.yadoA.points_s"}
         """
         let catalog = try JSONDecoder().decode(AIStoreCatalog.self, from: Data(json.utf8))
         #expect(catalog.isEnabled)
         #expect(catalog.appAccountToken == Self.token)
-        #expect(catalog.items.map(\.points) == [300, 1000, 3000, 0])
+        #expect(catalog.items.map(\.points) == [60, 180, 450, 0])
         #expect(catalog.items.map(\.badge) == [nil, .popular, .bestValue, nil])
-        #expect(catalog.items[1].id == "top.yado1225.yadoA.points_1000")
+        #expect(catalog.items[1].id == "top.yado1225.yadoA.points_m")
+        #expect(catalog.valueAnchorProductID == "top.yado1225.yadoA.points_s")
 
         let disabled = try JSONDecoder().decode(
             AIStoreCatalog.self,
-            from: Data(#"{"enabled":false,"appAccountToken":null,"items":[]}"#.utf8)
+            from: Data(#"{"enabled":false,"appAccountToken":null,"items":[],"valueAnchorProductId":null}"#.utf8)
         )
         #expect(!disabled.isEnabled)
         #expect(disabled.appAccountToken == nil)
         #expect(disabled.items.isEmpty)
+        #expect(disabled.valueAnchorProductID == nil)
+    }
+
+    @Test("价值锚点解码：旧服务端没有这个字段、值为 null 或空字符串时都当作没有锚点，解码不失败")
+    func decodesMissingValueAnchorAsNil() throws {
+        let legacy = try JSONDecoder().decode(
+            AIStoreCatalog.self,
+            from: Data(
+                #"{"enabled":true,"appAccountToken":"7f1c2a8e-5b6d-4c3f-9a2b-1e4d5c6b7a89","items":[{"productId":"top.yado1225.yadoA.points_s","kind":"consumable","points":60,"badge":null}]}"#.utf8
+            )
+        )
+        #expect(legacy.items.map(\.points) == [60])
+        #expect(legacy.valueAnchorProductID == nil)
+
+        let empty = try JSONDecoder().decode(
+            AIStoreCatalog.self,
+            from: Data(#"{"enabled":true,"appAccountToken":null,"items":[],"valueAnchorProductId":""}"#.utf8)
+        )
+        #expect(empty.valueAnchorProductID == nil)
     }
 
     @Test("上传结果映射：200 解码，409 区分别的账号与已注销账号，400 是拒绝入账，其余按状态码")
@@ -79,7 +99,7 @@ struct AIPointsShopTests {
     func showsOffersAvailableOnBothSides() async {
         let api = FakeStoreAPI()
         let storeKit = FakeStoreKit()
-        storeKit.products = [Self.product("p3000", price: "¥45.00"), Self.product("p300", price: "¥6.00")]
+        storeKit.products = [Self.product("p3000", displayPrice: "¥45.00", price: 45), Self.product("p300", displayPrice: "¥6.00")]
         api.catalogResults = [.success(Self.catalog(["p300", "p1000", "p3000"]))]
         let shop = AIPointsShop(api: api, storeKit: storeKit, currentUserID: { "user-1" })
 
@@ -252,7 +272,15 @@ struct AIPointsShopTests {
         let storeKit = FakeStoreKit()
         storeKit.products = [
             Self.product("p300"),
-            AIStoreProduct(id: "vip", displayName: "会员", displayPrice: "¥18.00", subscriptionPeriod: (unit: .month, value: 1)),
+            AIStoreProduct(
+                id: "vip",
+                displayName: "会员",
+                displayPrice: "¥18.00",
+                price: 18,
+                currencyCode: "CNY",
+                priceLocale: Locale(identifier: "zh_CN"),
+                subscriptionPeriod: (unit: .month, value: 1)
+            ),
         ]
         api.catalogResults = [.success(Self.catalog(["p300", "vip"]))]
         let shop = AIPointsShop(api: api, storeKit: storeKit, currentUserID: { "user-1" })
@@ -261,16 +289,192 @@ struct AIPointsShopTests {
         #expect(shop.hasSubscriptions)
     }
 
-    // MARK: - 测试数据
+    // MARK: - 点数价值
 
-    /// 在售商品列表，每个商品 300 点。
-    static func catalog(_ ids: [String]) -> AIStoreCatalog {
-        AIStoreCatalog(isEnabled: true, appAccountToken: token, items: ids.map { AIStoreItem(productID: $0, points: 300) })
+    @Test("锚点商品在 StoreKit 里查得到：按它的价格折算，12 点 = ¥1.20，点数不大于 0 不折算")
+    func computesPointValueFromAnchor() async throws {
+        let api = FakeStoreAPI()
+        let storeKit = FakeStoreKit()
+        storeKit.products = [Self.product("p60"), Self.product("p180", displayPrice: "¥18.00", price: 18)]
+        api.catalogResults = [.success(Self.catalog(["p60", "p180"], points: 60, anchor: "p60"))]
+        let shop = AIPointsShop(api: api, storeKit: storeKit, currentUserID: { "user-1" })
+        #expect(shop.pointValue == nil)
+
+        await shop.refresh()
+        let value = try #require(shop.pointValue)
+        // 和自己格式化的结果比，不写死字符串，避免不同系统的格式差异
+        let expected = Decimal(string: "1.2")!.formatted(Decimal.FormatStyle.Currency(code: "CNY", locale: Locale(identifier: "zh_CN")))
+        #expect(value.amountText(points: 12) == expected)
+        #expect(value.amountText(points: 60) == Decimal(6).formatted(Decimal.FormatStyle.Currency(code: "CNY", locale: Locale(identifier: "zh_CN"))))
+        #expect(value.amountText(points: 0) == nil)
+        #expect(value.amountText(points: -5) == nil)
     }
 
-    /// StoreKit 商品。
-    static func product(_ id: String, price: String = "¥6.00") -> AIStoreProduct {
-        AIStoreProduct(id: id, displayName: id, displayPrice: price)
+    @Test("美区价格折算：US$0.99 对 60 点，12 点是 $0.20；先乘后除，不先取整每点价格")
+    func formatsDollarValue() throws {
+        let item = AIStoreItem(productID: "p60", points: 60)
+        let product = AIStoreProduct(
+            id: "p60",
+            displayName: "p60",
+            displayPrice: "$0.99",
+            price: Decimal(string: "0.99")!,
+            currencyCode: "USD",
+            priceLocale: Locale(identifier: "en_US")
+        )
+        let value = try #require(AIPointValue(item: item, product: product))
+        #expect(value.amountText(points: 12) == "$0.20")
+        // 先把每点价格（0.0165）取整成 0.02 再乘的话，12 点会是 $0.24、60 点会是 $1.20
+        #expect(value.amountText(points: 60) == "$0.99")
+    }
+
+    @Test("折算依据不合法时没有价值：商品对不上、点数或价格不大于 0")
+    func rejectsInvalidPointValueAnchor() {
+        let product = Self.product("p60")
+        #expect(AIPointValue(item: AIStoreItem(productID: "p60", points: 60), product: product) != nil)
+        #expect(AIPointValue(item: AIStoreItem(productID: "p180", points: 60), product: product) == nil)
+        #expect(AIPointValue(item: AIStoreItem(productID: "p60", points: 0), product: product) == nil)
+        #expect(AIPointValue(item: AIStoreItem(productID: "p60", points: -60), product: product) == nil)
+        #expect(AIPointValue(item: AIStoreItem(productID: "p60", points: 60), product: Self.product("p60", price: 0)) == nil)
+    }
+
+    @Test("拿不到价值时为 nil：后端没给锚点、锚点不在 StoreKit 结果里、锚点不在商品列表里、没开放购买")
+    func hasNoPointValueWithoutAnchor() async {
+        let api = FakeStoreAPI()
+        let storeKit = FakeStoreKit()
+        storeKit.products = [Self.product("p60")]
+        let shop = AIPointsShop(api: api, storeKit: storeKit, currentUserID: { "user-1" })
+
+        // 后端没给锚点
+        api.catalogResults = [.success(Self.catalog(["p60"], points: 60))]
+        await shop.refresh()
+        #expect(shop.offers.map(\.id) == ["p60"])
+        #expect(shop.pointValue == nil)
+
+        // 锚点商品 StoreKit 查不到
+        api.catalogResults = [.success(Self.catalog(["p60", "p180"], points: 60, anchor: "p180"))]
+        await shop.refresh()
+        #expect(shop.pointValue == nil)
+
+        // 没开放购买：就算后端给了锚点也不折算，也不查 StoreKit
+        let requestsBefore = storeKit.requestedProductIDs.count
+        api.catalogResults = [.success(AIStoreCatalog(isEnabled: false, appAccountToken: nil, items: [], valueAnchorProductID: "p60"))]
+        await shop.refresh()
+        #expect(shop.pointValue == nil)
+        #expect(storeKit.requestedProductIDs.count == requestsBefore)
+
+        // 锚点不在商品列表里（后端配置有误）：就算 StoreKit 里有同名商品也不折算
+        let catalog = Self.catalog(["p60"], points: 60, anchor: "p180")
+        let products = [Self.product("p60"), Self.product("p180")]
+        #expect(AIPointsShop.pointValue(catalog: catalog, products: products) == nil)
+        #expect(AIPointsShop.pointValue(catalog: Self.catalog(["p60"], points: 60, anchor: "p60"), products: products) != nil)
+    }
+
+    @Test("拿到价值后退出登录：价值清空；刷新失败时保留上一次的价值")
+    func clearsPointValueOnSignOut() async {
+        let api = FakeStoreAPI()
+        let storeKit = FakeStoreKit()
+        storeKit.products = [Self.product("p60")]
+        api.catalogResults = [.success(Self.catalog(["p60"], points: 60, anchor: "p60"))]
+        var userID: String? = "user-1"
+        let shop = AIPointsShop(api: api, storeKit: storeKit, currentUserID: { userID })
+
+        await shop.refresh()
+        #expect(shop.pointValue != nil)
+
+        api.catalogResults = [.failure(.network)]
+        await shop.refresh()
+        #expect(shop.pointValue != nil)
+
+        userID = nil
+        await shop.refresh()
+        #expect(shop.pointValue == nil)
+    }
+
+    @Test("refreshIfNeeded：没加载过时加载，加载失败下次再试，成功后不再查询商品列表，换账号后重新加载")
+    func refreshesOnlyWhenNeeded() async {
+        let api = FakeStoreAPI()
+        let storeKit = FakeStoreKit()
+        storeKit.products = [Self.product("p60")]
+        api.catalogResults = [.failure(.network), .success(Self.catalog(["p60"], points: 60, anchor: "p60"))]
+        var userID: String? = "user-1"
+        let shop = AIPointsShop(api: api, storeKit: storeKit, currentUserID: { userID })
+
+        await shop.refreshIfNeeded()
+        #expect(api.catalogRequests == 1)
+        #expect(shop.pointValue == nil)
+
+        await shop.refreshIfNeeded()
+        #expect(api.catalogRequests == 2)
+        #expect(shop.pointValue != nil)
+
+        await shop.refreshIfNeeded()
+        #expect(api.catalogRequests == 2)
+
+        userID = "user-2"
+        await shop.refreshIfNeeded()
+        #expect(api.catalogRequests == 3)
+    }
+
+    @Test("礼包规则的最高点数合计：把所有开启次数的上限加起来，不计负数")
+    func sumsGiftRuleMaxPoints() {
+        let weekly = AICheckInGiftRule(
+            tier: .weekly,
+            everyDays: 7,
+            openings: [AICheckInGiftOpening(minPoints: 21, maxPoints: 50)],
+            validDays: 7
+        )
+        let yearly = AICheckInGiftRule(
+            tier: .yearly,
+            everyDays: 365,
+            openings: [AICheckInGiftOpening(minPoints: 365, maxPoints: 365), AICheckInGiftOpening(minPoints: 100, maxPoints: 365)],
+            validDays: 365
+        )
+        let broken = AICheckInGiftRule(
+            tier: .monthly,
+            everyDays: 30,
+            openings: [AICheckInGiftOpening(minPoints: 0, maxPoints: -10), AICheckInGiftOpening(minPoints: 0, maxPoints: 20)],
+            validDays: 30
+        )
+        let empty = AICheckInGiftRule(tier: .monthly, everyDays: 30, openings: [], validDays: 30)
+        #expect(weekly.maxTotalPoints == 50)
+        #expect(yearly.maxTotalPoints == 730)
+        #expect(broken.maxTotalPoints == 20)
+        #expect(empty.maxTotalPoints == 0)
+    }
+
+    // MARK: - 测试数据
+
+    /// 在售商品列表，每个商品默认 300 点。
+    ///
+    /// - Parameters:
+    ///   - ids: 商品 ID，按展示顺序。
+    ///   - points: 每个商品的点数。
+    ///   - anchor: 价值锚点的商品 ID；不传表示后端没给锚点。
+    static func catalog(_ ids: [String], points: Int = 300, anchor: String? = nil) -> AIStoreCatalog {
+        AIStoreCatalog(
+            isEnabled: true,
+            appAccountToken: token,
+            items: ids.map { AIStoreItem(productID: $0, points: points) },
+            valueAnchorProductID: anchor
+        )
+    }
+
+    /// StoreKit 商品，默认是 ¥6.00（中国大陆）。
+    static func product(
+        _ id: String,
+        displayPrice: String = "¥6.00",
+        price: Decimal = 6,
+        currencyCode: String = "CNY",
+        localeIdentifier: String = "zh_CN"
+    ) -> AIStoreProduct {
+        AIStoreProduct(
+            id: id,
+            displayName: id,
+            displayPrice: displayPrice,
+            price: price,
+            currencyCode: currencyCode,
+            priceLocale: Locale(identifier: localeIdentifier)
+        )
     }
 
     /// 待入账的交易；结束时记进 `finishedIDs`。

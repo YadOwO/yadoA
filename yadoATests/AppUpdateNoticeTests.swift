@@ -173,6 +173,90 @@ struct AppUpdateNoticeTests {
         #expect(notice.pendingRelease?.version == "1.3.0")
     }
 
+    // MARK: - 「我的」页的「新版本可用」
+
+    @Test("有更新的版本时「我的」页一直显示，弹层弹过、下次启动不查也照样显示")
+    func keepsAvailableReleaseUntilUpdated() async throws {
+        let defaults = try Self.isolatedDefaults()
+        let log = RequestLog()
+        let first = Self.makeNotice(defaults: defaults, log: log, remoteVersion: "1.3.0")
+        #expect(first.availableRelease == nil)
+        await first.checkIfNeeded(now: Self.day(0))
+        #expect(first.availableRelease?.version == "1.3.0")
+        let release = try #require(first.pendingRelease)
+        first.presentPending()
+        first.markNotified(release)
+
+        // 下次启动不到一天，不查也能从上次的结果显示
+        let nextLaunch = Self.makeNotice(defaults: defaults, log: log, remoteVersion: "1.3.0")
+        await nextLaunch.checkIfNeeded(now: Self.day(0).addingTimeInterval(60 * 60))
+        #expect(log.count == 1)
+        #expect(nextLaunch.pendingRelease == nil)
+        #expect(nextLaunch.availableRelease?.version == "1.3.0")
+        #expect(nextLaunch.availableRelease?.storeURL == release.storeURL)
+
+        // 过了一天再查，弹过的版本不再弹，但这一行还在
+        let later = Self.makeNotice(defaults: defaults, log: log, remoteVersion: "1.3.0")
+        await later.checkIfNeeded(now: Self.day(2))
+        #expect(later.pendingRelease == nil)
+        #expect(later.availableRelease?.version == "1.3.0")
+    }
+
+    @Test("本机更新到 App Store 上的版本后不再显示「新版本可用」")
+    func hidesAvailableReleaseAfterUpdating() async throws {
+        let defaults = try Self.isolatedDefaults()
+        let notice = Self.makeNotice(defaults: defaults, log: RequestLog(), remoteVersion: "1.3.0")
+        await notice.checkIfNeeded(now: Self.day(0))
+        #expect(notice.availableRelease != nil)
+
+        let updated = AppUpdateNotice(
+            defaults: defaults,
+            currentVersion: "1.3.0",
+            bundleID: "top.yado1225.yadoA",
+            countryCodes: ["cn"],
+            fetch: { _ in Self.lookupJSON(version: "1.3.0", notes: nil) },
+            upgradePrompt: AppUpdatePrompt()
+        )
+        #expect(updated.availableRelease == nil)
+    }
+
+    @Test("426 提示弹过时不叠弹层，但「我的」页照样显示「新版本可用」")
+    func showsAvailableReleaseEvenWhenUpgradePrompted() async throws {
+        let defaults = try Self.isolatedDefaults()
+        let upgradePrompt = AppUpdatePrompt()
+        upgradePrompt.present()
+        let notice = Self.makeNotice(
+            defaults: defaults,
+            log: RequestLog(),
+            remoteVersion: "1.3.0",
+            upgradePrompt: upgradePrompt
+        )
+        await notice.checkIfNeeded(now: Self.day(0))
+        #expect(notice.pendingRelease == nil)
+        #expect(notice.availableRelease?.version == "1.3.0")
+    }
+
+    @Test("App Store 上查不到本 App 时清掉之前的「新版本可用」")
+    func clearsAvailableReleaseWhenNotFound() async throws {
+        let defaults = try Self.isolatedDefaults()
+        let first = Self.makeNotice(defaults: defaults, log: RequestLog(), remoteVersion: "1.3.0")
+        await first.checkIfNeeded(now: Self.day(0))
+        #expect(first.availableRelease != nil)
+
+        let missing = AppUpdateNotice(
+            defaults: defaults,
+            currentVersion: "1.2.0",
+            bundleID: "top.yado1225.yadoA",
+            countryCodes: ["cn"],
+            fetch: { _ in Data(#"{"resultCount":0,"results":[]}"#.utf8) },
+            upgradePrompt: AppUpdatePrompt()
+        )
+        #expect(missing.availableRelease != nil)
+        await missing.checkIfNeeded(now: Self.day(2))
+        #expect(missing.availableRelease == nil)
+        #expect(defaults.string(forKey: AppUpdateNotice.latestVersionKey) == nil)
+    }
+
     // MARK: - 辅助
 
     /// 本机版本固定为 1.2.0、只查中国大陆店面的提示状态，查询返回指定版本。

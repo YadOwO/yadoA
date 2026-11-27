@@ -33,15 +33,18 @@ struct AuthLocalizationTests {
         }
     }
 
-    @Test("登录与退出文案支持中英文")
+    @Test("登录与退出文案支持中英文和繁体中文")
     func authLocalizationHonorsExplicitLocale() {
         let english = Locale(identifier: "en")
         let simplifiedChinese = Locale(identifier: "zh-Hans")
+        let traditionalChinese = Locale(identifier: "zh-Hant")
 
         #expect(AccountLocalization.string("auth.sign_in.action", locale: english) == "Sign In / Sign Up")
         #expect(AccountLocalization.string("auth.sign_in.action", locale: simplifiedChinese) == "登录 / 注册")
         #expect(AccountLocalization.string("auth.sign_out.action", locale: english) == "Sign Out")
         #expect(AccountLocalization.string("auth.sign_out.action", locale: simplifiedChinese) == "退出登录")
+        #expect(AccountLocalization.string("auth.sign_in.action", locale: traditionalChinese) == "登入 / 註冊")
+        #expect(AccountLocalization.string("auth.sign_out.action", locale: traditionalChinese) == "登出")
 
         let keys = [
             "auth.section.title",
@@ -59,30 +62,35 @@ struct AuthLocalizationTests {
         for key in keys {
             #expect(AccountLocalization.string(key, locale: english) != key)
             #expect(AccountLocalization.string(key, locale: simplifiedChinese) != key)
+            #expect(AccountLocalization.string(key, locale: traditionalChinese) != key)
         }
     }
 
-    @Test("登录权益都有中英文文案，语音记账原因只突出语音那一行")
+    @Test("登录权益都有中英文和繁体中文文案，语音记账原因只突出语音那一行")
     func signInBenefitsAreLocalized() {
         let english = Locale(identifier: "en")
         let simplifiedChinese = Locale(identifier: "zh-Hans")
+        let traditionalChinese = Locale(identifier: "zh-Hant")
 
         for benefit in SignInBenefit.allCases {
             #expect(AccountLocalization.string(benefit.titleLocalizationKey, locale: english) != benefit.titleLocalizationKey)
             #expect(AccountLocalization.string(benefit.titleLocalizationKey, locale: simplifiedChinese) != benefit.titleLocalizationKey)
+            #expect(AccountLocalization.string(benefit.titleLocalizationKey, locale: traditionalChinese) != benefit.titleLocalizationKey)
         }
         #expect(SignInBenefit.allCases.filter { $0.highlightedReason == .voiceBookkeeping } == [.voice])
     }
 
-    @Test("第三方登录方式都有中英文文案，连接器 target 不为空")
+    @Test("第三方登录方式都有中英文和繁体中文文案，连接器 target 不为空")
     func socialProvidersAreLocalized() {
         let english = Locale(identifier: "en")
         let simplifiedChinese = Locale(identifier: "zh-Hans")
+        let traditionalChinese = Locale(identifier: "zh-Hant")
 
         for provider in AuthSocialProvider.allCases {
             #expect(!provider.connectorTarget.isEmpty)
             #expect(AccountLocalization.string(provider.titleLocalizationKey, locale: english) != provider.titleLocalizationKey)
             #expect(AccountLocalization.string(provider.titleLocalizationKey, locale: simplifiedChinese) != provider.titleLocalizationKey)
+            #expect(AccountLocalization.string(provider.titleLocalizationKey, locale: traditionalChinese) != provider.titleLocalizationKey)
         }
     }
 }

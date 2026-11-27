@@ -5,6 +5,7 @@ import SwiftUI
 /// 账户列表顶部的资产汇总卡片，突出净资产并并列展示资产和负债；首次引导的示例也用它。
 ///
 /// 账户页传入净资产走势时，净资产下面多一条迷你走势和「较某天」的变化；账户页上整张卡片点进资产分析页。
+/// 走势不含芽豆有物物品估值；估值计入净资产时，账户页用 `trendFootnote` 在走势下面补一句说明。
 struct AccountSummaryCard: View {
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
@@ -19,6 +20,9 @@ struct AccountSummaryCard: View {
 
     /// 卡片能点进资产分析页时为 true：显示一个向右的箭头，读屏提示点按打开；首次引导的示例不能点，保持默认 false。
     var showsDisclosure = false
+
+    /// 迷你走势下面的一句说明，例如「趋势不含芽豆有物物品估值」；只在画了迷你走势时显示，读屏也会带上。
+    var trendFootnote: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -109,8 +113,11 @@ struct AccountSummaryCard: View {
         guard let trend, trend.canDraw, let first = trend.points.first else { return "" }
         return [
             BalanceTrendChangeLine.sinceText(first.date, locale: locale, calendar: calendar),
-            BalanceTrendChangeLine.changeText(trend, locale: locale)
-        ].joined(separator: ", ")
+            BalanceTrendChangeLine.changeText(trend, locale: locale),
+            trendFootnote
+        ]
+        .compactMap { $0 }
+        .joined(separator: ", ")
     }
 
     /// 净资产下的迷你走势：一条没有坐标轴的线，下面写「较某天」的变化；能点进去时后面跟一个箭头。
@@ -129,6 +136,13 @@ struct AccountSummaryCard: View {
                     Spacer(minLength: 8)
                     disclosureChevron
                 }
+            }
+
+            if let trendFootnote {
+                Text(trendFootnote)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

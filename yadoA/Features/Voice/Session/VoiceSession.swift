@@ -20,6 +20,9 @@ enum VoiceSessionFailure: Equatable {
     /// AI 点数不足。
     case insufficientPoints
 
+    /// AI 今天有点忙（全站总量已用完），稍后再试。
+    case capacityExhausted
+
     /// 本轮已失效（例如处理时间过长），需要重说一遍。
     case turnInvalid
 
@@ -766,6 +769,7 @@ final class VoiceSession {
         case let .rateLimited(isDaily): .rateLimited(isDaily: isDaily)
         case .sessionTooLong: .sessionTooLong
         case .insufficientPoints: .insufficientPoints
+        case .capacityExhausted: .capacityExhausted
         case .turnInvalid: .turnInvalid
         case .network: .network
         case .upgradeRequired: .upgradeRequired

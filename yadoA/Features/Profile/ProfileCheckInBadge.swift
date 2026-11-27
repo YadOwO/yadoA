@@ -58,6 +58,9 @@ struct ProfileCheckInBadge: View {
     /// 今天可以用补签卡时的依据，点击后先弹窗问用不用；用不了时为 nil，点击直接签到。
     var protectionOffer: AICheckInProtectionOffer?
 
+    /// 折算点数价值的依据；只有「我的」页传，为 nil 时不显示价值。
+    var pointValue: AIPointValue? = nil
+
     /// 点击后执行签到，由页面提供；参数为用户是否选择用补签卡。
     let onTap: (_ useCard: Bool) async -> CheckInTapOutcome
 
@@ -74,6 +77,8 @@ struct ProfileCheckInBadge: View {
     @State private var errorKey: String?
     /// 用卡签到成功后显示在气泡下方的说明，例如“用掉 1 张补签卡，保住了 23 天连签”。
     @State private var protectionNote: String?
+    /// 签到成功后显示在气泡下方的「价值 ¥X」；拿不到价值时为 nil。
+    @State private var valueNote: String?
     /// 正在弹窗询问用不用补签卡时的依据。
     @State private var presentedOffer: AICheckInProtectionOffer?
     @State private var shakeCount = 0
@@ -196,17 +201,17 @@ struct ProfileCheckInBadge: View {
         }
     }
 
-    /// 气泡下方的一行字：失败原因，或者用卡签到成功时保住了几天连签。
+    /// 气泡下方的小字：失败原因；或者签到成功后的「价值 ¥X」，用卡签到时再接上保住了几天连签的说明（各占一行）。
     @ViewBuilder
     private var messageLine: some View {
         if let errorKey {
             belowBubble(Text(text(errorKey)))
                 .foregroundStyle(Color(.ledgerRed))
                 .accessibilityIdentifier("profile-check-in-error")
-        } else if let protectionNote {
-            belowBubble(Text(protectionNote))
+        } else if valueNote != nil || protectionNote != nil {
+            belowBubble(Text([valueNote, protectionNote].compactMap { $0 }.joined(separator: "\n")))
                 .foregroundStyle(.secondary)
-                .accessibilityIdentifier("profile-check-in-protection-note")
+                .accessibilityIdentifier(protectionNote == nil ? "profile-check-in-value" : "profile-check-in-protection-note")
         }
     }
 
@@ -329,14 +334,21 @@ struct ProfileCheckInBadge: View {
         }
     }
 
-    /// 成功：冒芽，点数从 0 滚到 N，落定后停留片刻向上飘走（页面接手飞点数时原地淡出）；用了补签卡时气泡下方说明保住了几天连签，多停一会儿让人看完。
+    /// 成功：冒芽，点数从 0 滚到 N，落定后停留片刻向上飘走（页面接手飞点数时原地淡出）；
+    /// 气泡下方有「价值 ¥X」时多停一会儿；用了补签卡时再说明保住了几天连签，停得更久，让人看完。
     private func celebrate(_ result: AICheckInResult) async {
         let points = result.points
         let isBonus = result.isBonus
         let note = protectionNoteText(for: result)
+        let value = pointValue?.amountText(points: points).map {
+            AccountLocalization.formatted("profile.checkIn.value", value: $0, locale: locale)
+        }
         phase = .celebrating(points: points, isBonus: isBonus, shown: reduceMotion ? points : 0)
-        if let note {
-            withAnimation(.easeOut(duration: 0.2)) { protectionNote = note }
+        if note != nil || value != nil {
+            withAnimation(.easeOut(duration: 0.2)) {
+                valueNote = value
+                protectionNote = note
+            }
         }
         if !reduceMotion {
             bounceCount += 1
@@ -355,15 +367,16 @@ struct ProfileCheckInBadge: View {
         if isBonus && !reduceMotion {
             withAnimation(.easeOut(duration: 0.5)) { sparkle = 1 }
         }
-        announce(result, note: note)
+        announce(result, value: value, note: note)
 
-        try? await Task.sleep(for: .seconds(note == nil ? 0.6 : 2))
+        try? await Task.sleep(for: .seconds(note != nil ? 2 : (value != nil ? 1.2 : 0.6)))
         guard !Task.isCancelled else { return }
         // 页面要把点数飞到别处时，气泡原地淡出、由页面接着飞；否则带着点数向上飘走
         risesOnLeave = onRewardDeparting == nil
         onRewardDeparting?(points)
         withAnimation(.easeOut(duration: 0.45)) {
             phase = .leaving
+            valueNote = nil
             protectionNote = nil
         }
         try? await Task.sleep(for: .seconds(0.45))
@@ -371,12 +384,13 @@ struct ProfileCheckInBadge: View {
         onFinished()
     }
 
-    /// VoiceOver 播报「获得 N 点，24 小时内有效」；用了补签卡时接着读保住了几天连签。
+    /// VoiceOver 播报「获得 N 点，24 小时内有效」；有价值时接着读「价值 ¥X」，用了补签卡时再读保住了几天连签。
     ///
     /// - Parameters:
     ///   - result: 签到结果。
+    ///   - value: 气泡下方的价值文案；拿不到价值时为 nil。
     ///   - note: 气泡下方的补签卡说明；没用卡时为 nil。
-    private func announce(_ result: AICheckInResult, note: String?) {
+    private func announce(_ result: AICheckInResult, value: String?, note: String?) {
         let hours = max(1, Int((result.expiresAt.timeIntervalSince(result.createdAt) / 3600).rounded()))
         let gained = String(
             format: text("profile.checkIn.announcement"),
@@ -384,7 +398,7 @@ struct ProfileCheckInBadge: View {
             result.points.formatted(.number.locale(locale)),
             hours.formatted(.number.locale(locale))
         )
-        let message = [gained, note].compactMap { $0 }.joined(separator: text("checkIn.calendar.separator"))
+        let message = [gained, value, note].compactMap { $0 }.joined(separator: text("checkIn.calendar.separator"))
         AccessibilityNotification.Announcement(message).post()
     }
 

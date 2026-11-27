@@ -37,12 +37,21 @@ final class DataExportFlow: ObservableObject {
     /// 分享面板关闭后的临时文件清理动作。
     private let removeExportedFile: (URL) -> Void
 
+    /// 记录一次真正完成的备份；生产环境写入 `BackupReminderStore`，测试可注入计数。
+    private let recordBackup: () -> Void
+
+    /// 分享面板还开着时已收到「分享完成」，等面板关闭后再记录备份。
+    ///
+    /// 面板开着就写入备份时间会让卡片立刻消失，挂在卡片上的 sheet 会被一起拆掉，所以推迟到 `finishSharing`。
+    private var isShareCompletionPending = false
+
     /// 使用生产导出服务创建流程，并在初始化时清扫上次残留。
     ///
     /// - Parameter service: 当前本地财务容器对应的导出服务。
     init(service: BackupExportService) {
         exportAction = { try service.export() }
         removeExportedFile = service.removeExportedFile
+        recordBackup = { BackupReminderStore.recordBackup(at: .now) }
         service.sweepStaleExports()
     }
 
@@ -51,12 +60,15 @@ final class DataExportFlow: ObservableObject {
     /// - Parameters:
     ///   - exportAction: 确认后执行的完整导出动作。
     ///   - removeExportedFile: 分享关闭后删除临时文件的动作。
+    ///   - recordBackup: 分享真正完成后记录备份的动作；默认不记录。
     init(
         exportAction: @escaping () throws -> URL,
-        removeExportedFile: @escaping (URL) -> Void = { _ in }
+        removeExportedFile: @escaping (URL) -> Void = { _ in },
+        recordBackup: @escaping () -> Void = {}
     ) {
         self.exportAction = exportAction
         self.removeExportedFile = removeExportedFile
+        self.recordBackup = recordBackup
     }
 
     /// 当前是否正在执行导出，供入口行防止重复触发。
@@ -82,6 +94,7 @@ final class DataExportFlow: ObservableObject {
     func startExport() {
         guard state == .idle || failure != nil else { return }
 
+        isShareCompletionPending = false
         state = .preparing
         do {
             state = .sharing(try exportAction())
@@ -99,12 +112,27 @@ final class DataExportFlow: ObservableObject {
         startExport()
     }
 
-    /// 分享面板关闭后删除临时文件并回到空闲状态。
+    /// 系统分享面板报告「真正完成」（存好文件或发出去，不含取消）时调用。
+    ///
+    /// 面板还开着（`.sharing`）时只做标记，等 `finishSharing` 再记录；回调晚于面板关闭到达时直接记录。
+    func markShareCompleted() {
+        if case .sharing = state {
+            isShareCompletionPending = true
+        } else {
+            recordBackup()
+        }
+    }
+
+    /// 分享面板关闭后删除临时文件并回到空闲状态；分享曾真正完成时记录一次备份。
     func finishSharing() {
         if case let .sharing(url) = state {
             removeExportedFile(url)
         }
         state = .idle
+        if isShareCompletionPending {
+            recordBackup()
+        }
+        isShareCompletionPending = false
     }
 
     /// 关闭失败提示，不执行导出也不写入文件。

@@ -310,6 +310,7 @@ struct SyncLifecycleTests {
         #expect(SyncMessages.localizationKey(for: .sessionExpired) == "sync.error.signIn")
         #expect(SyncMessages.localizationKey(for: .unauthorized) == "sync.error.signIn")
         #expect(SyncMessages.localizationKey(for: .timeout) == "sync.error.network")
+        #expect(SyncMessages.localizationKey(for: .quotaExceeded) == "sync.error.quotaExceeded")
         #expect(SyncMessages.localizationKey(for: SyncFailure.storage) == "sync.error.storage")
         #expect(
             SyncMessages.localizationKey(forLifecycleError: SyncLifecycleError.api(.serviceUnavailable))

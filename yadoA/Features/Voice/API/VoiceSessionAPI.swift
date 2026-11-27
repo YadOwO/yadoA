@@ -20,6 +20,9 @@ enum VoiceSessionAPIError: Error, Equatable {
     /// AI 点数不足，服务端没有调用模型。
     case insufficientPoints
 
+    /// AI 服务今天的总量已用完，服务端没有调用模型。
+    case capacityExhausted
+
     /// 计费轮次不合法（超时、超过请求次数上限或与首次请求不一致），本轮需要结束后重说。
     case turnInvalid
 
@@ -267,7 +270,11 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
         case 429:
             let errorBody = try? JSONDecoder().decode(VoiceSessionErrorBody.self, from: body)
             return .rateLimited(isDaily: errorBody?.details?.rule == "per_day")
-        case 502, 503:
+        case 503:
+            // 只有全站总量用完是单独的提示；AI_NOT_CONFIGURED、BILLING_UNAVAILABLE 等其他 503 仍是服务不可用
+            let errorBody = try? JSONDecoder().decode(VoiceSessionErrorBody.self, from: body)
+            return errorBody?.code == "AI_CAPACITY_EXHAUSTED" ? .capacityExhausted : .serviceUnavailable
+        case 502:
             return .serviceUnavailable
         default:
             return .invalidContract
@@ -279,7 +286,7 @@ final class VoiceSessionAPI: VoiceSessionTurnSending {
 private nonisolated struct VoiceSessionErrorBody: Decodable {
     /// 错误详情；不同错误码带不同字段。
     nonisolated struct Details: Decodable {
-        /// 限流错误触发的规则：`per_minute` 或 `per_day`。
+        /// 限流错误触发的规则：`per_minute`、`per_day` 或 `concurrent`（同时进行的请求过多）；只有 `per_day` 当作每日用完。
         let rule: String?
 
         /// 点数不足时的当前余额。

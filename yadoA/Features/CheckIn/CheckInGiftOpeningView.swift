@@ -27,6 +27,9 @@ struct CheckInGiftOpeningView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityDimFlashingLights) private var dimFlashingLights
 
+    /// 折算点数价值的依据；为 nil 时不显示价值。
+    let pointValue: AIPointValue?
+
     /// 打开一次，由页面交给 `AIPointsStore.openGift(_:)`。
     let onOpen: (AICheckInGift) async -> Result<AICheckInGiftOpenResult, AIBillingAPIError>
 
@@ -66,14 +69,17 @@ struct CheckInGiftOpeningView: View {
     ///
     /// - Parameters:
     ///   - gift: 要开的礼包。
+    ///   - pointValue: 折算点数价值的依据；为 nil 时揭晓后不显示价值。
     ///   - onOpen: 打开一次的动作。
     ///   - onClose: 关闭整屏的动作。
     init(
         gift: AICheckInGift,
+        pointValue: AIPointValue? = nil,
         onOpen: @escaping (AICheckInGift) async -> Result<AICheckInGiftOpenResult, AIBillingAPIError>,
         onClose: @escaping () -> Void
     ) {
         _gift = State(initialValue: gift)
+        self.pointValue = pointValue
         self.onOpen = onOpen
         self.onClose = onClose
     }
@@ -445,6 +451,14 @@ struct CheckInGiftOpeningView: View {
                 Text(text("checkIn.opening.pointsUnit"))
                     .font(.headline)
 
+                // 按这次开出的最终点数折算，不跟着滚动的数字走；拿不到价值时不放任何视图
+                if let valueText = valueText(points: result.points) {
+                    Text(valueText)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+
                 Text(validUntilText(result))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -652,16 +666,28 @@ struct CheckInGiftOpeningView: View {
         )
     }
 
-    /// VoiceOver 播报“获得 N 点，有效期至…”。
+    /// 点数下面的「价值 ¥X」。
+    ///
+    /// - Parameter points: 这次开出的点数。
+    /// - Returns: 价值文案；拿不到价值（没有折算依据、点数不大于 0）时为 nil。
+    private func valueText(points: Int) -> String? {
+        pointValue?.amountText(points: points).map {
+            AccountLocalization.formatted("checkIn.opening.value", value: $0, locale: locale)
+        }
+    }
+
+    /// VoiceOver 播报“获得 N 点，有效期至…”；有价值时接着读「价值 ¥X」。
     private func announce(_ result: AICheckInGiftOpenResult) {
-        AccessibilityNotification.Announcement(
-            String(
-                format: text("checkIn.opening.announcement"),
-                locale: locale,
-                result.points.formatted(.number.locale(locale)),
-                result.expiresAt.formatted(.dateTime.year().month().day().locale(locale))
-            )
-        ).post()
+        let gained = String(
+            format: text("checkIn.opening.announcement"),
+            locale: locale,
+            result.points.formatted(.number.locale(locale)),
+            result.expiresAt.formatted(.dateTime.year().month().day().locale(locale))
+        )
+        let message = [gained, valueText(points: result.points)]
+            .compactMap { $0 }
+            .joined(separator: text("checkIn.calendar.separator"))
+        AccessibilityNotification.Announcement(message).post()
     }
 
     /// 按应用当前语言解析文案。

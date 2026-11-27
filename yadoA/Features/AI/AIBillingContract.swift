@@ -608,6 +608,11 @@ nonisolated struct AICheckInGiftRule: Decodable, Equatable, Hashable, Sendable {
     /// 每次打开得到的点数的有效期（天），从打开时刻起算。
     let validDays: Int
 
+    /// 这档礼包所有开启次数最多能得到的点数合计，用来折算「最高价值」。
+    var maxTotalPoints: Int {
+        openings.reduce(0) { $0 + max($1.maxPoints, 0) }
+    }
+
     /// 离下一个这档礼包还要签几天（含今天）。
     ///
     /// 今天签了时 `streak` 是今天的连签天数，今天没签时是昨天的；两种情况下一个礼包都在连签天数到达 `everyDays` 的下一个整数倍那天，

@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、周期记账、分类）、AI 点数与每日签到、云端同步、“设置”二级页、意见反馈和更多芽豆产品。
+/// “我的”Tab 根页面：页头承载登录身份，下方只放常用入口（账单、周期记账、分类）、AI 点数与每日签到、云端同步、数据联动（hub 打开了联动来源才有）、“设置”二级页、意见反馈和更多芽豆产品。
 ///
 /// 页头的签到气泡登录后第一次出现时，从气泡弹出签到引导（`CheckInGuideCard`），每个账号只弹一次。
 /// 签到成功后「+N 点」从气泡飞到「AI 点数」那一行，「AI 点数」「每日签到」两行的数字从签到前滚到新值（`CheckInRewardToken`）；
@@ -20,13 +20,22 @@ struct ProfileView: View {
     @Environment(SyncLifecycle.self) private var syncLifecycle: SyncLifecycle?
     /// 当前账号的 AI 点数；预览中没有注入时为 nil。
     @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
+    /// 点数充值，这里只用它折算签到点数的价值；预览中没有注入时为 nil。
+    @Environment(AIPointsShop.self) private var aiPointsShop: AIPointsShop?
     /// 意见反馈的未读回复数；预览中没有注入时为 nil。
     @Environment(FeedbackStore.self) private var feedback: FeedbackStore?
     /// 芽豆系列的产品目录；预览中没有注入时为 nil。
     @Environment(SeriesCatalogStore.self) private var seriesCatalog: SeriesCatalogStore?
+    /// 数据联动状态；hub 打开了联动来源时才显示「数据联动」入口。预览中没有注入时为 nil。
+    @Environment(DataLinkStore.self) private var dataLinks: DataLinkStore?
     /// 隐私政策同意状态；离线模式下隐藏所有联网入口。预览中没有注入时为 nil，按允许联网处理。
     @Environment(PrivacyAgreementStore.self) private var privacyAgreement: PrivacyAgreementStore?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 打开 App Store 产品页。
+    @Environment(\.openURL) private var openURL
+
+    /// 「发现新版本」的全局状态；App Store 上有更新的版本时，页面底部版本号下面多一行「前往更新」。
+    @State private var updateNotice = AppUpdateNotice.shared
 
     /// 修改个人资料弹层，打开时携带当时的资料快照。
     @State private var editingProfile: AccountProfile?
@@ -146,6 +155,21 @@ struct ProfileView: View {
                             .accessibilityIdentifier("profile-sync")
 
                             ProfileSettingsRowDivider()
+
+                            // 只有已登录、联网，并且 hub 打开了芽豆有物联动时才有入口
+                            if isSignedInOnline, dataLinks?.isItemValueLinkAvailable == true {
+                                TabRouteLink(value: ProfileRoute.dataLinks, selectionOutset: -4) {
+                                    ProfileSettingsRow(
+                                        titleKey: "dataLink.title",
+                                        symbol: "link",
+                                        value: isDataLinkGranted ? text("dataLink.row.linked") : "",
+                                        valueTint: isDataLinkGranted ? Color(.ledgerGreen) : nil
+                                    )
+                                }
+                                .accessibilityIdentifier("profile-data-links")
+
+                                ProfileSettingsRowDivider()
+                            }
                         }
 
                         TabRouteLink(value: ProfileRoute.settings, selectionOutset: -4) {
@@ -201,6 +225,7 @@ struct ProfileView: View {
         .fullScreenCover(item: $openingGift) { gift in
             CheckInGiftOpeningView(
                 gift: gift,
+                pointValue: aiPointsShop?.pointValue,
                 onOpen: { await aiPoints?.openGift($0) ?? .failure(.notSignedIn) },
                 onClose: { openingGift = nil }
             )
@@ -236,8 +261,15 @@ struct ProfileView: View {
             await aiPoints?.refreshCheckInStatus()
         }
         .task(id: refreshTrigger) {
+            // 在后台准备点数价值（锚点商品的当地价格），和余额、签到状态并行；它只影响签到后「价值 ¥X」的显示，
+            // 不能塞进上面刷新余额的 task 里串行执行，免得拖慢签到；失败时下次进页面再试
+            await aiPointsShop?.refreshIfNeeded()
+        }
+        .task(id: refreshTrigger) {
             // 每次回到“我的”都刷新一次反馈未读数；从反馈页返回时已在标记已读后更新过，这里再对一次
             await feedback?.refreshUnread()
+            // 数据联动入口以 hub 最近一次的联动列表为准，同样每次回到“我的”都对一次
+            await dataLinks?.refreshLinks()
         }
         .task(id: isNetworkAllowed) {
             // 每次回到“我的”都刷新一次产品目录；新产品上架后入口自己出现，不用发版
@@ -253,6 +285,11 @@ struct ProfileView: View {
     /// 已登录且允许联网；离线模式下已登录用户也按未登录显示，但并没有退出登录。
     private var isSignedInOnline: Bool {
         authStore.isAuthenticated && isNetworkAllowed
+    }
+
+    /// 芽豆有物联动是否已授权；决定「数据联动」行的状态值。
+    private var isDataLinkGranted: Bool {
+        dataLinks?.isItemValueGranted == true
     }
 
     /// 触发刷新资料、点数和未读数的条件。
@@ -473,6 +510,7 @@ struct ProfileView: View {
                     placement: checkInPlacement,
                     messageWidth: sideGap,
                     protectionOffer: authStore.isAuthenticated ? aiPoints?.checkInStatus?.protectionOffer : nil,
+                    pointValue: authStore.isAuthenticated ? aiPointsShop?.pointValue : nil,
                     onTap: handleCheckInTap,
                     onFinished: finishCheckIn,
                     onRewardDeparting: { points in
@@ -733,9 +771,34 @@ struct ProfileView: View {
                 .font(.system(.caption, design: .serif))
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("profile-version")
+
+            if let release = updateNotice.availableRelease {
+                updateAvailableButton(release)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 12)
+    }
+
+    /// 版本号下面的「新版本 x 可用 · 前往更新」：只在 App Store 上有更新的版本时出现，点了打开 App Store。
+    ///
+    /// 和版本号同一套衬线小字，只是用主色加粗一档，不加底色和图标，保持落款的克制。
+    ///
+    /// - Parameter release: App Store 上比本机新的版本。
+    private func updateAvailableButton(_ release: AppStoreRelease) -> some View {
+        Button {
+            openURL(release.storeURL)
+        } label: {
+            Text(AccountLocalization.formatted("profile.updateAvailable", value: release.version, locale: locale))
+                .font(.system(.caption, design: .serif, weight: .semibold))
+                .foregroundStyle(.primary)
+                .underline()
+                .multilineTextAlignment(.center)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("profile-update-available")
     }
 
     /// 营销版本号与构建号，形如 `1.0 (1)`；缺少构建号时只显示版本号。

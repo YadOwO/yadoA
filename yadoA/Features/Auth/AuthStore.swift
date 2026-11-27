@@ -39,6 +39,12 @@ final class AuthStore {
     /// 缓存里却还有原账号的 resource token，换了账号时到退出登录清空凭证之前，不能让同步、AI 等请求拿到它们。
     private var isReauthenticating = false
 
+    /// 本机凭证被清掉后调用，参数是被退出的账号 ID：主动退出登录、凭证失效自动退出、重新登录时换了账号都会触发。
+    ///
+    /// 用来清理按账号存放、退出后不该留在本机的缓存（例如数据联动的物品估值汇总）。
+    /// 只能有一个接收方，由 `DataLinkStore.init(authStore:isNetworkAllowed:)` 设置。
+    @ObservationIgnored var onSignedOut: ((String) -> Void)?
+
     /// 头像上传器；凭证来源目前是 Debug 构建注入的本地密钥。
     // TODO: 接入服务端 STS 签发后，把这里换成 STS 凭证来源，详见 `BundledOSSCredentialProvider` 上的说明。
     private let avatarUploader = AvatarUploader(credentialProvider: BundledOSSCredentialProvider())
@@ -100,10 +106,12 @@ final class AuthStore {
         errorMessage = nil
         defer { isBusy = false }
 
+        let signedOutUserID = userID
         // 返回值仅表示“撤销远端 refresh token 失败”，本地凭证此时已清空，可安全忽略
         await client.signOut()
         isAuthenticated = client.isAuthenticated
         profile = nil
+        if let signedOutUserID { onSignedOut?(signedOutUserID) }
     }
 
     /// 从 Logto 拉取最新资料，覆盖登录时 ID token 里的快照。
@@ -164,6 +172,14 @@ final class AuthStore {
         return subject
     }
 
+    /// 当前登录的 ID token 原文；未登录时为 nil。
+    ///
+    /// 重新登录（`reauthenticate(requiringStepUp:requiringFreshLogin:)`）成功后它就是托管页刚签发的那一份，
+    /// 注销前的身份验证把它交给 yado_hub 验签。只用来转交，不要显示或写日志。
+    var currentIDToken: String? {
+        client.isAuthenticated ? client.idToken : nil
+    }
+
     /// 把处理好的头像上传到 OSS，返回公开访问地址；此时尚未写入 Logto 资料。
     ///
     /// - Parameter jpegData: `AvatarImageProcessor` 输出的 JPEG 数据。
@@ -218,6 +234,12 @@ final class AuthStore {
     /// 用已关联的方式重新登录，再要求设置已验证的邮箱或密码。需要 Logto 支持 `acr_values`（dev 支持，线上的旧版本不支持）。
     static let stepUpExtraParams = ["acr_values": "urn:logto:acr:1fa"]
 
+    /// 要求托管页重新登录一次时附加的参数。
+    ///
+    /// OIDC 的 `max_age=0` 要求托管页不沿用已有的登录会话、让用户重新登录；返回的 ID token 带新的 `auth_time`，
+    /// yado_hub 据此判断用户是不是刚刚验证过本人（注销前的身份验证用它）。
+    static let freshLoginExtraParams = ["max_age": "0"]
+
     /// 在已登录状态下重新走一遍 Logto 托管页：老会话补上新增的 scope，或为只有 Apple 的账号做 step-up。
     ///
     /// 打开托管页前记下当前 `sub`，回来后比对。SDK 登录成功后会覆盖 ID token 和 refresh token，
@@ -231,9 +253,12 @@ final class AuthStore {
     /// 之后每个请求各自取 token。所以整个过程（含托管页打开期间）`isReauthenticating` 都为 true，
     /// `accessToken(forResource:)` 一律不发 token，同步等请求按暂时不可用处理、稍后重试。
     ///
-    /// - Parameter requiringStepUp: 是否要求 step-up（附带 `stepUpExtraParams`）。
+    /// - Parameters:
+    ///   - requiringStepUp: 是否要求 step-up（附带 `stepUpExtraParams`）。
+    ///   - requiringFreshLogin: 是否要求托管页重新登录（附带 `freshLoginExtraParams`），ID token 会带新的 `auth_time`；
+    ///     注销前验证身份时为 true，默认 false。
     /// - Returns: 结果；用户关掉托管页时为 `.cancelled`，凭证不变。
-    func reauthenticate(requiringStepUp: Bool) async -> AccountReauthenticationResult {
+    func reauthenticate(requiringStepUp: Bool, requiringFreshLogin: Bool = false) async -> AccountReauthenticationResult {
         guard isNetworkAllowed(), !isBusy, let originalUserID = userID else { return .cancelled }
         isBusy = true
         isReauthenticating = true
@@ -242,10 +267,18 @@ final class AuthStore {
             isBusy = false
         }
 
+        var extraParams: [String: String] = [:]
+        if requiringStepUp {
+            extraParams.merge(Self.stepUpExtraParams) { _, new in new }
+        }
+        if requiringFreshLogin {
+            extraParams.merge(Self.freshLoginExtraParams) { _, new in new }
+        }
+
         do {
             try await client.signInWithBrowser(
                 redirectUri: AuthConfig.redirectUri,
-                extraParams: requiringStepUp ? Self.stepUpExtraParams : nil
+                extraParams: extraParams.isEmpty ? nil : extraParams
             )
         } catch {
             // 失败时 SDK 不会改动已有凭证
@@ -260,6 +293,7 @@ final class AuthStore {
             await client.signOut()
             isAuthenticated = client.isAuthenticated
             profile = nil
+            onSignedOut?(originalUserID)
         } else {
             isAuthenticated = client.isAuthenticated
             profile = Self.readProfile(from: client)
@@ -337,10 +371,12 @@ final class AuthStore {
     @discardableResult
     private func clearCredentialsIfRevoked(_ error: Error) async -> Bool {
         guard Self.isCredentialRevoked(error) else { return false }
+        let signedOutUserID = userID
         // 远端 refresh token 已不可用，撤销失败可以忽略；SDK 会先清空本地凭证
         await client.signOut()
         isAuthenticated = client.isAuthenticated
         profile = nil
+        if let signedOutUserID { onSignedOut?(signedOutUserID) }
         return true
     }
 

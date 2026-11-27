@@ -10,6 +10,8 @@ struct CheckInView: View {
     @Environment(AuthStore.self) private var authStore
     /// 当前账号的 AI 点数与签到状态；预览中没有注入时为 nil。
     @Environment(AIPointsStore.self) private var points: AIPointsStore?
+    /// 点数充值，这里只用它折算礼包价值；预览中没有注入时为 nil。
+    @Environment(AIPointsShop.self) private var shop: AIPointsShop?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// 日历正在显示的月份；还没拿到签到状态时为 nil。
@@ -70,9 +72,12 @@ struct CheckInView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await reload() }
         .task(id: authStore.isAuthenticated) { await reload() }
+        // 在后台准备点数价值，只影响礼包里的「价值 ¥X」；不放进 reload()，免得拖慢签到状态和日历
+        .task(id: authStore.isAuthenticated) { await shop?.refreshIfNeeded() }
         .fullScreenCover(item: $openingGift) { gift in
             CheckInGiftOpeningView(
                 gift: gift,
+                pointValue: shop?.pointValue,
                 onOpen: { await points?.openGift($0) ?? .failure(.notSignedIn) },
                 onClose: { openingGift = nil }
             )
@@ -436,23 +441,31 @@ struct CheckInView: View {
         )
     }
 
-    /// 一档礼包的规则文字，例如“每连签 7 天 · 随机点数 · 7 天有效”；能开几次的再加上“可开 2 次”。
+    /// 一档礼包的规则文字，例如“每连签 7 天 · 随机点数 · 7 天有效”；能开几次的再加上“可开 2 次”，有价值时最后加上“最高价值 ¥X”。
     ///
-    /// 不写具体能开出多少点，开出来才知道。
+    /// 不写具体点数，只写折算出的最高价值；拿不到价值时不写。
     private func ruleText(_ rule: AICheckInGiftRule) -> String {
-        let base = String(
-            format: text("checkIn.milestone.rule"),
-            locale: locale,
-            rule.everyDays.formatted(.number.locale(locale)),
-            rule.validDays.formatted(.number.locale(locale))
-        )
-        guard rule.openings.count > 1 else { return base }
-        let opens = AccountLocalization.formatted(
-            "checkIn.milestone.opens",
-            value: rule.openings.count.formatted(.number.locale(locale)),
-            locale: locale
-        )
-        return "\(base) · \(opens)"
+        var parts = [
+            String(
+                format: text("checkIn.milestone.rule"),
+                locale: locale,
+                rule.everyDays.formatted(.number.locale(locale)),
+                rule.validDays.formatted(.number.locale(locale))
+            )
+        ]
+        if rule.openings.count > 1 {
+            parts.append(
+                AccountLocalization.formatted(
+                    "checkIn.milestone.opens",
+                    value: rule.openings.count.formatted(.number.locale(locale)),
+                    locale: locale
+                )
+            )
+        }
+        if let amount = shop?.pointValue?.amountText(points: rule.maxTotalPoints) {
+            parts.append(AccountLocalization.formatted("checkIn.milestone.maxValue", value: amount, locale: locale))
+        }
+        return parts.joined(separator: " · ")
     }
 
     // MARK: - 日历

@@ -142,7 +142,11 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
         // 条件变了，旧的那份没有开始识别，直接丢掉即可
         preparation?.task.cancel()
         let task = Task { [weak self] () -> VoiceSpeechBackend? in
-            switch await AnalyzerSpeechBackend.availability(locale: locale, contextualStrings: contextualStrings) {
+            let recognitionLocale = await VoiceSpeechLocale.recognitionLocale(for: locale)
+            switch await AnalyzerSpeechBackend.availability(
+                locale: recognitionLocale,
+                contextualStrings: contextualStrings
+            ) {
             case let .ready(backend):
                 await backend.prepare()
                 return backend
@@ -279,6 +283,8 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
     }
 
     /// 选择识别实现：优先用预热好的；否则 iOS 26 模型已安装时用 `SpeechAnalyzer`，再否则用 `SFSpeechRecognizer`。
+    ///
+    /// 预热的匹配按界面语言比较；真正识别用的语言由 `VoiceSpeechLocale` 换算，例如繁体中文换成 zh-TW 或 zh-HK。
     private func makeBackend(locale: Locale, contextualStrings: [String]) async throws -> VoiceSpeechBackend {
         if let preparation, preparation.key == PreparationKey(locale: locale, contextualStrings: contextualStrings) {
             // 取走后立即作废，下一句不会拿到已经用过的识别实现
@@ -288,8 +294,12 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
                 return backend
             }
         }
+        let recognitionLocale = await VoiceSpeechLocale.recognitionLocale(for: locale)
         if #available(iOS 26, *) {
-            switch await AnalyzerSpeechBackend.availability(locale: locale, contextualStrings: contextualStrings) {
+            switch await AnalyzerSpeechBackend.availability(
+                locale: recognitionLocale,
+                contextualStrings: contextualStrings
+            ) {
             case let .ready(backend):
                 return backend
             case let .needsAssets(supportedLocale):
@@ -298,7 +308,10 @@ final class VoiceSpeechRecognizer: VoiceSpeechRecognizing {
                 break
             }
         }
-        guard let backend = await Self.makeLegacyBackend(locale: locale, contextualStrings: contextualStrings) else {
+        guard let backend = await Self.makeLegacyBackend(
+            locale: recognitionLocale,
+            contextualStrings: contextualStrings
+        ) else {
             throw VoiceSpeechError.unsupported
         }
         return backend
@@ -332,6 +345,59 @@ nonisolated enum VoiceSpeechAuthorization {
                 continuation.resume(returning: status)
             }
         }
+    }
+}
+
+/// 语音识别实际用的语言：一般就是界面语言；繁体中文要按设备地区换成对应口音的识别语言。
+nonisolated enum VoiceSpeechLocale {
+    /// 繁体中文用粤语识别的地区：香港、澳门。
+    private static let cantoneseRegionIdentifiers: Set<String> = ["HK", "MO"]
+
+    /// 按界面语言和设备地区优先尝试的识别语言，排在前面的先试；不需要换算时为空，直接用界面语言。
+    ///
+    /// 繁体中文在香港、澳门先试 zh-HK（粤语），再试 zh-TW（国语）；其他地区用 zh-TW。
+    ///
+    /// - Parameters:
+    ///   - locale: App 界面语言。
+    ///   - deviceRegion: 设备地区；为空时用界面语言自带的地区。
+    /// - Returns: 依次尝试的识别语言。
+    static func preferredLocales(for locale: Locale, deviceRegion: Locale.Region?) -> [Locale] {
+        guard locale.isTraditionalChinese else { return [] }
+        let taiwanMandarin = Locale(identifier: "zh-TW")
+        if let region = (deviceRegion ?? locale.region)?.identifier, cantoneseRegionIdentifiers.contains(region) {
+            return [Locale(identifier: "zh-HK"), taiwanMandarin]
+        }
+        return [taiwanMandarin]
+    }
+
+    /// 交给识别实现的语言：`preferredLocales` 里第一个系统支持的；都不支持或不需要换算时用界面语言，和以前的做法一致，
+    /// 语音功能不会因为换算而变得不可用。
+    ///
+    /// - Parameters:
+    ///   - locale: App 界面语言。
+    ///   - deviceRegion: 设备地区，默认取系统设置。
+    /// - Returns: 实际识别用的语言。
+    @concurrent static func recognitionLocale(
+        for locale: Locale,
+        deviceRegion: Locale.Region? = Locale.current.region
+    ) async -> Locale {
+        for candidate in preferredLocales(for: locale, deviceRegion: deviceRegion) {
+            if await isSupported(candidate) {
+                return candidate
+            }
+        }
+        return locale
+    }
+
+    /// 系统能否识别这种语言：iOS 26 的 `SpeechTranscriber` 或 `SFSpeechRecognizer` 有一个支持即可。
+    @concurrent private static func isSupported(_ locale: Locale) async -> Bool {
+        if #available(iOS 26, *) {
+            if SpeechTranscriber.isAvailable, await SpeechTranscriber.supportedLocale(equivalentTo: locale) != nil {
+                return true
+            }
+        }
+        let identifier = locale.identifier(.bcp47)
+        return SFSpeechRecognizer.supportedLocales().contains { $0.identifier(.bcp47) == identifier }
     }
 }
 

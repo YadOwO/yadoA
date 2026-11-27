@@ -64,11 +64,17 @@ struct AccountSummaryPresentation: Equatable {
     /// 从账户列表生成资产、负债和净资产汇总。
     ///
     /// 未知账户类型按资产处理，以避免损坏或未来类型的余额从总览中无提示消失；「不关联账户」不是资产，不计入。
+    ///
+    /// - Parameters:
+    ///   - accounts: 账户；停用的和「不关联账户」会被排除。
+    ///   - additionalAssets: 额外计入资产的金额，只用于计入净资产的芽豆有物物品估值；负债不受影响。
+    ///   - locale: 金额与播报文本使用的语言环境。
     static func summary(
         for accounts: [Account],
+        additionalAssets: Decimal = .zero,
         locale: Locale = .current
     ) -> AccountSummaryPresentation {
-        var assets = Decimal.zero
+        var assets = additionalAssets
         var liabilities = Decimal.zero
 
         for account in accounts where account.isActive && !account.isUnlinked {
