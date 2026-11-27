@@ -22294,6 +22294,12 @@
             "state" : "translated",
             "value" : "记账币种"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記帳幣別"
+          }
         }
       }
     },
@@ -22308,6 +22314,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常用"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "常用"
@@ -22330,6 +22342,12 @@
             "state" : "translated",
             "value" : "全部币种"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部幣別"
+          }
         }
       }
     },
@@ -22347,6 +22365,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "搜索币种"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜尋幣別"
           }
         }
       }
@@ -22366,6 +22390,12 @@
             "state" : "translated",
             "value" : "把记账币种改为 %@？"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要把記帳幣別改為 %@ 嗎？"
+          }
         }
       }
     },
@@ -22384,6 +22414,12 @@
             "state" : "translated",
             "value" : "只换符号，金额不换算。所有账户和流水都会改为 %@，开了云同步时其他设备也会跟着改。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只換符號，金額不換算。所有帳戶和收支紀錄都會改為 %@，開啟雲端同步時其他裝置也會跟著改。"
+          }
         }
       }
     },
@@ -22398,6 +22434,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "更改"
@@ -22420,6 +22462,12 @@
             "state" : "translated",
             "value" : "没能更改记账币种，请稍后再试"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法更改記帳幣別，請稍後再試"
+          }
         }
       }
     },
@@ -22438,6 +22486,12 @@
             "state" : "translated",
             "value" : "记账币种：%@"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記帳幣別：%@"
+          }
         }
       }
     },
@@ -22452,6 +22506,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "更改"
@@ -22473,6 +22533,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "备份的记账币种是 %1$@，当前是 %2$@。恢复后账本改用 %1$@，金额不换算。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "備份的記帳幣別是 %1$@，目前是 %2$@。回復後帳本改用 %1$@，金額不換算。"
           }
         }
       }
@@ -34294,6 +34360,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "名稱"
+          }
+        }
+      }
+    },
+    "subscription.edit.newerVersion" : {
+      "comment" : "订阅编辑页顶部的说明：订阅的状态或周期是这一版不认识的值（来自更新版本），只能看不能改。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This subscription was set up in a newer version of the app. Update the app to edit it."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这条订阅来自更新版本的芽豆资产，升级 App 后才能修改。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這筆訂閱來自更新版本的芽豆資產，更新 App 後才能修改。"
           }
         }
       }

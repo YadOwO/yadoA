@@ -218,8 +218,15 @@ struct UserSubscriptionEditView: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// 名称、金额合法，自动记账选好了账户和分类时才能保存。
+    /// 订阅的状态或周期是这一版不认识的值（来自更新版本）：只展示，不允许修改，避免保存时被悄悄改写。
+    private var isFromNewerVersion: Bool {
+        guard let subscription = seed.subscription else { return false }
+        return subscription.status == nil || subscription.frequency == nil
+    }
+
+    /// 名称、金额合法，自动记账选好了账户和分类时才能保存；来自更新版本的订阅不能保存。
     private var canSave: Bool {
+        guard !isFromNewerVersion else { return false }
         guard !trimmedName.isEmpty,
               trimmedName.count <= LocalUserSubscriptionRepository.nameLengthLimit,
               amount != nil
@@ -237,6 +244,9 @@ struct UserSubscriptionEditView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                if isFromNewerVersion {
+                    footnote(text("subscription.edit.newerVersion"))
+                }
                 slip
                 if status == .trial {
                     footnote(text("subscription.edit.trial.footer"))
@@ -426,13 +436,19 @@ struct UserSubscriptionEditView: View {
         .frame(maxWidth: .infinity, minHeight: 56)
         .accessibilityIdentifier("subscription-edit-amount")
         .onChange(of: amountText) { oldValue, newValue in
-            // 只接受不超过账本币种小数位的非负数字，其余输入原样退回
+            // 只接受不超过账本币种小数位的非负数字，其余输入原样退回；
+            // 没有小数的币种遇到旧金额的小数点时丢掉小数部分，旧金额才能一位位删掉
+            guard !newValue.isEmpty else { return }
             let separator = locale.decimalSeparator ?? "."
-            if !newValue.isEmpty,
-               AccountAmountParser.normalizedCNYAmountText(
-                   newValue, decimalSeparator: separator, fractionDigits: amountFractionDigits
-               ) == nil {
+            guard let normalized = AccountAmountParser.normalizedLiveAmountText(
+                newValue, decimalSeparator: separator, fractionDigits: amountFractionDigits
+            ) else {
                 amountText = oldValue
+                return
+            }
+            if amountFractionDigits == 0,
+               normalized != AccountAmountParser.canonicalized(newValue, decimalSeparator: separator) {
+                amountText = normalized
             }
         }
     }

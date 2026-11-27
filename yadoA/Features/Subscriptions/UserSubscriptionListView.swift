@@ -98,6 +98,8 @@ struct UserSubscriptionListView: View {
             }
         }
         .contentMargins(.top, 4, for: .scrollContent)
+        // 宽屏单栏时居中排成阅读宽度
+        .readableContentWidth(sideMargin: ReadableContentWidth.listSideMargin)
     }
 
     /// 每月合计：有两个以上分类时画饼图，圆心写每月合计；只有一类时只写数字。

@@ -170,7 +170,8 @@ struct VoiceSubscriptionToolExecutorTests {
 
         let execution = executor.execute(updateCall(created.subscriptionID, patch: turnOn))
 
-        let ruleID = try #require(try #require(SavedOutput(execution.result.output)).ruleID)
+        let saved = try #require(SavedOutput(execution.result.output))
+        let ruleID = try #require(saved.ruleID)
         #expect(try fetchRule(ruleID, in: container)?.categoryKey == ExpenseCategory.entertainment.rawValue)
         #expect(execution.change?.subscriptionChange?.summary == "已为 Netflix 打开自动记账")
 
@@ -199,7 +200,8 @@ struct VoiceSubscriptionToolExecutorTests {
         let subscription = try #require(try fetchSubscription(created.subscriptionID, in: container))
         #expect(subscription.amount == 78)
         #expect(subscription.anchorDay == 20261031)
-        let rule = try #require(try fetchRule(try #require(created.ruleID), in: container))
+        let createdRuleID = try #require(created.ruleID)
+        let rule = try #require(try fetchRule(createdRuleID, in: container))
         #expect(rule.amount == 78)
         #expect(rule.nextDueDay == 20261031)
     }
