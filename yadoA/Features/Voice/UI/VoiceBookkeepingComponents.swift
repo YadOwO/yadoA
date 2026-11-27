@@ -225,6 +225,9 @@ enum VoiceChangeOpenTarget: Equatable {
     /// 周期记账列表：规则不在记账页明细里，在列表里查看和编辑。
     case recurringRules
 
+    /// 订阅列表：订阅不在记账页明细里，在列表里查看和编辑。
+    case subscriptions
+
     /// 找出纸条上一行要打开的东西。
     ///
     /// - Parameters:
@@ -241,6 +244,8 @@ enum VoiceChangeOpenTarget: Equatable {
             return row.targetID.map { .account($0) }
         case .recurring:
             return row.targetID == nil ? nil : .recurringRules
+        case .subscription:
+            return row.targetID == nil ? nil : .subscriptions
         }
     }
 }

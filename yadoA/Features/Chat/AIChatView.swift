@@ -110,6 +110,9 @@ private enum AIChatRoute: Hashable {
 
     /// 周期记账列表；规则在列表里查看和编辑。
     case recurringRules
+
+    /// 订阅列表；订阅在列表里查看和编辑。
+    case subscriptions
 }
 
 /// 和 AI 的对话页：只有一条连续的记录，上下文按时间自动分段。
@@ -183,6 +186,8 @@ struct AIChatView: View {
                         AccountDetailView(accountID: id)
                     case .recurringRules:
                         RecurringRuleListView()
+                    case .subscriptions:
+                        UserSubscriptionListView()
                     }
                 }
         }
@@ -466,6 +471,7 @@ struct AIChatView: View {
         case .created, .updated, .deleted: .transaction(targetID)
         case .account: .account(targetID)
         case .recurring: .recurringRules
+        case .subscription: .subscriptions
         }
         path.append(route)
     }

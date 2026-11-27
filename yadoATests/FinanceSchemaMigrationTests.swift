@@ -10,7 +10,7 @@ struct FinanceSchemaMigrationTests {
     ///
     /// 先用 `FinanceSchemaV1.schema` 不带迁移计划建文件库，模拟现有开发机上的库，写入四类记录后关掉；
     /// 再用带迁移计划的 `AccountDataContainer.fileBacked(storeURL:)` 重开，记录数和关键字段必须保持不变。
-    @Test("V1 旧库用带迁移计划的文件容器重开后数据不变")
+    @Test("V1 旧库用带迁移计划的文件容器重开后数据不变，并迁到带订阅的 V2")
     func reopensV1StoreWithMigrationPlan() throws {
         let directory = FileManager.default.temporaryDirectory
             .appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -134,19 +134,44 @@ struct FinanceSchemaMigrationTests {
         #expect(ledger.payloadHash == "hash-account")
         #expect(ledger.revision == 1)
         #expect(ledger.pushedRevision == 0)
+
+        // V1 库迁到 V2 后多出空的订阅表，可以直接写入
+        #expect(try context.fetchCount(FetchDescriptor<UserSubscription>()) == 0)
+        context.insert(
+            UserSubscription(
+                id: UUID(),
+                name: "ChatGPT Plus",
+                amount: 140,
+                frequencyRawValue: RecurringFrequency.monthly.rawValue,
+                anchorDay: 20261205,
+                categoryRawValue: UserSubscriptionCategory.ai.rawValue,
+                channelRawValue: UserSubscriptionChannel.appStore.rawValue,
+                statusRawValue: UserSubscriptionStatus.active.rawValue,
+                accessEndDay: nil,
+                reminderDaysBefore: 3,
+                note: nil,
+                recurringRuleID: nil,
+                createdAt: timestamp,
+                updatedAt: timestamp
+            )
+        )
+        try context.save()
+        #expect(try context.fetchCount(FetchDescriptor<UserSubscription>()) == 1)
     }
 
     /// 防止新增版本时忘记同步更新当前 schema，或迁移计划与容器各自指向不同版本。
     ///
-    /// 当前 schema 必须取自迁移计划里的最新版本，目前只有 9.0.0 一个版本、没有迁移步骤，
-    /// 包含全部 7 个顶层模型；带迁移计划的内存容器也必须能正常创建。
-    @Test("当前 schema 指向迁移计划里的最新版本 9.0.0")
+    /// 当前 schema 必须取自迁移计划里的最新版本：目前是 V1（9.0.0）和 V2（10.0.0）两个版本、一步迁移，
+    /// V2 包含全部 8 个顶层模型；带迁移计划的内存容器也必须能正常创建。
+    @Test("当前 schema 指向迁移计划里的最新版本 10.0.0")
     func currentSchemaIsLatestVersionedSchema() throws {
         #expect(FinanceSchemaV1.versionIdentifier == Schema.Version(9, 0, 0))
+        #expect(FinanceSchemaV2.versionIdentifier == Schema.Version(10, 0, 0))
 
         let latest = try #require(FinanceMigrationPlan.schemas.last)
-        #expect(ObjectIdentifier(latest) == ObjectIdentifier(FinanceSchemaV1.self))
-        #expect(FinanceMigrationPlan.stages.isEmpty)
+        #expect(ObjectIdentifier(latest) == ObjectIdentifier(FinanceSchemaV2.self))
+        #expect(FinanceMigrationPlan.schemas.count == 2)
+        #expect(FinanceMigrationPlan.stages.count == 1)
         #expect(
             Set(AccountDataContainer.schema.entities.map(\.name)) == [
                 "Account",
@@ -156,6 +181,7 @@ struct FinanceSchemaMigrationTests {
                 "RecurringRule",
                 "SyncLedgerEntry",
                 "AIChatTurnRecord",
+                "UserSubscription",
             ]
         )
 

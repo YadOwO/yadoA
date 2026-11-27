@@ -189,6 +189,10 @@ enum SyncRecordApplier {
             if let rule = try context.recurringRule(id: recordID) {
                 context.delete(rule)
             }
+        case .subscription:
+            if let subscription = try context.userSubscription(id: recordID) {
+                context.delete(subscription)
+            }
         }
         if let entry = ledger.removeValue(forKey: key) {
             context.delete(entry)
@@ -230,7 +234,30 @@ enum SyncRecordApplier {
             )
         case .recurringRule:
             return try upsertRecurringRule(decoder.decode(BackupRecurringRule.self, from: payload), recordID: recordID, in: context)
+        case .subscription:
+            return try upsertSubscription(decoder.decode(BackupSubscription.self, from: payload), recordID: recordID, in: context)
         }
+    }
+
+    /// 写入订阅；字段按与备份导入相同的规则校验，不要求它管理的周期记账规则已在本地（可能在同批稍后写入）。
+    private static func upsertSubscription(
+        _ dto: BackupSubscription,
+        recordID: UUID,
+        in context: ModelContext
+    ) throws -> UserSubscription {
+        guard dto.id == recordID else { throw InvalidRecord() }
+        let validated: UserSubscription
+        do {
+            validated = try dto.validatedSubscription()
+        } catch is BackupImportError {
+            throw InvalidRecord()
+        }
+        if let subscription = try context.userSubscription(id: recordID) {
+            subscription.overwrite(with: validated)
+            return subscription
+        }
+        context.insert(validated)
+        return validated
     }
 
     /// 写入周期记账规则；字段按与备份导入相同的规则校验，不要求账户已在本地（可能在同批稍后写入）。

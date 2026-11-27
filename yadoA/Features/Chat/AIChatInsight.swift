@@ -281,6 +281,12 @@ enum AIChatSuggestions {
             result.append(AIChatSuggestion(title: string("recordAnother"), action: .fill("")))
             return result
         }
+        // 改了订阅时同理：打开了自动记账的，同一轮新增的流水是当场记入的一期，只引导去看全部订阅
+        if latest.changes.contains(where: { $0.kind == .subscription }) {
+            result.append(AIChatSuggestion(title: string("subscriptionList"), action: .send(string("subscriptionList"))))
+            result.append(AIChatSuggestion(title: string("recordAnother"), action: .fill("")))
+            return result
+        }
         let remaining = latest.changes.filter { $0.kind == .created || $0.kind == .updated }
         if remaining.count == 1, let change = remaining.first {
             result.append(AIChatSuggestion(
@@ -391,7 +397,7 @@ enum AIChatCopy {
             case .created: kind = .created
             case .updated: kind = .updated
             case .deleted: kind = .deleted
-            case .account, .recurring: return nil
+            case .account, .recurring, .subscription: return nil
             }
             return VoiceSessionSummary.Item(kind: kind, label: change.title, formattedAmount: change.formattedAmount ?? "")
         }

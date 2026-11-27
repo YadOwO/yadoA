@@ -17,6 +17,9 @@ nonisolated enum SyncEntityType: String, CaseIterable, Sendable {
 
     /// 周期记账规则（`RecurringRule`）。
     case recurringRule = "recurring_rule"
+
+    /// 订阅（`UserSubscription`）。服务端要先接受这个类型，带它的客户端才能上线。
+    case subscription
 }
 
 /// 本地同步台账：每条参与同步的业务记录对应一行，记录冲突裁决和上传所需的元数据。

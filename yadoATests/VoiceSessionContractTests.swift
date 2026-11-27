@@ -336,13 +336,58 @@ struct VoiceSessionContractTests {
         #expect(item["status"] as? String == "unavailable")
     }
 
-    @Test("当前版本声明账户工具和周期记账工具")
+    @Test("订阅工具调用解码：修改里不出现表示不改、null 表示清空或关闭，原样回传时保持一致")
+    func decodesAndEncodesSubscriptionToolCalls() throws {
+        let json = """
+        {"status":"tool_calls","canFinishLocally":true,"toolCalls":[
+          {"id":"c1","name":"create_subscription","input":{"name":"Netflix","amount":"68","frequency":"monthly",
+            "category":"media","channel":"appStore","status":"active","nextChargeDate":"2026-10-28",
+            "reminderDaysBefore":null,"note":null,"bookkeeping":{"accountId":"A1","categoryId":null},
+            "inferredFields":["chargeDate"]}},
+          {"id":"c2","name":"update_subscription","input":{"subscriptionId":"S1","patch":{
+            "status":"cancelled","reminderDaysBefore":null,"bookkeeping":null,"keepsRecurringRule":true}}},
+          {"id":"c3","name":"delete_subscription","input":{"subscriptionId":"S2","keepsRecurringRule":false}}
+        ]}
+        """
+        let response = try JSONDecoder().decode(VoiceSessionTurnResponse.self, from: Data(json.utf8))
+        guard case let .toolCalls(calls, _, _) = response, calls.count == 3 else {
+            Issue.record("应为三个工具调用")
+            return
+        }
+        guard case let .createSubscription(_, create) = calls[0] else {
+            Issue.record("第一个应为新建订阅")
+            return
+        }
+        #expect(create.bookkeeping == VoiceSubscriptionBookkeeping(accountId: "A1", categoryId: nil))
+        #expect(create.inferredFields == [.chargeDate])
+        guard case let .updateSubscription(_, update) = calls[1] else {
+            Issue.record("第二个应为修改订阅")
+            return
+        }
+        #expect(update.patch.status == .cancelled)
+        #expect(update.patch.reminderDaysBefore == .clear)
+        #expect(update.patch.bookkeeping == .clear)
+        #expect(update.patch.note == nil)
+        #expect(update.patch.keepsRecurringRule == true)
+
+        let createObject = try #require(try jsonObject(calls[0])["input"] as? [String: Any])
+        #expect(createObject["reminderDaysBefore"] is NSNull)
+        #expect((createObject["bookkeeping"] as? [String: Any])?["categoryId"] is NSNull)
+        let patchObject = try #require((try jsonObject(calls[1])["input"] as? [String: Any])?["patch"] as? [String: Any])
+        #expect(patchObject["bookkeeping"] is NSNull)
+        #expect(!patchObject.keys.contains("note"))
+        for call in calls {
+            #expect(try JSONDecoder().decode(VoiceToolCall.self, from: JSONEncoder().encode(call)) == call)
+        }
+    }
+
+    @Test("当前版本声明账户工具、周期记账工具和订阅工具")
     func declaresCapabilities() throws {
         let request = VoiceSessionTurnRequest(
             locale: "zh-Hans", capabilities: VoiceSessionCapability.declared, now: "2026-10-20T12:30:00+08:00",
             defaultAccountId: nil, accounts: [], categories: [], events: []
         )
-        #expect(try jsonObject(request)["capabilities"] as? [String] == ["account_tools", "recurring_tools"])
+        #expect(try jsonObject(request)["capabilities"] as? [String] == ["account_tools", "recurring_tools", "subscription_tools"])
     }
 
     @Test("获取凭证失败时也记下凭证耗时，且没有发出请求")

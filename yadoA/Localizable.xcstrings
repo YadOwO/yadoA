@@ -32972,6 +32972,2214 @@
           }
         }
       }
+    },
+    "recurring.row.from_subscription" : {
+      "comment" : "周期记账列表行：这条规则由订阅的自动记账建立",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From subscription"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "来自订阅"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "來自訂閱"
+          }
+        }
+      }
+    },
+    "recurring.delete.message.subscription" : {
+      "comment" : "删除订阅建的周期记账时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This entry comes from a subscription. Deleting it turns off automatic recording for that subscription. Transactions already recorded are kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这条周期记账来自订阅，删除后那条订阅会关掉自动记账。已记入的流水会保留。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這條週期記帳來自訂閱，刪除後那條訂閱會關閉自動記帳。已記入的收支紀錄會保留。"
+          }
+        }
+      }
+    },
+    "subscription.title" : {
+      "comment" : "订阅页标题与“我的”入口",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscriptions"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "订阅"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訂閱"
+          }
+        }
+      }
+    },
+    "subscription.add" : {
+      "comment" : "订阅页添加按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Subscription"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加订阅"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增訂閱"
+          }
+        }
+      }
+    },
+    "subscription.empty.title" : {
+      "comment" : "订阅页空状态标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Subscriptions"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有订阅"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "還沒有訂閱"
+          }
+        }
+      }
+    },
+    "subscription.empty.message" : {
+      "comment" : "订阅页空状态说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep track of AI tools, streaming, cloud storage and other services that renew, so you know what they cost each month and when they charge."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把 AI、视频、云存储这类按期扣费的服务记下来，看清每月花多少、哪天扣费。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把 AI、影音、雲端儲存這類按期扣款的服務記下來，看清每月花多少、哪天扣款。"
+          }
+        }
+      }
+    },
+    "subscription.summary.monthly" : {
+      "comment" : "订阅页合计：平均每月花费的标题，也是饼图圆心的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monthly"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每月约"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每月約"
+          }
+        }
+      }
+    },
+    "subscription.summary.yearly" : {
+      "comment" : "订阅页合计：一年花费的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yearly"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每年约"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每年約"
+          }
+        }
+      }
+    },
+    "subscription.summary.yearly_line" : {
+      "comment" : "订阅页饼图下方的一年花费，%@ 是金额",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About %@ a year"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每年约 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每年約 %@"
+          }
+        }
+      }
+    },
+    "subscription.summary.footer" : {
+      "comment" : "订阅页合计的口径说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yearly, quarterly and weekly prices are averaged per month. Trials and cancelled subscriptions aren't counted."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年付、季付、周付按月平均折算；试用中和已取消的不算。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年繳、季繳、週繳按月平均換算；試用中和已取消的不算。"
+          }
+        }
+      }
+    },
+    "subscription.row.next_charge" : {
+      "comment" : "订阅列表行：下次扣费日，%@ 是日期",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renews %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 扣费"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 扣款"
+          }
+        }
+      }
+    },
+    "subscription.row.trial_until" : {
+      "comment" : "订阅列表行：试用结束日，%@ 是日期",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trial ends %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "试用至 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "試用至 %@"
+          }
+        }
+      }
+    },
+    "subscription.row.access_until" : {
+      "comment" : "订阅列表行：已取消的订阅还能用到哪天，%@ 是日期",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access until %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可用至 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可用至 %@"
+          }
+        }
+      }
+    },
+    "subscription.row.expired" : {
+      "comment" : "订阅列表行：已取消并过了可用日期",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expired"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已到期"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已到期"
+          }
+        }
+      }
+    },
+    "subscription.row.auto_bookkeeping" : {
+      "comment" : "订阅列表行标题后的重复符号的读屏文字",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded automatically"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动记账"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動記帳"
+          }
+        }
+      }
+    },
+    "subscription.status.active" : {
+      "comment" : "订阅状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "订阅中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訂閱中"
+          }
+        }
+      }
+    },
+    "subscription.status.trial" : {
+      "comment" : "订阅状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trial"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "试用中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "試用中"
+          }
+        }
+      }
+    },
+    "subscription.status.cancelled" : {
+      "comment" : "订阅状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelled"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已取消"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已取消"
+          }
+        }
+      }
+    },
+    "subscription.category.media" : {
+      "comment" : "订阅分类",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video & Music"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "影音"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "影音"
+          }
+        }
+      }
+    },
+    "subscription.category.ai" : {
+      "comment" : "订阅分类",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI"
+          }
+        }
+      }
+    },
+    "subscription.category.software" : {
+      "comment" : "订阅分类",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Software"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "软件工具"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "軟體工具"
+          }
+        }
+      }
+    },
+    "subscription.category.cloud" : {
+      "comment" : "订阅分类",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloud Storage"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "云存储"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "雲端儲存"
+          }
+        }
+      }
+    },
+    "subscription.category.membership" : {
+      "comment" : "订阅分类：外卖、出行、购物等会员",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memberships"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生活会员"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生活會員"
+          }
+        }
+      }
+    },
+    "subscription.category.other" : {
+      "comment" : "订阅分类",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他"
+          }
+        }
+      }
+    },
+    "subscription.channel.appStore" : {
+      "comment" : "订阅扣费渠道",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Store"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Store"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Store"
+          }
+        }
+      }
+    },
+    "subscription.channel.googlePlay" : {
+      "comment" : "订阅扣费渠道",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Play"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Play"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Play"
+          }
+        }
+      }
+    },
+    "subscription.channel.card" : {
+      "comment" : "订阅扣费渠道：在官网绑卡扣费",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Card on Website"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "官网信用卡"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "官網信用卡"
+          }
+        }
+      }
+    },
+    "subscription.channel.alipay" : {
+      "comment" : "订阅扣费渠道",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alipay"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支付宝"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支付寶"
+          }
+        }
+      }
+    },
+    "subscription.channel.wechat" : {
+      "comment" : "订阅扣费渠道",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WeChat Pay"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "微信支付"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "微信支付"
+          }
+        }
+      }
+    },
+    "subscription.channel.other" : {
+      "comment" : "订阅扣费渠道",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他"
+          }
+        }
+      }
+    },
+    "subscription.action.delete" : {
+      "comment" : "订阅列表行左滑、长按和删除确认里的删除按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除"
+          }
+        }
+      }
+    },
+    "subscription.delete.title" : {
+      "comment" : "删除订阅确认的标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete this subscription?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除这条订阅？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要刪除這條訂閱嗎？"
+          }
+        }
+      }
+    },
+    "subscription.delete.message" : {
+      "comment" : "删除没有自动记账的订阅时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This only removes it from the app. It doesn't cancel the subscription."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只删除这里的记录，不会帮你退订。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只刪除這裡的紀錄，不會幫你退訂。"
+          }
+        }
+      }
+    },
+    "subscription.delete.message.linked" : {
+      "comment" : "删除打开了自动记账的订阅时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This only removes it from the app. It doesn't cancel the subscription. Transactions already recorded are kept. Delete its recurring entry too?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只删除这里的记录，不会帮你退订。已记入的流水会保留，它自动记账用的周期记账要一起删掉吗？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只刪除這裡的紀錄，不會幫你退訂。已記入的收支紀錄會保留，它自動記帳用的週期記帳要一起刪除嗎？"
+          }
+        }
+      }
+    },
+    "subscription.delete.with_rule" : {
+      "comment" : "删除订阅时连它的周期记账一起删",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Both"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连周期记账一起删除"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "連週期記帳一起刪除"
+          }
+        }
+      }
+    },
+    "subscription.delete.keep_rule" : {
+      "comment" : "删除订阅时保留它的周期记账",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep the Recurring Entry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只删除订阅，保留周期记账"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只刪除訂閱，保留週期記帳"
+          }
+        }
+      }
+    },
+    "subscription.operation_failed" : {
+      "comment" : "订阅保存或删除失败",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not complete the action. Try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "操作失败，请重试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "操作失敗，請重試"
+          }
+        }
+      }
+    },
+    "subscription.edit.title.new" : {
+      "comment" : "添加订阅页标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Subscription"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加订阅"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增訂閱"
+          }
+        }
+      }
+    },
+    "subscription.edit.title.edit" : {
+      "comment" : "编辑订阅页标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Subscription"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑订阅"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編輯訂閱"
+          }
+        }
+      }
+    },
+    "subscription.edit.name.placeholder" : {
+      "comment" : "订阅名称输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name, e.g. ChatGPT Plus"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名称，例如 ChatGPT Plus"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名稱，例如 ChatGPT Plus"
+          }
+        }
+      }
+    },
+    "subscription.edit.amount" : {
+      "comment" : "订阅编辑：每期金额",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Price"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每期金额"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每期金額"
+          }
+        }
+      }
+    },
+    "subscription.edit.amount.placeholder" : {
+      "comment" : "订阅编辑：金额输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0.00"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0.00"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0.00"
+          }
+        }
+      }
+    },
+    "subscription.edit.amount.footer" : {
+      "comment" : "订阅编辑：金额按账本币种填写的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter it in your ledger currency. For subscriptions in another currency, enter the amount actually charged."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按账本币种填写；外币订阅填实际扣掉的金额。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按帳本幣別填寫；外幣訂閱填實際扣掉的金額。"
+          }
+        }
+      }
+    },
+    "subscription.edit.frequency" : {
+      "comment" : "订阅编辑：扣费周期",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Billing Cycle"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "扣费周期"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "扣款週期"
+          }
+        }
+      }
+    },
+    "subscription.edit.category" : {
+      "comment" : "订阅编辑：分类",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Category"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分类"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分類"
+          }
+        }
+      }
+    },
+    "subscription.edit.status" : {
+      "comment" : "订阅编辑：状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "状态"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "狀態"
+          }
+        }
+      }
+    },
+    "subscription.edit.next_charge" : {
+      "comment" : "订阅编辑：下次扣费日",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next Charge"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下次扣费"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下次扣款"
+          }
+        }
+      }
+    },
+    "subscription.edit.trial_end" : {
+      "comment" : "订阅编辑：试用结束日",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trial Ends"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "试用结束"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "試用結束"
+          }
+        }
+      }
+    },
+    "subscription.edit.access_end" : {
+      "comment" : "订阅编辑：已取消的订阅还能用到哪天",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access Until"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可用至"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可用至"
+          }
+        }
+      }
+    },
+    "subscription.edit.trial.footer" : {
+      "comment" : "订阅编辑：试用中的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charging starts the day the trial ends, then renews every billing cycle."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "试用结束那天开始扣费，之后按扣费周期续费。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "試用結束那天開始扣款，之後按扣款週期續訂。"
+          }
+        }
+      }
+    },
+    "subscription.edit.channel" : {
+      "comment" : "订阅编辑：扣费渠道",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paid Through"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "扣费渠道"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "扣款管道"
+          }
+        }
+      }
+    },
+    "subscription.edit.manage_app_store" : {
+      "comment" : "订阅编辑：跳到 App Store 的订阅管理页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage in App Store"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "去 App Store 管理订阅"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前往 App Store 管理訂閱"
+          }
+        }
+      }
+    },
+    "subscription.edit.reminder" : {
+      "comment" : "订阅编辑：扣费提醒",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge Reminder"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "扣费提醒"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "扣款提醒"
+          }
+        }
+      }
+    },
+    "subscription.edit.reminder.footer" : {
+      "comment" : "订阅编辑：扣费提醒的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You'll get a reminder at 9 AM a few days before each charge."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在扣费日前几天的上午 9 点提醒你。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在扣款日前幾天的上午 9 點提醒你。"
+          }
+        }
+      }
+    },
+    "subscription.edit.reminder.trial_footer" : {
+      "comment" : "订阅编辑：试用中时扣费提醒的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You'll get a reminder at 9 AM a few days before the trial ends, in time to decide whether to cancel."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在试用结束前几天的上午 9 点提醒你，来得及决定要不要退订。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在試用結束前幾天的上午 9 點提醒你，來得及決定要不要退訂。"
+          }
+        }
+      }
+    },
+    "subscription.reminder.option.none" : {
+      "comment" : "扣费提醒选项",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不提醒"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不提醒"
+          }
+        }
+      }
+    },
+    "subscription.reminder.option.1" : {
+      "comment" : "扣费提醒选项",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Day Before"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提前 1 天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提前 1 天"
+          }
+        }
+      }
+    },
+    "subscription.reminder.option.3" : {
+      "comment" : "扣费提醒选项",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3 Days Before"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提前 3 天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提前 3 天"
+          }
+        }
+      }
+    },
+    "subscription.reminder.option.7" : {
+      "comment" : "扣费提醒选项",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Week Before"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提前 7 天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提前 7 天"
+          }
+        }
+      }
+    },
+    "subscription.reminder.option.other" : {
+      "comment" : "扣费提醒选项：同步来的其他天数，%ld 是天数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%ld Days Before"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提前 %ld 天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提前 %ld 天"
+          }
+        }
+      }
+    },
+    "subscription.reminder.denied.message" : {
+      "comment" : "打开扣费提醒时通知权限被拒绝",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow notifications for this app in Settings to get charge reminders."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在系统设置中允许本 App 发送通知，才能收到扣费提醒。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在系統設定中允許本 App 傳送通知，才能收到扣款提醒。"
+          }
+        }
+      }
+    },
+    "subscription.reminder.notification.title" : {
+      "comment" : "扣费提醒通知标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscription Renewing Soon"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "订阅即将扣费"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訂閱即將扣款"
+          }
+        }
+      }
+    },
+    "subscription.reminder.notification.trial_title" : {
+      "comment" : "试用结束提醒通知标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trial Ending Soon"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "试用即将结束"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "試用即將結束"
+          }
+        }
+      }
+    },
+    "subscription.reminder.notification.body" : {
+      "comment" : "扣费提醒通知正文：%1$@ 订阅名称，%2$@ 日期，%3$@ 金额",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ will charge %3$@ on %2$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%1$@」将在 %2$@ 扣费 %3$@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%1$@」將在 %2$@ 扣款 %3$@。"
+          }
+        }
+      }
+    },
+    "subscription.reminder.notification.trial_body" : {
+      "comment" : "试用结束提醒通知正文：%1$@ 订阅名称，%2$@ 日期，%3$@ 金额",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The %1$@ trial ends on %2$@, then it charges %3$@. Cancel before then if you don't want to keep it."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%1$@」的试用将在 %2$@ 结束，之后扣费 %3$@。不想续订记得提前取消。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%1$@」的試用將在 %2$@ 結束，之後扣款 %3$@。不想續訂記得提前取消。"
+          }
+        }
+      }
+    },
+    "subscription.edit.bookkeeping" : {
+      "comment" : "订阅编辑：自动记账开关",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record Automatically"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动记账"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動記帳"
+          }
+        }
+      }
+    },
+    "subscription.edit.bookkeeping.account" : {
+      "comment" : "订阅编辑：自动记账记入的账户",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记入账户"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記入帳戶"
+          }
+        }
+      }
+    },
+    "subscription.edit.bookkeeping.category" : {
+      "comment" : "订阅编辑：自动记账用的支出分类",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expense Category"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支出分类"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支出分類"
+          }
+        }
+      }
+    },
+    "subscription.edit.choose" : {
+      "comment" : "订阅编辑：选项还没选或原来的已不可用",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请选择"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請選擇"
+          }
+        }
+      }
+    },
+    "subscription.edit.bookkeeping.footer" : {
+      "comment" : "订阅编辑：自动记账的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each charge is recorded as an expense automatically and also shows up in Recurring. Leave it off to just keep track of the subscription."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开后每次扣费自动记一笔支出，在「周期记账」里也能看到；不打开就只记录订阅，不生成流水。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟後每次扣款自動記一筆支出，在「週期記帳」裡也看得到；不開啟就只記錄訂閱，不產生收支紀錄。"
+          }
+        }
+      }
+    },
+    "subscription.edit.bookkeeping.stops_footer" : {
+      "comment" : "订阅编辑：已取消且原来在自动记账时的说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelled: charges up to today are still recorded, then automatic recording stops."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已取消：今天及以前的扣费照常记入，之后不再自动记账。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已取消：今天及以前的扣款照常記入，之後不再自動記帳。"
+          }
+        }
+      }
+    },
+    "subscription.edit.bookkeeping.cancelled_footer" : {
+      "comment" : "订阅编辑：已取消的订阅不能新打开自动记账",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelled subscriptions aren't recorded automatically."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已取消的订阅不再自动记账。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已取消的訂閱不再自動記帳。"
+          }
+        }
+      }
+    },
+    "subscription.edit.note" : {
+      "comment" : "订阅编辑：备注",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Note"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "备注"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "備註"
+          }
+        }
+      }
+    },
+    "subscription.edit.note.placeholder" : {
+      "comment" : "订阅编辑：备注输入框占位",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "e.g. family plan, which card"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "例如：家庭共享、用哪张卡"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "例如：家庭共享、用哪張卡"
+          }
+        }
+      }
+    },
+    "subscription.edit.delete" : {
+      "comment" : "订阅编辑页底部的删除按钮",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Subscription"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除订阅"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除訂閱"
+          }
+        }
+      }
+    },
+    "subscription.unlink.title" : {
+      "comment" : "关掉自动记账后保存时的确认标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn Off Automatic Recording"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关掉自动记账"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉自動記帳"
+          }
+        }
+      }
+    },
+    "subscription.unlink.message" : {
+      "comment" : "关掉自动记账后保存时的确认说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transactions already recorded are kept. What should happen to its recurring entry?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已记入的流水都会保留。原来的周期记账要怎么处理？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已記入的收支紀錄都會保留。原來的週期記帳要怎麼處理？"
+          }
+        }
+      }
+    },
+    "subscription.unlink.delete_rule" : {
+      "comment" : "关掉自动记账时删除原来的周期记账",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Recurring Entry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除周期记账"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除週期記帳"
+          }
+        }
+      }
+    },
+    "subscription.unlink.keep_rule" : {
+      "comment" : "关掉自动记账时保留原来的周期记账",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep as a Recurring Entry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留为普通周期记账"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留為一般週期記帳"
+          }
+        }
+      }
+    },
+    "voice.subscription.action.create" : {
+      "comment" : "语音结果里新建订阅那一行的动作",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New subscription"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新建订阅"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增訂閱"
+          }
+        }
+      }
+    },
+    "voice.subscription.action.cancel" : {
+      "comment" : "语音结果里取消订阅那一行的动作",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelled"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已取消"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已取消"
+          }
+        }
+      }
+    },
+    "voice.summary.subscriptionCreated" : {
+      "comment" : "语音新建订阅后的结果提示；%1$@ 是订阅名称，%2$@ 是周期（每月），%3$@ 是每期金额",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added subscription %1$@, %2$@ %3$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已新建订阅：%1$@，%2$@ %3$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已新增訂閱：%1$@，%2$@ %3$@"
+          }
+        }
+      }
+    },
+    "voice.summary.subscriptionUpdated" : {
+      "comment" : "语音修改订阅后的结果提示；%@ 是订阅名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated subscription %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已修改订阅：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已修改訂閱：%@"
+          }
+        }
+      }
+    },
+    "voice.summary.subscriptionCancelled" : {
+      "comment" : "语音取消订阅后的结果提示；%@ 是订阅名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelled subscription %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已取消订阅：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已取消訂閱：%@"
+          }
+        }
+      }
+    },
+    "voice.summary.subscriptionResumed" : {
+      "comment" : "语音恢复已取消的订阅后的结果提示；%@ 是订阅名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resumed subscription %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已恢复订阅：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已恢復訂閱：%@"
+          }
+        }
+      }
+    },
+    "voice.summary.subscriptionBookkeepingOn" : {
+      "comment" : "语音给订阅打开自动记账后的结果提示；%@ 是订阅名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turned on auto-recording for %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已为 %@ 打开自动记账"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已為 %@ 開啟自動記帳"
+          }
+        }
+      }
+    },
+    "voice.summary.subscriptionBookkeepingOff" : {
+      "comment" : "语音关闭订阅的自动记账后的结果提示；%@ 是订阅名称，已记的流水不动",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turned off auto-recording for %@; recorded entries kept"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已关闭 %@ 的自动记账，已记入的流水保留"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已關閉 %@ 的自動記帳，已記入的收支紀錄保留"
+          }
+        }
+      }
+    },
+    "voice.summary.subscriptionDeleted" : {
+      "comment" : "语音删除没有自动记账的订阅后的结果提示；%@ 是订阅名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted subscription %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已删除订阅：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已刪除訂閱：%@"
+          }
+        }
+      }
+    },
+    "voice.summary.subscriptionDeletedEntriesKept" : {
+      "comment" : "语音删除打开过自动记账的订阅后的结果提示；%@ 是订阅名称，已记的流水不动",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted subscription %@; recorded entries kept"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已删除订阅：%@，已记入的流水保留"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已刪除訂閱：%@，已記入的收支紀錄保留"
+          }
+        }
+      }
+    },
+    "voice.inferred.chargeDate" : {
+      "comment" : "语音新建订阅时没说扣费日、按今天处理，标在「待确认」里的字段名",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge date"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "扣费日"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "扣款日"
+          }
+        }
+      }
+    },
+    "voice.change.subscription.hint" : {
+      "comment" : "读屏提示：点语音结果里订阅那一行会打开订阅列表",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the subscription list."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开订阅列表。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟訂閱列表。"
+          }
+        }
+      }
+    },
+    "voice.chat.suggestion.subscriptionList" : {
+      "comment" : "聊天页改了订阅后给出的下一步建议，点一下直接发送",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What subscriptions do I have?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我有哪些订阅"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我有哪些訂閱"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

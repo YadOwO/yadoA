@@ -258,12 +258,25 @@ struct AIChatPresentationTests {
             ruleID: nil, actionText: "已删除", title: "健身卡", symbolName: "figure.run", formattedAmount: "¥99.00",
             detail: nil, summary: "已删除周期记账：健身卡", inverse: .remove(ruleID: UUID())
         ))
-        let changes = [transfer, removedAccount, rule, removedRule]
+        let subscriptionID = UUID()
+        let subscription = VoiceChange.subscription(VoiceSubscriptionChange(
+            subscriptionID: subscriptionID, actionText: "新建订阅", title: "Netflix", symbolName: "play.rectangle",
+            formattedAmount: "¥68.00", detail: nil, summary: "已新建订阅：Netflix，每月 ¥68.00", hasReminder: false,
+            inverse: UserSubscriptionRevert(subscriptionID: subscriptionID, previous: nil, previousRules: [])
+        ))
+        let removedSubscription = VoiceChange.subscription(VoiceSubscriptionChange(
+            subscriptionID: nil, actionText: "已删除", title: "iCloud", symbolName: "icloud",
+            formattedAmount: "¥6.00", detail: nil, summary: "已删除订阅：iCloud", hasReminder: false,
+            inverse: UserSubscriptionRevert(subscriptionID: UUID(), previous: nil, previousRules: [])
+        ))
+        let changes = [transfer, removedAccount, rule, removedRule, subscription, removedSubscription]
 
         #expect(VoiceChangeOpenTarget.resolve(AIChatChangeSnapshot(change: transfer), in: changes) == .account(fromID))
         #expect(VoiceChangeOpenTarget.resolve(AIChatChangeSnapshot(change: removedAccount), in: changes) == nil)
         #expect(VoiceChangeOpenTarget.resolve(AIChatChangeSnapshot(change: rule), in: changes) == .recurringRules)
         #expect(VoiceChangeOpenTarget.resolve(AIChatChangeSnapshot(change: removedRule), in: changes) == nil)
+        #expect(VoiceChangeOpenTarget.resolve(AIChatChangeSnapshot(change: subscription), in: changes) == .subscriptions)
+        #expect(VoiceChangeOpenTarget.resolve(AIChatChangeSnapshot(change: removedSubscription), in: changes) == nil)
     }
 
     @Test("详情里去记账页定位的按钮文案两种语言都有")
@@ -271,8 +284,11 @@ struct AIChatPresentationTests {
         for localeID in ["en", "zh-Hans"] {
             let value = AccountLocalization.string("voice.change.locate.action", locale: Locale(identifier: localeID))
             #expect(value != "voice.change.locate.action")
-            // 结果行的读屏提示：流水、账户、周期记账各一条
-            for key in ["voice.change.transaction.hint", "voice.change.account.hint", "voice.change.recurring.hint"] {
+            // 结果行的读屏提示：流水、账户、周期记账、订阅各一条
+            for key in [
+                "voice.change.transaction.hint", "voice.change.account.hint", "voice.change.recurring.hint",
+                "voice.change.subscription.hint",
+            ] {
                 #expect(AccountLocalization.string(key, locale: Locale(identifier: localeID)) != key)
             }
         }

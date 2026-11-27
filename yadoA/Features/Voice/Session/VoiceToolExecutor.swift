@@ -4,7 +4,7 @@ import SwiftData
 /// 在本机执行语音记账会话的工具调用。
 ///
 /// 收支的新增、修改、删除都经由 `LocalExpenseRepository.apply(_:)`，与手动记账使用同一套账户、分类、
-/// 金额校验和余额联动；余额调整、转账、账户与周期记账的增删改分别经由对应的本地仓库，规则与手动操作一致。
+/// 金额校验和余额联动；余额调整、转账、账户、周期记账与订阅的增删改分别经由对应的本地仓库，规则与手动操作一致。
 /// 查询与汇总只读本地数据，不包含余额调整和转账。
 struct VoiceToolExecutor {
     // 各类工具的实现按领域拆在 `VoiceToolExecutor+*.swift` 扩展里；跨文件共用的辅助方法因此不能是 `private`，
@@ -45,6 +45,10 @@ struct VoiceToolExecutor {
         case let .createRecurringRule(_, input): createRecurringRule(input)
         case let .updateRecurringRule(_, input): updateRecurringRule(input)
         case let .deleteRecurringRule(_, input): Self.recurring(deleteRecurringRule(input))
+        case let .searchSubscriptions(_, input): (searchSubscriptions(input), [])
+        case let .createSubscription(_, input): createSubscription(input)
+        case let .updateSubscription(_, input): updateSubscription(input)
+        case let .deleteSubscription(_, input): deleteSubscription(input)
         }
         var insight: AIChatInsight?
         if case let .summarizeTransactions(_, input) = call, output.isSuccess {
@@ -59,7 +63,7 @@ struct VoiceToolExecutor {
 
     /// 撤销一轮中的全部改动：按相反顺序在一次保存中执行反向操作，失败时没有任何改动生效。
     ///
-    /// 收支、账户与周期记账的改动可能交错（例如先新建账户再往里记账，或新建周期记账后当场记入一期），
+    /// 收支、账户、周期记账与订阅的改动可能交错（例如先新建账户再往里记账，或新建周期记账后当场记入一期），
     /// 必须在同一个 context 里倒序撤销。
     ///
     /// - Parameter changes: 这一轮按执行顺序记录的改动。
@@ -98,6 +102,8 @@ struct VoiceToolExecutor {
                     try revert(account.inverse, accounts: accounts, in: context)
                 case let .recurring(recurring):
                     try LocalRecurringRuleRepository.revert(recurring.inverse, in: context)
+                case let .subscription(subscription):
+                    try LocalUserSubscriptionRepository.revert(subscription.inverse, in: context)
                 }
             }
         } catch {
@@ -240,6 +246,11 @@ struct VoiceToolExecutor {
         case let error as RecurringRuleRepositoryError:
             switch error {
             case .ruleNotFound: .notFound
+            case .invalidInput: .invalidInput
+            }
+        case let error as UserSubscriptionRepositoryError:
+            switch error {
+            case .subscriptionNotFound: .notFound
             case .invalidInput: .invalidInput
             }
         case is AccountTransactionValidationError, is AccountValidationError:

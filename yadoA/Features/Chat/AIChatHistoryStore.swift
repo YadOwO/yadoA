@@ -73,6 +73,9 @@ nonisolated struct AIChatChangeSnapshot: Codable, Equatable, Identifiable, Senda
 
         /// 周期记账规则的改动。
         case recurring
+
+        /// 订阅的改动。
+        case subscription
     }
 
     /// 本次改动的唯一标识。
@@ -81,7 +84,7 @@ nonisolated struct AIChatChangeSnapshot: Codable, Equatable, Identifiable, Senda
     /// 改动类型。
     var kind: Kind
 
-    /// 点开时要看的流水、账户或周期记账规则；删除账户、删除规则时为空。
+    /// 点开时要看的流水、账户、周期记账规则或订阅；删除账户、规则、订阅时为空。
     var targetID: UUID?
 
     /// 行图标。
@@ -102,16 +105,16 @@ nonisolated struct AIChatChangeSnapshot: Codable, Equatable, Identifiable, Senda
     /// 流水待确认字段的原始值；账户改动为空。
     var inferredFields: [String]
 
-    /// 账户或周期记账改动的动作文字，例如「调整余额」「新建周期记账」；流水改动为空。
+    /// 账户、周期记账或订阅改动的动作文字，例如「调整余额」「新建周期记账」「新建订阅」；流水改动为空。
     ///
     /// 字段名沿用最早只有账户改动时的命名，已经写进本机历史记录，不再改名。
     var accountAction: String?
 
-    /// 账户或周期记账改动的补充说明；流水改动为空。
+    /// 账户、周期记账或订阅改动的补充说明；流水改动为空。
     var accountDetail: String?
 
     /// 是否是流水改动。
-    var isEntry: Bool { kind != .account && kind != .recurring }
+    var isEntry: Bool { kind != .account && kind != .recurring && kind != .subscription }
 }
 
 extension AIChatChangeSnapshot {
@@ -166,6 +169,20 @@ extension AIChatChangeSnapshot {
                 inferredFields: [],
                 accountAction: recurring.actionText,
                 accountDetail: recurring.detail
+            )
+        case let .subscription(subscription):
+            self.init(
+                id: subscription.id,
+                kind: .subscription,
+                targetID: subscription.subscriptionID,
+                symbolName: subscription.symbolName,
+                title: subscription.title,
+                formattedAmount: subscription.formattedAmount,
+                transactionDay: nil,
+                accountName: nil,
+                inferredFields: [],
+                accountAction: subscription.actionText,
+                accountDetail: subscription.detail
             )
         }
     }
@@ -369,15 +386,16 @@ final class AIChatHistoryStore {
         }
     }
 
-    /// 这些轮次涉及的流水、账户和周期记账规则中，当前仍然存在的那些。
+    /// 这些轮次涉及的流水、账户、周期记账规则和订阅中，当前仍然存在的那些。
     ///
     /// - Parameter turns: 要检查的轮次。
-    /// - Returns: 仍然存在的流水、账户和规则 UUID。
+    /// - Returns: 仍然存在的流水、账户、规则和订阅 UUID。
     func existingTargetIDs(in turns: [AIChatTurnSnapshot]) -> Set<UUID> {
         let changes = turns.flatMap(\.changes)
         let transactionIDs = changes.filter(\.isEntry).compactMap(\.targetID)
         let accountIDs = changes.filter { $0.kind == .account }.compactMap(\.targetID)
         let ruleIDs = changes.filter { $0.kind == .recurring }.compactMap(\.targetID)
+        let subscriptionIDs = changes.filter { $0.kind == .subscription }.compactMap(\.targetID)
         let context = container.makeManualSaveContext()
         let transactions = (try? context.fetch(FetchDescriptor<AccountTransaction>(
             predicate: #Predicate { transactionIDs.contains($0.id) }
@@ -388,6 +406,9 @@ final class AIChatHistoryStore {
         let rules = (try? context.fetch(FetchDescriptor<RecurringRule>(
             predicate: #Predicate { ruleIDs.contains($0.id) }
         ))) ?? []
-        return Set(transactions.map(\.id)).union(accounts.map(\.id)).union(rules.map(\.id))
+        let subscriptions = (try? context.fetch(FetchDescriptor<UserSubscription>(
+            predicate: #Predicate { subscriptionIDs.contains($0.id) }
+        ))) ?? []
+        return Set(transactions.map(\.id)).union(accounts.map(\.id)).union(rules.map(\.id)).union(subscriptions.map(\.id))
     }
 }

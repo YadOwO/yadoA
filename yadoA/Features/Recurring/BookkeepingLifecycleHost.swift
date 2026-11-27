@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// App 回到前台和进入后台时要做的记账杂事：把到期的周期记账记入账本，重排每日提醒。
+/// App 回到前台和进入后台时要做的记账杂事：把到期的周期记账记入账本，重排每日提醒和订阅扣费提醒。
 private struct BookkeepingLifecycleHostModifier: ViewModifier {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
@@ -50,9 +50,14 @@ private struct BookkeepingLifecycleHostModifier: ViewModifier {
         }
     }
 
-    /// 按当前偏好重排每日提醒。
+    /// 按当前偏好重排每日提醒，再按当前订阅重排扣费提醒（同步来的改动、恢复备份后也能跟上）。
     private func rescheduleReminders() async {
         await BookkeepingReminderScheduler.reschedule(
+            container: modelContext.container,
+            locale: locale,
+            calendar: calendar
+        )
+        await UserSubscriptionReminderScheduler.reschedule(
             container: modelContext.container,
             locale: locale,
             calendar: calendar
