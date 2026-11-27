@@ -286,8 +286,11 @@ final class SyncStore {
     /// 和 `LocalLedgerCurrencyRepository.change(to:)` 的语义一致。
     ///
     /// 这是纯本地的归一，不登记台账、也不推送：保存时 `tracksSyncChanges` 为 `false`，
-    /// 否则会被当成本地修改，用当前时间推送后覆盖服务端和其他设备。台账内容哈希保持服务端内容的哈希，
-    /// 用户之后在本机修改这条记录时，会因哈希不同而推送归一后的版本。
+    /// 否则会被当成本地修改，用当前时间推送后覆盖服务端和其他设备。
+    /// 归一之后，台账里的内容哈希也一并更新为归一后内容的哈希（只改哈希，不动修改时间、版本号和待上传状态）。
+    /// 这样之后只改派生字段的保存（例如记一笔流水带来的余额变化）不会被当成对账户的修改，
+    /// 也就不会用当前时间推送，去覆盖其他设备上更新的资料。
+    /// 服务端仍保留旧币种，每台设备收到后各自归一，用户下一次真正修改这条记录时才推送归一后的版本。
     ///
     /// 必须在整批记录写入并保存、`replaceAll` 的本地删除也完成之后再调用，不能放进逐条应用里：
     /// 一批记录按序号排序，另一台设备换币种产生的账户和流水可能先后到达，逐条按「当时的」账本币种归一，
@@ -299,12 +302,24 @@ final class SyncStore {
         // 用新的 context 读取已保存的数据，不依赖未保存的新增是否出现在查询结果里
         let context = container.makeManualSaveContext()
         let code = try BookkeepingCurrency.current(in: context)
+        let ledger = try loadLedger(in: context)
         for account in try context.fetch(FetchDescriptor<Account>()) where account.currencyCode != code {
             account.currencyCode = code
+            // 只同步内容哈希：已登记且未删除的才更新，没登记过的和墓碑不动
+            let key = SyncLedgerEntry.key(entityType: .account, recordID: account.id)
+            if let entry = ledger[key], !entry.isTombstone,
+               let record = try SyncPayloadCoder.record(for: account) {
+                entry.payloadHash = record.payloadHash
+            }
         }
         for transaction in try context.fetch(FetchDescriptor<AccountTransaction>())
         where transaction.currencyCode != code {
             transaction.currencyCode = code
+            let key = SyncLedgerEntry.key(entityType: .transaction, recordID: transaction.id)
+            if let entry = ledger[key], !entry.isTombstone,
+               let record = try SyncPayloadCoder.record(for: transaction) {
+                entry.payloadHash = record.payloadHash
+            }
         }
         if context.hasChanges {
             try context.saveOrRollback(tracksSyncChanges: false)

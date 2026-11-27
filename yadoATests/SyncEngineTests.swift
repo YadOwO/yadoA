@@ -391,6 +391,76 @@ struct SyncEngineTests {
             #expect(transaction.currencyCode == "USD")
             #expect(transaction.amount == 30)
             #expect(try pendingEntries(in: device.container).isEmpty)
+
+            // 归一后台账内容哈希跟着更新为归一后内容的哈希
+            let accountRecord = try #require(try SyncPayloadCoder.record(for: account))
+            let accountEntry = try ledgerEntry(.account, accountID, in: device.container)
+            #expect(accountEntry?.payloadHash == accountRecord.payloadHash)
+            let transactionRecord = try #require(try SyncPayloadCoder.record(for: transaction))
+            let transactionEntry = try ledgerEntry(.transaction, transactionID, in: device.container)
+            #expect(transactionEntry?.payloadHash == transactionRecord.payloadHash)
+
+            // 之后在这个账户上再记一笔：新流水待上传，但账户只有余额变化，不能被当成本地修改
+            let newExpenseID = try #require(UUID(uuidString: "5A1C0000-0000-4000-8000-000000000013"))
+            try LocalExpenseRepository(container: device.container).save(
+                DiningExpenseDraft(id: newExpenseID, accountID: accountID, amountText: "10", transactionDay: 20261021)
+            )
+            #expect(try ledgerEntry(.account, accountID, in: device.container)?.hasPendingChanges == false)
+            #expect(try ModelContext(device.container).account(id: accountID)?.balance == 60)
+        }
+    }
+
+    @Test("拉取到其他币种的账户：本机归一后台账哈希同步更新，之后在该账户记账不会把账户当成本地修改")
+    func pullNormalizedAccountKeepsLedgerHashInSyncWithContent() async throws {
+        try await withEnvironment { environment in
+            let device = try environment.makeDevice()
+            let server = environment.server
+            let localAccountID = try #require(UUID(uuidString: "5A1C0000-0000-4000-8000-000000000021"))
+            let remoteAccountID = try #require(UUID(uuidString: "5A1C0000-0000-4000-8000-000000000022"))
+            let expenseID = try #require(UUID(uuidString: "5A1C0000-0000-4000-8000-000000000023"))
+            // 本机最早的账户是美元账户，账本币种取它的币种
+            let defaults = LedgerTestDefaults.make(currency: "USD", name: "syncNormalizeAccount")
+            try LocalAccountRepository(container: device.container, defaults: defaults).save(
+                AccountDraft(id: localAccountID, accountType: .cash, template: nil, name: "现金", amountText: "100"),
+                locale: Locale(identifier: "en_US")
+            )
+            await device.engine.synchronize()
+
+            // 另一台设备离线时用人民币建了一个更晚的账户，之后上传到服务端
+            let remoteAccount = try payload(
+                BackupAccount(
+                    id: remoteAccountID,
+                    type: AccountType.cash.rawValue,
+                    templateID: nil,
+                    name: "备用金",
+                    note: nil,
+                    lastFourDigits: nil,
+                    balance: "50",
+                    openingBalance: "50",
+                    currencyCode: "CNY",
+                    createdAt: Date(timeIntervalSince1970: 2_000_000_000),
+                    updatedAt: Date(timeIntervalSince1970: 2_000_000_000),
+                    deactivatedAt: nil
+                )
+            )
+            await server.store(entityType: .account, recordID: remoteAccountID, payload: remoteAccount)
+
+            await device.engine.synchronize()
+
+            let context = ModelContext(device.container)
+            let account = try #require(try context.account(id: remoteAccountID))
+            #expect(account.currencyCode == "USD")
+            let accountRecord = try #require(try SyncPayloadCoder.record(for: account))
+            let accountEntry = try ledgerEntry(.account, remoteAccountID, in: device.container)
+            #expect(accountEntry?.payloadHash == accountRecord.payloadHash)
+            #expect(try pendingEntries(in: device.container).isEmpty)
+
+            // 在这个账户上记一笔：新流水待上传，但账户只有余额变化，不能被当成本地修改
+            try LocalExpenseRepository(container: device.container).save(
+                DiningExpenseDraft(id: expenseID, accountID: remoteAccountID, amountText: "10", transactionDay: 20261021)
+            )
+            #expect(try ledgerEntry(.account, remoteAccountID, in: device.container)?.hasPendingChanges == false)
+            #expect(try ModelContext(device.container).account(id: remoteAccountID)?.balance == 40)
         }
     }
 
