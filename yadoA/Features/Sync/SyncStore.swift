@@ -239,6 +239,7 @@ final class SyncStore {
         models += try context.fetch(FetchDescriptor<BookkeepingCategory>()) as [any PersistentModel]
         models += try context.fetch(FetchDescriptor<BookkeepingPreference>()) as [any PersistentModel]
         models += try context.fetch(FetchDescriptor<RecurringRule>()) as [any PersistentModel]
+        models += try context.fetch(FetchDescriptor<UserSubscription>()) as [any PersistentModel]
         var registeredCount = 0
         for model in models {
             guard let record = try SyncPayloadCoder.record(for: model) else { continue }
@@ -330,6 +331,8 @@ final class SyncStore {
             return try context.fetch(descriptor).first
         case .recurringRule:
             return try context.recurringRule(id: id)
+        case .subscription:
+            return try context.userSubscription(id: id)
         }
     }
 }

@@ -206,6 +206,19 @@ final class BackupImportService {
             }
             staleRules.values.forEach(context.delete)
 
+            var staleSubscriptions = Dictionary(
+                try context.fetch(FetchDescriptor<UserSubscription>()).map { ($0.id, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            for subscription in records.subscriptions {
+                if let existing = staleSubscriptions.removeValue(forKey: subscription.id) {
+                    existing.overwrite(with: subscription)
+                } else {
+                    context.insert(subscription)
+                }
+            }
+            staleSubscriptions.values.forEach(context.delete)
+
             try restorePreference(plan.backup.bookkeepingPreference, in: context)
             try context.saveOrRollback(beforeSave: beforeSave)
         } catch {
@@ -274,6 +287,9 @@ extension BackupImportService {
 
         /// 备份中的周期记账规则。
         let recurringRules: [RecurringRule]
+
+        /// 备份中的订阅；旧备份没有这一项时为空，恢复后本机的订阅也会被清空。
+        let subscriptions: [UserSubscription]
     }
 
     /// 校验整份备份并转换为持久化模型；任何一条记录不合法都整体失败。
@@ -330,6 +346,11 @@ extension BackupImportService {
             guard recurringRuleIDs.insert(rule.id).inserted else { throw BackupImportError.invalidContent }
             return try rule.validatedRule()
         }
+        var subscriptionIDs = Set<UUID>()
+        let subscriptions = try backup.subscriptions.map { subscription in
+            guard subscriptionIDs.insert(subscription.id).inserted else { throw BackupImportError.invalidContent }
+            return try subscription.validatedSubscription()
+        }
         try reconcileBalances(
             of: accounts,
             withOpeningBalanceFrom: backup.accounts,
@@ -339,7 +360,8 @@ extension BackupImportService {
             accounts: accounts,
             transactions: transactions,
             categories: categories,
-            recurringRules: recurringRules
+            recurringRules: recurringRules,
+            subscriptions: subscriptions
         )
     }
 
@@ -591,6 +613,49 @@ extension BackupCategory {
             updatedAt: updatedAt,
             deletedAt: deletedAt,
             replacementKey: replacementKey
+        )
+    }
+}
+
+extension BackupSubscription {
+    /// 校验并转换为尚未插入 context 的订阅；恢复备份和应用同步记录共用。
+    ///
+    /// 频率、分类、渠道、状态只要求非空：新版本加的值原样保留，旧版本按「其他」或「只展示不计算」处理。
+    /// 不要求它管理的周期记账规则存在。
+    ///
+    /// - Returns: 已校验的订阅。
+    /// - Throws: 名称、金额、日期或提醒天数不合法时抛出 `BackupImportError.invalidContent`。
+    @MainActor
+    func validatedSubscription() throws -> UserSubscription {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty,
+              trimmedName.count <= LocalUserSubscriptionRepository.nameLengthLimit,
+              let amount = BackupImportService.decimal(from: amount),
+              amount > 0,
+              AccountAmountParser.hasCNYPrecision(amount),
+              !frequency.isEmpty,
+              !category.isEmpty,
+              !channel.isEmpty,
+              !status.isEmpty,
+              TransactionDay.isValid(anchorDay),
+              accessEndDay.map(TransactionDay.isValid) ?? true,
+              reminderDaysBefore.map(UserSubscriptionReminderOption.validRange.contains) ?? true
+        else { throw BackupImportError.invalidContent }
+        return UserSubscription(
+            id: id,
+            name: trimmedName,
+            amount: amount,
+            frequencyRawValue: frequency,
+            anchorDay: anchorDay,
+            categoryRawValue: category,
+            channelRawValue: channel,
+            statusRawValue: status,
+            accessEndDay: accessEndDay,
+            reminderDaysBefore: reminderDaysBefore,
+            note: note,
+            recurringRuleID: recurringRuleID,
+            createdAt: createdAt,
+            updatedAt: updatedAt
         )
     }
 }

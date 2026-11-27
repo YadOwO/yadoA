@@ -49,6 +49,9 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
     /// 全部周期记账规则，包含已暂停和已结束的。
     let recurringRules: [BackupRecurringRule]
 
+    /// 全部订阅，包含已取消的；旧文件没有这一项时为空。
+    let subscriptions: [BackupSubscription]
+
     /// 从完整业务快照构造备份信封。
     init(
         formatVersion: Int = BackupFormatVersion.current,
@@ -59,7 +62,8 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
         transactions: [BackupTransaction],
         bookkeepingPreference: BackupBookkeepingPreference?,
         categories: [BackupCategory] = [],
-        recurringRules: [BackupRecurringRule] = []
+        recurringRules: [BackupRecurringRule] = [],
+        subscriptions: [BackupSubscription] = []
     ) {
         self.formatVersion = formatVersion
         self.exportedAt = exportedAt
@@ -70,6 +74,7 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
         self.bookkeepingPreference = bookkeepingPreference
         self.categories = categories
         self.recurringRules = recurringRules
+        self.subscriptions = subscriptions
     }
 
     /// 从备份 JSON 解码信封。
@@ -90,6 +95,7 @@ nonisolated struct BackupFile: Codable, Equatable, Sendable {
         )
         categories = try container.decodeIfPresent([BackupCategory].self, forKey: .categories) ?? []
         recurringRules = try container.decodeIfPresent([BackupRecurringRule].self, forKey: .recurringRules) ?? []
+        subscriptions = try container.decodeIfPresent([BackupSubscription].self, forKey: .subscriptions) ?? []
     }
 }
 
@@ -470,6 +476,125 @@ nonisolated struct BackupRecurringRule: Codable, Equatable, Sendable {
         case nextDueDay
         case endDay
         case pausedAt
+        case createdAt
+        case updatedAt
+    }
+}
+
+/// 备份中的订阅快照；字段与 `UserSubscription` 的持久化列一一镜像，也是同步类型 `subscription` 的内容。
+nonisolated struct BackupSubscription: Codable, Equatable, Sendable {
+    /// 订阅的稳定标识；不得重新生成。
+    let id: UUID
+
+    /// 名称。
+    let name: String
+
+    /// 每期金额的字符串表达（`Decimal.description`）。
+    let amount: String
+
+    /// `RecurringFrequency.rawValue`；不认识的原样保留，只展示不计算。
+    let frequency: String
+
+    /// 排期起始的扣费日 `YYYYMMDD`；试用中时是试用结束日。
+    let anchorDay: Int
+
+    /// `UserSubscriptionCategory.rawValue`；不认识的按「其他」展示。
+    let category: String
+
+    /// `UserSubscriptionChannel.rawValue`；不认识的按「其他」展示。
+    let channel: String
+
+    /// `UserSubscriptionStatus.rawValue`。
+    let status: String
+
+    /// 已取消时还能用到的那天 `YYYYMMDD`。
+    let accessEndDay: Int?
+
+    /// 提前几天提醒扣费；为 `nil` 表示不提醒。
+    let reminderDaysBefore: Int?
+
+    /// 可选备注。
+    let note: String?
+
+    /// 订阅管理的周期记账规则；规则可能不在同一份数据里，读取时要判空。
+    let recurringRuleID: UUID?
+
+    /// 创建时间。
+    let createdAt: Date
+
+    /// 最近一次修改时间。
+    let updatedAt: Date
+
+    /// 从持久化订阅生成值快照。
+    init(_ subscription: UserSubscription) {
+        id = subscription.id
+        name = subscription.name
+        amount = subscription.amount.description
+        frequency = subscription.frequencyRawValue
+        anchorDay = subscription.anchorDay
+        category = subscription.categoryRawValue
+        channel = subscription.channelRawValue
+        status = subscription.statusRawValue
+        accessEndDay = subscription.accessEndDay
+        reminderDaysBefore = subscription.reminderDaysBefore
+        note = subscription.note
+        recurringRuleID = subscription.recurringRuleID
+        createdAt = subscription.createdAt
+        updatedAt = subscription.updatedAt
+    }
+
+    /// 编码订阅快照；所有字段都写入，`nil` 可选值以 JSON `null` 保留。
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id.backupJSONString, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(amount, forKey: .amount)
+        try container.encode(frequency, forKey: .frequency)
+        try container.encode(anchorDay, forKey: .anchorDay)
+        try container.encode(category, forKey: .category)
+        try container.encode(channel, forKey: .channel)
+        try container.encode(status, forKey: .status)
+        try container.encode(accessEndDay, forKey: .accessEndDay)
+        try container.encode(reminderDaysBefore, forKey: .reminderDaysBefore)
+        try container.encode(note, forKey: .note)
+        try container.encode(recurringRuleID?.backupJSONString, forKey: .recurringRuleID)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(updatedAt, forKey: .updatedAt)
+    }
+
+    /// 从备份 JSON 解码订阅快照；身份字段严格解码，其余字段缺省时使用安全默认值，由校验拦下。
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
+        amount = try container.decodeIfPresent(String.self, forKey: .amount) ?? ""
+        frequency = try container.decodeIfPresent(String.self, forKey: .frequency) ?? ""
+        anchorDay = try container.decodeIfPresent(Int.self, forKey: .anchorDay) ?? 0
+        category = try container.decodeIfPresent(String.self, forKey: .category) ?? ""
+        channel = try container.decodeIfPresent(String.self, forKey: .channel) ?? ""
+        status = try container.decodeIfPresent(String.self, forKey: .status) ?? ""
+        accessEndDay = try container.decodeIfPresent(Int.self, forKey: .accessEndDay)
+        reminderDaysBefore = try container.decodeIfPresent(Int.self, forKey: .reminderDaysBefore)
+        note = try container.decodeIfPresent(String.self, forKey: .note)
+        recurringRuleID = try container.decodeIfPresent(UUID.self, forKey: .recurringRuleID)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? .distantPast
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
+    }
+
+    /// 稳定 JSON 键名。
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case amount
+        case frequency
+        case anchorDay
+        case category
+        case channel
+        case status
+        case accessEndDay
+        case reminderDaysBefore
+        case note
+        case recurringRuleID
         case createdAt
         case updatedAt
     }

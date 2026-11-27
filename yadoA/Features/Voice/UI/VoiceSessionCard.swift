@@ -42,6 +42,9 @@ struct VoiceSessionCard: View {
     /// 打开周期记账列表，查看语音改过的规则。
     var onOpenRecurringRules: () -> Void = {}
 
+    /// 打开订阅列表，查看语音改过的订阅。
+    var onOpenSubscriptions: () -> Void = {}
+
     /// 用户开始或停止碰卡片时回调：手指按着（点、拖动、长按选字）或内容还在惯性滚动算在碰；碰着时卡片不因闲置收起。
     var onTouchingChange: (Bool) -> Void = { _ in }
 
@@ -216,6 +219,7 @@ struct VoiceSessionCard: View {
                         onSelectOption: onSelectOption,
                         onCreateAccount: onCreateAccount,
                         onOpenRecurringRules: onOpenRecurringRules,
+                        onOpenSubscriptions: onOpenSubscriptions,
                         isShowingDetail: isShowingDetail
                     )
                     .id(turn.id)
@@ -274,6 +278,9 @@ private struct VoiceSessionTurnView: View {
 
     /// 打开周期记账列表。
     let onOpenRecurringRules: () -> Void
+
+    /// 打开订阅列表。
+    let onOpenSubscriptions: () -> Void
 
     /// 卡片上是否正盖着流水、账户详情或周期记账列表；关掉时重新检查结果行的目标还在不在。
     let isShowingDetail: Bool
@@ -440,6 +447,7 @@ private struct VoiceSessionTurnView: View {
         case let .transaction(change): onOpenTransaction(change)
         case let .account(accountID): onOpenAccount(accountID)
         case .recurringRules: onOpenRecurringRules()
+        case .subscriptions: onOpenSubscriptions()
         }
     }
 

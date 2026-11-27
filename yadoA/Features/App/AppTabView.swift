@@ -135,6 +135,9 @@ enum ProfileRoute: Hashable, TabSplitRoute {
     /// 周期记账页面。
     case recurringRules
 
+    /// 订阅页面：每月合计、按分类的饼图和全部订阅。
+    case subscriptions
+
     /// 云端同步页面。
     case sync
 
@@ -185,7 +188,7 @@ enum ProfileRoute: Hashable, TabSplitRoute {
         switch self {
         case .feedback, .aiProcessingConsent:
             true
-        case .bills, .categories, .recurringRules, .sync, .dataLinks, .aiPoints, .aiPointLots, .aiCreditEntries,
+        case .bills, .categories, .recurringRules, .subscriptions, .sync, .dataLinks, .aiPoints, .aiPointLots, .aiCreditEntries,
              .aiModelTier, .aiTraceConsent, .checkIn, .settings, .accountSecurity, .moreProducts, .developer:
             false
         }
@@ -201,6 +204,8 @@ enum ProfileRoute: Hashable, TabSplitRoute {
             CategoryManagementView()
         case .recurringRules:
             RecurringRuleListView()
+        case .subscriptions:
+            UserSubscriptionListView()
         case .sync:
             SyncSettingsView()
         case .dataLinks:

@@ -76,6 +76,39 @@ struct AIChatHistoryStoreTests {
         #expect(fixture.store.turns.first?.insight == insight)
     }
 
+    @Test("订阅改动随记录保存，不算流水改动；订阅还在时才能点开")
+    func persistsSubscriptionChange() throws {
+        let fixture = try Fixture()
+        let subscriptionID = UUID()
+        let change = VoiceSubscriptionChange(
+            subscriptionID: subscriptionID, actionText: "新建订阅", title: "Netflix", symbolName: "play.rectangle",
+            formattedAmount: "¥68.00", detail: "每月 · 10月28日 扣费 · App Store", summary: "已新建订阅：Netflix，每月 ¥68.00",
+            hasReminder: false,
+            inverse: UserSubscriptionRevert(subscriptionID: subscriptionID, previous: nil, previousRules: [])
+        )
+        var turn = VoiceSession.Turn(userText: "Netflix 每月 68", eventStartIndex: 0)
+        turn.changes = [.subscription(change)]
+        turn.outcome = .reply(change.summary)
+        fixture.store.save(turn, locale: Locale(identifier: "zh-Hans"))
+        fixture.store.loadLatest()
+
+        let saved = try #require(fixture.store.turns.first?.changes.first)
+        #expect(saved.kind == .subscription)
+        #expect(!saved.isEntry)
+        #expect(saved.targetID == subscriptionID)
+        #expect(saved.accountAction == "新建订阅")
+        #expect(fixture.store.existingTargetIDs(in: fixture.store.turns).isEmpty)
+
+        let context = ModelContext(fixture.container)
+        context.insert(UserSubscription(
+            id: subscriptionID, name: "Netflix", amount: 68, frequencyRawValue: RecurringFrequency.monthly.rawValue,
+            anchorDay: 20261028, categoryRawValue: "media", channelRawValue: "appStore", statusRawValue: "active",
+            accessEndDay: nil, reminderDaysBefore: nil, note: nil, recurringRuleID: nil, createdAt: .now, updatedAt: .now
+        ))
+        try context.save()
+        #expect(fixture.store.existingTargetIDs(in: fixture.store.turns) == [subscriptionID])
+    }
+
     @Test("周期记账改动随记录保存，不算流水改动；规则还在时才能点开")
     func persistsRecurringChange() throws {
         let fixture = try Fixture()

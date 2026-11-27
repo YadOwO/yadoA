@@ -17,8 +17,16 @@ extension VoiceToolExecutor {
     func searchRecurringRules(_ input: VoiceSearchRecurringRulesInput) -> VoiceToolOutput {
         let context = container.makeManualSaveContext()
         guard let rules = try? context.fetch(FetchDescriptor<RecurringRule>()),
-              let accounts = try? context.fetch(FetchDescriptor<Account>())
+              let accounts = try? context.fetch(FetchDescriptor<Account>()),
+              let subscriptions = try? context.fetch(FetchDescriptor<UserSubscription>())
         else { return .failure(.failed) }
+        // 订阅自动记账建的规则标出订阅：模型据此改订阅，不单独改规则
+        var owners: [UUID: UUID] = [:]
+        for subscription in subscriptions {
+            if let ruleID = subscription.recurringRuleID {
+                owners[ruleID] = subscription.id
+            }
+        }
         let catalog = Self.catalog(in: context)
         let filter = input.filter
         let entryType = filter.type.map { BookkeepingEntryType($0) }
@@ -32,7 +40,8 @@ extension VoiceToolExecutor {
             rules, accounts: accounts, ledgerCurrencyCode: currencyCode, catalog: catalog
         )
         let items = sorted.compactMap { rule -> VoiceRecurringRuleItem? in
-            guard let item = recurringItem(for: rule, accounts: accounts, catalog: catalog) else { return nil }
+            guard var item = recurringItem(for: rule, accounts: accounts, catalog: catalog) else { return nil }
+            item.subscriptionId = owners[rule.id]?.uuidString
             if let entryType, rule.entryType != entryType { return nil }
             if let categoryKeys, !categoryKeys.contains(rule.categoryKey) { return nil }
             if let accountIDs, !accountIDs.contains(rule.accountID) { return nil }
@@ -101,6 +110,10 @@ extension VoiceToolExecutor {
         guard let id = UUID(uuidString: input.ruleId), let rule = try? context.recurringRule(id: id) else {
             return (.failure(.notFound), [])
         }
+        // 订阅自动记账建的规则跟着订阅走：单独改了，下次保存订阅时又会被盖掉，与列表里不能单独暂停一致
+        if (try? context.userSubscription(owningRuleID: id)) != nil {
+            return (.failure(.notEditable), [])
+        }
         guard let change = Self.recurringRuleChange(
             from: input.patch, today: today, fractionDigits: amountFractionDigits
         ), !change.isEmpty else {
@@ -146,6 +159,10 @@ extension VoiceToolExecutor {
         let context = container.makeManualSaveContext()
         guard let id = UUID(uuidString: input.ruleId), let rule = try? context.recurringRule(id: id) else {
             return (.failure(.notFound), nil)
+        }
+        // 订阅自动记账建的规则要从订阅里关掉或连订阅一起删，撤销时才能把订阅的自动记账一并还原
+        if (try? context.userSubscription(owningRuleID: id)) != nil {
+            return (.failure(.notEditable), nil)
         }
         let snapshot = RecurringRuleSnapshot(rule: rule)
         let presentation = recurringPresentation(
