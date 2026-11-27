@@ -57,7 +57,7 @@ struct UserSubscriptionListView: View {
         }
         .sheet(item: $editSeed) { seed in
             NavigationStack {
-                UserSubscriptionEditView(seed: seed, calendar: calendar)
+                UserSubscriptionEditView(seed: seed, calendar: calendar, locale: locale)
             }
         }
         .confirmationDialog(

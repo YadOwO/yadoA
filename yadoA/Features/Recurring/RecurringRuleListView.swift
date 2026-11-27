@@ -265,7 +265,7 @@ struct RecurringRuleListView: View {
         }
         .sheet(item: $subscriptionSeed) { seed in
             NavigationStack {
-                UserSubscriptionEditView(seed: seed, calendar: calendar)
+                UserSubscriptionEditView(seed: seed, calendar: calendar, locale: locale)
             }
         }
         .alert(

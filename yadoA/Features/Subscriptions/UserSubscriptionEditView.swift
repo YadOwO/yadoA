@@ -130,7 +130,8 @@ struct UserSubscriptionEditView: View {
     /// - Parameters:
     ///   - seed: 打开时带的内容。
     ///   - calendar: 日期运算使用的日历。
-    init(seed: UserSubscriptionEditSeed, calendar: Calendar) {
+    ///   - amountLocale: 金额输入框使用的语言环境；必须和解析时读取的环境 `locale` 一致，预填的小数点才和解析对得上。
+    init(seed: UserSubscriptionEditSeed, calendar: Calendar, locale amountLocale: Locale) {
         self.seed = seed
         self.calendar = calendar
         let now = Date.now
@@ -146,7 +147,7 @@ struct UserSubscriptionEditView: View {
             let accessEndDay = subscription.accessEndDay
                 ?? UserSubscriptionSchedule.defaultAccessEndDay(beforeChargeDay: chargeDay, calendar: calendar)
             _name = State(initialValue: subscription.name)
-            _amountText = State(initialValue: Self.amountText(subscription.amount, locale: .current))
+            _amountText = State(initialValue: Self.amountText(subscription.amount, locale: amountLocale))
             _frequency = State(initialValue: subscription.frequency ?? .monthly)
             _chargeDate = State(initialValue: chargeDate)
             _category = State(initialValue: subscription.category)
