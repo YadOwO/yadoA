@@ -22,7 +22,7 @@
 | 名称 | 30 | 4 | 10 |
 | 副标题 | 30 | 10 | 25 |
 | 宣传文本 | 170 | 64 | 169 |
-| 描述 | 4000 | 899 | 2552 |
+| 描述 | 4000 | 898 | 2555 |
 | 关键词 | 100 | 67 | 99 |
 
 这些数字和第八节脚本的输出一致，都没有超限。
@@ -96,7 +96,7 @@ Yado Asset - Voice Bookkeeping
 | --- | --- | --- |
 | 语音记账 | 语音记账 | Voice Entry |
 | 对话记账 | 芽豆助手 | Yado Assistant |
-| 麦克风旁的打字入口 | 打字记账 | Type instead |
+| 麦克风旁的打字入口 | 键盘图标（界面上没有文字，「打字记账」只是无障碍标签） | keyboard icon (no visible text; "Type instead" is only the accessibility label) |
 | 周期记账 | 周期记账 | Recurring |
 | 提醒 | 每日记账提醒 | Daily Reminder |
 | 签到 | 每日签到 | Daily Check-in |
@@ -171,7 +171,7 @@ AI 记账（语音、打字、拍小票）要登录、联网，会消耗 AI 点�
 【语音记账与芽豆助手】
 · 按住屏幕底部的麦克风，说「午饭 32，打车 28」，一句话记成两笔，自动分好类、选好账户。
 · 记、改、删、查都可以说：「刚才打车那笔改成 40」「早上那杯咖啡删掉」「这个月吃饭花了多少」。
-· 不方便说话，就点麦克风旁的「打字记账」，在芽豆助手里打字；拍张小票或从相册选一张图，也能记账。
+· 不方便说话，就点麦克风右边的键盘图标，在芽豆助手里打字；拍张小票或从相册选一张图，也能记账。
 
 【账户与净资产】
 · 现金、储蓄卡、信用卡、虚拟账户、投资、负债、债权，都可以建成账户，放在一处看。
@@ -201,7 +201,7 @@ AI 记账（语音、打字、拍小票）要登录、联网，会消耗 AI 点�
 · 点数用于 App 内的 AI 功能，不能提现，也不能转让。具体数量和价格以 App 内显示为准。
 · AI 的结果可能有误，请核对后再保存；统计和图表只是对你所记数据的整理，不构成理财建议。
 ```
-字数：899 / 4000
+字数：898 / 4000
 
 ### 关键词
 
@@ -252,7 +252,7 @@ Yado Asset is a ledger that lives on your phone. Say what you spent and it's rec
 VOICE ENTRY AND YADO ASSISTANT
 • Hold the mic at the bottom of the screen and say "Lunch 32, taxi 28." One sentence becomes two entries, sorted into categories and matched to your accounts.
 • Add, edit, delete and look things up by voice: "Change that taxi to 40." "Delete this morning's coffee." "How much did I spend on food this month?"
-• Can't talk? Tap "Type instead" beside the mic to open Yado Assistant and type. Take a photo of a receipt or pick a picture, and it can be recorded too.
+• Can't talk? Tap the keyboard icon beside the mic to open Yado Assistant and type. Take a photo of a receipt or pick a picture, and it can be recorded too.
 
 ACCOUNTS AND NET WORTH
 • Cash, debit cards, credit cards, virtual accounts, investments, debts and receivables, all in one view.
@@ -282,7 +282,7 @@ AI POINTS
 • Points work for AI features inside the app and can't be cashed out or transferred. Amounts and prices are shown in the app.
 • AI results can be wrong, so check entries before you save them. Charts and stats summarize what you record and are not financial advice.
 ```
-字数：2552 / 4000
+字数：2555 / 4000
 
 ### 关键词
 
@@ -387,7 +387,7 @@ bookkeeping,voice,expense,tracker,income,ledger,money,accounts,net worth,receipt
 | --- | --- | --- | --- | --- |
 | 语音记账 | 按住屏幕底部的麦克风说话，一句话记成几笔 | 记账、图表、账户、我的四个 Tab 的一级页面底部的麦克风（Tab Bar 附属栏），按住说话；进入二级页面时收起 | 要，也要联网；未登录时会问是否去登录，首次使用前有 AI 处理同意 | - [ ] |
 | 说着改、删、查 | 「改成 40」「删掉」「这个月花了多少」 | 同上，语音或芽豆助手里打字都行 | 要 | - [ ] |
-| 芽豆助手 | 点麦克风旁的「打字记账」，在芽豆助手里打字 | 麦克风旁的「打字记账」按钮，打开芽豆助手对话页 | 要；首次使用前有 AI 处理同意 | - [ ] |
+| 芽豆助手 | 点麦克风右边的键盘图标，在芽豆助手里打字 | 麦克风右边的键盘图标（无障碍标签叫「打字记账」），打开芽豆助手对话页 | 要；首次使用前有 AI 处理同意 | - [ ] |
 | 拍小票记账 | 拍张小票或从相册选一张图 | 芽豆助手输入框的「添加图片」，选「拍照」「从相册选择」或「粘贴图片」 | 要；拍照要真机 | - [ ] |
 | 手动记账 | 基础记账不登录也能用 | 记账 Tab 右上角的「记一笔」 | 不要 | - [ ] |
 | 账户 | 现金、储蓄卡、信用卡、虚拟账户、投资、负债、债权 | 账户 Tab | 不要 | - [ ] |
@@ -528,12 +528,12 @@ EOF
 名称 | zh-Hans | 4 | 30 | 未超限
 副标题 | zh-Hans | 10 | 30 | 未超限
 宣传文本 | zh-Hans | 64 | 170 | 未超限
-描述 | zh-Hans | 899 | 4000 | 未超限
+描述 | zh-Hans | 898 | 4000 | 未超限
 关键词 | zh-Hans | 67 | 100 | 未超限
 名称 | en-US | 10 | 30 | 未超限
 副标题 | en-US | 25 | 30 | 未超限
 宣传文本 | en-US | 169 | 170 | 未超限
-描述 | en-US | 2552 | 4000 | 未超限
+描述 | en-US | 2555 | 4000 | 未超限
 关键词 | en-US | 99 | 100 | 未超限
 关键词检查 zh-Hans：通过
 关键词检查 en-US：通过
