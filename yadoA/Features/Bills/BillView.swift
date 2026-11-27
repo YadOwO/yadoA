@@ -186,8 +186,8 @@ private struct BillTable: View {
                     .font(.system(.headline, design: .serif))
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
-                // 右侧一列都是结余，在表头注明一次，金额统一以人民币计。
-                Text(verbatim: "\(text("bill.balance")) · \(text("bill.currency"))")
+                // 右侧一列都是结余，在表头注明一次，并写明金额所用的账本币种。
+                Text(verbatim: "\(text("bill.balance")) · \(BookkeepingCurrency.displayName(for: currencyCode, locale: locale))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

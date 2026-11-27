@@ -4288,29 +4288,6 @@
         }
       }
     },
-    "bill.currency": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CNY"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "人民币"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "人民幣"
-          }
-        }
-      }
-    },
     "bill.empty.title": {
       "extractionState": "manual",
       "localizations": {
