@@ -31,6 +31,9 @@ struct SyncPendingBatch: Equatable {
 ///
 /// 应用服务端数据时不登记台账（`tracksSyncChanges: false`），台账由 `SyncRecordApplier` 直接改为「已同步」；
 /// 只有因远端删除分类而迁移本地流水时，才走一次正常登记的保存，让迁移被推送出去。
+///
+/// 一个账本一种币：每次应用完服务端数据后，本机全部账户和流水的币种都会统一成账本币种（只换符号、不换算金额），
+/// 见 `normalizeLedgerCurrency()`。
 @MainActor
 final class SyncStore {
     /// 本地财务容器。
@@ -261,15 +264,51 @@ final class SyncStore {
 
     // MARK: - 私有方法
 
-    /// 重算余额并保存（不登记台账）；再把引用已删除分类的流水迁走（登记台账，让迁移被推送）。
+    /// 重算余额并保存（不登记台账）；把全部账户和流水统一成账本币种（不登记台账）；
+    /// 再把引用已删除分类的流水迁走（登记台账，让迁移被推送）。
     private func finish(_ outcome: SyncApplyOutcome, in context: ModelContext, now: Date) throws {
         if context.hasChanges {
             // 余额不同步，各端按期初余额和流水重算；全量重算对个人账本的规模足够快
             try AccountBalanceRebuilder.rebuild(in: context)
             try context.saveOrRollback(tracksSyncChanges: false)
+            // 必须在整批写入、删除都保存之后再统一币种，见 normalizeLedgerCurrency()
+            try normalizeLedgerCurrency()
         }
         guard !outcome.categoryMigrations.isEmpty else { return }
         try migrateTransactions(for: outcome.categoryMigrations)
+    }
+
+    /// 把本机全部账户和流水的币种统一成当前账本币种。
+    ///
+    /// 一个账本一种币：另一台设备离线时用旧币种记的流水、旧版本客户端写入的人民币流水，
+    /// 同步下来后币种可能和账本不一致，而首页、图表和账户余额都把金额当账本币种累加。
+    /// 所以应用完服务端数据后，把不一致的记录改成账本币种，只换符号、不换算金额，
+    /// 和 `LocalLedgerCurrencyRepository.change(to:)` 的语义一致。
+    ///
+    /// 这是纯本地的归一，不登记台账、也不推送：保存时 `tracksSyncChanges` 为 `false`，
+    /// 否则会被当成本地修改，用当前时间推送后覆盖服务端和其他设备。台账内容哈希保持服务端内容的哈希，
+    /// 用户之后在本机修改这条记录时，会因哈希不同而推送归一后的版本。
+    ///
+    /// 必须在整批记录写入并保存、`replaceAll` 的本地删除也完成之后再调用，不能放进逐条应用里：
+    /// 一批记录按序号排序，另一台设备换币种产生的账户和流水可能先后到达，逐条按「当时的」账本币种归一，
+    /// 会把先到的新币种流水误改回旧币种；`replaceAll` 删除记录后，最早的账户也可能变化，账本币种随之变化。
+    /// 余额与币种无关，不需要再重算。
+    ///
+    /// - Throws: 读取或保存失败时抛出底层错误。
+    private func normalizeLedgerCurrency() throws {
+        // 用新的 context 读取已保存的数据，不依赖未保存的新增是否出现在查询结果里
+        let context = container.makeManualSaveContext()
+        let code = try BookkeepingCurrency.current(in: context)
+        for account in try context.fetch(FetchDescriptor<Account>()) where account.currencyCode != code {
+            account.currencyCode = code
+        }
+        for transaction in try context.fetch(FetchDescriptor<AccountTransaction>())
+        where transaction.currencyCode != code {
+            transaction.currencyCode = code
+        }
+        if context.hasChanges {
+            try context.saveOrRollback(tracksSyncChanges: false)
+        }
     }
 
     /// 把本地仍引用已删除分类的流水迁到删除时指定的分类；对方选择「随分类删除流水」或目标已不可用时迁到「其他」，

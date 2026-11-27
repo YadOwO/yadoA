@@ -302,6 +302,98 @@ struct SyncEngineTests {
         }
     }
 
+    @Test("拉取到其他币种的流水：本机统一成账本币种，金额不变，也不会被当成本地修改推送")
+    func pullNormalizesTransactionCurrencyToLedger() async throws {
+        try await withEnvironment { environment in
+            let device = try environment.makeDevice()
+            let server = environment.server
+            let accountID = try #require(UUID(uuidString: "5A1C0000-0000-4000-8000-000000000001"))
+            let transactionID = try #require(UUID(uuidString: "5A1C0000-0000-4000-8000-000000000002"))
+            // 本机唯一的账户是美元账户，账本币种取它的币种
+            let defaults = LedgerTestDefaults.make(currency: "USD", name: "syncNormalizeTransaction")
+            try LocalAccountRepository(container: device.container, defaults: defaults).save(
+                AccountDraft(id: accountID, accountType: .cash, template: nil, name: "现金", amountText: "100"),
+                locale: Locale(identifier: "en_US")
+            )
+            await device.engine.synchronize()
+
+            // 另一台设备离线时用人民币记了一笔，之后上传到服务端
+            let remoteTransaction = try payload(
+                BackupTransaction(
+                    id: transactionID,
+                    accountID: accountID,
+                    type: AccountTransactionType.expense.rawValue,
+                    category: ExpenseCategory.dining.rawValue,
+                    amount: "30",
+                    balanceBefore: nil,
+                    balanceAfter: nil,
+                    balanceDelta: nil,
+                    currencyCode: "CNY",
+                    transactionDay: 20261020,
+                    note: nil,
+                    savedAt: Date(timeIntervalSince1970: 1_800_000_000)
+                )
+            )
+            await server.store(entityType: .transaction, recordID: transactionID, payload: remoteTransaction)
+
+            await device.engine.synchronize()
+
+            let context = ModelContext(device.container)
+            let transaction = try #require(try context.transaction(id: transactionID))
+            #expect(transaction.currencyCode == "USD")
+            #expect(transaction.amount == 30)
+            #expect(try context.account(id: accountID)?.currencyCode == "USD")
+            // 币种归一只在本地，不登记台账、不推送：台账保持已同步，服务端的内容也没被改写
+            #expect(try ledgerEntry(.transaction, transactionID, in: device.container)?.hasPendingChanges == false)
+            #expect(try pendingEntries(in: device.container).isEmpty)
+            let remoteRecord = await server.record(.transaction, transactionID)
+            let remote = try #require(remoteRecord)
+            #expect(field("currencyCode", of: remote) == .string("CNY"))
+        }
+    }
+
+    @Test("拉取到其他设备换币种后的账户新版本：本机账户和流水都换成新币种")
+    func pullAppliesLedgerCurrencyChangeFromOtherDevice() async throws {
+        try await withEnvironment { environment in
+            let device = try environment.makeDevice()
+            let accountID = try #require(UUID(uuidString: "5A1C0000-0000-4000-8000-000000000011"))
+            let transactionID = try #require(UUID(uuidString: "5A1C0000-0000-4000-8000-000000000012"))
+            try saveAccount(id: accountID, in: device.container)
+            let draft = DiningExpenseDraft(id: transactionID, accountID: accountID, amountText: "30", transactionDay: 20261020)
+            try LocalExpenseRepository(container: device.container).save(draft)
+            await device.engine.synchronize()
+
+            // 另一台设备把账本换成了美元，账户的新版本先上传；本机的流水还是人民币
+            let newer = try payload(
+                BackupAccount(
+                    id: accountID,
+                    type: AccountType.cash.rawValue,
+                    templateID: nil,
+                    name: "现金",
+                    note: nil,
+                    lastFourDigits: nil,
+                    balance: "70",
+                    openingBalance: "100",
+                    currencyCode: "USD",
+                    createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+                    updatedAt: Date(timeIntervalSince1970: 1_800_000_000),
+                    deactivatedAt: nil
+                )
+            )
+            await environment.server.store(entityType: .account, recordID: accountID, payload: newer)
+
+            await device.engine.synchronize()
+
+            let context = ModelContext(device.container)
+            let account = try #require(try context.account(id: accountID))
+            #expect(account.currencyCode == "USD")
+            let transaction = try #require(try context.transaction(id: transactionID))
+            #expect(transaction.currencyCode == "USD")
+            #expect(transaction.amount == 30)
+            #expect(try pendingEntries(in: device.container).isEmpty)
+        }
+    }
+
     @Test("推送进行中本地又被修改：只确认已推送的版本，新修改保持待上传")
     func localChangeDuringPushStaysPending() async throws {
         try await withEnvironment { environment in
