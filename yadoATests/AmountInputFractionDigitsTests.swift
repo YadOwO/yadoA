@@ -38,6 +38,14 @@ struct AmountInputFractionDigitsTests {
         #expect(AccountAmountParser.normalizedCNYAmountText("12.34", decimalSeparator: ".", fractionDigits: 1) == nil)
     }
 
+    @Test("订阅编辑页按存储精度解析旧金额：带小数的 68.5 在无小数币种的账本下也合法")
+    func parserAcceptsStoredPrecisionForLegacyAmount() {
+        // 订阅编辑页的金额按两位存储精度解析，不按账本币种的小数位
+        #expect(AccountAmountParser.amount(from: "68.5", locale: enUS, fractionDigits: 2) == Decimal(string: "68.5"))
+        // 同一个旧金额按无小数币种解析仍然不合法，所以编辑页不能用账本币种的小数位解析初始值
+        #expect(AccountAmountParser.amount(from: "68.5", locale: enUS, fractionDigits: 0) == nil)
+    }
+
     @Test("新建账户的期初余额按币种小数位校验")
     func openingBalanceHonoursFractionDigits() {
         #expect(AccountDraft.openingBalance(from: "", locale: enUS, fractionDigits: 0) == 0)

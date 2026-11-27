@@ -23,9 +23,10 @@ struct UserSubscriptionEditSeed: Identifiable {
     ///   - subscription: 要编辑的订阅。
     ///   - context: 读取它管理的周期记账规则使用的 context。
     /// - Returns: 编辑内容。
+    /// - Throws: 读取周期记账失败时抛出，调用方应提示失败、不打开编辑页。
     @MainActor
-    static func edit(_ subscription: UserSubscription, context: ModelContext) -> UserSubscriptionEditSeed {
-        let rule = subscription.recurringRuleID.flatMap { try? context.recurringRule(id: $0) }
+    static func edit(_ subscription: UserSubscription, context: ModelContext) throws -> UserSubscriptionEditSeed {
+        let rule = try subscription.recurringRuleID.map { try context.recurringRule(id: $0) } ?? nil
         return UserSubscriptionEditSeed(id: subscription.id, subscription: subscription, linkedRule: rule)
     }
 }
@@ -192,7 +193,9 @@ struct UserSubscriptionEditView: View {
         BookkeepingCategoryCatalog(categories: categories)
     }
 
-    /// 可以记账的账户：按账户页的顺序，最后是「不关联账户」；币种和账本不同的账户不能记。
+    /// 可以记账的账户：按账户页的顺序，数据库里已有的「不关联账户」排在最后；币种和账本不同的账户不能记。
+    ///
+    /// 「不关联账户」要到记账或选账户时才懒创建，还没建的不在这个列表里，由菜单补一行。
     private var bookkeepingAccounts: [Account] {
         let order = AccountDisplayOrder(preferences: preferences)
         let sorted = AccountListPresentation.sorted(accounts, order: order)
@@ -202,14 +205,29 @@ struct UserSubscriptionEditView: View {
         }
     }
 
+    /// 这个账户标识能不能作为自动记账的账户。
+    ///
+    /// 「不关联账户」没建也能选，保存订阅时再建；其他账户必须在可记账账户里。
+    /// - Parameter id: 当前选中的账户标识。
+    /// - Returns: 标识为 `nil` 时为 `false`。
+    private func isSelectableBookkeepingAccount(_ id: UUID?) -> Bool {
+        guard let id else { return false }
+        if id == Account.unlinkedID { return true }
+        return bookkeepingAccounts.contains { $0.id == id }
+    }
+
     /// 金额输入允许的小数位，按账本币种（日元、韩元没有小数）。
     private var amountFractionDigits: Int {
         BookkeepingCurrency.inputFractionDigits(for: ledgerCurrencyCode)
     }
 
     /// 输入框里的金额；不合法时为 `nil`。
+    ///
+    /// 按存储精度（两位小数）解析，而不是按账本币种的小数位：账本换成日元、韩元后，
+    /// 带小数的旧订阅金额不改动时仍然合法，其他字段才能照常保存。新输入由金额框的 `onChange`
+    /// 按账本币种限制小数位，无小数币种里一按键就会丢掉旧金额的小数，只有不动金额时才原样保留。
     private var amount: Decimal? {
-        AccountAmountParser.amount(from: amountText, locale: locale, fractionDigits: amountFractionDigits)
+        AccountAmountParser.amount(from: amountText, locale: locale, fractionDigits: 2)
             .flatMap { $0 > 0 ? $0 : nil }
     }
 
@@ -218,10 +236,9 @@ struct UserSubscriptionEditView: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// 订阅的状态或周期是这一版不认识的值（来自更新版本）：只展示，不允许修改，避免保存时被悄悄改写。
+    /// 订阅的状态、周期、分类或扣费渠道是这一版不认识的值（来自更新版本）：只展示，不允许修改，避免保存时被悄悄改写。
     private var isFromNewerVersion: Bool {
-        guard let subscription = seed.subscription else { return false }
-        return subscription.status == nil || subscription.frequency == nil
+        seed.subscription?.isFromNewerVersion ?? false
     }
 
     /// 名称、金额合法，自动记账选好了账户和分类时才能保存；来自更新版本的订阅不能保存。
@@ -232,7 +249,7 @@ struct UserSubscriptionEditView: View {
               amount != nil
         else { return false }
         guard isBookkeepingOn, !isBookkeepingLocked else { return true }
-        return bookkeepingAccounts.contains { $0.id == bookkeepingAccountID }
+        return isSelectableBookkeepingAccount(bookkeepingAccountID)
             && catalog.items(for: .expense).contains { $0.key == bookkeepingCategoryKey }
     }
 
@@ -637,14 +654,21 @@ struct UserSubscriptionEditView: View {
                 "subscription.edit.bookkeeping.account",
                 selection: $bookkeepingAccountID,
                 current: bookkeepingAccounts.first { $0.id == bookkeepingAccountID }?.localizedName(locale: locale)
-                    ?? text("subscription.edit.choose"),
+                    ?? (bookkeepingAccountID == Account.unlinkedID
+                        ? AccountLocalization.string("account.unlinked.name", locale: locale)
+                        : text("subscription.edit.choose")),
                 identifier: "subscription-edit-bookkeeping-account"
             ) {
-                if !bookkeepingAccounts.contains(where: { $0.id == bookkeepingAccountID }) {
+                if !isSelectableBookkeepingAccount(bookkeepingAccountID) {
                     Text(text("subscription.edit.choose")).tag(UUID?.none)
                 }
                 ForEach(bookkeepingAccounts) { account in
                     Text(account.localizedName(locale: locale)).tag(Optional(account.id))
+                }
+                // 「不关联账户」还没建时补一行，选中后保存订阅时再建
+                if !bookkeepingAccounts.contains(where: { $0.id == Account.unlinkedID }) {
+                    Text(AccountLocalization.string("account.unlinked.name", locale: locale))
+                        .tag(Optional(Account.unlinkedID))
                 }
             }
             let items = catalog.items(for: .expense)
@@ -782,10 +806,12 @@ struct UserSubscriptionEditView: View {
             set: { isOn in
                 isBookkeepingOn = isOn
                 guard isOn else { return }
-                if !bookkeepingAccounts.contains(where: { $0.id == bookkeepingAccountID }) {
+                if !isSelectableBookkeepingAccount(bookkeepingAccountID) {
                     let preference = preferences.first { $0.id == BookkeepingPreference.singletonID }
                     let defaultID = BookkeepingPreference.resolvedAccountID(preference: preference, accounts: accounts)
-                    bookkeepingAccountID = bookkeepingAccounts.first { $0.id == defaultID }?.id ?? bookkeepingAccounts.first?.id
+                    bookkeepingAccountID = bookkeepingAccounts.first { $0.id == defaultID }?.id
+                        ?? bookkeepingAccounts.first?.id
+                        ?? Account.unlinkedID
                 }
                 if !catalog.items(for: .expense).contains(where: { $0.key == bookkeepingCategoryKey }) {
                     bookkeepingCategoryKey = category.defaultExpenseCategoryKey(in: catalog)
@@ -833,6 +859,10 @@ struct UserSubscriptionEditView: View {
         )
         let container = modelContext.container
         do {
+            // 选的是还没建的「不关联账户」时先建好，周期记账列表才找得到它；失败时什么都不保存
+            if bookkeeping?.accountID == Account.unlinkedID {
+                try LocalAccountRepository(container: container).ensureUnlinkedAccount(locale: locale)
+            }
             let ruleID = try LocalUserSubscriptionRepository(container: container).save(input, today: todayDay)
             if let ruleID, status != .cancelled {
                 let entries = LocalRecurringRuleRepository(container: container).generateDue(ruleID: ruleID, today: todayDay)

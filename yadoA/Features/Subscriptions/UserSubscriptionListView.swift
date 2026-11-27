@@ -165,7 +165,12 @@ struct UserSubscriptionListView: View {
     private func rowView(_ row: UserSubscriptionRowPresentation) -> some View {
         Button {
             guard let subscription = subscriptions.first(where: { $0.id == row.id }) else { return }
-            editSeed = .edit(subscription, context: modelContext)
+            do {
+                editSeed = try .edit(subscription, context: modelContext)
+            } catch {
+                AppHaptics.play(.error)
+                isOperationFailed = true
+            }
         } label: {
             UserSubscriptionRow(row: row)
         }

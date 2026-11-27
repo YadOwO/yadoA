@@ -343,7 +343,7 @@ bookkeeping,voice,expense,tracker,income,ledger,money,accounts,net worth,receipt
 | 长时间的露骨或虐待性写实暴力 / Prolonged Graphic or Sadistic Realistic Violence | 无 | 没有这类内容 |
 | 枪支或其他武器 / Guns or Other Weapons | 无 | 没有这类内容 |
 | 赌博 / Gambling | 无 | 没有任何用真钱下注的玩法 |
-| 模拟赌博 / Simulated Gambling | 无 | 每日签到和连签礼包给的是免费的随机点数，礼包不能花钱买；能花钱买的只有固定数量的点数包（yado_ai `src/config/store.ts`：60、180、450 点）。按审核指南 3.1.1，只有付费的随机物品才必须公开概率 |
+| 模拟赌博 / Simulated Gambling | 无 | 每日签到和连签礼包给的是免费的随机点数，礼包不能花钱买；能花钱买的只有固定数量的点数包（yado_ai `src/config/store.ts`：60、180、450 点，以及新账号限时可买的 100 点新人包；限时多送加的点数也是固定的）。按审核指南 3.1.1，只有付费的随机物品才必须公开概率 |
 | 开箱盒 / Loot Boxes | 无 | 苹果问的是花钱买到的随机物品；这里的随机礼包不卖，买到的点数数量固定，和模拟赌博同一个理由 |
 | 竞赛 / Contests | 无 | 没有排名、对战或比赛；连续签到只是自己的签到记录 |
 

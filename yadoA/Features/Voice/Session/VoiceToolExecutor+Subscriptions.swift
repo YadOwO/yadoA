@@ -126,8 +126,11 @@ extension VoiceToolExecutor {
         guard let id = UUID(uuidString: input.subscriptionId), let subscription = try? context.userSubscription(id: id) else {
             return (.failure(.notFound), [])
         }
-        // 状态或周期来自更新的版本：这一版存不回去，保存会把它们悄悄改掉
-        guard let currentStatus = subscription.status, let currentFrequency = subscription.frequency else {
+        // 状态、周期、分类或扣费渠道来自更新的版本：这一版存不回去，保存会把它们悄悄改掉
+        guard let currentStatus = subscription.status,
+              let currentFrequency = subscription.frequency,
+              !subscription.isFromNewerVersion
+        else {
             return (.failure(.notEditable), [])
         }
         let today = today

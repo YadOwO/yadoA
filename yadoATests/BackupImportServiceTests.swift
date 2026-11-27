@@ -237,6 +237,23 @@ struct BackupImportServiceTests {
         #expect(restored.bookkeepingPreference == original.bookkeepingPreference)
     }
 
+    @Test("本机只有订阅、没有账户和流水时，导入不含订阅的备份仍算替换现有数据")
+    func subscriptionsCountAsExistingData() throws {
+        let container = try AccountDataContainer.inMemory()
+        let context = ModelContext(container.modelContainer)
+        context.insert(UserSubscription(
+            id: UUID(), name: "Netflix", amount: 68, frequencyRawValue: RecurringFrequency.monthly.rawValue,
+            anchorDay: 20261028, categoryRawValue: "media", channelRawValue: "appStore", statusRawValue: "active",
+            accessEndDay: nil, reminderDaysBefore: nil, note: nil, recurringRuleID: nil, createdAt: .now, updatedAt: .now
+        ))
+        try context.save()
+        let service = BackupImportService(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
+
+        let plan = try service.prepare(from: try encode(makeBackup()))
+
+        #expect(plan.replacesExistingData)
+    }
+
     @Test("备份没有偏好记录时，恢复会移除现有偏好")
     func restoreRemovesPreferenceWhenBackupHasNone() throws {
         let container = try makeSeededContainer()

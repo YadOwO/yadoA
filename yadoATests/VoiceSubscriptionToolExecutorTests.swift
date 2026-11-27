@@ -225,6 +225,27 @@ struct VoiceSubscriptionToolExecutorTests {
             == .failure(.notFound))
     }
 
+    @Test("扣费渠道来自更新版本的订阅不能修改，库里的渠道保持原样")
+    func updateRejectsUnknownChannel() throws {
+        let container = try AccountDataContainer.inMemory().modelContainer
+        let executor = makeExecutor(container)
+        let unknown = UserSubscription(
+            id: UUID(), name: "未来", amount: 10, frequencyRawValue: RecurringFrequency.monthly.rawValue, anchorDay: 20261028,
+            categoryRawValue: "media", channelRawValue: "future-channel", statusRawValue: "active", accessEndDay: nil,
+            reminderDaysBefore: nil, note: nil, recurringRuleID: nil, createdAt: savedAt, updatedAt: savedAt
+        )
+        let context = ModelContext(container)
+        context.insert(unknown)
+        try context.save()
+
+        #expect(executor.execute(updateCall(unknown.id, patch: VoiceSubscriptionPatch(amount: "20"))).result.output
+            == .failure(.notEditable))
+
+        let stored = try #require(try fetchSubscription(unknown.id, in: container))
+        #expect(stored.channelRawValue == "future-channel")
+        #expect(stored.amount == 10)
+    }
+
     // MARK: - 删除
 
     @Test("删除：默认连周期记账一起删，已记的流水保留；撤销后订阅和规则都回来")

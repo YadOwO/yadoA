@@ -43,6 +43,28 @@ struct UserSubscriptionTests {
         #expect(unknown.phase(today: 20261201) == .unknown)
     }
 
+    @Test("状态、周期、分类或扣费渠道有一个不认识就算来自更新版本")
+    func isFromNewerVersionCoversAllEnumFields() {
+        let known = Self.subscription(anchorDay: 20261110)
+        #expect(!known.isFromNewerVersion)
+
+        let unknownStatus = Self.subscription(anchorDay: 20261110)
+        unknownStatus.statusRawValue = "paused"
+        #expect(unknownStatus.isFromNewerVersion)
+
+        let unknownFrequency = Self.subscription(anchorDay: 20261110)
+        unknownFrequency.frequencyRawValue = "fortnightly"
+        #expect(unknownFrequency.isFromNewerVersion)
+
+        let unknownCategory = Self.subscription(anchorDay: 20261110)
+        unknownCategory.categoryRawValue = "future-category"
+        #expect(unknownCategory.isFromNewerVersion)
+
+        let unknownChannel = Self.subscription(anchorDay: 20261110)
+        unknownChannel.channelRawValue = "future-channel"
+        #expect(unknownChannel.isFromNewerVersion)
+    }
+
     @Test("改成已取消时可用日期预填为下次扣费前一天")
     func defaultAccessEndDay() {
         let calendar = Calendar(identifier: .gregorian)

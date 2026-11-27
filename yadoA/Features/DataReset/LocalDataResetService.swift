@@ -42,7 +42,7 @@ final class LocalDataResetService {
         self.defaults = defaults
     }
 
-    /// 账本里是否还有可清除的内容（账户或流水）。
+    /// 账本里是否还有可清除的内容（账户、流水、周期记账或订阅）。
     ///
     /// 只剩默认记账账户偏好时视为没有数据：偏好指向的账户已不存在，对用户不可见。
     ///
@@ -52,6 +52,8 @@ final class LocalDataResetService {
         do {
             return try context.fetchCount(FetchDescriptor<Account>()) > 0
                 || context.fetchCount(FetchDescriptor<AccountTransaction>()) > 0
+                || context.fetchCount(FetchDescriptor<UserSubscription>()) > 0
+                || context.fetchCount(FetchDescriptor<RecurringRule>()) > 0
         } catch {
             throw LocalDataResetError.resetFailed
         }

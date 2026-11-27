@@ -30,7 +30,7 @@ nonisolated struct BackupImportPlan: Equatable, Sendable {
     /// 已解码并通过校验的备份信封。
     let backup: BackupFile
 
-    /// 当前设备是否已有账户或流水；为真时恢复会替换这些数据。
+    /// 当前设备是否已有账户、流水、周期记账或订阅；为真时恢复会替换这些数据。
     let replacesExistingData: Bool
 
     /// 生成计划时本机的账本币种；用来判断恢复后账本币种会不会变。
@@ -132,6 +132,8 @@ final class BackupImportService {
         do {
             let existingCount = try context.fetchCount(FetchDescriptor<Account>())
                 + context.fetchCount(FetchDescriptor<AccountTransaction>())
+                + context.fetchCount(FetchDescriptor<UserSubscription>())
+                + context.fetchCount(FetchDescriptor<RecurringRule>())
             return BackupImportPlan(
                 backup: backup,
                 replacesExistingData: existingCount > 0,

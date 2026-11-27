@@ -313,7 +313,12 @@ struct RecurringRuleListView: View {
         Button {
             if let subscriptionID = row.subscriptionID,
                let subscription = subscriptions.first(where: { $0.id == subscriptionID }) {
-                subscriptionSeed = .edit(subscription, context: modelContext)
+                do {
+                    subscriptionSeed = try .edit(subscription, context: modelContext)
+                } catch {
+                    AppHaptics.play(.error)
+                    isOperationFailed = true
+                }
                 return
             }
             guard let rule = rules.first(where: { $0.id == row.id }) else { return }

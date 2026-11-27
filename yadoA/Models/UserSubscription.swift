@@ -301,6 +301,17 @@ final class UserSubscription {
         UserSubscriptionChannel(rawValue: channelRawValue) ?? .other
     }
 
+    /// 状态、周期、分类或扣费渠道里有这一版不认识的值。
+    ///
+    /// 这些值来自更新版本，这一版存不回去（保存会把它们改写成已知值），只能展示，不能编辑。
+    /// 计算属性，不参与持久化。
+    var isFromNewerVersion: Bool {
+        status == nil
+            || frequency == nil
+            || UserSubscriptionCategory(rawValue: categoryRawValue) == nil
+            || UserSubscriptionChannel(rawValue: channelRawValue) == nil
+    }
+
     /// 直接构造已完成校验的持久化订阅。
     init(
         id: UUID,
