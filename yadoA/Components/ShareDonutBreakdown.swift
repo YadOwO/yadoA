@@ -8,6 +8,7 @@ import SwiftUI
 /// 空数据由调用方自己处理，这里假定至少有一个扇区。
 struct ShareDonutBreakdown: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// 图例图标预留宽度随字号缩放，避免辅助功能字号下与名称相互覆盖。
@@ -175,7 +176,7 @@ struct ShareDonutBreakdown: View {
 
     /// 金额和百分比共用同一分母，供图形和可操作图例完整播报。
     private func detail(for segment: CategoryRankingItem) -> String {
-        let amount = segment.amount.formattedCurrency(locale: locale)
+        let amount = segment.amount.formattedCurrency(locale: locale, currencyCode: currencyCode)
         let share = breakdown.share(of: segment).formatted(.percent.precision(.fractionLength(1)).locale(locale))
         return "\(amount), \(share)"
     }
@@ -184,6 +185,7 @@ struct ShareDonutBreakdown: View {
 /// 环形图圆心的标题和金额；没有数据的空状态也用它写一个零总额。
 struct ShareDonutTotalLabel: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
 
     /// 金额上方的标题。
     let title: String
@@ -199,7 +201,7 @@ struct ShareDonutTotalLabel: View {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text(amount.formattedCurrency(locale: locale))
+            Text(amount.formattedCurrency(locale: locale, currencyCode: currencyCode))
                 .font(.system(.title3, design: .serif, weight: .medium).monospacedDigit())
                 .lineLimit(1)
                 .minimumScaleFactor(0.55)

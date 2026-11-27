@@ -37,7 +37,7 @@ extension View {
 
 /// 读取全局正负颜色给内容上色；设置修改后各页面立即刷新。
 private struct AmountToneModifier: ViewModifier {
-    @AppStorage(AmountColorConvention.storageKey) private var convention: AmountColorConvention = .positiveRed
+    @AppStorage(AmountColorConvention.storageKey) private var convention: AmountColorConvention = .regionDefault()
 
     /// 金额的正负语义。
     let tone: AmountTone

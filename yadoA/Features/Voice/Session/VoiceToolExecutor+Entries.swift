@@ -14,7 +14,7 @@ extension VoiceToolExecutor {
 
     func create(_ input: VoiceCreateTransactionInput) -> (VoiceToolOutput, VoiceEntryChange?) {
         guard let accountID = UUID(uuidString: input.accountId),
-              let amount = Self.amount(from: input.amount),
+              let amount = Self.amount(from: input.amount, fractionDigits: amountFractionDigits),
               let transactionDay = Self.transactionDay(from: input.date)
         else { return (.failure(.invalidInput), nil) }
 
@@ -59,7 +59,9 @@ extension VoiceToolExecutor {
             updated.categoryKey = categoryKey
         }
         if let amountText = patch.amount {
-            guard let amount = Self.amount(from: amountText) else { return (.failure(.invalidInput), nil) }
+            guard let amount = Self.amount(from: amountText, fractionDigits: amountFractionDigits) else {
+                return (.failure(.invalidInput), nil)
+            }
             updated.amount = amount
         }
         if let accountText = patch.accountId {
@@ -141,7 +143,7 @@ extension VoiceToolExecutor {
         guard let transactionID = UUID(uuidString: id) else { return .failure(.notFound) }
         let context = container.makeManualSaveContext()
         guard let transaction = try? context.transaction(id: transactionID) else { return .failure(.notFound) }
-        guard let snapshot = BookkeepingEntrySnapshot(transaction: transaction),
+        guard let snapshot = BookkeepingEntrySnapshot(transaction: transaction, ledgerCurrencyCode: currencyCode),
               let account = try? context.account(id: transaction.accountID),
               account.isActive
         else { return .failure(.notEditable) }
@@ -200,8 +202,8 @@ extension VoiceToolExecutor {
         ).title
     }
 
-    /// 本地化 CNY 金额；负数（例如透支后的余额）带负号。
+    /// 按账本币种本地化金额；负数（例如透支后的余额）带负号。
     func formattedAmount(_ amount: Decimal) -> String {
-        amount.formattedCurrency(locale: locale)
+        amount.formattedCurrency(locale: locale, currencyCode: currencyCode)
     }
 }

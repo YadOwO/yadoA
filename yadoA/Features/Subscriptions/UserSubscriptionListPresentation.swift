@@ -47,6 +47,7 @@ enum UserSubscriptionListPresentation {
     ///   - subscriptions: 全部订阅。
     ///   - existingRuleIDs: 本地现有周期记账规则的 UUID，用来判断自动记账是否还在。
     ///   - today: 今天的 `YYYYMMDD`。
+    ///   - ledgerCurrencyCode: 当前账本币种；金额按它展示，不换算。
     ///   - locale: 语言环境。
     ///   - calendar: 日历。
     /// - Returns: 排好序的列表行。
@@ -54,6 +55,7 @@ enum UserSubscriptionListPresentation {
         subscriptions: [UserSubscription],
         existingRuleIDs: Set<UUID>,
         today: Int,
+        ledgerCurrencyCode: String,
         locale: Locale,
         calendar: Calendar
     ) -> [UserSubscriptionRowPresentation] {
@@ -63,7 +65,7 @@ enum UserSubscriptionListPresentation {
                 id: subscription.id,
                 title: subscription.name,
                 symbolName: subscription.category.symbolName,
-                formattedAmount: subscription.amount.formattedCurrency(locale: locale),
+                formattedAmount: subscription.amount.formattedCurrency(locale: locale, currencyCode: ledgerCurrencyCode),
                 subtitle: subtitle(for: subscription, phase: phase, locale: locale, calendar: calendar),
                 isInactive: phase.upcomingChargeDay == nil,
                 hasAutoBookkeeping: subscription.recurringRuleID.map(existingRuleIDs.contains) ?? false

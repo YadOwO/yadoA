@@ -8,6 +8,7 @@ import SwiftUI
 /// 走势不含芽豆有物物品估值；估值计入净资产时，账户页用 `trendFootnote` 在走势下面补一句说明。
 struct AccountSummaryCard: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.calendar) private var calendar
 
     /// 用户选择的启动页面；账户页是启动页时汇总卡片才带装饰。
@@ -113,7 +114,7 @@ struct AccountSummaryCard: View {
         guard let trend, trend.canDraw, let first = trend.points.first else { return "" }
         return [
             BalanceTrendChangeLine.sinceText(first.date, locale: locale, calendar: calendar),
-            BalanceTrendChangeLine.changeText(trend, locale: locale),
+            BalanceTrendChangeLine.changeText(trend, locale: locale, currencyCode: currencyCode),
             trendFootnote
         ]
         .compactMap { $0 }

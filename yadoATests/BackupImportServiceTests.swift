@@ -15,7 +15,7 @@ struct BackupImportServiceTests {
     /// 构造覆盖启用/停用账户、三类流水与默认偏好的完整夹具。
     private func makeSeededContainer() throws -> AccountDataContainer {
         let container = try AccountDataContainer.inMemory()
-        let accountRepository = LocalAccountRepository(container: container.modelContainer)
+        let accountRepository = LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
         let activeID = UUID()
         let deactivatedID = UUID()
 
@@ -104,7 +104,12 @@ struct BackupImportServiceTests {
 
     private nonisolated static let accountID = UUID()
 
-    private func makeAccount(id: UUID, name: String = "现金", balance: String = "10") -> BackupAccount {
+    private func makeAccount(
+        id: UUID,
+        name: String = "现金",
+        balance: String = "10",
+        currencyCode: String = "CNY"
+    ) -> BackupAccount {
         BackupAccount(
             id: id,
             type: AccountType.cash.rawValue,
@@ -113,7 +118,7 @@ struct BackupImportServiceTests {
             note: nil,
             lastFourDigits: nil,
             balance: balance,
-            currencyCode: "CNY",
+            currencyCode: currencyCode,
             createdAt: Date(timeIntervalSince1970: 10),
             updatedAt: Date(timeIntervalSince1970: 20),
             deactivatedAt: nil
@@ -146,7 +151,8 @@ struct BackupImportServiceTests {
     /// 从默认账户转出的一笔转账快照。
     private func makeTransfer(
         id: UUID = UUID(),
-        toAccountID: UUID
+        toAccountID: UUID,
+        currencyCode: String = "CNY"
     ) -> BackupTransaction {
         BackupTransaction(
             id: id,
@@ -158,7 +164,7 @@ struct BackupImportServiceTests {
             balanceAfter: nil,
             balanceDelta: nil,
             counterpartAccountID: toAccountID,
-            currencyCode: "CNY",
+            currencyCode: currencyCode,
             transactionDay: 20261022,
             note: nil,
             savedAt: Date(timeIntervalSince1970: 40)
@@ -181,7 +187,7 @@ struct BackupImportServiceTests {
         try encode(original).write(to: fileURL)
 
         let target = try AccountDataContainer.inMemory()
-        let service = BackupImportService(container: target.modelContainer)
+        let service = BackupImportService(container: target.modelContainer, defaults: LedgerTestDefaults.cny)
         let plan = try service.prepare(from: fileURL)
 
         #expect(plan.replacesExistingData == false)
@@ -214,12 +220,12 @@ struct BackupImportServiceTests {
             ),
             savedAt: Date(timeIntervalSince1970: 500)
         )
-        try LocalAccountRepository(container: container.modelContainer).save(
+        try LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny).save(
             AccountDraft(id: UUID(), accountType: .cash, name: "备份后新建", amountText: "5"),
             locale: Locale(identifier: "en_US")
         )
 
-        let service = BackupImportService(container: container.modelContainer)
+        let service = BackupImportService(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
         let plan = try service.prepare(from: try encode(original))
         #expect(plan.replacesExistingData)
 
@@ -234,7 +240,7 @@ struct BackupImportServiceTests {
     @Test("备份没有偏好记录时，恢复会移除现有偏好")
     func restoreRemovesPreferenceWhenBackupHasNone() throws {
         let container = try makeSeededContainer()
-        let service = BackupImportService(container: container.modelContainer)
+        let service = BackupImportService(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
 
         try service.restore(try service.prepare(from: try encode(makeBackup())))
 
@@ -251,7 +257,8 @@ struct BackupImportServiceTests {
         struct InjectedFailure: Error {}
         let service = BackupImportService(
             container: container.modelContainer,
-            beforeSave: { throw InjectedFailure() }
+            beforeSave: { throw InjectedFailure() },
+            defaults: LedgerTestDefaults.cny
         )
         let plan = try service.prepare(from: try encode(makeBackup()))
 
@@ -268,7 +275,7 @@ struct BackupImportServiceTests {
     @Test("非备份 JSON 与缺失文件分别报格式错误和读取错误")
     func rejectsUnreadableAndMalformedFiles() throws {
         let container = try AccountDataContainer.inMemory()
-        let service = BackupImportService(container: container.modelContainer)
+        let service = BackupImportService(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
 
         #expect(throws: BackupImportError.invalidFormat) {
             try service.prepare(from: Data("{\"hello\":1}".utf8))
@@ -284,7 +291,7 @@ struct BackupImportServiceTests {
     @Test("拒绝更新版本或非法版本号的备份")
     func rejectsUnsupportedFormatVersions() throws {
         let container = try AccountDataContainer.inMemory()
-        let service = BackupImportService(container: container.modelContainer)
+        let service = BackupImportService(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
         let newer = BackupFormatVersion.current + 1
 
         #expect(throws: BackupImportError.unsupportedVersion(newer)) {
@@ -298,7 +305,7 @@ struct BackupImportServiceTests {
     @Test("任一记录不合法时整份备份被拒绝，且不写入任何数据")
     func rejectsInvalidContentWithoutWriting() throws {
         let container = try AccountDataContainer.inMemory()
-        let service = BackupImportService(container: container.modelContainer)
+        let service = BackupImportService(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
         let duplicateTransactionID = UUID()
 
         let invalidBackups: [BackupFile] = [
@@ -321,8 +328,10 @@ struct BackupImportServiceTests {
             makeBackup(transactions: [makeExpense(amount: "1.234")]),
             // 金额不是纯十进制字符串。
             makeBackup(transactions: [makeExpense(amount: "1e2")]),
-            // 当前版本不支持的流水币种。
+            // 一个账本一种币：流水币种和账户币种不一致。
             makeBackup(transactions: [makeExpense(currencyCode: "USD")]),
+            // 币种不是三位大写字母。
+            makeBackup(transactions: [makeExpense(currencyCode: "usd")]),
             // 非法记账日。
             makeBackup(transactions: [makeExpense(transactionDay: 20261340)]),
             // 转账的转入账户不在备份中。
@@ -347,7 +356,7 @@ struct BackupImportServiceTests {
     @Test("转账随备份恢复并保留转入账户")
     func restoresTransferWithCounterpart() throws {
         let container = try AccountDataContainer.inMemory()
-        let service = BackupImportService(container: container.modelContainer)
+        let service = BackupImportService(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
         let targetID = UUID()
         let transferID = UUID()
         let backup = makeBackup(
@@ -362,6 +371,101 @@ struct BackupImportServiceTests {
         let transaction = try #require(try context.transaction(id: transferID))
         #expect(try transaction.validatedPayload() == .transfer(toAccountID: targetID, amount: 20))
         #expect(transaction.accountID == Self.accountID)
+    }
+
+    // MARK: - 币种
+
+    @Test("币种不同的备份：确认前能看出账本币种会变，恢复后记录和账本币种都跟着备份走")
+    func restoreSwitchesLedgerCurrencyToBackup() throws {
+        let container = try AccountDataContainer.inMemory()
+        let defaults = LedgerTestDefaults.make(currency: "CNY", name: "restoreUSD")
+        try LocalAccountRepository(container: container.modelContainer, defaults: defaults).save(
+            AccountDraft(id: UUID(), accountType: .cash, name: "本机现金", amountText: "10"),
+            locale: Locale(identifier: "en_US")
+        )
+        let service = BackupImportService(container: container.modelContainer, defaults: defaults)
+        let targetID = UUID()
+        let backup = makeBackup(
+            accounts: [
+                makeAccount(id: Self.accountID, currencyCode: "USD"),
+                makeAccount(id: targetID, name: "银行卡", currencyCode: "USD"),
+            ],
+            transactions: [
+                makeExpense(currencyCode: "USD"),
+                makeTransfer(toAccountID: targetID, currencyCode: "USD"),
+            ]
+        )
+
+        let plan = try service.prepare(from: try encode(backup))
+
+        #expect(plan.replacesExistingData)
+        #expect(plan.backupCurrencyCode == "USD")
+        #expect(plan.currentCurrencyCode == "CNY")
+        #expect(plan.changesCurrency)
+
+        try service.restore(plan)
+
+        let context = container.modelContainer.makeManualSaveContext()
+        let accounts = try context.fetch(FetchDescriptor<Account>())
+        let transactions = try context.fetch(FetchDescriptor<AccountTransaction>())
+        #expect(accounts.count == 2)
+        #expect(transactions.count == 2)
+        #expect(accounts.allSatisfy { $0.currencyCode == "USD" })
+        #expect(transactions.allSatisfy { $0.currencyCode == "USD" })
+        #expect(try BookkeepingCurrency.current(in: context, defaults: defaults) == "USD")
+        #expect(defaults.string(forKey: BookkeepingCurrency.storageKey) == "USD")
+    }
+
+    @Test("币种相同的备份不改账本币种")
+    func sameCurrencyBackupDoesNotChangeCurrency() throws {
+        let container = try AccountDataContainer.inMemory()
+        let defaults = LedgerTestDefaults.make(currency: "CNY", name: "restoreSame")
+        let service = BackupImportService(container: container.modelContainer, defaults: defaults)
+
+        let plan = try service.prepare(from: try encode(makeBackup(transactions: [makeExpense()])))
+
+        #expect(plan.backupCurrencyCode == "CNY")
+        #expect(!plan.changesCurrency)
+    }
+
+    @Test("备份里没有账户时没有币种，不改账本币种，也不写本机存的值")
+    func backupWithoutAccountsHasNoCurrency() throws {
+        let container = try AccountDataContainer.inMemory()
+        let defaults = LedgerTestDefaults.make(currency: "EUR", name: "restoreNoAccounts")
+        let service = BackupImportService(container: container.modelContainer, defaults: defaults)
+
+        let plan = try service.prepare(from: try encode(makeBackup(accounts: [])))
+        try service.restore(plan)
+
+        #expect(plan.backupCurrencyCode == nil)
+        #expect(!plan.changesCurrency)
+        #expect(defaults.string(forKey: BookkeepingCurrency.storageKey) == "EUR")
+    }
+
+    @Test("恢复保存失败时回滚，账本币种和本机存的值保持原样")
+    func failedRestoreKeepsCurrency() throws {
+        let container = try AccountDataContainer.inMemory()
+        let defaults = LedgerTestDefaults.make(currency: "CNY", name: "restoreFailed")
+        try LocalAccountRepository(container: container.modelContainer, defaults: defaults).save(
+            AccountDraft(id: UUID(), accountType: .cash, name: "本机现金", amountText: "10"),
+            locale: Locale(identifier: "en_US")
+        )
+        struct InjectedFailure: Error {}
+        let service = BackupImportService(
+            container: container.modelContainer,
+            beforeSave: { throw InjectedFailure() },
+            defaults: defaults
+        )
+        let backup = makeBackup(accounts: [makeAccount(id: Self.accountID, currencyCode: "USD")])
+        let plan = try service.prepare(from: try encode(backup))
+
+        #expect(throws: BackupImportError.restoreFailed) {
+            try service.restore(plan)
+        }
+
+        let context = container.modelContainer.makeManualSaveContext()
+        #expect(try context.fetch(FetchDescriptor<Account>()).allSatisfy { $0.currencyCode == "CNY" })
+        #expect(defaults.string(forKey: BookkeepingCurrency.storageKey) == "CNY")
     }
 
     // MARK: - 分类
@@ -390,7 +494,7 @@ struct BackupImportServiceTests {
         #expect(original.categories.contains { $0.key == removed && $0.deletedAt != nil })
 
         let target = try AccountDataContainer.inMemory()
-        let service = BackupImportService(container: target.modelContainer)
+        let service = BackupImportService(container: target.modelContainer, defaults: LedgerTestDefaults.cny)
         try service.restore(try service.prepare(from: try encode(original)))
         let restored = try snapshot(of: target)
 
@@ -413,7 +517,7 @@ struct BackupImportServiceTests {
         let categories = LocalCategoryRepository(container: container.modelContainer)
         try categories.create(name: "咖啡", symbolName: "mug", direction: .expense)
         try categories.delete(key: "pets", direction: .expense, transactions: .migrate(to: "other"))
-        let service = BackupImportService(container: container.modelContainer)
+        let service = BackupImportService(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
 
         try service.restore(try service.prepare(from: try encode(makeBackup())))
 
@@ -425,7 +529,7 @@ struct BackupImportServiceTests {
 
     @Test("流水引用备份中不存在或已删除的分类（含预置分类）时整份拒绝")
     func rejectsTransactionsWithUnknownCustomCategory() throws {
-        let service = BackupImportService(container: try AccountDataContainer.inMemory().modelContainer)
+        let service = BackupImportService(container: try AccountDataContainer.inMemory().modelContainer, defaults: LedgerTestDefaults.cny)
         let deletedID = UUID()
         let deletedKey = BookkeepingCategoryKey.customKey(for: deletedID)
         let tombstone = BackupCategory(
@@ -458,7 +562,7 @@ struct BackupImportServiceTests {
 
     @Test("分类记录不合法时整份拒绝")
     func rejectsInvalidCategories() throws {
-        let service = BackupImportService(container: try AccountDataContainer.inMemory().modelContainer)
+        let service = BackupImportService(container: try AccountDataContainer.inMemory().modelContainer, defaults: LedgerTestDefaults.cny)
         let customID = UUID()
         let valid = BackupCategory(
             id: customID, direction: BookkeepingEntryType.expense.rawValue,

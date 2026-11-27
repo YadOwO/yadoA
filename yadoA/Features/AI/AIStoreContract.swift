@@ -56,18 +56,47 @@ nonisolated struct AIStoreItem: Decodable, Equatable, Identifiable, Sendable {
     /// 角标；服务端没给或客户端不认识时为 nil。
     let badge: AIStoreItemBadge?
 
+    /// 活动类型；服务端没给（旧服务端、没有活动）或客户端不认识时为 nil，按普通商品显示。
+    let promotion: AIStoreItemPromotion?
+
+    /// 限时多送的点数；`points` 仍是基础点数，实际入账 = `points` + `bonusPoints`。缺字段或小于 0 时为 0。
+    let bonusPoints: Int
+
+    /// 活动的结束时刻：新人包是这个账号资格到期的时刻，限时多送是活动结束的时刻（不含）；没有或解析失败时为 nil。
+    let promotionEndsAt: Date?
+
     var id: String { productID }
+
+    /// 是否是新人包。
+    var isStarter: Bool {
+        promotion == .starter
+    }
+
+    /// 限时多送的点数；只有 `promotion` 为 `.bonus` 且多送点数大于 0 时有值，其余为 nil。
+    var activeBonusPoints: Int? {
+        promotion == .bonus && bonusPoints > 0 ? bonusPoints : nil
+    }
 
     private enum CodingKeys: String, CodingKey {
         case productID = "productId"
-        case points, badge
+        case points, badge, promotion, bonusPoints, promotionEndsAt
     }
 
     /// 逐字段创建，供测试使用。
-    init(productID: String, points: Int, badge: AIStoreItemBadge? = nil) {
+    init(
+        productID: String,
+        points: Int,
+        badge: AIStoreItemBadge? = nil,
+        promotion: AIStoreItemPromotion? = nil,
+        bonusPoints: Int = 0,
+        promotionEndsAt: Date? = nil
+    ) {
         self.productID = productID
         self.points = points
         self.badge = badge
+        self.promotion = promotion
+        self.bonusPoints = bonusPoints
+        self.promotionEndsAt = promotionEndsAt
     }
 
     init(from decoder: Decoder) throws {
@@ -76,7 +105,22 @@ nonisolated struct AIStoreItem: Decodable, Equatable, Identifiable, Sendable {
         points = try container.decode(Int.self, forKey: .points)
         // 服务端以后新增的角标客户端不认识，不显示，不让整个列表解码失败
         badge = try container.decodeIfPresent(String.self, forKey: .badge).flatMap(AIStoreItemBadge.init(rawValue:))
+        // 活动字段都只是附加信息：缺字段、类型不对、值不认识都按普通商品处理，不抛错，不让整个列表解码失败
+        promotion = ((try? container.decodeIfPresent(String.self, forKey: .promotion)) ?? nil)
+            .flatMap(AIStoreItemPromotion.init(rawValue:))
+        bonusPoints = max(((try? container.decodeIfPresent(Int.self, forKey: .bonusPoints)) ?? nil) ?? 0, 0)
+        promotionEndsAt = ((try? container.decodeIfPresent(String.self, forKey: .promotionEndsAt)) ?? nil)
+            .flatMap(AIBillingTimestamp.parse)
     }
+}
+
+/// 商品的活动类型，与 yado_ai `config/store.ts` 的 `STORE_ITEM_PROMOTIONS` 一致；以后可能增加，客户端不认识的值按普通商品显示。
+nonisolated enum AIStoreItemPromotion: String, Equatable, Sendable {
+    /// 新人专享：只有有资格的账号的商品列表里才有这个商品。
+    case starter
+
+    /// 限时多送：活动期间入账点数 = 基础点数 + 多送点数。
+    case bonus
 }
 
 /// 商品角标，与 yado_ai `config/store.ts` 的 `STORE_ITEM_BADGES` 一致。

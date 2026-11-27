@@ -47,7 +47,11 @@ extension ModelContext {
             if !existing.isActive { existing.deactivatedAt = nil }
             return existing
         }
-        let account = Account.makeUnlinked(locale: locale, now: now)
+        let account = Account.makeUnlinked(
+            currencyCode: try BookkeepingCurrency.current(in: self),
+            locale: locale,
+            now: now
+        )
         insert(account)
         return account
     }

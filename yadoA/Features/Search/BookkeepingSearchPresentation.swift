@@ -523,6 +523,7 @@ struct BookkeepingSearchPresentation {
         transactionID: UUID,
         transactions: [AccountTransaction],
         accounts: [Account],
+        ledgerCurrencyCode: String,
         calendar sourceCalendar: Calendar = .current,
         locale: Locale = .current,
         catalog: BookkeepingCategoryCatalog = .presets
@@ -534,6 +535,7 @@ struct BookkeepingSearchPresentation {
         return detail(
             for: transaction,
             account: account,
+            ledgerCurrencyCode: ledgerCurrencyCode,
             calendar: sourceCalendar,
             locale: locale,
             catalog: catalog
@@ -541,9 +543,12 @@ struct BookkeepingSearchPresentation {
     }
 
     /// 将一笔合法收支流水和当前账户快照转换为只读详情。
+    ///
+    /// 流水或账户的币种和账本币种不同时只能查看，不能编辑。
     static func detail(
         for transaction: AccountTransaction,
         account: Account?,
+        ledgerCurrencyCode: String,
         calendar sourceCalendar: Calendar = .current,
         locale: Locale = .current,
         catalog: BookkeepingCategoryCatalog = .presets
@@ -610,8 +615,8 @@ struct BookkeepingSearchPresentation {
             accessibilityLabel: spokenParts.joined(separator: ", "),
             isRecurring: transaction.recurringRuleID != nil,
             canEdit: accountState == .active
-                && account?.acceptsBookkeepingEntries == true
-                && transaction.currencyCode == BookkeepingCurrency.code
+                && account?.acceptsBookkeepingEntries(ledgerCurrencyCode: ledgerCurrencyCode) == true
+                && transaction.currencyCode == ledgerCurrencyCode
         )
     }
 

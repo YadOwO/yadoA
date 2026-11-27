@@ -6,6 +6,7 @@ import SwiftUI
 /// 卡片自动往后翻，也可以点标签或左右滑。数字都是示例，第 3 步记下的午饭和打车算在今天里；不读取真实账本。
 struct OnboardingInsightStep: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.calendar) private var calendar
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -167,13 +168,18 @@ struct OnboardingInsightStep: View {
                 Text(text("onboarding.insight.spending.caption"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text(OnboardingSamples.currency(isRevealed ? OnboardingInsightSamples.weekTotal : Decimal.zero, locale: locale))
+                Text(OnboardingSamples.currency(
+                    isRevealed ? OnboardingInsightSamples.weekTotal : Decimal.zero,
+                    locale: locale,
+                    currencyCode: currencyCode
+                ))
                     .font(.system(.title, design: .serif, weight: .medium).monospacedDigit())
                     .contentTransition(.numericText(value: isRevealed ? 1 : 0))
             }
             CategoryRankingView(
                 title: text("chart.category.title"),
-                items: OnboardingInsightSamples.categories(locale: locale)
+                items: OnboardingInsightSamples.categories(locale: locale),
+                currencyCode: currencyCode
             )
             .opacity(isRevealed ? 1 : 0)
             .offset(y: isRevealed || reduceMotion ? 0 : 10)
@@ -188,7 +194,7 @@ struct OnboardingInsightStep: View {
         return VStack(alignment: .leading, spacing: 14) {
             Text(AccountLocalization.formatted(
                 "onboarding.insight.trend.caption",
-                value: OnboardingSamples.currency(OnboardingInsightSamples.today, locale: locale),
+                value: OnboardingSamples.currency(OnboardingInsightSamples.today, locale: locale, currencyCode: currencyCode),
                 locale: locale
             ))
             .font(.subheadline)
@@ -210,7 +216,7 @@ struct OnboardingInsightStep: View {
                     .foregroundStyle(day.isToday ? Color(.ledgerRed) : Color.accentColor)
                     .symbolSize(day.isToday ? 70 : 16)
                     .accessibilityLabel(day.label)
-                    .accessibilityValue(OnboardingSamples.currency(Decimal(day.amount), locale: locale))
+                    .accessibilityValue(OnboardingSamples.currency(Decimal(day.amount), locale: locale, currencyCode: currencyCode))
                 }
                 RuleMark(y: .value(text("onboarding.insight.trend.average"), isRevealed ? average : 0))
                     .foregroundStyle(Color.secondary)
@@ -253,9 +259,15 @@ struct OnboardingInsightStep: View {
 
     /// 还剩多少：账户页的资产汇总卡和账户行，净资产 = 资产 − 负债。
     private func worthCard(isRevealed: Bool) -> some View {
-        let accounts = OnboardingInsightSamples.accounts(locale: locale)
+        let accounts = OnboardingInsightSamples.accounts(locale: locale, currencyCode: currencyCode)
         return VStack(alignment: .leading, spacing: 12) {
-            AccountSummaryCard(presentation: OnboardingInsightSamples.summary(isRevealed: isRevealed, locale: locale))
+            AccountSummaryCard(
+                presentation: OnboardingInsightSamples.summary(
+                    isRevealed: isRevealed,
+                    locale: locale,
+                    currencyCode: currencyCode
+                )
+            )
                 .contentTransition(.numericText())
 
             VStack(spacing: 0) {
@@ -374,7 +386,7 @@ enum OnboardingInsightSamples {
     }
 
     /// 示例账户：招商银行储蓄卡、微信、现金，以及欠款的花呗。
-    static func accounts(locale: Locale) -> [AccountRowPresentation] {
+    static func accounts(locale: Locale, currencyCode: String) -> [AccountRowPresentation] {
         sampleAccounts.map { account in
             AccountListPresentation.row(
                 id: account.id,
@@ -384,14 +396,14 @@ enum OnboardingInsightSamples {
                     ?? account.type.title(locale: locale),
                 lastFourDigits: nil,
                 balance: account.balance,
-                currencyCode: BookkeepingCurrency.code,
+                currencyCode: currencyCode,
                 locale: locale
             )
         }
     }
 
     /// 资产汇总；展开前全是 0，展开时滚到位。
-    static func summary(isRevealed: Bool, locale: Locale) -> AccountSummaryPresentation {
+    static func summary(isRevealed: Bool, locale: Locale, currencyCode: String) -> AccountSummaryPresentation {
         var assets = Decimal.zero
         var liabilities = Decimal.zero
         for account in sampleAccounts where isRevealed {
@@ -401,7 +413,12 @@ enum OnboardingInsightSamples {
                 assets += account.balance
             }
         }
-        return AccountSummaryPresentation.summary(assets: assets, liabilities: liabilities, locale: locale)
+        return AccountSummaryPresentation.summary(
+            assets: assets,
+            liabilities: liabilities,
+            locale: locale,
+            currencyCode: currencyCode
+        )
     }
 
     /// 示例账户的字段；资产 13,710，负债 2,300，净资产 11,410。

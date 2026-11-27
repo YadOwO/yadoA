@@ -9,7 +9,7 @@ struct DeactivatedAccountWritePersistenceTests {
     @Test("支出和余额调整都在最终保存边界拒绝停用账户")
     func financialWritesRejectDeactivatedAccount() throws {
         let container = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: container.modelContainer)
+        let repository = LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny)
         let accountID = UUID()
         try repository.save(
             AccountDraft(id: accountID, accountType: .cash, name: "现金", amountText: "0"),

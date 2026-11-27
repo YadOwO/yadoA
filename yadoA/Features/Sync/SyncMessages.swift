@@ -14,6 +14,8 @@ enum SyncMessages {
             "sync.error.epochMismatch"
         case .serviceUnavailable:
             "sync.error.serviceUnavailable"
+        case .quotaExceeded:
+            "sync.error.quotaExceeded"
         case .timeout, .network:
             "sync.error.network"
         case .invalidContract:

@@ -21,7 +21,7 @@ enum ExpenseRepositoryError: Error, Equatable {
     /// 持久化账户类型未知，无法安全判断金额影响方向。
     case unsupportedAccountType(String)
 
-    /// 当前版本仅允许 CNY 账户记录支出。
+    /// 账户或流水的币种和账本币种不一致，不能记账或修改。
     case unsupportedCurrency(String)
 
     /// 精确十进制金额计算失败。
@@ -70,6 +70,7 @@ final class LocalExpenseRepository {
 
         let transaction = try AccountTransaction.validating(
             draft: draft,
+            currencyCode: BookkeepingCurrency.current(in: modelContext),
             savedAt: savedAt
         )
         let (account, effect) = try Self.bookkeepingAccount(id: transaction.accountID, in: modelContext)
@@ -102,7 +103,10 @@ final class LocalExpenseRepository {
         guard let transaction = try modelContext.transaction(id: draft.id) else {
             throw ExpenseRepositoryError.transactionNotFound(draft.id)
         }
-        let replacement = try draft.validatedTransaction(savedAt: transaction.savedAt)
+        let replacement = try draft.validatedTransaction(
+            currencyCode: BookkeepingCurrency.current(in: modelContext),
+            savedAt: transaction.savedAt
+        )
         try replace(transaction, with: replacement, in: modelContext)
         try modelContext.saveOrRollback(beforeSave: beforeSave)
     }
@@ -141,7 +145,10 @@ final class LocalExpenseRepository {
             guard try !modelContext.containsTransaction(id: snapshot.id) else {
                 throw ExpenseRepositoryError.duplicateID(snapshot.id)
             }
-            let transaction = try snapshot.validatedTransaction()
+            // 写进流水的币种取账本币种；随后的账户校验保证账户币种和它一致
+            let transaction = try snapshot.validatedTransaction(
+                currencyCode: BookkeepingCurrency.current(in: modelContext)
+            )
             let (account, effect) = try Self.bookkeepingAccount(id: transaction.accountID, in: modelContext)
             try requireAvailableCategory(of: transaction.validatedPayload(), in: modelContext)
             account.balance = try Self.updatedBalance(
@@ -153,7 +160,10 @@ final class LocalExpenseRepository {
             guard let transaction = try modelContext.transaction(id: snapshot.id) else {
                 throw ExpenseRepositoryError.transactionNotFound(snapshot.id)
             }
-            try replace(transaction, with: snapshot.validatedTransaction(), in: modelContext)
+            let replacement = try snapshot.validatedTransaction(
+                currencyCode: BookkeepingCurrency.current(in: modelContext)
+            )
+            try replace(transaction, with: replacement, in: modelContext)
         case let .delete(id):
             guard let transaction = try modelContext.transaction(id: id) else {
                 throw ExpenseRepositoryError.transactionNotFound(id)
@@ -177,8 +187,8 @@ final class LocalExpenseRepository {
         with replacement: AccountTransaction,
         in modelContext: ModelContext
     ) throws {
-        let (oldAmount, oldEntryType) = try Self.editableAmountAndType(for: transaction)
-        let (newAmount, newEntryType) = try Self.editableAmountAndType(for: replacement)
+        let (oldAmount, oldEntryType) = try Self.editableAmountAndType(for: transaction, in: modelContext)
+        let (newAmount, newEntryType) = try Self.editableAmountAndType(for: replacement, in: modelContext)
         try requireAvailableCategory(of: replacement.validatedPayload(), in: modelContext)
         let (source, sourceEffect) = try Self.bookkeepingAccount(id: transaction.accountID, in: modelContext)
 
@@ -232,7 +242,7 @@ final class LocalExpenseRepository {
         in context: ModelContext
     ) throws {
         for transaction in transactions {
-            let (amount, entryType) = try editableAmountAndType(for: transaction)
+            let (amount, entryType) = try editableAmountAndType(for: transaction, in: context)
             let (account, effect) = try bookkeepingAccount(id: transaction.accountID, in: context)
             account.balance = try updatedBalance(
                 account.balance, by: -amount,
@@ -242,13 +252,14 @@ final class LocalExpenseRepository {
         }
     }
 
-    /// 修改与删除共用的合法收支边界，拒绝币种转换和损坏载荷。
+    /// 修改与删除共用的合法收支边界，拒绝币种和账本币种不一致的流水以及损坏载荷。
     private static func editableAmountAndType(
-        for transaction: AccountTransaction
+        for transaction: AccountTransaction,
+        in context: ModelContext
     ) throws -> (Decimal, BookkeepingEntryType) {
         guard let (entryType, amount) = try? transaction.validatedPayload().bookkeepingAmount
         else { throw ExpenseRepositoryError.transactionNotEditable(transaction.id) }
-        guard transaction.currencyCode == BookkeepingCurrency.code else {
+        guard try transaction.currencyCode == BookkeepingCurrency.current(in: context) else {
             throw ExpenseRepositoryError.unsupportedCurrency(transaction.currencyCode)
         }
         return (amount, entryType)
@@ -282,7 +293,7 @@ final class LocalExpenseRepository {
             throw ExpenseRepositoryError.accountNotFound(id)
         }
         guard account.isActive else { throw ExpenseRepositoryError.accountDeactivated(id) }
-        guard account.currencyCode == BookkeepingCurrency.code else {
+        guard try account.currencyCode == BookkeepingCurrency.current(in: context) else {
             throw ExpenseRepositoryError.unsupportedCurrency(account.currencyCode)
         }
         guard account.supportsBookkeeping, let type = account.accountType else {

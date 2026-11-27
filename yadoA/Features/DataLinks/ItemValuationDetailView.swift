@@ -8,6 +8,7 @@ import SwiftUI
 /// 本页自己不会关闭：取消授权发生在「我的」里，回到本页时显示说明即可。
 struct ItemValuationDetailView: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     /// 联动状态；预览中没有注入时为 nil。
     @Environment(DataLinkStore.self) private var dataLinks: DataLinkStore?
     /// 全局登录状态；读它是为了登录和退出登录时重绘。预览中没有注入时为 nil。
@@ -67,7 +68,8 @@ struct ItemValuationDetailView: View {
                 Text(ItemValuationPresentation.detail(
                     summary: summary,
                     discountPercent: store.settings.discountPercent,
-                    locale: locale
+                    locale: locale,
+                    currencyCode: currencyCode
                 ))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -77,12 +79,12 @@ struct ItemValuationDetailView: View {
             VStack(alignment: .leading, spacing: 10) {
                 metricRow(
                     title: "itemValuation.detail.inService",
-                    value: summary.inServicePurchaseTotal.formattedCurrency(locale: locale),
+                    value: summary.inServicePurchaseTotal.formattedCurrency(locale: locale, currencyCode: currencyCode),
                     identifier: "item-valuation-in-service"
                 )
                 metricRow(
                     title: "itemValuation.detail.retired",
-                    value: summary.retiredPurchaseTotal.formattedCurrency(locale: locale),
+                    value: summary.retiredPurchaseTotal.formattedCurrency(locale: locale, currencyCode: currencyCode),
                     identifier: "item-valuation-retired"
                 )
                 metricRow(
@@ -118,7 +120,7 @@ struct ItemValuationDetailView: View {
     /// 估值大字：有填价格的物品时是折算后的金额；一件都没填价格时是 ¥0.00，下面的件数会说明原因。
     private func valuationText(store: DataLinkStore, summary: ItemValueSummary) -> String {
         ItemValuation.amount(summary: summary, discountPercent: store.settings.discountPercent)
-            .formattedCurrency(locale: locale)
+            .formattedCurrency(locale: locale, currencyCode: currencyCode)
     }
 
     /// 一行名称和数值，数值靠右。

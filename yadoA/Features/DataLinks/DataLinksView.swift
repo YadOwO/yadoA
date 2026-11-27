@@ -9,6 +9,7 @@ import SwiftUI
 /// 没登录、离线、hub 没打开这个来源时只显示一句说明，不会崩。
 struct DataLinksView: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     /// 联动状态；预览中没有注入时为 nil。
     @Environment(DataLinkStore.self) private var dataLinks: DataLinkStore?
     /// 全局登录状态；读它是为了登录和退出登录时重绘。预览中没有注入时为 nil。
@@ -153,7 +154,7 @@ struct DataLinksView: View {
     @ViewBuilder
     private func grantedDetails(store: DataLinkStore, summary: ItemValueSummary?) -> some View {
         if let valuation = store.accountValuation {
-            Text(valuation.formattedCurrency(locale: locale))
+            Text(valuation.formattedCurrency(locale: locale, currencyCode: currencyCode))
                 .font(.system(.largeTitle, design: .serif, weight: .medium))
                 .monospacedDigit()
                 .lineLimit(1)

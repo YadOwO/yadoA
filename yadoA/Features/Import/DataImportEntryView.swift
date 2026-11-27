@@ -118,15 +118,37 @@ struct DataImportEntryView: View {
         )
     }
 
-    /// 确认提示正文：备份摘要；本地已有数据时追加整体替换说明，最后说明可以撤销。
+    /// 确认提示正文：备份摘要；备份币种和当前账本币种不同时说明币种会跟着变；本地已有数据时追加整体替换说明，最后说明可以撤销。
     private func confirmationMessage(for plan: BackupImportPlan) -> String {
         var parts = [summary(for: plan)]
+        if plan.changesCurrency, let backupCurrencyCode = plan.backupCurrencyCode {
+            parts.append(currencyChangeNote(from: plan.currentCurrencyCode, to: backupCurrencyCode))
+        }
         if plan.replacesExistingData {
             parts.append(text("account.management.import.confirm.replace_warning"))
             parts.append(text("account.management.import.confirm.chat_note"))
         }
         parts.append(undoHint)
         return parts.joined(separator: "\n\n")
+    }
+
+    /// 恢复后账本币种会改成备份币种的说明：只换符号，金额不换算。
+    ///
+    /// - Parameters:
+    ///   - current: 当前账本币种。
+    ///   - backup: 备份的账本币种。
+    private func currencyChangeNote(from current: String, to backup: String) -> String {
+        String(
+            format: text("account.management.import.confirm.currency"),
+            locale: locale,
+            currencyLabel(backup),
+            currencyLabel(current)
+        )
+    }
+
+    /// 币种的「名称（代码）」写法，例如「美元（USD）」。
+    private func currencyLabel(_ code: String) -> String {
+        "\(BookkeepingCurrency.displayName(for: code, locale: locale)) (\(code))"
     }
 
     /// 恢复后多少天内、在哪里可以撤销的说明。

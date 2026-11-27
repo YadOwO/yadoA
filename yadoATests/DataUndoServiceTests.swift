@@ -25,7 +25,7 @@ struct DataUndoServiceTests {
         let container = try AccountDataContainer.inMemory()
         try LocalCategoryRepository(container: container.modelContainer).ensurePresets()
         let accountID = UUID()
-        try LocalAccountRepository(container: container.modelContainer).save(
+        try LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny).save(
             AccountDraft(id: accountID, accountType: .cash, name: "现金", amountText: "10"),
             locale: Locale(identifier: "en_US")
         )
@@ -62,7 +62,7 @@ struct DataUndoServiceTests {
     func undoRestoresDataErasedByReset() throws {
         let container = try makeSeededContainer()
         let before = try contents(of: container)
-        let service = DataUndoService(container: container.modelContainer, directory: makeDirectory())
+        let service = DataUndoService(container: container.modelContainer, directory: makeDirectory(), defaults: LedgerTestDefaults.cny)
 
         try service.perform(.reset) { try erase(container) }
         let snapshot = try #require(service.availableSnapshot())
@@ -83,7 +83,8 @@ struct DataUndoServiceTests {
         let service = DataUndoService(
             container: container.modelContainer,
             directory: makeDirectory(),
-            now: { clock.now }
+            now: { clock.now },
+            defaults: LedgerTestDefaults.cny
         )
         try service.perform(.reset) { try erase(container) }
 
@@ -98,7 +99,7 @@ struct DataUndoServiceTests {
     @Test("操作失败时不替换上一份快照")
     func failedOperationKeepsPreviousSnapshot() throws {
         let container = try makeSeededContainer()
-        let service = DataUndoService(container: container.modelContainer, directory: makeDirectory())
+        let service = DataUndoService(container: container.modelContainer, directory: makeDirectory(), defaults: LedgerTestDefaults.cny)
         try service.perform(.reset) { try erase(container) }
         let previous = try #require(service.availableSnapshot())
 
@@ -112,7 +113,7 @@ struct DataUndoServiceTests {
     @Test("账本已空时再次清除，不会把上一份快照换成空快照")
     func resettingEmptyLedgerKeepsPreviousSnapshot() throws {
         let container = try makeSeededContainer()
-        let service = DataUndoService(container: container.modelContainer, directory: makeDirectory())
+        let service = DataUndoService(container: container.modelContainer, directory: makeDirectory(), defaults: LedgerTestDefaults.cny)
         try service.perform(.reset) { try erase(container) }
         let previous = try #require(service.availableSnapshot())
 
@@ -124,7 +125,7 @@ struct DataUndoServiceTests {
     func failedUndoKeepsSnapshot() throws {
         let container = try makeSeededContainer()
         let directory = makeDirectory()
-        try DataUndoService(container: container.modelContainer, directory: directory)
+        try DataUndoService(container: container.modelContainer, directory: directory, defaults: LedgerTestDefaults.cny)
             .perform(.reset) { try erase(container) }
         let erased = try contents(of: container)
 
@@ -132,7 +133,8 @@ struct DataUndoServiceTests {
         let failing = DataUndoService(
             container: container.modelContainer,
             directory: directory,
-            beforeSave: { throw InjectedFailure() }
+            beforeSave: { throw InjectedFailure() },
+            defaults: LedgerTestDefaults.cny
         )
         #expect(throws: DataUndoError.undoFailed) { try failing.undo() }
         #expect(try contents(of: container) == erased)

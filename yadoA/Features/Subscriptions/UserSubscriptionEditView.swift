@@ -35,6 +35,7 @@ struct UserSubscriptionEditView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var ledgerCurrencyCode
     @Query private var accounts: [Account]
     @Query private var categories: [BookkeepingCategory]
     @Query private var preferences: [BookkeepingPreference]
@@ -158,16 +159,25 @@ struct UserSubscriptionEditView: View {
         BookkeepingCategoryCatalog(categories: categories)
     }
 
-    /// 可以记账的账户：按账户页的顺序，最后是「不关联账户」。
+    /// 可以记账的账户：按账户页的顺序，最后是「不关联账户」；币种和账本不同的账户不能记。
     private var bookkeepingAccounts: [Account] {
         let order = AccountDisplayOrder(preferences: preferences)
-        let sorted = AccountListPresentation.sorted(accounts, order: order).filter(\.acceptsBookkeepingEntries)
-        return sorted + accounts.filter { $0.isUnlinked && $0.acceptsBookkeepingEntries }
+        let sorted = AccountListPresentation.sorted(accounts, order: order)
+            .filter { $0.acceptsBookkeepingEntries(ledgerCurrencyCode: ledgerCurrencyCode) }
+        return sorted + accounts.filter {
+            $0.isUnlinked && $0.acceptsBookkeepingEntries(ledgerCurrencyCode: ledgerCurrencyCode)
+        }
+    }
+
+    /// 金额输入允许的小数位，按账本币种（日元、韩元没有小数）。
+    private var amountFractionDigits: Int {
+        BookkeepingCurrency.inputFractionDigits(for: ledgerCurrencyCode)
     }
 
     /// 输入框里的金额；不合法时为 `nil`。
     private var amount: Decimal? {
-        AccountAmountParser.amount(from: amountText, locale: locale).flatMap { $0 > 0 ? $0 : nil }
+        AccountAmountParser.amount(from: amountText, locale: locale, fractionDigits: amountFractionDigits)
+            .flatMap { $0 > 0 ? $0 : nil }
     }
 
     /// 去掉首尾空白的名称。
@@ -301,10 +311,12 @@ struct UserSubscriptionEditView: View {
                     .font(.body.monospacedDigit())
                     .accessibilityIdentifier("subscription-edit-amount")
                     .onChange(of: amountText) { oldValue, newValue in
-                        // 只接受最多两位小数的非负数字，其余输入原样退回
+                        // 只接受不超过账本币种小数位的非负数字，其余输入原样退回
                         let separator = locale.decimalSeparator ?? "."
                         if !newValue.isEmpty,
-                           AccountAmountParser.normalizedCNYAmountText(newValue, decimalSeparator: separator) == nil {
+                           AccountAmountParser.normalizedCNYAmountText(
+                               newValue, decimalSeparator: separator, fractionDigits: amountFractionDigits
+                           ) == nil {
                             amountText = oldValue
                         }
                     }

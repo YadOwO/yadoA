@@ -127,6 +127,7 @@ struct BookkeepingTransactionDetailView: View {
 private struct BookkeepingTransactionDetailQueryContent: View {
     @Environment(\.calendar) private var environmentCalendar
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Query private var transactions: [AccountTransaction]
     @Query private var accounts: [Account]
     @Query private var categories: [BookkeepingCategory]
@@ -164,6 +165,7 @@ private struct BookkeepingTransactionDetailQueryContent: View {
             transactionID: transactionID,
             transactions: transactions,
             accounts: accounts,
+            ledgerCurrencyCode: currencyCode,
             calendar: environmentCalendar,
             locale: locale,
             catalog: catalog
@@ -188,7 +190,11 @@ private struct BookkeepingTransactionDetailQueryContent: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         if let transaction = transactions.first(where: { $0.id == transactionID }),
-                           let draft = DiningExpenseEditDraft(transaction: transaction, catalog: catalog) {
+                           let draft = DiningExpenseEditDraft(
+                               transaction: transaction,
+                               ledgerCurrencyCode: currencyCode,
+                               catalog: catalog
+                           ) {
                             onEdit(draft)
                         }
                     } label: {

@@ -15,10 +15,10 @@ enum BalanceAdjustmentRepositoryError: Error, Equatable {
     /// 未知账户类型不能安全执行余额调整。
     case unsupportedAccountType(String)
 
-    /// 当前版本仅允许 CNY 账户调整余额。
+    /// 账户币种和账本币种不一致，不能调整余额。
     case unsupportedCurrency(String)
 
-    /// 存量账户余额超过 CNY 两位小数精度，不能静默舍入。
+    /// 存量账户余额超过两位小数的存储精度，不能静默舍入。
     case unsupportedStoredBalancePrecision
 
     /// 草稿目标总余额无效。
@@ -85,7 +85,7 @@ final class LocalBalanceAdjustmentRepository {
         guard account.supportsBookkeeping else {
             throw BalanceAdjustmentRepositoryError.unsupportedAccountType(account.typeRawValue)
         }
-        guard account.currencyCode == BookkeepingCurrency.code else {
+        guard try account.currencyCode == BookkeepingCurrency.current(in: modelContext) else {
             throw BalanceAdjustmentRepositoryError.unsupportedCurrency(account.currencyCode)
         }
         guard AccountAmountParser.hasCNYPrecision(account.balance) else {
@@ -100,6 +100,7 @@ final class LocalBalanceAdjustmentRepository {
             accountID: draft.accountID,
             balanceBefore: account.balance,
             balanceAfter: targetBalance,
+            currencyCode: account.currencyCode,
             transactionDay: transactionDay ?? TransactionDay.encode(now, calendar: calendar),
             note: draft.note,
             savedAt: now

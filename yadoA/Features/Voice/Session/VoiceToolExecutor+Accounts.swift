@@ -13,9 +13,9 @@ extension VoiceToolExecutor {
         // 契约保证目标余额与增减额恰好一个；增减额加到执行时的余额上，信用卡、负债为欠款的增减
         let target: Decimal? = switch (input.targetBalance, input.delta) {
         case let (targetText?, nil):
-            Self.signedAmount(from: targetText)
+            Self.signedAmount(from: targetText, fractionDigits: amountFractionDigits)
         case let (nil, deltaText?):
-            Self.signedAmount(from: deltaText).flatMap { $0 == 0 ? nil : before.exactlyAdding($0) }
+            Self.signedAmount(from: deltaText, fractionDigits: amountFractionDigits).flatMap { $0 == 0 ? nil : before.exactlyAdding($0) }
         default:
             nil
         }
@@ -63,7 +63,9 @@ extension VoiceToolExecutor {
         case let (.failure(code), _), let (_, .failure(code)):
             return (.failure(code), nil)
         }
-        guard let amount = Self.amount(from: input.amount), let transactionDay = Self.transactionDay(from: input.date) else {
+        guard let amount = Self.amount(from: input.amount, fractionDigits: amountFractionDigits),
+              let transactionDay = Self.transactionDay(from: input.date)
+        else {
             return (.failure(.invalidInput), nil)
         }
         let id = UUID()
@@ -139,7 +141,9 @@ extension VoiceToolExecutor {
     }
 
     func createAccount(_ input: VoiceCreateAccountInput) -> (VoiceToolOutput, VoiceAccountChange?) {
-        guard let type = AccountType(rawValue: input.type), let balance = Self.nonNegativeAmount(from: input.balance) else {
+        guard let type = AccountType(rawValue: input.type),
+              let balance = Self.nonNegativeAmount(from: input.balance, fractionDigits: amountFractionDigits)
+        else {
             return (.failure(.invalidInput), nil)
         }
         var template: AccountTemplate?

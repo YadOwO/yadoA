@@ -461,6 +461,8 @@ struct VoiceTurnActions: View {
     @Environment(\.locale) private var locale
     /// 当前账号的 AI 点数，用来判断点数不足时能否换用扣点更少的档位；预览和测试中没有注入时为 nil。
     @Environment(AIPointsStore.self) private var aiPoints: AIPointsStore?
+    /// 点数充值，用来判断当前账号有没有新人包可买；预览和测试中没有注入时为 nil。
+    @Environment(AIPointsShop.self) private var shop: AIPointsShop?
 
     /// 当前会话。
     let session: VoiceSession
@@ -505,46 +507,70 @@ struct VoiceTurnActions: View {
             && aiPoints?.canAffordCheaperTier(for: modelScope) == true
         let offersRetry = isLatest && !session.isProcessing && turn.failure != nil && !requiresSignIn && onRetry != nil
         let offersAccountCreation = isLatest && turn.requiresAccount
-        if isUndoable || offersManualEntry || requiresSignIn || offersAccountCreation {
-            HStack(spacing: 12) {
-                Spacer(minLength: 0)
-                if offersAccountCreation {
-                    Button(text("voice.turn.createAccount"), action: onCreateAccount)
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                        .onAccentForeground()
-                        .disabled(session.isProcessing)
-                        .accessibilityIdentifier("voice-create-account")
-                } else if requiresSignIn {
-                    Button(text("voice.signIn.action"), action: onSignIn)
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                } else if offersManualEntry {
-                    if offersTierSwitch {
-                        Button(text("voice.turn.switchModelTier"), action: onSwitchModelTier)
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            .accessibilityIdentifier("voice-switch-model-tier")
-                    }
-                    Button(text("voice.turn.manualEntry")) { onManualEntry(turn.userText) }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .accessibilityIdentifier("voice-manual-entry")
-                    if offersRetry, let onRetry {
-                        Button(text("voice.chat.retry"), action: onRetry)
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                            .onAccentForeground()
-                            .accessibilityIdentifier("voice-chat-retry")
+        let showsButtons = isUndoable || offersManualEntry || requiresSignIn || offersAccountCreation
+        // 点数不足的最近一轮：要拿到商品列表才知道账号有没有新人包，有就在按钮上面多写一句引导（不弹窗、不加按钮）
+        let isInsufficientPointsLatest = isLatest && turn.failure == .insufficientPoints
+        let offersStarterHint = isInsufficientPointsLatest && shop?.starterOffer != nil
+        // 什么都不显示时不放容器，免得多占一段间距
+        if showsButtons || isInsufficientPointsLatest {
+            VStack(alignment: .trailing, spacing: 6) {
+                if offersStarterHint {
+                    Text(text("voice.failure.insufficientPoints.starterHint"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.trailing)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("voice-starter-hint")
+                }
+                if showsButtons {
+                    HStack(spacing: 12) {
+                        Spacer(minLength: 0)
+                        if offersAccountCreation {
+                            Button(text("voice.turn.createAccount"), action: onCreateAccount)
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                                .onAccentForeground()
+                                .disabled(session.isProcessing)
+                                .accessibilityIdentifier("voice-create-account")
+                        } else if requiresSignIn {
+                            Button(text("voice.signIn.action"), action: onSignIn)
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                        } else if offersManualEntry {
+                            if offersTierSwitch {
+                                Button(text("voice.turn.switchModelTier"), action: onSwitchModelTier)
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                    .accessibilityIdentifier("voice-switch-model-tier")
+                            }
+                            Button(text("voice.turn.manualEntry")) { onManualEntry(turn.userText) }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .accessibilityIdentifier("voice-manual-entry")
+                            if offersRetry, let onRetry {
+                                Button(text("voice.chat.retry"), action: onRetry)
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                                    .onAccentForeground()
+                                    .accessibilityIdentifier("voice-chat-retry")
+                            }
+                        }
+                        if isUndoable {
+                            Button(text("voice.turn.undo")) { session.undoLatestTurn() }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                                .onAccentForeground()
+                                .accessibilityIdentifier("voice-undo")
+                        }
                     }
                 }
-                if isUndoable {
-                    Button(text("voice.turn.undo")) { session.undoLatestTurn() }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                        .onAccentForeground()
-                        .accessibilityIdentifier("voice-undo")
-                }
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            // 没打开过点数页的用户商品列表还没加载过，这里补一次；已经加载过的 refreshIfNeeded 自己会跳过。
+            // 轮次从处理中变成点数不足失败时轮次 ID 不变，所以条件也放进 id，成立时才重新触发
+            .task(id: isInsufficientPointsLatest ? turn.id : nil) {
+                guard isInsufficientPointsLatest else { return }
+                await shop?.refreshIfNeeded()
             }
         }
     }

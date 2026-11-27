@@ -125,6 +125,7 @@ struct OnboardingStartPageStep: View {
 /// 钱放在哪：多选几个常用账户，选中的卡片一张张拍到纸上、贴上胶带，可以顺手填余额。
 struct OnboardingAccountsStep: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var ledgerCurrencyCode
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// 引导状态；选择和余额写进草稿，第一页点按钮时才建账户。
@@ -142,6 +143,19 @@ struct OnboardingAccountsStep: View {
     /// 正在输入余额的账户。
     @FocusState private var focusedOption: OnboardingAccountOption?
 
+    /// 是否打开记账币种选择。
+    @State private var isPresentingCurrencyPicker = false
+
+    /// 这一步要建账户用的币种：用户在这一步选过就用选的，否则沿用环境里的账本币种（手机地区的默认值）。
+    private var currencyCode: String {
+        store.draft.currencyCode ?? ledgerCurrencyCode
+    }
+
+    /// 余额输入允许的小数位数：按这一步的币种，无小数的币种（JPY、KRW 等）不能输小数。
+    private var fractionDigits: Int {
+        BookkeepingCurrency.inputFractionDigits(for: currencyCode)
+    }
+
     var body: some View {
         OnboardingPage {
             OnboardingInkText(
@@ -157,6 +171,10 @@ struct OnboardingAccountsStep: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12)
                 .onboardingReveal(isDetailVisible)
+
+            currencyRow
+                .padding(.top, 14)
+                .onboardingReveal(isDetailVisible, delay: 0.05)
 
             LedgerFlowLayout(spacing: 10) {
                 ForEach(Array(OnboardingAccountOption.allCases.enumerated()), id: \.element) { index, option in
@@ -198,12 +216,56 @@ struct OnboardingAccountsStep: View {
             .onboardingReveal(isDetailVisible, delay: 0.3)
             .accessibilityIdentifier("onboarding-accounts-done")
         }
+        .sheet(isPresented: $isPresentingCurrencyPicker) {
+            LedgerCurrencyPicker(selection: currencyCode) { code in
+                selectCurrency(code)
+                isPresentingCurrencyPicker = false
+            }
+        }
+    }
+
+    /// 「记账币种：美元 US$ · 更改」：账户按它建；点「更改」打开币种选择。
+    private var currencyRow: some View {
+        HStack(spacing: 6) {
+            Text(AccountLocalization.formatted(
+                "onboarding.accounts.currency",
+                value: "\(BookkeepingCurrency.displayName(for: currencyCode, locale: locale)) "
+                    + BookkeepingCurrency.symbol(for: currencyCode, locale: locale),
+                locale: locale
+            ))
+            .foregroundStyle(.secondary)
+            Text(verbatim: "·")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Button(text("onboarding.accounts.currency.change")) {
+                focusedOption = nil
+                isPresentingCurrencyPicker = true
+            }
+            .accessibilityIdentifier("onboarding-currency-change")
+        }
+        .font(.callout)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 选了新币种：只记进引导草稿，最后一页写入时才生效；没有小数的币种同时去掉已经填了的小数部分。
+    ///
+    /// - Parameter code: 选中的币种代码。
+    private func selectCurrency(_ code: String) {
+        store.draft.currencyCode = code
+        guard BookkeepingCurrency.inputFractionDigits(for: code) == 0 else { return }
+        let separator = locale.decimalSeparator ?? "."
+        store.draft.balances = store.draft.balances.mapValues { amount in
+            amount.components(separatedBy: separator).first ?? amount
+        }
     }
 
     /// 选中账户的卡片：与账户页的账户行同样的图标和名称，右边填余额；左上角贴一段胶带。
     private func card(for option: OnboardingAccountOption, seed: UInt64) -> some View {
         let row = presentation(for: option)
-        let isValid = OnboardingAccountOption.isValidAmount(balance(for: option).wrappedValue, locale: locale)
+        let isValid = OnboardingAccountOption.isValidAmount(
+            balance(for: option).wrappedValue, locale: locale, fractionDigits: fractionDigits
+        )
         return HStack(spacing: 12) {
             AccountIconView(presentation: row.icon)
             VStack(alignment: .leading, spacing: 3) {
@@ -266,7 +328,9 @@ struct OnboardingAccountsStep: View {
     /// 所有填了的余额都是合法金额。
     private var areAmountsValid: Bool {
         store.draft.accounts.allSatisfy {
-            OnboardingAccountOption.isValidAmount(store.draft.balances[$0.rawValue] ?? "", locale: locale)
+            OnboardingAccountOption.isValidAmount(
+                store.draft.balances[$0.rawValue] ?? "", locale: locale, fractionDigits: fractionDigits
+            )
         }
     }
 
@@ -298,18 +362,21 @@ struct OnboardingAccountsStep: View {
             name: option.title(locale: locale),
             lastFourDigits: nil,
             balance: 0,
-            currencyCode: BookkeepingCurrency.code,
+            currencyCode: currencyCode,
             locale: locale
         )
     }
 
-    /// 某个账户余额输入的绑定，只保留数字和小数点。
+    /// 某个账户余额输入的绑定，只保留数字和小数点；没有小数的币种不让输小数点。
     private func balance(for option: OnboardingAccountOption) -> Binding<String> {
         Binding(
             get: { store.draft.balances[option.rawValue] ?? "" },
             set: { newValue in
                 let separator = locale.decimalSeparator ?? "."
-                store.draft.balances[option.rawValue] = newValue.filter { $0.isWholeNumber || String($0) == separator }
+                let allowsSeparator = fractionDigits > 0
+                store.draft.balances[option.rawValue] = newValue.filter {
+                    $0.isWholeNumber || (allowsSeparator && String($0) == separator)
+                }
             }
         )
     }

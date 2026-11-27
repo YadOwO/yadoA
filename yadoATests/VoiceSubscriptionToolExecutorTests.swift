@@ -373,7 +373,7 @@ struct VoiceSubscriptionToolExecutorTests {
 
     private func makeExecutor(_ container: ModelContainer) -> VoiceToolExecutor {
         let date = savedAt
-        return VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: { date })
+        return VoiceToolExecutor(container: container, locale: locale, calendar: calendar, currencyCode: "CNY", now: { date })
     }
 
     private func createCall(

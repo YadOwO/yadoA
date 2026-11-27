@@ -47,6 +47,7 @@ enum RecurringRuleListPresentation {
     /// - Parameters:
     ///   - rules: 全部规则。
     ///   - accounts: 当前账户快照。
+    ///   - ledgerCurrencyCode: 当前账本币种；账户币种和它不同的规则不可用，金额也按它展示。
     ///   - catalog: 分类目录。
     ///   - subscriptionOwners: 订阅自动记账建的规则，规则 UUID 对应订阅 UUID；这些行的副行以「来自订阅」开头。
     ///   - locale: 语言环境。
@@ -55,21 +56,24 @@ enum RecurringRuleListPresentation {
     static func rows(
         rules: [RecurringRule],
         accounts: [Account],
+        ledgerCurrencyCode: String,
         catalog: BookkeepingCategoryCatalog,
         subscriptionOwners: [UUID: UUID] = [:],
         locale: Locale,
         calendar: Calendar
     ) -> [RecurringRuleRowPresentation] {
-        sorted(rules, accounts: accounts, catalog: catalog).compactMap { rule in
-            row(
-                for: rule,
-                accounts: accounts,
-                catalog: catalog,
-                subscriptionID: subscriptionOwners[rule.id],
-                locale: locale,
-                calendar: calendar
-            )
-        }
+        sorted(rules, accounts: accounts, ledgerCurrencyCode: ledgerCurrencyCode, catalog: catalog)
+            .compactMap { rule in
+                row(
+                    for: rule,
+                    accounts: accounts,
+                    ledgerCurrencyCode: ledgerCurrencyCode,
+                    catalog: catalog,
+                    subscriptionID: subscriptionOwners[rule.id],
+                    locale: locale,
+                    calendar: calendar
+                )
+            }
     }
 
     /// 按列表顺序排列规则：正常和不可用的按下一期从近到远，其次是暂停的，已结束的放最后；语音查询也按这个顺序返回。
@@ -77,16 +81,18 @@ enum RecurringRuleListPresentation {
     /// - Parameters:
     ///   - rules: 要排序的规则。
     ///   - accounts: 当前账户快照。
+    ///   - ledgerCurrencyCode: 当前账本币种。
     ///   - catalog: 分类目录。
     /// - Returns: 排好序的规则。
     static func sorted(
         _ rules: [RecurringRule],
         accounts: [Account],
+        ledgerCurrencyCode: String,
         catalog: BookkeepingCategoryCatalog
     ) -> [RecurringRule] {
         rules.sorted { lhs, rhs in
-            let lhsRank = rank(status(of: lhs, accounts: accounts, catalog: catalog))
-            let rhsRank = rank(status(of: rhs, accounts: accounts, catalog: catalog))
+            let lhsRank = rank(status(of: lhs, accounts: accounts, ledgerCurrencyCode: ledgerCurrencyCode, catalog: catalog))
+            let rhsRank = rank(status(of: rhs, accounts: accounts, ledgerCurrencyCode: ledgerCurrencyCode, catalog: catalog))
             if lhsRank != rhsRank { return lhsRank < rhsRank }
             if lhs.nextDueDay != rhs.nextDueDay { return lhs.nextDueDay < rhs.nextDueDay }
             return lhs.id.uuidString < rhs.id.uuidString
@@ -97,12 +103,13 @@ enum RecurringRuleListPresentation {
     static func status(
         of rule: RecurringRule,
         accounts: [Account],
+        ledgerCurrencyCode: String,
         catalog: BookkeepingCategoryCatalog
     ) -> RecurringRuleStatus {
         if rule.isFinished { return .finished }
         if rule.pausedAt != nil { return .paused }
         let hasAccount = accounts.contains {
-            $0.id == rule.accountID && $0.acceptsBookkeepingEntries
+            $0.id == rule.accountID && $0.acceptsBookkeepingEntries(ledgerCurrencyCode: ledgerCurrencyCode)
         }
         let hasCategory = rule.entryType.map { direction in
             catalog.items(for: direction).contains { $0.key == rule.categoryKey }
@@ -123,6 +130,7 @@ enum RecurringRuleListPresentation {
     private static func row(
         for rule: RecurringRule,
         accounts: [Account],
+        ledgerCurrencyCode: String,
         catalog: BookkeepingCategoryCatalog,
         subscriptionID: UUID?,
         locale: Locale,
@@ -130,13 +138,13 @@ enum RecurringRuleListPresentation {
     ) -> RecurringRuleRowPresentation? {
         guard let entryType = rule.entryType else { return nil }
         let item = catalog.resolvedItem(direction: entryType, key: rule.categoryKey)
-        let ruleStatus = status(of: rule, accounts: accounts, catalog: catalog)
+        let ruleStatus = status(of: rule, accounts: accounts, ledgerCurrencyCode: ledgerCurrencyCode, catalog: catalog)
         let signedAmount = entryType == .expense ? -rule.amount : rule.amount
         return RecurringRuleRowPresentation(
             id: rule.id,
             title: rule.note ?? item.title(locale: locale),
             symbolName: item.symbolName,
-            formattedAmount: signedAmount.formattedCurrency(locale: locale),
+            formattedAmount: signedAmount.formattedCurrency(locale: locale, currencyCode: ledgerCurrencyCode),
             subtitle: subtitle(
                 for: rule,
                 status: ruleStatus,
@@ -193,6 +201,7 @@ enum RecurringRuleListPresentation {
 struct RecurringRuleListView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.calendar) private var calendar
     @Query private var rules: [RecurringRule]
     @Query private var accounts: [Account]
@@ -223,6 +232,7 @@ struct RecurringRuleListView: View {
         let rows = RecurringRuleListPresentation.rows(
             rules: rules,
             accounts: accounts,
+            ledgerCurrencyCode: currencyCode,
             catalog: catalog,
             subscriptionOwners: subscriptionOwners,
             locale: locale,

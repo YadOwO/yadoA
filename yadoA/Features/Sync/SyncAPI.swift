@@ -17,6 +17,9 @@ nonisolated enum SyncAPIError: Error, Equatable, Sendable {
     /// 服务端暂时不可用（5xx 或限流）。
     case serviceUnavailable
 
+    /// 云端同步空间已满（条数或大小超过每人上限），这批变更没有写入。
+    case quotaExceeded
+
     /// 请求超时。
     case timeout
 
@@ -34,7 +37,8 @@ nonisolated enum SyncAPIError: Error, Equatable, Sendable {
         switch self {
         case .serviceUnavailable, .timeout, .network:
             true
-        case .notSignedIn, .sessionExpired, .unauthorized, .epochMismatch, .invalidContract, .upgradeRequired:
+        case .notSignedIn, .sessionExpired, .unauthorized, .epochMismatch, .quotaExceeded, .invalidContract,
+             .upgradeRequired:
             false
         }
     }
@@ -215,6 +219,10 @@ nonisolated final class SyncAPI: SyncServing {
                 return .invalidContract
             }
             return .epochMismatch(currentEpoch: epoch)
+        case 413:
+            // 只认服务端的配额错误码；nginx 等拒绝请求体过大的 413 没有这个码，仍按契约错误处理
+            let errorBody = try? JSONDecoder().decode(SyncErrorBody.self, from: body)
+            return errorBody?.code == "SYNC_QUOTA_EXCEEDED" ? .quotaExceeded : .invalidContract
         case 429, 500...599:
             return .serviceUnavailable
         default:

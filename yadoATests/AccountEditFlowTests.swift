@@ -8,7 +8,7 @@ struct AccountEditFlowTests {
     @Test("有效编辑只保存一次且成功后关闭")
     func validEditSavesOnceAndDismissesAfterSuccess() async throws {
         let dataContainer = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         try repository.save(
             AccountDraft(
                 accountType: .cash,

@@ -76,7 +76,7 @@ struct VoiceToolExecutorTests {
         let id = UUID()
         let repository = LocalExpenseRepository(container: container)
         try repository.save(DiningExpenseDraft(id: id, accountID: accountID, amountText: "20", transactionDay: 20261020))
-        let previous = try #require(BookkeepingEntrySnapshot(transaction: fetchTransaction(id, in: container)))
+        let previous = try #require(BookkeepingEntrySnapshot(transaction: fetchTransaction(id, in: container), ledgerCurrencyCode: "CNY"))
 
         let execution = makeExecutor(container).execute(.updateTransaction(id: "c1", input: VoiceUpdateTransactionInput(
             id: id.uuidString,
@@ -291,7 +291,7 @@ struct VoiceToolExecutorTests {
     // MARK: - 辅助
 
     private func makeExecutor(_ container: ModelContainer) -> VoiceToolExecutor {
-        VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: { savedAt })
+        VoiceToolExecutor(container: container, locale: locale, calendar: calendar, currencyCode: "CNY", now: { savedAt })
     }
 
     private func createInput(

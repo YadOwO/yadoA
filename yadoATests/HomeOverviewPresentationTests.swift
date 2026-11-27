@@ -13,6 +13,7 @@ struct HomeOverviewPresentationTests {
             accountID: UUID(),
             category: .salary,
             amount: 500,
+            currencyCode: "CNY",
             transactionDay: 20260902
         )
         let month = try #require(HomeMonth(year: 2026, month: 9))
@@ -37,6 +38,7 @@ struct HomeOverviewPresentationTests {
             accountID: UUID(),
             category: .travel,
             amount: 20,
+            currencyCode: "CNY",
             transactionDay: 20260831
         )
         let row = try #require(
@@ -332,6 +334,7 @@ struct HomeOverviewPresentationTests {
                 accountID: accountID,
                 category: .travel,
                 amount: 30,
+                currencyCode: "CNY",
                 transactionDay: 20260813
             ),
             locale: locale,
@@ -458,6 +461,7 @@ struct HomeOverviewPresentationTests {
             id: id,
             accountID: accountID,
             amount: try #require(Decimal(string: amount)),
+            currencyCode: "CNY",
             transactionDay: transactionDay,
             note: note,
             savedAt: savedAt
@@ -475,6 +479,7 @@ struct HomeOverviewPresentationTests {
             accountID: accountID,
             balanceBefore: 100,
             balanceAfter: 120,
+            currencyCode: "CNY",
             transactionDay: transactionDay,
             savedAt: savedAt
         )

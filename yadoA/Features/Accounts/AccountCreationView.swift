@@ -53,13 +53,17 @@ final class AccountCreationFlow: ObservableObject {
 
     /// 校验并提交当前草稿；同一时刻最多执行一次保存。
     ///
-    /// - Parameter onSaved: 仅在注入的显式保存成功后调用的关闭回调。
+    /// - Parameters:
+    ///   - locale: 解析期初余额使用的语言环境。
+    ///   - fractionDigits: 期初余额允许的小数位数，取 `BookkeepingCurrency.inputFractionDigits(for:)`；默认是存储精度两位。
+    ///   - onSaved: 仅在注入的显式保存成功后调用的关闭回调。
     func submit(
         locale: Locale = .current,
+        fractionDigits: Int = 2,
         onFailure: @escaping @MainActor () -> Void = {},
         onSaved: @escaping @MainActor () -> Void
     ) async {
-        guard draft.isFormValid(locale: locale), !isSaving else { return }
+        guard draft.isFormValid(locale: locale, fractionDigits: fractionDigits), !isSaving else { return }
 
         submissionState = .saving
         do {
@@ -292,8 +296,14 @@ private struct AccountTemplateIcon: View {
 }
 
 private struct AccountFormView: View {
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @StateObject private var flow: AccountCreationFlow
     @Binding private var isSheetSaving: Bool
+
+    /// 期初余额允许的小数位数：按账本币种，无小数的币种（JPY、KRW 等）不能填小数。
+    private var fractionDigits: Int {
+        BookkeepingCurrency.inputFractionDigits(for: currencyCode)
+    }
 
     /// 创建与持久化共同使用的语言环境。
     let locale: Locale
@@ -410,6 +420,7 @@ private struct AccountFormView: View {
                 Task {
                     await flow.submit(
                         locale: locale,
+                        fractionDigits: fractionDigits,
                         onFailure: onFailure
                     ) {
                         onSaved(flow.draft.id)
@@ -417,7 +428,7 @@ private struct AccountFormView: View {
                     isSheetSaving = false
                 }
             }
-            .disabled(!flow.draft.isFormValid(locale: locale) || flow.isSaving)
+            .disabled(!flow.draft.isFormValid(locale: locale, fractionDigits: fractionDigits) || flow.isSaving)
             .accessibilityIdentifier("account-creation-save")
         }
         .navigationTitle(

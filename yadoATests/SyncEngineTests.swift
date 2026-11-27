@@ -574,7 +574,7 @@ struct SyncEngineTests {
 
     /// 通过账户仓库保存一个期初余额为 100 的现金账户。
     private func saveAccount(id: UUID, in container: ModelContainer) throws {
-        try LocalAccountRepository(container: container).save(
+        try LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny).save(
             AccountDraft(id: id, accountType: .cash, template: nil, name: "现金", amountText: "100"),
             locale: Locale(identifier: "en_US")
         )

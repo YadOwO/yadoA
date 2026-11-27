@@ -198,15 +198,21 @@ struct SyncAPIContractTests {
         #expect(state.url?.absoluteString == "https://example.invalid/v1/sync/state")
     }
 
-    @Test("错误状态码映射：409 只有 EPOCH_MISMATCH 才视为代次不一致")
+    @Test("错误状态码映射：409 只有 EPOCH_MISMATCH、413 只有 SYNC_QUOTA_EXCEEDED 才有专门的错误")
     func mapsErrorStatusCodes() {
         let epochMismatch = Data(#"{"code":"EPOCH_MISMATCH","message":"x","details":{"epoch":3}}"#.utf8)
         let otherConflict = Data(#"{"code":"CONFLICT","message":"x"}"#.utf8)
+        let quotaExceeded = Data(
+            #"{"code":"SYNC_QUOTA_EXCEEDED","message":"x","details":{"reason":"records","limit":100000,"used":100000}}"#.utf8
+        )
+        let otherTooLarge = Data(#"{"code":"PAYLOAD_TOO_LARGE","message":"x"}"#.utf8)
         #expect(SyncAPI.error(statusCode: 409, body: epochMismatch) == .epochMismatch(currentEpoch: 3))
         #expect(SyncAPI.error(statusCode: 409, body: otherConflict) == .invalidContract)
         #expect(SyncAPI.error(statusCode: 401, body: Data()) == .unauthorized)
         #expect(SyncAPI.error(statusCode: 426, body: Data()) == .upgradeRequired)
         #expect(SyncAPI.error(statusCode: 400, body: Data()) == .invalidContract)
+        #expect(SyncAPI.error(statusCode: 413, body: quotaExceeded) == .quotaExceeded)
+        #expect(SyncAPI.error(statusCode: 413, body: otherTooLarge) == .invalidContract)
         #expect(SyncAPI.error(statusCode: 413, body: Data()) == .invalidContract)
         #expect(SyncAPI.error(statusCode: 429, body: Data()) == .serviceUnavailable)
         #expect(SyncAPI.error(statusCode: 502, body: Data()) == .serviceUnavailable)
@@ -238,6 +244,7 @@ struct SyncAPIContractTests {
         #expect(!SyncAPIError.sessionExpired.isRetryable)
         #expect(!SyncAPIError.invalidContract.isRetryable)
         #expect(!SyncAPIError.upgradeRequired.isRetryable)
+        #expect(!SyncAPIError.quotaExceeded.isRetryable)
     }
 
     @Test("同步服务的 Logto resource 与后端 audience 一致")

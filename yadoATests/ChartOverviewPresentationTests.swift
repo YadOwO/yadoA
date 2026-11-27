@@ -10,11 +10,11 @@ struct ChartOverviewPresentationTests {
     func ranksExpenseCategories(period: ChartPeriod) throws {
         let shopping = try AccountTransaction.validatingExpense(
             id: UUID(), accountID: UUID(), category: .shopping,
-            amount: 20, transactionDay: 20260819
+            amount: 20, currencyCode: "CNY", transactionDay: 20260819
         )
         let entertainment = try AccountTransaction.validatingExpense(
             id: UUID(), accountID: UUID(), category: .entertainment,
-            amount: 20, transactionDay: 20260819
+            amount: 20, currencyCode: "CNY", transactionDay: 20260819
         )
         let chart = ChartOverviewPresentation(
             period: period,
@@ -27,7 +27,8 @@ struct ChartOverviewPresentationTests {
                 try dining(amount: "999", transactionDay: 20270101)
             ],
             calendar: utcCalendar,
-            locale: Locale(identifier: "en")
+            locale: Locale(identifier: "en"),
+            currencyCode: "CNY"
         )
 
         #expect(chart.categoryRanking.map(\.id) == [
@@ -54,11 +55,12 @@ struct ChartOverviewPresentationTests {
                 try dining(amount: "888.00", transactionDay: 20260819),
                 try AccountTransaction.validatingBalanceAdjustment(
                     id: UUID(), accountID: UUID(), balanceBefore: 0,
-                    balanceAfter: 500, transactionDay: 20260819
+                    balanceAfter: 500, currencyCode: "CNY", transactionDay: 20260819
                 )
             ],
             calendar: utcCalendar,
-            locale: Locale(identifier: "en_US")
+            locale: Locale(identifier: "en_US"),
+            currencyCode: "CNY"
         )
         let expected: (total: String, count: Int, buckets: Int, bucket: Int, amount: String)
         switch period {
@@ -96,7 +98,8 @@ struct ChartOverviewPresentationTests {
             entryType: .income,
             anchorDate: try #require(date(year: 2026, month: 8, day: 19)),
             transactions: [invalidAmount, invalidCategory, invalidDay, unknownType],
-            calendar: utcCalendar
+            calendar: utcCalendar,
+            currencyCode: "CNY"
         )
 
         #expect(chart.transactionCount == 0)
@@ -116,7 +119,7 @@ struct ChartOverviewPresentationTests {
         context.insert(salary)
         context.insert(try AccountTransaction.validatingBalanceAdjustment(
             id: UUID(), accountID: UUID(), balanceBefore: 0,
-            balanceAfter: 10, transactionDay: 20260819
+            balanceAfter: 10, currencyCode: "CNY", transactionDay: 20260819
         ))
         try context.save()
 
@@ -128,7 +131,8 @@ struct ChartOverviewPresentationTests {
             entryType: .income,
             transactions: transactions,
             now: now,
-            calendar: utcCalendar
+            calendar: utcCalendar,
+            currencyCode: "CNY"
         )
         #expect(chart.anchorDate == date(year: 2026, month: 7, day: 20))
         #expect(chart.totalAmount == 100)
@@ -150,6 +154,7 @@ struct ChartOverviewPresentationTests {
                 accountID: UUID(),
                 balanceBefore: 10,
                 balanceAfter: 20,
+                currencyCode: "CNY",
                 transactionDay: 20260818
             ),
             try AccountTransaction.validatingIncome(
@@ -157,6 +162,7 @@ struct ChartOverviewPresentationTests {
                 accountID: UUID(),
                 category: .salary,
                 amount: 500,
+                currencyCode: "CNY",
                 transactionDay: 20260819
             )
         ]
@@ -166,7 +172,8 @@ struct ChartOverviewPresentationTests {
             anchorDate: anchorDate,
             transactions: transactions,
             calendar: utcCalendar,
-            locale: Locale(identifier: "en_US")
+            locale: Locale(identifier: "en_US"),
+            currencyCode: "CNY"
         )
 
         #expect(chart.period == .week)
@@ -194,7 +201,8 @@ struct ChartOverviewPresentationTests {
                 try dining(amount: "99.00", transactionDay: 20260901)
             ],
             calendar: utcCalendar,
-            locale: Locale(identifier: "en_US")
+            locale: Locale(identifier: "en_US"),
+            currencyCode: "CNY"
         )
 
         #expect(chart.period == .month)
@@ -239,7 +247,8 @@ struct ChartOverviewPresentationTests {
                 try dining(amount: "100.00", transactionDay: 20270101)
             ],
             calendar: utcCalendar,
-            locale: Locale(identifier: "zh-Hans")
+            locale: Locale(identifier: "zh-Hans"),
+            currencyCode: "CNY"
         )
 
         #expect(chart.period == .year)
@@ -340,7 +349,8 @@ struct ChartOverviewPresentationTests {
             anchorDate: try #require(date(year: 2026, month: 8, day: 19)),
             transactions: [],
             calendar: utcCalendar,
-            locale: Locale(identifier: "zh-Hans")
+            locale: Locale(identifier: "zh-Hans"),
+            currencyCode: "CNY"
         )
 
         #expect(chart.transactionCount == 0)
@@ -362,7 +372,8 @@ struct ChartOverviewPresentationTests {
                 try dining(amount: "2.00", transactionDay: 20260314)
             ],
             calendar: calendar,
-            locale: Locale(identifier: "en_US")
+            locale: Locale(identifier: "en_US"),
+            currencyCode: "CNY"
         )
 
         #expect(chart.points.map(\.bucketValue) == Array(20260308...20260314))
@@ -382,7 +393,8 @@ struct ChartOverviewPresentationTests {
             anchorDate: anchorDate,
             transactions: transactions,
             calendar: utcCalendar,
-            locale: Locale(identifier: "en_US")
+            locale: Locale(identifier: "en_US"),
+            currencyCode: "CNY"
         )
         let selected = try #require(month.point(bucketValue: 20260819))
 
@@ -399,7 +411,8 @@ struct ChartOverviewPresentationTests {
             anchorDate: anchorDate,
             transactions: transactions,
             calendar: utcCalendar,
-            locale: Locale(identifier: "zh-Hans")
+            locale: Locale(identifier: "zh-Hans"),
+            currencyCode: "CNY"
         )
         let august = try #require(year.point(bucketValue: 202608))
         #expect(august.formattedDetailLabel.contains("2026"))
@@ -473,7 +486,8 @@ struct ChartOverviewPresentationTests {
             anchorDate: try #require(date(year: 2026, month: 8, day: 19)),
             transactions: [try dining(amount: "8.00", transactionDay: 20260819)],
             calendar: utcCalendar,
-            locale: Locale(identifier: "en_US")
+            locale: Locale(identifier: "en_US"),
+            currencyCode: "CNY"
         )
         #expect(chart.points.map(\.bucketValue) == Array(20260817...20260823))
         return chart
@@ -499,6 +513,7 @@ struct ChartOverviewPresentationTests {
             accountID: UUID(),
             category: .salary,
             amount: Decimal(string: amount)!,
+            currencyCode: "CNY",
             transactionDay: transactionDay
         )
     }
@@ -512,6 +527,7 @@ struct ChartOverviewPresentationTests {
             id: UUID(),
             accountID: UUID(),
             amount: Decimal(string: amount)!,
+            currencyCode: "CNY",
             transactionDay: transactionDay
         )
     }

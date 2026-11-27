@@ -37,6 +37,7 @@ struct AccountModelTests {
 
         let account = try Account.validating(
             draft: draft,
+            currencyCode: "CNY",
             locale: Locale(identifier: "en_US"),
             now: timestamp
         )
@@ -67,6 +68,7 @@ struct AccountModelTests {
 
         let account = try Account.validating(
             draft: draft,
+            currencyCode: "CNY",
             locale: Locale(identifier: "en_US"),
             now: timestamp
         )
@@ -92,7 +94,7 @@ struct AccountModelTests {
             amountText: "1"
         )
 
-        let account = try Account.validating(draft: draft)
+        let account = try Account.validating(draft: draft, currencyCode: "CNY")
 
         #expect(account.note == nil)
         #expect(account.lastFourDigits == nil)
@@ -116,6 +118,7 @@ struct AccountModelTests {
         #expect(throws: AccountValidationError.self) {
             try Account.validating(
                 draft: draft,
+                currencyCode: "CNY",
                 locale: Locale(identifier: "en_US")
             )
         }
@@ -136,10 +139,10 @@ struct AccountModelTests {
         )
 
         #expect(throws: AccountValidationError.invalidTemplate) {
-            try Account.validating(draft: missingTemplate)
+            try Account.validating(draft: missingTemplate, currencyCode: "CNY")
         }
         #expect(throws: AccountValidationError.invalidTemplate) {
-            try Account.validating(draft: mismatchedTemplate)
+            try Account.validating(draft: mismatchedTemplate, currencyCode: "CNY")
         }
     }
 

@@ -13,6 +13,7 @@ struct AccountTransactionModelTests {
             accountID: UUID(),
             category: category,
             amount: 88,
+            currencyCode: "CNY",
             transactionDay: 20260902
         )
 
@@ -37,6 +38,7 @@ struct AccountTransactionModelTests {
             accountID: UUID(),
             category: category,
             amount: amount,
+            currencyCode: "CNY",
             transactionDay: 20260831
         )
 
@@ -64,6 +66,7 @@ struct AccountTransactionModelTests {
             id: id,
             accountID: accountID,
             amount: amount,
+            currencyCode: "CNY",
             transactionDay: 20260813,
             note: "  午餐\n",
             savedAt: savedAt
@@ -94,6 +97,7 @@ struct AccountTransactionModelTests {
             id: UUID(),
             accountID: UUID(),
             amount: 1,
+            currencyCode: "CNY",
             transactionDay: 20260813,
             note: blank
         )
@@ -113,6 +117,7 @@ struct AccountTransactionModelTests {
                 id: UUID(),
                 accountID: UUID(),
                 amount: amount,
+                currencyCode: "CNY",
                 transactionDay: 20260813
             )
         }
@@ -126,6 +131,7 @@ struct AccountTransactionModelTests {
             id: UUID(),
             accountID: UUID(),
             amount: amount,
+            currencyCode: "CNY",
             transactionDay: 20260813
         )
 
@@ -139,6 +145,7 @@ struct AccountTransactionModelTests {
             accountID: UUID(),
             balanceBefore: 100,
             balanceAfter: 120,
+            currencyCode: "CNY",
             transactionDay: 20260813,
             note: "  补齐利息  "
         )
@@ -160,6 +167,7 @@ struct AccountTransactionModelTests {
             accountID: UUID(),
             balanceBefore: 40,
             balanceAfter: -10,
+            currencyCode: "CNY",
             transactionDay: 20260813
         )
 
@@ -176,6 +184,7 @@ struct AccountTransactionModelTests {
                 accountID: UUID(),
                 balanceBefore: 100,
                 balanceAfter: 100,
+                currencyCode: "CNY",
                 transactionDay: 20260813
             )
         }
@@ -185,6 +194,7 @@ struct AccountTransactionModelTests {
                 accountID: UUID(),
                 balanceBefore: Decimal(string: "100.001")!,
                 balanceAfter: 120,
+                currencyCode: "CNY",
                 transactionDay: 20260813
             )
         }
@@ -202,6 +212,7 @@ struct AccountTransactionModelTests {
                 balanceBefore: 100,
                 balanceAfter: 120,
                 balanceDelta: 99,
+                currencyCode: "CNY",
                 transactionDay: 20260813
             )
         }
@@ -219,6 +230,7 @@ struct AccountTransactionModelTests {
                 balanceBefore: nil,
                 balanceAfter: nil,
                 balanceDelta: nil,
+                currencyCode: "CNY",
                 transactionDay: 20260813
             )
         }
@@ -232,6 +244,7 @@ struct AccountTransactionModelTests {
                 balanceBefore: 100,
                 balanceAfter: 110,
                 balanceDelta: 10,
+                currencyCode: "CNY",
                 transactionDay: 20260813
             )
         }
@@ -245,6 +258,7 @@ struct AccountTransactionModelTests {
                 balanceBefore: 100,
                 balanceAfter: 110,
                 balanceDelta: 10,
+                currencyCode: "CNY",
                 transactionDay: 20260813
             )
         }
@@ -259,6 +273,7 @@ struct AccountTransactionModelTests {
             fromAccountID: fromAccountID,
             toAccountID: toAccountID,
             amount: Decimal(string: "88.5")!,
+            currencyCode: "CNY",
             transactionDay: 20261022,
             note: "  还信用卡  "
         )
@@ -283,6 +298,7 @@ struct AccountTransactionModelTests {
                 fromAccountID: accountID,
                 toAccountID: accountID,
                 amount: 10,
+                currencyCode: "CNY",
                 transactionDay: 20261022
             )
         }
@@ -292,6 +308,7 @@ struct AccountTransactionModelTests {
                 fromAccountID: UUID(),
                 toAccountID: UUID(),
                 amount: 0,
+                currencyCode: "CNY",
                 transactionDay: 20261022
             )
         }
@@ -306,6 +323,7 @@ struct AccountTransactionModelTests {
                 balanceBefore: nil,
                 balanceAfter: nil,
                 balanceDelta: nil,
+                currencyCode: "CNY",
                 transactionDay: 20261022
             )
         }
@@ -321,6 +339,7 @@ struct AccountTransactionModelTests {
                 balanceAfter: nil,
                 balanceDelta: nil,
                 counterpartAccountID: UUID(),
+                currencyCode: "CNY",
                 transactionDay: 20261022
             )
         }
@@ -336,6 +355,7 @@ struct AccountTransactionModelTests {
                 balanceAfter: nil,
                 balanceDelta: nil,
                 counterpartAccountID: UUID(),
+                currencyCode: "CNY",
                 transactionDay: 20261022
             )
         }
@@ -351,6 +371,7 @@ struct AccountTransactionModelTests {
                 id: UUID(),
                 accountID: UUID(),
                 amount: 1,
+                currencyCode: "CNY",
                 transactionDay: transactionDay
             )
         }
@@ -364,6 +385,7 @@ struct AccountTransactionModelTests {
             id: UUID(),
             accountID: UUID(),
             amount: 1,
+            currencyCode: "CNY",
             transactionDay: 20260812,
             savedAt: laterSave
         )
@@ -371,6 +393,7 @@ struct AccountTransactionModelTests {
             id: UUID(),
             accountID: UUID(),
             amount: 1,
+            currencyCode: "CNY",
             transactionDay: 20260813,
             savedAt: earlierSave
         )
@@ -389,6 +412,7 @@ struct AccountTransactionModelTests {
             id: UUID(),
             accountID: UUID(),
             amount: 12.34,
+            currencyCode: "CNY",
             transactionDay: 20260813
         )
         let adjustment = try AccountTransaction.validatingBalanceAdjustment(
@@ -396,6 +420,7 @@ struct AccountTransactionModelTests {
             accountID: UUID(),
             balanceBefore: 100,
             balanceAfter: 120,
+            currencyCode: "CNY",
             transactionDay: 20260813
         )
 

@@ -17,6 +17,7 @@ struct BookkeepingPreferenceModelTests {
         let updatedAt = Date(timeIntervalSince1970: 20)
         let account = try Account.validating(
             draft: AccountDraft(accountType: .cash, name: "现金", amountText: "0"),
+            currencyCode: "CNY",
             now: updatedAt
         )
 
@@ -51,7 +52,8 @@ struct BookkeepingPreferenceModelTests {
     @Test("canonical singleton解析区分缺失、明确无默认和失效指针")
     func canonicalResolutionDistinguishesStates() throws {
         let account = try Account.validating(
-            draft: AccountDraft(accountType: .cash, name: "现金", amountText: "0")
+            draft: AccountDraft(accountType: .cash, name: "现金", amountText: "0"),
+            currencyCode: "CNY"
         )
 
         #expect(

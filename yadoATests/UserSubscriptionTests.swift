@@ -66,6 +66,7 @@ struct UserSubscriptionTests {
             subscriptions: all,
             existingRuleIDs: [],
             today: today,
+            ledgerCurrencyCode: "CNY",
             locale: Locale(identifier: "zh-Hans"),
             calendar: Calendar(identifier: .gregorian)
         )
@@ -275,6 +276,7 @@ struct UserSubscriptionTests {
         let rows = RecurringRuleListPresentation.rows(
             rules: try context.fetch(FetchDescriptor<RecurringRule>()),
             accounts: try context.fetch(FetchDescriptor<Account>()),
+            ledgerCurrencyCode: "CNY",
             catalog: .presets,
             subscriptionOwners: [ruleID: id],
             locale: Locale(identifier: "zh-Hans"),

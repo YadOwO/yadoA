@@ -73,6 +73,8 @@ struct ContentView: View {
             .modifier(AppUpdatePromptModifier())
             // App Store 有新版本时弹一次说明；等允许联网、引导、同意卡和登录页都结束后再查
             .modifier(AppUpdateNoticeModifier(canCheck: canCheckForUpdate))
+            // 最外层注入账本币种，引导浮层、截图记账、所有 Tab 和它们的弹层都读得到
+            .modifier(LedgerCurrencyModifier())
     }
 
     /// 能不能查 App Store 新版本：允许联网，而且首次引导、隐私政策同意卡和登录页都不在屏幕上，免得弹层盖在它们上面。

@@ -191,9 +191,9 @@ struct BookkeepingTransactionMutationTests {
     func editDraftPreservesIncomeAndRejectsAdjustments() throws {
         let transaction = try AccountTransaction.validatingIncome(
             id: UUID(), accountID: UUID(), category: .bonus,
-            amount: 12.34, transactionDay: 20260915, note: "月度奖金"
+            amount: 12.34, currencyCode: "CNY", transactionDay: 20260915, note: "月度奖金"
         )
-        let draft = try #require(DiningExpenseEditDraft(transaction: transaction))
+        let draft = try #require(DiningExpenseEditDraft(transaction: transaction, ledgerCurrencyCode: "CNY"))
         #expect(draft.id == transaction.id)
         #expect(draft.accountID == transaction.accountID)
         #expect(draft.entryType == .income)
@@ -202,11 +202,11 @@ struct BookkeepingTransactionMutationTests {
         #expect(draft.transactionDay == 20260915)
         #expect(draft.note == "月度奖金")
         let adjustment = try AccountTransaction.validatingBalanceAdjustment(
-            id: UUID(), accountID: UUID(), balanceBefore: 0, balanceAfter: 100, transactionDay: 20260915
+            id: UUID(), accountID: UUID(), balanceBefore: 0, balanceAfter: 100, currencyCode: "CNY", transactionDay: 20260915
         )
-        #expect(DiningExpenseEditDraft(transaction: adjustment) == nil)
+        #expect(DiningExpenseEditDraft(transaction: adjustment, ledgerCurrencyCode: "CNY") == nil)
         transaction.currencyCode = "USD"
-        #expect(DiningExpenseEditDraft(transaction: transaction) == nil)
+        #expect(DiningExpenseEditDraft(transaction: transaction, ledgerCurrencyCode: "CNY") == nil)
     }
 
     /// 创建具有明确资产或负债语义的隔离账户。

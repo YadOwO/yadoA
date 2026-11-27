@@ -40,7 +40,7 @@ final class Account {
     /// 建账时填写的期初余额，创建后不再改变；与流水一起推导出 `balance`。
     var openingBalance: Decimal
 
-    /// 决定金额格式的 ISO 4217 货币代码；当前仅支持 `CNY`。
+    /// 决定金额格式的 ISO 4217 货币代码；一个账本一种币，所有账户都和账本币种一致。
     var currencyCode: String
 
     /// 账户首次成功保存的时间。
@@ -70,13 +70,15 @@ final class Account {
         isActive && accountType?.supportsBookkeeping == true
     }
 
-    /// 账户当前能否接收收支、周期记账等写入：在 `supportsBookkeeping` 的基础上，还要求币种是当前唯一支持的币种。
+    /// 账户当前能否接收收支、周期记账等写入：在 `supportsBookkeeping` 的基础上，还要求币种和账本币种一致。
     ///
     /// 「不关联账户」不是已知账户类型，但可以记收支（只是不动余额），这里单独放行。
-    /// 记账表单、首页、搜索、周期记账和语音判断「这个账户能不能记进去 / 改进去」时统一使用该属性，
+    /// 记账表单、首页、搜索、周期记账和语音判断「这个账户能不能记进去 / 改进去」时统一使用该方法，
     /// 与 `LocalExpenseRepository` 写入前的账户校验保持一致。
-    var acceptsBookkeepingEntries: Bool {
-        (supportsBookkeeping || (isUnlinked && isActive)) && currencyCode == BookkeepingCurrency.code
+    /// - Parameter ledgerCurrencyCode: 当前账本币种；视图取环境值 `ledgerCurrencyCode`，非视图代码由调用方传入。
+    /// - Returns: 账户能接收收支写入时为 `true`。
+    func acceptsBookkeepingEntries(ledgerCurrencyCode: String) -> Bool {
+        (supportsBookkeeping || (isUnlinked && isActive)) && currencyCode == ledgerCurrencyCode
     }
 
     /// 是否是系统内置的「不关联账户」。
@@ -120,18 +122,24 @@ final class Account {
     ///
     /// - Parameters:
     ///   - draft: 创建流程持有的原始草稿；其 UUID 会原样复用。
+    ///   - currencyCode: 账户使用的币种，即当前账本币种；期初余额的小数位也按它限制。
     ///   - locale: 解析金额时使用的语言环境。
     ///   - now: 注入的创建和更新时间，便于确定性测试。
     /// - Returns: 已完成领域校验和字段清理的账户。
     /// - Throws: 名称或金额不符合持久化约束时抛出 `AccountValidationError`。
     static func validating(
         draft: AccountDraft,
+        currencyCode: String,
         locale: Locale = .current,
         now: Date = .now
     ) throws -> Account {
         let name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw AccountValidationError.emptyName }
-        guard let balance = AccountDraft.openingBalance(from: draft.amountText, locale: locale) else {
+        guard let balance = AccountDraft.openingBalance(
+            from: draft.amountText,
+            locale: locale,
+            fractionDigits: BookkeepingCurrency.inputFractionDigits(for: currencyCode)
+        ) else {
             throw AccountValidationError.invalidAmount
         }
         if draft.accountType.requiresTemplateSelection {
@@ -151,7 +159,7 @@ final class Account {
             note: sanitizedOptionalText(draft.note),
             lastFourDigits: sanitizedLastFourDigits(draft.lastFourDigits),
             balance: balance,
-            currencyCode: BookkeepingCurrency.code,
+            currencyCode: currencyCode,
             createdAt: now,
             updatedAt: now,
             deactivatedAt: nil
@@ -185,10 +193,11 @@ extension Account {
     ///
     /// 只在第一次有收支要记到它上面时创建，见 `ModelContext.unlinkedAccount(locale:now:)`。
     /// - Parameters:
+    ///   - currencyCode: 账户使用的币种，即当前账本币种。
     ///   - locale: 预填名称使用的语言环境。
     ///   - now: 注入的创建时间。
     /// - Returns: 新的「不关联账户」。
-    static func makeUnlinked(locale: Locale = .current, now: Date = .now) -> Account {
+    static func makeUnlinked(currencyCode: String, locale: Locale = .current, now: Date = .now) -> Account {
         Account(
             id: unlinkedID,
             typeRawValue: unlinkedTypeRawValue,
@@ -198,7 +207,7 @@ extension Account {
             lastFourDigits: nil,
             balance: 0,
             openingBalance: 0,
-            currencyCode: BookkeepingCurrency.code,
+            currencyCode: currencyCode,
             createdAt: now,
             updatedAt: now,
             deactivatedAt: nil

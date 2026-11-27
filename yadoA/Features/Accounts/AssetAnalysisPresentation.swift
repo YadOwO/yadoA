@@ -89,7 +89,8 @@ struct AssetAnalysisPresentation: Equatable {
     ///   - accounts: 账户；停用的和「不关联账户」会被排除。
     ///   - itemValuation: 计入净资产的芽豆有物物品估值；为 nil 或不大于 0 时没有这一项，结果与不传完全一致。
     ///   - locale: 名称、金额和合并项使用的语言环境。
-    init(accounts: [Account], itemValuation: Decimal? = nil, locale: Locale = .current) {
+    ///   - currencyCode: 估值行金额使用的账本币种。
+    init(accounts: [Account], itemValuation: Decimal? = nil, locale: Locale = .current, currencyCode: String) {
         let valuation = itemValuation.flatMap { $0 > 0 ? $0 : nil }
         let active = accounts.filter { $0.isActive && !$0.isUnlinked }
         var assetAccounts: [Account] = []
@@ -106,8 +107,8 @@ struct AssetAnalysisPresentation: Equatable {
         liabilities = liabilityAccounts.reduce(Decimal.zero) { $0 + $1.balance }
         assetComposition = Self.composition(of: assetAccounts, itemValuation: valuation, locale: locale)
         liabilityComposition = Self.composition(of: liabilityAccounts, locale: locale)
-        assetRanking = Self.ranking(of: assetAccounts, itemValuation: valuation, locale: locale)
-        liabilityRanking = Self.ranking(of: liabilityAccounts, locale: locale)
+        assetRanking = Self.ranking(of: assetAccounts, itemValuation: valuation, locale: locale, currencyCode: currencyCode)
+        liabilityRanking = Self.ranking(of: liabilityAccounts, locale: locale, currencyCode: currencyCode)
     }
 
     /// 某个 tab 的构成；净资产没有构成，返回资产的构成。
@@ -176,17 +177,19 @@ struct AssetAnalysisPresentation: Equatable {
     ///   - accounts: 同一侧（资产或负债）的启用账户。
     ///   - itemValuation: 资产一侧额外的芽豆有物物品估值，作为单独一行；为 nil 或不大于 0 时没有这一行。
     ///   - locale: 名称和金额使用的语言环境。
+    ///   - currencyCode: 估值行金额使用的账本币种。
     static func ranking(
         of accounts: [Account],
         itemValuation: Decimal? = nil,
-        locale: Locale
+        locale: Locale,
+        currencyCode: String
     ) -> [AssetRankingRow] {
         var entries: [(row: AccountRowPresentation, amount: Decimal, destination: AccountsRoute)] = accounts.map { account in
             (AccountListPresentation.row(for: account, locale: locale), account.balance, AccountsRoute.detail(account.id))
         }
         if let itemValuation, itemValuation > 0 {
             entries.append((
-                ItemValuationPresentation.row(amount: itemValuation, locale: locale),
+                ItemValuationPresentation.row(amount: itemValuation, locale: locale, currencyCode: currencyCode),
                 itemValuation,
                 AccountsRoute.itemValuation
             ))

@@ -405,10 +405,14 @@ struct AccountDraft: Identifiable, Equatable, Sendable {
     }
 
     /// 使用与最终持久化一致的语言环境校验名称和金额；金额没填按 0 处理。
-    func isFormValid(locale: Locale) -> Bool {
+    ///
+    /// - Parameters:
+    ///   - locale: 解析金额使用的语言环境。
+    ///   - fractionDigits: 金额允许的小数位数，取 `BookkeepingCurrency.inputFractionDigits(for:)`；默认是存储精度两位。
+    func isFormValid(locale: Locale, fractionDigits: Int = 2) -> Bool {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         return !trimmedName.isEmpty
-            && Self.openingBalance(from: amountText, locale: locale) != nil
+            && Self.openingBalance(from: amountText, locale: locale, fractionDigits: fractionDigits) != nil
     }
 
     /// 解析新建账户的初始余额（或欠款、价值）：余额不是必填项，没填或只有空白时按 0 建。
@@ -417,10 +421,13 @@ struct AccountDraft: Identifiable, Equatable, Sendable {
     /// - Parameters:
     ///   - amountText: 用户填的金额。
     ///   - locale: 解析金额使用的语言环境。
+    ///   - fractionDigits: 金额允许的小数位数，无小数的币种传 0；默认是存储精度两位。
     /// - Returns: 初始金额；填了但不是合法的非负金额时返回 `nil`。
-    static func openingBalance(from amountText: String, locale: Locale) -> Decimal? {
+    static func openingBalance(from amountText: String, locale: Locale, fractionDigits: Int = 2) -> Decimal? {
         let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? 0 : AccountAmountParser.amount(from: trimmed, locale: locale)
+        return trimmed.isEmpty
+            ? 0
+            : AccountAmountParser.amount(from: trimmed, locale: locale, fractionDigits: fractionDigits)
     }
 }
 

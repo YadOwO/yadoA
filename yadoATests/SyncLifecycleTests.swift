@@ -310,6 +310,7 @@ struct SyncLifecycleTests {
         #expect(SyncMessages.localizationKey(for: .sessionExpired) == "sync.error.signIn")
         #expect(SyncMessages.localizationKey(for: .unauthorized) == "sync.error.signIn")
         #expect(SyncMessages.localizationKey(for: .timeout) == "sync.error.network")
+        #expect(SyncMessages.localizationKey(for: .quotaExceeded) == "sync.error.quotaExceeded")
         #expect(SyncMessages.localizationKey(for: SyncFailure.storage) == "sync.error.storage")
         #expect(
             SyncMessages.localizationKey(forLifecycleError: SyncLifecycleError.api(.serviceUnavailable))
@@ -331,7 +332,7 @@ struct SyncLifecycleTests {
 
     /// 通过账户仓库保存一个期初余额为 100 的现金账户。
     private func saveAccount(id: UUID, in container: ModelContainer) throws {
-        try LocalAccountRepository(container: container).save(
+        try LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny).save(
             AccountDraft(id: id, accountType: .cash, template: nil, name: "现金", amountText: "100"),
             locale: Locale(identifier: "en_US")
         )

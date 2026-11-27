@@ -31,7 +31,7 @@ enum BackupReminderUITestFixture {
                 note: nil,
                 lastFourDigits: nil,
                 balance: 0,
-                currencyCode: BookkeepingCurrency.code,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 createdAt: now,
                 updatedAt: now
             )
@@ -48,6 +48,7 @@ enum BackupReminderUITestFixture {
                     id: UUID(),
                     accountID: accountID,
                     amount: 10,
+                    currencyCode: BookkeepingCurrency.fallbackCode,
                     transactionDay: transactionDay,
                     note: "Backup reminder fixture \(index)",
                     savedAt: savedAt

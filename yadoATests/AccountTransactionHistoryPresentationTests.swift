@@ -72,6 +72,7 @@ struct AccountTransactionHistoryPresentationTests {
                 accountID: firstAccountID,
                 balanceBefore: 950,
                 balanceAfter: 1_000,
+                currencyCode: "CNY",
                 transactionDay: 20260813,
                 savedAt: baseSavedAt.addingTimeInterval(120)
             )
@@ -103,6 +104,7 @@ struct AccountTransactionHistoryPresentationTests {
             id: UUID(),
             accountID: UUID(),
             amount: amount,
+            currencyCode: "CNY",
             transactionDay: 20260813,
             note: "  午餐  "
         )
@@ -110,6 +112,7 @@ struct AccountTransactionHistoryPresentationTests {
             id: UUID(),
             accountID: UUID(),
             amount: 8,
+            currencyCode: "CNY",
             transactionDay: 20260813,
             note: " \n "
         )
@@ -164,6 +167,7 @@ struct AccountTransactionHistoryPresentationTests {
             accountID: UUID(),
             balanceBefore: 100,
             balanceAfter: 120,
+            currencyCode: "CNY",
             transactionDay: 20260813,
             note: "校准"
         )
@@ -172,6 +176,7 @@ struct AccountTransactionHistoryPresentationTests {
             accountID: UUID(),
             balanceBefore: 40,
             balanceAfter: -10,
+            currencyCode: "CNY",
             transactionDay: 20260813
         )
         let englishLocale = Locale(identifier: "en_US")
@@ -212,6 +217,7 @@ struct AccountTransactionHistoryPresentationTests {
             fromAccountID: fromID,
             toAccountID: toID,
             amount: 200,
+            currencyCode: "CNY",
             transactionDay: 20261022
         )
         let names = [fromID: "招商银行", toID: "信用卡"]
@@ -284,7 +290,7 @@ struct AccountTransactionHistoryPresentationTests {
         name: String,
         in container: ModelContainer
     ) throws {
-        let repository = LocalAccountRepository(container: container)
+        let repository = LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny)
         try repository.save(
             AccountDraft(
                 id: id,

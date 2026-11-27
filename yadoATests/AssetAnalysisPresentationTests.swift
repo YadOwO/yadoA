@@ -16,8 +16,8 @@ struct AssetAnalysisPresentationTests {
             makeAccount(type: .cash, name: "旧钱包", balance: 9_999, deactivated: true)
         ]
 
-        let analysis = AssetAnalysisPresentation(accounts: accounts, locale: chineseLocale)
-        let summary = AccountSummaryPresentation.summary(for: accounts, locale: chineseLocale)
+        let analysis = AssetAnalysisPresentation(accounts: accounts, locale: chineseLocale, currencyCode: "CNY")
+        let summary = AccountSummaryPresentation.summary(for: accounts, locale: chineseLocale, currencyCode: "CNY")
 
         #expect(analysis.assets == 10_800)
         #expect(analysis.liabilities == 8_000)
@@ -34,32 +34,32 @@ struct AssetAnalysisPresentationTests {
             makeAccount(type: .cash, name: "现金", balance: 100),
             // 信用卡多还了：欠款为负，不算有负债
             makeAccount(type: .creditCard, name: "信用卡", balance: -50)
-        ])
+        ], currencyCode: "CNY")
         #expect(noDebt.debtRatioLevel == .noDebt)
         #expect(noDebt.debtRatio == 0)
 
         let negligible = AssetAnalysisPresentation(accounts: [
             makeAccount(type: .cash, name: "现金", balance: 100_000),
             makeAccount(type: .creditCard, name: "信用卡", balance: 100)
-        ])
+        ], currencyCode: "CNY")
         #expect(negligible.debtRatioLevel == .negligible)
 
         let full = AssetAnalysisPresentation(accounts: [
             makeAccount(type: .cash, name: "现金", balance: 1_000),
             makeAccount(type: .liability, name: "借款", balance: 1_000)
-        ])
+        ], currencyCode: "CNY")
         #expect(full.debtRatioLevel == .partial(perHundred: 100))
 
         let exceeds = AssetAnalysisPresentation(accounts: [
             makeAccount(type: .cash, name: "现金", balance: 1_000),
             makeAccount(type: .liability, name: "借款", balance: 3_000)
-        ])
+        ], currencyCode: "CNY")
         #expect(exceeds.debtRatioLevel == .exceedsAssets)
 
         // 没有资产却有负债：比率没有意义，写成「—」，说明按负债超过资产
         let noAssets = AssetAnalysisPresentation(accounts: [
             makeAccount(type: .liability, name: "借款", balance: 3_000)
-        ])
+        ], currencyCode: "CNY")
         #expect(noAssets.debtRatio == nil)
         #expect(noAssets.debtRatioLevel == .exceedsAssets)
     }
@@ -74,7 +74,7 @@ struct AssetAnalysisPresentationTests {
             makeAccount(type: .cash, name: "现金", balance: -10),
             makeAccount(type: .creditCard, name: "信用卡", balance: 800),
             makeAccount(type: .liability, name: "房贷", balance: 1_200)
-        ], locale: chineseLocale)
+        ], locale: chineseLocale, currencyCode: "CNY")
 
         #expect(analysis.assetComposition.segments.map(\.id) == ["debitCard", "virtualAccount"])
         #expect(analysis.assetComposition.segments.first?.amount == 5_000)
@@ -92,7 +92,7 @@ struct AssetAnalysisPresentationTests {
             makeAccount(type: .investment, name: "基金", balance: 3_000),
             makeAccount(type: .cash, name: "现金", balance: 200),
             makeAccount(type: .receivable, name: "借给朋友", balance: 100)
-        ], locale: chineseLocale)
+        ], locale: chineseLocale, currencyCode: "CNY")
 
         let segments = analysis.assetComposition.segments
         #expect(segments.count == AssetAnalysisPresentation.maxCompositionSegments + 1)
@@ -109,7 +109,7 @@ struct AssetAnalysisPresentationTests {
         let empty = makeAccount(type: .cash, name: "空钱包", balance: 0)
         let overdrawn = makeAccount(type: .cash, name: "现金", balance: -20)
 
-        let analysis = AssetAnalysisPresentation(accounts: [wechat, empty, overdrawn, cmb], locale: chineseLocale)
+        let analysis = AssetAnalysisPresentation(accounts: [wechat, empty, overdrawn, cmb], locale: chineseLocale, currencyCode: "CNY")
         let ranking = analysis.assetRanking
 
         #expect(ranking.map(\.id) == [cmb.id, wechat.id, overdrawn.id])
@@ -131,8 +131,8 @@ struct AssetAnalysisPresentationTests {
             makeAccount(type: .liability, name: "房贷", balance: 500)
         ]
 
-        let base = AssetAnalysisPresentation(accounts: accounts, locale: chineseLocale)
-        let withValuation = AssetAnalysisPresentation(accounts: accounts, itemValuation: 1_000, locale: chineseLocale)
+        let base = AssetAnalysisPresentation(accounts: accounts, locale: chineseLocale, currencyCode: "CNY")
+        let withValuation = AssetAnalysisPresentation(accounts: accounts, itemValuation: 1_000, locale: chineseLocale, currencyCode: "CNY")
 
         #expect(base.assets == 1_000)
         #expect(withValuation.assets == 2_000)
@@ -146,9 +146,9 @@ struct AssetAnalysisPresentationTests {
         #expect(withValuation.liabilityComposition == base.liabilityComposition)
         #expect(withValuation.liabilityRanking == base.liabilityRanking)
 
-        #expect(AssetAnalysisPresentation(accounts: accounts, itemValuation: nil, locale: chineseLocale) == base)
-        #expect(AssetAnalysisPresentation(accounts: accounts, itemValuation: 0, locale: chineseLocale) == base)
-        #expect(AssetAnalysisPresentation(accounts: accounts, itemValuation: -50, locale: chineseLocale) == base)
+        #expect(AssetAnalysisPresentation(accounts: accounts, itemValuation: nil, locale: chineseLocale, currencyCode: "CNY") == base)
+        #expect(AssetAnalysisPresentation(accounts: accounts, itemValuation: 0, locale: chineseLocale, currencyCode: "CNY") == base)
+        #expect(AssetAnalysisPresentation(accounts: accounts, itemValuation: -50, locale: chineseLocale, currencyCode: "CNY") == base)
     }
 
     @Test("资产构成里多一项 yadoi.itemValuation：名称是「物品估值」，金额是估值，按金额参与排序")
@@ -158,7 +158,7 @@ struct AssetAnalysisPresentationTests {
             makeAccount(type: .virtualAccount, templateID: "virtualAccount.wechat", name: "微信", balance: 1_000)
         ]
 
-        let analysis = AssetAnalysisPresentation(accounts: accounts, itemValuation: 2_000, locale: chineseLocale)
+        let analysis = AssetAnalysisPresentation(accounts: accounts, itemValuation: 2_000, locale: chineseLocale, currencyCode: "CNY")
 
         #expect(AssetAnalysisPresentation.itemValuationID == "yadoi.itemValuation")
         #expect(analysis.assetComposition.segments.map(\.id) == ["debitCard", "yadoi.itemValuation", "virtualAccount"])
@@ -169,7 +169,7 @@ struct AssetAnalysisPresentationTests {
         #expect(analysis.assetComposition.totalAmount == 6_000)
 
         // 不传估值时没有这一项
-        let base = AssetAnalysisPresentation(accounts: accounts, locale: chineseLocale)
+        let base = AssetAnalysisPresentation(accounts: accounts, locale: chineseLocale, currencyCode: "CNY")
         #expect(base.assetComposition.segments.map(\.id) == ["debitCard", "virtualAccount"])
     }
 
@@ -178,7 +178,7 @@ struct AssetAnalysisPresentationTests {
         let cmb = makeAccount(type: .debitCard, templateID: "debitCard.cmb", name: "招商银行", balance: 4_000)
         let wechat = makeAccount(type: .virtualAccount, templateID: "virtualAccount.wechat", name: "微信", balance: 1_000)
 
-        let analysis = AssetAnalysisPresentation(accounts: [wechat, cmb], itemValuation: 3_000, locale: chineseLocale)
+        let analysis = AssetAnalysisPresentation(accounts: [wechat, cmb], itemValuation: 3_000, locale: chineseLocale, currencyCode: "CNY")
         let ranking = analysis.assetRanking
 
         #expect(ranking.map(\.id) == [cmb.id, ItemValuationPresentation.rowID, wechat.id])
@@ -198,7 +198,7 @@ struct AssetAnalysisPresentationTests {
     @Test("估值是资产一侧的一行：账户透支时它仍有占比，透支的账户没有占比")
     func itemValuationShareIgnoresOverdraft() {
         let cash = makeAccount(type: .cash, name: "现金", balance: -20)
-        let analysis = AssetAnalysisPresentation(accounts: [cash], itemValuation: 500, locale: chineseLocale)
+        let analysis = AssetAnalysisPresentation(accounts: [cash], itemValuation: 500, locale: chineseLocale, currencyCode: "CNY")
 
         #expect(analysis.assets == 480)
         #expect(analysis.assetRanking.map(\.destination) == [.itemValuation, .detail(cash.id)])
@@ -211,7 +211,7 @@ struct AssetAnalysisPresentationTests {
         let cmb = makeAccount(type: .debitCard, templateID: "debitCard.cmb", name: "招商银行", balance: 3_000)
         let loan = makeAccount(type: .liability, name: "房贷", balance: 800)
 
-        let analysis = AssetAnalysisPresentation(accounts: [cmb, loan], locale: chineseLocale)
+        let analysis = AssetAnalysisPresentation(accounts: [cmb, loan], locale: chineseLocale, currencyCode: "CNY")
 
         #expect(analysis.assetRanking.map(\.destination) == [.detail(cmb.id)])
         #expect(analysis.liabilityRanking.map(\.destination) == [.detail(loan.id)])

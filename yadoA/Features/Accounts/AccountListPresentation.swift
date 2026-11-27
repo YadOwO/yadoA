@@ -69,10 +69,12 @@ struct AccountSummaryPresentation: Equatable {
     ///   - accounts: 账户；停用的和「不关联账户」会被排除。
     ///   - additionalAssets: 额外计入资产的金额，只用于计入净资产的芽豆有物物品估值；负债不受影响。
     ///   - locale: 金额与播报文本使用的语言环境。
+    ///   - currencyCode: 金额展示使用的账本币种。
     static func summary(
         for accounts: [Account],
         additionalAssets: Decimal = .zero,
-        locale: Locale = .current
+        locale: Locale = .current,
+        currencyCode: String
     ) -> AccountSummaryPresentation {
         var assets = additionalAssets
         var liabilities = Decimal.zero
@@ -84,7 +86,7 @@ struct AccountSummaryPresentation: Equatable {
                 assets += account.balance
             }
         }
-        return summary(assets: assets, liabilities: liabilities, locale: locale)
+        return summary(assets: assets, liabilities: liabilities, locale: locale, currencyCode: currencyCode)
     }
 
     /// 由已经汇总好的资产和负债生成展示数据；首次引导的示例账户也用它，和账户页保持同一种写法。
@@ -93,16 +95,18 @@ struct AccountSummaryPresentation: Equatable {
     ///   - assets: 资产总额。
     ///   - liabilities: 负债总额，以正数表示欠款。
     ///   - locale: 金额与播报文本使用的语言环境。
+    ///   - currencyCode: 金额展示使用的账本币种。
     /// - Returns: 资产、负债和净资产汇总。
     static func summary(
         assets: Decimal,
         liabilities: Decimal,
-        locale: Locale = .current
+        locale: Locale = .current,
+        currencyCode: String
     ) -> AccountSummaryPresentation {
         let netAssets = assets - liabilities
-        let formattedNetAssets = netAssets.formattedCurrency(locale: locale)
-        let formattedAssets = assets.formattedCurrency(locale: locale)
-        let formattedLiabilities = liabilities.formattedCurrency(locale: locale)
+        let formattedNetAssets = netAssets.formattedCurrency(locale: locale, currencyCode: currencyCode)
+        let formattedAssets = assets.formattedCurrency(locale: locale, currencyCode: currencyCode)
+        let formattedLiabilities = liabilities.formattedCurrency(locale: locale, currencyCode: currencyCode)
         let accessibilityLabel = String(
             format: AccountLocalization.string(
                 "account.summary.accessibility_format",

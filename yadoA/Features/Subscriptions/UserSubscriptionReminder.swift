@@ -126,7 +126,10 @@ enum UserSubscriptionReminderScheduler {
 
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
-        let subscriptions = (try? container.makeManualSaveContext().fetch(FetchDescriptor<UserSubscription>())) ?? []
+        let context = container.makeManualSaveContext()
+        let subscriptions = (try? context.fetch(FetchDescriptor<UserSubscription>())) ?? []
+        // 金额按账本币种写，不换算；读不到时退回默认币种
+        let currencyCode = (try? BookkeepingCurrency.current(in: context)) ?? BookkeepingCurrency.fallbackCode
         let plans = UserSubscriptionReminder.plans(for: subscriptions, now: now, calendar: calendar)
         for plan in plans {
             let content = UNMutableNotificationContent()
@@ -134,7 +137,7 @@ enum UserSubscriptionReminderScheduler {
                 plan.isTrialEnd ? "subscription.reminder.notification.trial_title" : "subscription.reminder.notification.title",
                 locale: locale
             )
-            content.body = body(for: plan, locale: locale, calendar: calendar)
+            content.body = body(for: plan, currencyCode: currencyCode, locale: locale, calendar: calendar)
             content.sound = .default
             try? await center.add(
                 UNNotificationRequest(
@@ -147,7 +150,12 @@ enum UserSubscriptionReminderScheduler {
     }
 
     /// 通知正文：哪条订阅、哪天、扣多少。
-    private static func body(for plan: UserSubscriptionReminder.Plan, locale: Locale, calendar: Calendar) -> String {
+    private static func body(
+        for plan: UserSubscriptionReminder.Plan,
+        currencyCode: String,
+        locale: Locale,
+        calendar: Calendar
+    ) -> String {
         let day = TransactionDay.date(from: plan.chargeDay, calendar: calendar, locale: locale)
             .map { BookkeepingDateFormatting.shortDate($0, locale: locale, calendar: calendar) } ?? ""
         let key = plan.isTrialEnd
@@ -158,7 +166,7 @@ enum UserSubscriptionReminderScheduler {
             locale: locale,
             plan.name,
             day,
-            plan.amount.formattedCurrency(locale: locale)
+            plan.amount.formattedCurrency(locale: locale, currencyCode: currencyCode)
         )
     }
 }

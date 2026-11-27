@@ -142,6 +142,8 @@ struct HomeOverviewHeader: View {
 
 /// 首页顶部单个收入或支出汇总列。
 private struct HomeSummaryColumn: View {
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
+
     /// 汇总标题。
     let title: String
 
@@ -187,8 +189,8 @@ private struct HomeSummaryColumn: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 使用应用当前固定的 CNY 货币格式化金额。
+    /// 按账本币种格式化金额。
     private var formattedAmount: String {
-        amount.formattedCurrency(locale: locale)
+        amount.formattedCurrency(locale: locale, currencyCode: currencyCode)
     }
 }

@@ -5,6 +5,7 @@ import SwiftUI
 struct UserSubscriptionListView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var ledgerCurrencyCode
     @Environment(\.calendar) private var calendar
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
@@ -29,6 +30,7 @@ struct UserSubscriptionListView: View {
             subscriptions: subscriptions,
             existingRuleIDs: Set(rules.map(\.id)),
             today: today,
+            ledgerCurrencyCode: ledgerCurrencyCode,
             locale: locale,
             calendar: calendar
         )
@@ -111,7 +113,7 @@ struct UserSubscriptionListView: View {
                 )
                 Text(AccountLocalization.formatted(
                     "subscription.summary.yearly_line",
-                    value: summary.yearlyTotal.formattedCurrency(locale: locale),
+                    value: summary.yearlyTotal.formattedCurrency(locale: locale, currencyCode: ledgerCurrencyCode),
                     locale: locale
                 ))
                 .font(.footnote)
@@ -136,7 +138,7 @@ struct UserSubscriptionListView: View {
             Text(text(titleKey))
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text(amount.formattedCurrency(locale: locale))
+            Text(amount.formattedCurrency(locale: locale, currencyCode: ledgerCurrencyCode))
                 .font(.system(.title2, design: .serif).monospacedDigit())
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)

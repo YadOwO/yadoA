@@ -371,7 +371,7 @@ struct DataLinkTests {
         let chinese = Locale(identifier: "zh-Hans")
         let summary = Self.summary(inService: 1000, retired: 200, priced: 5, unpriced: 1)
 
-        let row = ItemValuationPresentation.row(summary: summary, settings: ItemValuationSettings(), locale: chinese)
+        let row = ItemValuationPresentation.row(summary: summary, settings: ItemValuationSettings(), locale: chinese, currencyCode: "CNY")
         #expect(row.id == ItemValuationPresentation.rowID)
         #expect(row.name == "物品估值")
         #expect(row.detail.contains("7 折"))
@@ -387,7 +387,8 @@ struct DataLinkTests {
         let notCounted = ItemValuationPresentation.row(
             summary: summary,
             settings: ItemValuationSettings(countsInNetWorth: false),
-            locale: chinese
+            locale: chinese,
+            currencyCode: "CNY"
         )
         #expect(notCounted.amountLabel == "不计入净资产")
 
@@ -395,15 +396,16 @@ struct DataLinkTests {
         let hidden = ItemValuationPresentation.row(
             summary: summary,
             settings: ItemValuationSettings(showsOnAccounts: false, countsInNetWorth: true),
-            locale: chinese
+            locale: chinese,
+            currencyCode: "CNY"
         )
         #expect(hidden.amountLabel == "不计入净资产")
 
         let allPriced = Self.summary(priced: 5, unpriced: 0)
-        let noUnpriced = ItemValuationPresentation.row(summary: allPriced, settings: ItemValuationSettings(), locale: chinese)
+        let noUnpriced = ItemValuationPresentation.row(summary: allPriced, settings: ItemValuationSettings(), locale: chinese, currencyCode: "CNY")
         #expect(!noUnpriced.detail.contains("另有"))
 
-        let english = ItemValuationPresentation.row(summary: summary, settings: ItemValuationSettings(), locale: Locale(identifier: "en"))
+        let english = ItemValuationPresentation.row(summary: summary, settings: ItemValuationSettings(), locale: Locale(identifier: "en"), currencyCode: "CNY")
         #expect(english.name == "Item Valuation")
         #expect(english.detail.contains("70%"))
     }

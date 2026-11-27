@@ -33,6 +33,24 @@ nonisolated struct BackupImportPlan: Equatable, Sendable {
     /// 当前设备是否已有账户或流水；为真时恢复会替换这些数据。
     let replacesExistingData: Bool
 
+    /// 生成计划时本机的账本币种；用来判断恢复后账本币种会不会变。
+    ///
+    /// 只用于确认提示，真正写入以备份内容为准。直接构造计划（例如撤销时还原快照）不需要它，默认取 `CNY`。
+    var currentCurrencyCode: String = BookkeepingCurrency.fallbackCode
+
+    /// 备份的账本币种：最早建的账户（按 `createdAt`）的币种；备份里没有账户时为 `nil`。
+    ///
+    /// 备份里所有账户和流水的币种必须一致（见 `BackupImportService.validatedRecords(from:)`），所以取哪个账户都一样。
+    var backupCurrencyCode: String? {
+        backup.accounts.min { $0.createdAt < $1.createdAt }?.currencyCode
+    }
+
+    /// 恢复后账本币种会不会变：备份有币种，并且和当前账本币种不同。
+    var changesCurrency: Bool {
+        guard let backupCurrencyCode else { return false }
+        return backupCurrencyCode != currentCurrencyCode
+    }
+
     /// 备份的导出时间，用于确认提示。
     var exportedAt: Date { backup.exportedAt }
 
@@ -56,17 +74,23 @@ final class BackupImportService {
     /// 测试可注入的保存前故障点；生产环境默认为空操作。
     private let beforeSave: () throws -> Void
 
+    /// 恢复成功后写入账本币种的本机存储；测试时可注入隔离实例。
+    private let defaults: UserDefaults
+
     /// 创建备份导入服务。
     ///
     /// - Parameters:
     ///   - container: 应用或测试持有的完整本地财务容器。
     ///   - beforeSave: 内存修改完成后、显式保存前执行的故障注入点。
+    ///   - defaults: 读取当前账本币种、恢复后写入备份币种的本机存储。
     init(
         container: ModelContainer,
-        beforeSave: @escaping () throws -> Void = {}
+        beforeSave: @escaping () throws -> Void = {},
+        defaults: UserDefaults = .standard
     ) {
         self.container = container
         self.beforeSave = beforeSave
+        self.defaults = defaults
     }
 
     /// 读取用户选择的备份文件并生成恢复计划；不修改本地存储。
@@ -108,7 +132,11 @@ final class BackupImportService {
         do {
             let existingCount = try context.fetchCount(FetchDescriptor<Account>())
                 + context.fetchCount(FetchDescriptor<AccountTransaction>())
-            return BackupImportPlan(backup: backup, replacesExistingData: existingCount > 0)
+            return BackupImportPlan(
+                backup: backup,
+                replacesExistingData: existingCount > 0,
+                currentCurrencyCode: try BookkeepingCurrency.current(in: context, defaults: defaults)
+            )
         } catch {
             throw BackupImportError.restoreFailed
         }
@@ -197,6 +225,10 @@ final class BackupImportService {
             context.rollback()
             throw BackupImportError.restoreFailed
         }
+        // 先保存成功再写本机存的币种：保存失败时账本币种保持原样。账户的币种本身已随备份恢复
+        if let backupCurrencyCode = plan.backupCurrencyCode {
+            defaults.set(backupCurrencyCode, forKey: BookkeepingCurrency.storageKey)
+        }
         // 账本已被替换：对话记录保留，但当前对话段不能再撤销或引用替换前的数据
         NotificationCenter.default.post(name: .aiChatContextInvalidated, object: nil)
     }
@@ -264,11 +296,14 @@ extension BackupImportService {
     ///
     /// - Parameter backup: 已解码的备份信封。
     /// - Returns: 尚未插入 context 的账户与流水模型。
-    /// - Throws: 版本不支持抛出 `.unsupportedVersion`，记录不合法抛出 `.invalidContent`。
+    /// - Throws: 版本不支持抛出 `.unsupportedVersion`，记录不合法或账户、流水的币种不一致抛出 `.invalidContent`。
     static func validatedRecords(from backup: BackupFile) throws -> ValidatedRecords {
         guard supportedFormatVersions.contains(backup.formatVersion) else {
             throw BackupImportError.unsupportedVersion(backup.formatVersion)
         }
+        // 一个账本一种币：同一份备份里账户和流水的币种必须一致
+        let currencyCodes = Set(backup.accounts.map(\.currencyCode) + backup.transactions.map(\.currencyCode))
+        guard currencyCodes.count <= 1 else { throw BackupImportError.invalidContent }
 
         var accountIDs = Set<UUID>()
         let accounts = try backup.accounts.map { account in
@@ -488,12 +523,12 @@ extension BackupAccount {
     ///   - balance: 写入的当前余额。
     ///   - openingBalance: 写入的期初余额；为空时等于 `balance`。
     /// - Returns: 已校验的账户。
-    /// - Throws: 名称清理后为空、类型或币种缺失时抛出 `BackupImportError.invalidContent`。
+    /// - Throws: 名称清理后为空、类型缺失或币种格式不合法时抛出 `BackupImportError.invalidContent`。
     @MainActor
     func validatedAccount(balance: Decimal, openingBalance: Decimal?) throws -> Account {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !type.isEmpty,
-              !currencyCode.isEmpty
+              BookkeepingCurrency.isWellFormed(currencyCode)
         else { throw BackupImportError.invalidContent }
         return Account(
             id: id,
@@ -518,12 +553,12 @@ extension BackupTransaction {
     /// 只校验流水自身的字段组合；所属账户和分类是否存在由调用方判断。
     ///
     /// - Returns: 已校验的流水，包含所属周期规则。
-    /// - Throws: 币种不是当前支持的币种或金额格式不合法时抛出 `BackupImportError.invalidContent`；
+    /// - Throws: 币种格式不合法或金额格式不合法时抛出 `BackupImportError.invalidContent`；
     ///   字段组合不合法时抛出 `AccountTransactionValidationError`。
     @MainActor
     func validatedTransaction() throws -> AccountTransaction {
-        // 流水工厂固定写入 CNY；其他币种若放行会被静默改写，必须拒绝。
-        guard currencyCode == BookkeepingCurrency.code else { throw BackupImportError.invalidContent }
+        // 记录自己的币种原样写入（其他设备改过币种的流水也要能收下），只校验格式
+        guard BookkeepingCurrency.isWellFormed(currencyCode) else { throw BackupImportError.invalidContent }
         let record = try AccountTransaction.validatingPersistedFields(
             id: id,
             accountID: accountID,
@@ -534,6 +569,7 @@ extension BackupTransaction {
             balanceAfter: try BackupImportService.optionalDecimal(from: balanceAfter),
             balanceDelta: try BackupImportService.optionalDecimal(from: balanceDelta),
             counterpartAccountID: counterpartAccountID,
+            currencyCode: currencyCode,
             transactionDay: transactionDay,
             note: note ?? "",
             savedAt: savedAt

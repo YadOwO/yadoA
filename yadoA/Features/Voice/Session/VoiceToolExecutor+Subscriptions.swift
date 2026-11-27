@@ -58,7 +58,7 @@ extension VoiceToolExecutor {
         let frequency = RecurringFrequency(input.frequency)
         guard UserSubscriptionSchedule.cycles.contains(frequency),
               input.status != .cancelled,
-              let amount = Self.amount(from: input.amount),
+              let amount = Self.amount(from: input.amount, fractionDigits: amountFractionDigits),
               let chargeDay = Self.transactionDay(from: input.nextChargeDate),
               // 与编辑页一致，下次扣费只能是今天及以后
               chargeDay >= today
@@ -264,7 +264,7 @@ extension VoiceToolExecutor {
 
         var amount = subscription.amount
         if let text = patch.amount {
-            guard let value = Self.amount(from: text) else { return nil }
+            guard let value = Self.amount(from: text, fractionDigits: amountFractionDigits) else { return nil }
             amount = value
             changesContent = true
         }
@@ -418,7 +418,7 @@ extension VoiceToolExecutor {
         // 当场记入的各期是普通流水：结果里与手动记的一样可以定位，撤销时逐笔删除
         let entryChanges = recorded.compactMap { generated -> VoiceChange? in
             guard let transaction = try? context.transaction(id: generated.id),
-                  let snapshot = BookkeepingEntrySnapshot(transaction: transaction)
+                  let snapshot = BookkeepingEntrySnapshot(transaction: transaction, ledgerCurrencyCode: currencyCode)
             else { return nil }
             return .entry(makeChange(
                 kind: .created,

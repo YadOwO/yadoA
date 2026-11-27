@@ -44,8 +44,8 @@ protocol BookkeepingEntryFormFlow: ObservableObject {
     /// 已选分类连同流水一起被删除、没有迁移目标时撤销选择。
     func clearCategory()
 
-    /// 接收金额输入，统一小数点格式并限制最多两位小数。
-    func updateAmountText(_ amountText: String, decimalSeparator: String)
+    /// 接收金额输入，统一小数点格式并按账本币种限制小数位（`fractionDigits` 为 0 时不接受小数点）。
+    func updateAmountText(_ amountText: String, decimalSeparator: String, fractionDigits: Int)
 
     /// 回填用户选中的账户。
     func selectFormAccount(id: UUID)
