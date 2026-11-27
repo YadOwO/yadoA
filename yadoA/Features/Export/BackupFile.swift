@@ -754,6 +754,7 @@ extension BackupFile {
         case bookkeepingPreference
         case categories
         case recurringRules
+        case subscriptions
     }
 }
 
