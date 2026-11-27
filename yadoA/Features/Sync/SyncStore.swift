@@ -271,9 +271,9 @@ final class SyncStore {
             // 余额不同步，各端按期初余额和流水重算；全量重算对个人账本的规模足够快
             try AccountBalanceRebuilder.rebuild(in: context)
             try context.saveOrRollback(tracksSyncChanges: false)
-            // 必须在整批写入、删除都保存之后再统一币种，见 normalizeLedgerCurrency()
-            try normalizeLedgerCurrency()
         }
+        // 不管这批有没有改到数据都统一一次：上次统一失败、或升级前就混了币种的账本，也能在之后的同步里补上；必须在整批写入、删除都保存之后，见 normalizeLedgerCurrency()
+        try normalizeLedgerCurrency()
         guard !outcome.categoryMigrations.isEmpty else { return }
         try migrateTransactions(for: outcome.categoryMigrations)
     }
