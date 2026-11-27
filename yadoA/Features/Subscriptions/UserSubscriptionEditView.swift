@@ -697,11 +697,7 @@ struct UserSubscriptionEditView: View {
         }
         .disabled(!canSave)
         .accessibilityIdentifier("subscription-edit-save")
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .frame(maxWidth: 620)
-        .frame(maxWidth: .infinity)
-        .background(Color(.paperBackground))
+        .ledgerBottomBar()
     }
 
     // MARK: - 小部件

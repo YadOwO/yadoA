@@ -378,11 +378,7 @@ struct BalanceAdjustmentView: View {
         }
         .buttonStyle(.borderedProminent)
         .disabled(!flow.canSubmit)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .frame(maxWidth: 620)
-        .frame(maxWidth: .infinity)
-        .background(Color(.paperBackground))
+        .ledgerBottomBar()
         .accessibilityIdentifier("balance-adjustment-save")
     }
 

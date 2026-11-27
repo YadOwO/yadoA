@@ -591,11 +591,7 @@ struct BookkeepingEntryForm<Flow: BookkeepingEntryFormFlow, Accessory: View>: Vi
         }
         .buttonStyle(.borderedProminent)
         .disabled(!canSubmit)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .frame(maxWidth: 620)
-        .frame(maxWidth: .infinity)
-        .background(Color(.paperBackground))
+        .ledgerBottomBar()
         .accessibilityIdentifier("\(configuration.identifierPrefix)-save")
     }
 
