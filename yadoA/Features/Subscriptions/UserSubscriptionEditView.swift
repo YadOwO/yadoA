@@ -30,7 +30,10 @@ struct UserSubscriptionEditSeed: Identifiable {
     }
 }
 
-/// 新建或编辑一条订阅：名称、价格、周期、日期、分类、扣费渠道、状态、扣费提醒和自动记账。
+/// 新建或编辑一条订阅。
+///
+/// 样式和记账页一致：一张手绘票据里只填分类、名称、金额、周期和日期；状态、扣费渠道、提醒、
+/// 自动记账和备注收在「更多选项」里，新建时默认收起。
 struct UserSubscriptionEditView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -100,6 +103,27 @@ struct UserSubscriptionEditView: View {
     /// 最近一次保存或删除是否失败。
     @State private var isOperationFailed = false
 
+    /// 「更多选项」是否展开；新建时收起，编辑时只有填过选填项才展开。
+    @State private var showsMoreOptions: Bool
+
+    /// 新建时是否已经把光标放进过名称，避免页面再次出现时又抢焦点。
+    @State private var hasAutoFocused = false
+
+    /// 当前正在输入的框。
+    @FocusState private var focusedField: Field?
+
+    /// 页面里的几个输入框。
+    private enum Field: Hashable {
+        /// 名称。
+        case name
+
+        /// 金额。
+        case amount
+
+        /// 备注。
+        case note
+    }
+
     /// 创建编辑页。
     ///
     /// - Parameters:
@@ -130,6 +154,14 @@ struct UserSubscriptionEditView: View {
             _accessEndDate = State(initialValue: TransactionDay.date(from: accessEndDay, calendar: calendar) ?? chargeDate)
             _reminderDaysBefore = State(initialValue: subscription.reminderDaysBefore)
             _note = State(initialValue: subscription.note ?? "")
+            // 选填项都还是默认值时收起，打开编辑页和新建一样清爽
+            _showsMoreOptions = State(
+                initialValue: status != .active
+                    || subscription.channel != .appStore
+                    || subscription.reminderDaysBefore != nil
+                    || seed.linkedRule != nil
+                    || !(subscription.note ?? "").isEmpty
+            )
         } else {
             let chargeDate = calendar.date(byAdding: .month, value: 1, to: today) ?? today
             _name = State(initialValue: "")
@@ -142,6 +174,7 @@ struct UserSubscriptionEditView: View {
             _accessEndDate = State(initialValue: calendar.date(byAdding: .day, value: -1, to: chargeDate) ?? chargeDate)
             _reminderDaysBefore = State(initialValue: nil)
             _note = State(initialValue: "")
+            _showsMoreOptions = State(initialValue: false)
         }
         _isBookkeepingOn = State(initialValue: seed.linkedRule != nil)
         _bookkeepingAccountID = State(initialValue: seed.linkedRule?.accountID)
@@ -202,29 +235,25 @@ struct UserSubscriptionEditView: View {
     }
 
     var body: some View {
-        Form {
-            basicsSection
-            scheduleSection
-            channelSection
-            if status != .cancelled {
-                reminderSection
-            }
-            bookkeepingSection
-            Section {
-                TextField(text("subscription.edit.note.placeholder"), text: $note, axis: .vertical)
-                    .accessibilityIdentifier("subscription-edit-note")
-            } header: {
-                Text(text("subscription.edit.note"))
-            }
-            if !isNew {
-                Section {
-                    Button(text("subscription.edit.delete"), role: .destructive) {
-                        isDeleteConfirmationPresented = true
-                    }
-                    .frame(maxWidth: .infinity)
-                    .accessibilityIdentifier("subscription-edit-delete")
+        ScrollView {
+            VStack(spacing: 20) {
+                slip
+                if status == .trial {
+                    footnote(text("subscription.edit.trial.footer"))
+                }
+                moreOptions
+                if !isNew {
+                    deleteButton
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .frame(maxWidth: 620)
+            .frame(maxWidth: .infinity)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            submitBar
         }
         .paperPage()
         .navigationTitle(text(isNew ? "subscription.edit.title.new" : "subscription.edit.title.edit"))
@@ -233,11 +262,16 @@ struct UserSubscriptionEditView: View {
             ToolbarItem(placement: .cancellationAction) {
                 Button(text("common.cancel"), systemImage: "xmark") { dismiss() }
             }
-            ToolbarItem(placement: .confirmationAction) {
-                Button(text("common.save"), systemImage: "checkmark") { save() }
-                    .disabled(!canSave)
-                    .accessibilityIdentifier("subscription-edit-save")
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button(text("common.done")) { focusedField = nil }
             }
+        }
+        .task {
+            // 新建时直接把光标放进名称，填完名称和金额就能保存
+            guard isNew, !hasAutoFocused else { return }
+            hasAutoFocused = true
+            focusedField = .name
         }
         .onChange(of: status) { _, newStatus in
             // 改成已取消时，可用日期预填为已付费周期的最后一天
@@ -295,47 +329,143 @@ struct UserSubscriptionEditView: View {
         }
     }
 
-    // MARK: - 分组
+    // MARK: - 票据
 
-    /// 名称、价格、周期和分类。
-    private var basicsSection: some View {
-        Section {
-            TextField(text("subscription.edit.name.placeholder"), text: $name)
-                .accessibilityIdentifier("subscription-edit-name")
-            HStack {
-                Text(text("subscription.edit.amount"))
-                Spacer()
-                TextField(text("subscription.edit.amount.placeholder"), text: $amountText)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .font(.body.monospacedDigit())
-                    .accessibilityIdentifier("subscription-edit-amount")
-                    .onChange(of: amountText) { oldValue, newValue in
-                        // 只接受不超过账本币种小数位的非负数字，其余输入原样退回
-                        let separator = locale.decimalSeparator ?? "."
-                        if !newValue.isEmpty,
-                           AccountAmountParser.normalizedCNYAmountText(
-                               newValue, decimalSeparator: separator, fractionDigits: amountFractionDigits
-                           ) == nil {
-                            amountText = oldValue
-                        }
-                    }
+    /// 和记账页同样的一张手绘票据：分类、名称、金额和周期在上，日期写在下面。
+    ///
+    /// 添加一条订阅只需要填这里；状态、渠道、提醒这些收在「更多选项」里。
+    private var slip: some View {
+        VStack(spacing: 0) {
+            VStack(spacing: 10) {
+                categoryMenu
+                nameField
+                amountField
+                HandDrawnRule(seed: 61)
+                    .stroke(Color.primary.opacity(0.6), style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+                    .frame(height: 3)
+                    .accessibilityHidden(true)
+                frequencyChoice
             }
-            Picker(text("subscription.edit.frequency"), selection: $frequency) {
-                ForEach(frequencyOptions) { option in
-                    Text(text(option.titleKey)).tag(option)
-                }
-            }
-            .accessibilityIdentifier("subscription-edit-frequency")
+            .padding(.bottom, 8)
+            fieldRule(seed: 63)
+            dateRow
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 24)
+        .padding(.bottom, 8)
+        .frame(maxWidth: .infinity)
+        .ledgerFormBorder(seed: 131)
+    }
+
+    /// 票据顶部的分类：图标垫一块淡淡的墨色，点开在固定的几个分类里选。
+    private var categoryMenu: some View {
+        Menu {
             Picker(text("subscription.edit.category"), selection: $category) {
                 ForEach(UserSubscriptionCategory.allCases) { option in
                     Label(text(option.titleKey), systemImage: option.symbolName).tag(option)
                 }
             }
-            .accessibilityIdentifier("subscription-edit-category")
-        } footer: {
-            Text(text("subscription.edit.amount.footer"))
+        } label: {
+            VStack(spacing: 8) {
+                Image(systemName: category.symbolName)
+                    .font(.title3.weight(.medium))
+                    .foregroundStyle(.tint)
+                    .frame(width: 52, height: 52)
+                    .background {
+                        HandDrawnBlob(seed: category.rawValue.handDrawnSeed)
+                            .fill(Color.accentColor.opacity(0.08))
+                    }
+                HStack(spacing: 6) {
+                    Text(text(category.titleKey))
+                        .font(.system(.headline, design: .serif))
+                        .foregroundStyle(Color.primary)
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                }
+            }
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
         }
+        .accessibilityLabel(text("subscription.edit.category"))
+        .accessibilityValue(text(category.titleKey))
+        .accessibilityIdentifier("subscription-edit-category")
+    }
+
+    /// 订阅名称，居中写在分类下面。
+    private var nameField: some View {
+        TextField(
+            text("subscription.edit.name"),
+            text: $name,
+            prompt: Text(text("subscription.edit.name.placeholder"))
+        )
+        .font(.system(.title3, design: .serif))
+        .multilineTextAlignment(.center)
+        .focused($focusedField, equals: .name)
+        .submitLabel(.next)
+        .onSubmit { focusedField = .amount }
+        .frame(minHeight: 44)
+        .accessibilityIdentifier("subscription-edit-name")
+    }
+
+    /// 每期金额：和记账页一样的大号衬线数字，写在一条手绘横线上。
+    private var amountField: some View {
+        TextField(
+            text("subscription.edit.amount"),
+            text: $amountText,
+            prompt: Text(verbatim: "0")
+        )
+        .font(.system(.largeTitle, design: .serif, weight: .medium))
+        .monospacedDigit()
+        .keyboardType(.decimalPad)
+        .focused($focusedField, equals: .amount)
+        .multilineTextAlignment(.center)
+        .minimumScaleFactor(0.55)
+        .lineLimit(1)
+        .frame(maxWidth: .infinity, minHeight: 56)
+        .accessibilityIdentifier("subscription-edit-amount")
+        .onChange(of: amountText) { oldValue, newValue in
+            // 只接受不超过账本币种小数位的非负数字，其余输入原样退回
+            let separator = locale.decimalSeparator ?? "."
+            if !newValue.isEmpty,
+               AccountAmountParser.normalizedCNYAmountText(
+                   newValue, decimalSeparator: separator, fractionDigits: amountFractionDigits
+               ) == nil {
+                amountText = oldValue
+            }
+        }
+    }
+
+    /// 金额下面手写的扣费周期；放不下（如英文、大字号）时换成下拉菜单。
+    private var frequencyChoice: some View {
+        ViewThatFits(in: .horizontal) {
+            LedgerSwitch(
+                label: text("subscription.edit.frequency"),
+                selection: $frequency,
+                options: frequencyOptions.map { option in
+                    LedgerSwitch<RecurringFrequency>.Option(
+                        value: option,
+                        title: text(option.titleKey),
+                        identifier: "subscription-edit-frequency-\(option.rawValue)"
+                    )
+                },
+                size: .compact
+            )
+            Menu {
+                Picker(text("subscription.edit.frequency"), selection: $frequency) {
+                    ForEach(frequencyOptions) { option in
+                        Text(text(option.titleKey)).tag(option)
+                    }
+                }
+            } label: {
+                menuLabel(text(frequency.titleKey))
+                    .frame(minHeight: 44)
+            }
+            .accessibilityLabel(text("subscription.edit.frequency"))
+            .accessibilityIdentifier("subscription-edit-frequency")
+        }
+        .frame(maxWidth: .infinity)
     }
 
     /// 可选的周期；同步来的其他频率也放进去，保存前不会被悄悄改掉。
@@ -345,70 +475,177 @@ struct UserSubscriptionEditView: View {
             : UserSubscriptionSchedule.cycles + [frequency]
     }
 
-    /// 状态和日期：订阅中填下次扣费，试用中填试用结束，已取消填还能用到哪天。
-    private var scheduleSection: some View {
-        Section {
-            Picker(text("subscription.edit.status"), selection: $status) {
-                ForEach(UserSubscriptionStatus.allCases) { option in
-                    Text(text(option.titleKey)).tag(option)
+    /// 日期一行：订阅中是下次扣费，试用中是试用结束，已取消是还能用到哪天。
+    @ViewBuilder
+    private var dateRow: some View {
+        switch status {
+        case .active, .trial:
+            DatePicker(selection: $chargeDate, in: today..., displayedComponents: .date) {
+                Text(text(status == .trial ? "subscription.edit.trial_end" : "subscription.edit.next_charge"))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(minHeight: 50)
+            .accessibilityIdentifier("subscription-edit-charge-date")
+        case .cancelled:
+            DatePicker(selection: $accessEndDate, displayedComponents: .date) {
+                Text(text("subscription.edit.access_end"))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(minHeight: 50)
+            .accessibilityIdentifier("subscription-edit-access-end")
+        }
+    }
+
+    // MARK: - 更多选项
+
+    /// 收起来的选填项：状态、扣费渠道、提醒、自动记账和备注，点开才显示。
+    private var moreOptions: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                focusedField = nil
+                withAnimation(.snappy(duration: 0.25)) { showsMoreOptions.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(text("subscription.edit.more"))
+                    Image(systemName: showsMoreOptions ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .accessibilityHidden(true)
+                    Spacer(minLength: 0)
                 }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
             }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("subscription-edit-status")
-            switch status {
-            case .active, .trial:
-                DatePicker(
-                    text(status == .trial ? "subscription.edit.trial_end" : "subscription.edit.next_charge"),
-                    selection: $chargeDate,
-                    in: today...,
-                    displayedComponents: .date
-                )
-                .accessibilityIdentifier("subscription-edit-charge-date")
-            case .cancelled:
-                DatePicker(
-                    text("subscription.edit.access_end"),
-                    selection: $accessEndDate,
-                    displayedComponents: .date
-                )
-                .accessibilityIdentifier("subscription-edit-access-end")
-            }
-        } footer: {
-            if status == .trial {
-                Text(text("subscription.edit.trial.footer"))
+            .buttonStyle(.plain)
+            .foregroundStyle(.tint)
+            .padding(.horizontal, 4)
+            .accessibilityIdentifier("subscription-edit-more")
+
+            if showsMoreOptions {
+                LedgerCard(seed: 132) {
+                    statusRow
+                    pickerRow(
+                        "subscription.edit.channel",
+                        selection: $channel,
+                        current: text(channel.titleKey),
+                        identifier: "subscription-edit-channel"
+                    ) {
+                        ForEach(UserSubscriptionChannel.allCases) { option in
+                            Text(text(option.titleKey)).tag(option)
+                        }
+                    }
+                    if !isNew, channel == .appStore, let url = UserSubscriptionChannel.appStoreManagementURL {
+                        Link(destination: url) {
+                            Label(text("subscription.edit.manage_app_store"), systemImage: "arrow.up.forward.app")
+                                .foregroundStyle(.tint)
+                                .ledgerCardRow()
+                        }
+                        .accessibilityIdentifier("subscription-edit-manage-app-store")
+                    }
+                    if status != .cancelled {
+                        pickerRow(
+                            "subscription.edit.reminder",
+                            selection: $reminderDaysBefore,
+                            current: reminderDaysBefore.map(reminderTitle) ?? text("subscription.reminder.option.none"),
+                            identifier: "subscription-edit-reminder"
+                        ) {
+                            Text(text("subscription.reminder.option.none")).tag(Int?.none)
+                            ForEach(reminderOptions, id: \.self) { days in
+                                Text(reminderTitle(days)).tag(Int?.some(days))
+                            }
+                        }
+                    }
+                    bookkeepingRows
+                    LedgerFormRow(title: text("subscription.edit.note")) {
+                        TextField(
+                            text("subscription.edit.note"),
+                            text: $note,
+                            prompt: Text(text("common.optional")),
+                            axis: .vertical
+                        )
+                        .lineLimit(1...4)
+                        .focused($focusedField, equals: .note)
+                        .accessibilityIdentifier("subscription-edit-note")
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+
+                if let bookkeepingFooterKey {
+                    footnote(text(bookkeepingFooterKey))
+                }
             }
         }
     }
 
-    /// 扣费渠道；App Store 扣费的给一个去系统订阅管理页的入口。
-    private var channelSection: some View {
-        Section {
-            Picker(text("subscription.edit.channel"), selection: $channel) {
-                ForEach(UserSubscriptionChannel.allCases) { option in
-                    Text(text(option.titleKey)).tag(option)
+    /// 状态：三个词手写并排；放不下时换成下拉菜单。
+    private var statusRow: some View {
+        LedgerFormRow(title: text("subscription.edit.status")) {
+            ViewThatFits(in: .horizontal) {
+                LedgerSwitch(
+                    label: text("subscription.edit.status"),
+                    selection: $status,
+                    options: UserSubscriptionStatus.allCases.map { option in
+                        LedgerSwitch<UserSubscriptionStatus>.Option(
+                            value: option,
+                            title: text(option.titleKey),
+                            identifier: "subscription-edit-status-\(option.rawValue)"
+                        )
+                    },
+                    size: .compact
+                )
+                Menu {
+                    Picker(text("subscription.edit.status"), selection: $status) {
+                        ForEach(UserSubscriptionStatus.allCases) { option in
+                            Text(text(option.titleKey)).tag(option)
+                        }
+                    }
+                } label: {
+                    menuLabel(text(status.titleKey))
                 }
-            }
-            .accessibilityIdentifier("subscription-edit-channel")
-            if channel == .appStore, let url = UserSubscriptionChannel.appStoreManagementURL {
-                Link(destination: url) {
-                    Label(text("subscription.edit.manage_app_store"), systemImage: "arrow.up.forward.app")
-                }
-                .accessibilityIdentifier("subscription-edit-manage-app-store")
+                .accessibilityIdentifier("subscription-edit-status")
             }
         }
     }
 
-    /// 扣费前提醒。
-    private var reminderSection: some View {
-        Section {
-            Picker(text("subscription.edit.reminder"), selection: $reminderDaysBefore) {
-                Text(text("subscription.reminder.option.none")).tag(Int?.none)
-                ForEach(reminderOptions, id: \.self) { days in
-                    Text(reminderTitle(days)).tag(Int?.some(days))
+    /// 自动记账开关；打开后多出记入账户和支出分类两行。
+    @ViewBuilder
+    private var bookkeepingRows: some View {
+        Toggle(isOn: bookkeepingBinding) {
+            Text(text("subscription.edit.bookkeeping"))
+                .foregroundStyle(.secondary)
+        }
+        .disabled(isBookkeepingLocked)
+        .ledgerCardRow()
+        .accessibilityIdentifier("subscription-edit-bookkeeping")
+        if isBookkeepingOn, !isBookkeepingLocked {
+            pickerRow(
+                "subscription.edit.bookkeeping.account",
+                selection: $bookkeepingAccountID,
+                current: bookkeepingAccounts.first { $0.id == bookkeepingAccountID }?.localizedName(locale: locale)
+                    ?? text("subscription.edit.choose"),
+                identifier: "subscription-edit-bookkeeping-account"
+            ) {
+                if !bookkeepingAccounts.contains(where: { $0.id == bookkeepingAccountID }) {
+                    Text(text("subscription.edit.choose")).tag(UUID?.none)
+                }
+                ForEach(bookkeepingAccounts) { account in
+                    Text(account.localizedName(locale: locale)).tag(Optional(account.id))
                 }
             }
-            .accessibilityIdentifier("subscription-edit-reminder")
-        } footer: {
-            Text(text(status == .trial ? "subscription.edit.reminder.trial_footer" : "subscription.edit.reminder.footer"))
+            let items = catalog.items(for: .expense)
+            pickerRow(
+                "subscription.edit.bookkeeping.category",
+                selection: $bookkeepingCategoryKey,
+                current: items.first { $0.key == bookkeepingCategoryKey }?.title(locale: locale)
+                    ?? text("subscription.edit.choose"),
+                identifier: "subscription-edit-bookkeeping-category"
+            ) {
+                if !items.contains(where: { $0.key == bookkeepingCategoryKey }) {
+                    Text(text("subscription.edit.choose")).tag(String?.none)
+                }
+                ForEach(items, id: \.key) { item in
+                    Label(item.title(locale: locale), systemImage: item.symbolName).tag(Optional(item.key))
+                }
+            }
         }
     }
 
@@ -427,43 +664,103 @@ struct UserSubscriptionEditView: View {
         return String(format: text("subscription.reminder.option.other"), locale: locale, days)
     }
 
-    /// 自动记账：打开后选账户和支出分类，由订阅管理一条周期记账。
-    private var bookkeepingSection: some View {
-        Section {
-            Toggle(text("subscription.edit.bookkeeping"), isOn: bookkeepingBinding)
-                .disabled(isBookkeepingLocked)
-                .accessibilityIdentifier("subscription-edit-bookkeeping")
-            if isBookkeepingOn, !isBookkeepingLocked {
-                Picker(text("subscription.edit.bookkeeping.account"), selection: $bookkeepingAccountID) {
-                    if !bookkeepingAccounts.contains(where: { $0.id == bookkeepingAccountID }) {
-                        Text(text("subscription.edit.choose")).tag(UUID?.none)
-                    }
-                    ForEach(bookkeepingAccounts) { account in
-                        Text(account.localizedName(locale: locale)).tag(Optional(account.id))
-                    }
+    /// 自动记账的说明：只在打开了自动记账、或者因为已取消而有特别规则时才显示。
+    private var bookkeepingFooterKey: String? {
+        if isBookkeepingLocked { return "subscription.edit.bookkeeping.cancelled_footer" }
+        guard isBookkeepingOn else { return nil }
+        if status == .cancelled { return "subscription.edit.bookkeeping.stops_footer" }
+        return "subscription.edit.bookkeeping.footer"
+    }
+
+    // MARK: - 票据之外
+
+    /// 编辑时页面最下面的删除入口，用账本红的文字，不做成大按钮。
+    private var deleteButton: some View {
+        Button(role: .destructive) {
+            focusedField = nil
+            isDeleteConfirmationPresented = true
+        } label: {
+            Label(text("subscription.edit.delete"), systemImage: "trash")
+                .foregroundStyle(Color(.ledgerRed))
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("subscription-edit-delete")
+    }
+
+    /// 页面底部始终可见的保存按钮；键盘弹出时跟在键盘上方。
+    private var submitBar: some View {
+        LedgerSubmitButton(title: text("common.save"), isSaving: false) {
+            focusedField = nil
+            save()
+        }
+        .disabled(!canSave)
+        .accessibilityIdentifier("subscription-edit-save")
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .frame(maxWidth: 620)
+        .frame(maxWidth: .infinity)
+        .background(Color(.paperBackground))
+    }
+
+    // MARK: - 小部件
+
+    /// 卡片里"名称 — 下拉菜单"的一行。
+    ///
+    /// - Parameters:
+    ///   - titleKey: 左边项目名的本地化键，也用作菜单标题。
+    ///   - selection: 菜单选中的值。
+    ///   - current: 右边显示的当前选项名称。
+    ///   - identifier: 自动化标识。
+    ///   - content: 菜单里的各个选项。
+    private func pickerRow<Value: Hashable, Content: View>(
+        _ titleKey: String,
+        selection: Binding<Value>,
+        current: String,
+        identifier: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        LedgerFormRow(title: text(titleKey)) {
+            Menu {
+                Picker(text(titleKey), selection: selection) {
+                    content()
                 }
-                .accessibilityIdentifier("subscription-edit-bookkeeping-account")
-                Picker(text("subscription.edit.bookkeeping.category"), selection: $bookkeepingCategoryKey) {
-                    let items = catalog.items(for: .expense)
-                    if !items.contains(where: { $0.key == bookkeepingCategoryKey }) {
-                        Text(text("subscription.edit.choose")).tag(String?.none)
-                    }
-                    ForEach(items, id: \.key) { item in
-                        Label(item.title(locale: locale), systemImage: item.symbolName).tag(Optional(item.key))
-                    }
-                }
-                .accessibilityIdentifier("subscription-edit-bookkeeping-category")
+            } label: {
+                menuLabel(current)
             }
-        } footer: {
-            Text(text(bookkeepingFooterKey))
+            .accessibilityIdentifier(identifier)
         }
     }
 
-    /// 自动记账分组下面的说明。
-    private var bookkeepingFooterKey: String {
-        if isBookkeepingLocked { return "subscription.edit.bookkeeping.cancelled_footer" }
-        if status == .cancelled { return "subscription.edit.bookkeeping.stops_footer" }
-        return "subscription.edit.bookkeeping.footer"
+    /// 下拉菜单的外观：墨色的当前选项加一个上下箭头。
+    private func menuLabel(_ title: String) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .foregroundStyle(Color.primary)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
+        }
+    }
+
+    /// 卡片下方的一段灰色小字说明。
+    private func footnote(_ content: String) -> some View {
+        Text(content)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 4)
+    }
+
+    /// 票据里两行之间的手绘细线。
+    private func fieldRule(seed: UInt64) -> some View {
+        HandDrawnRule(seed: seed)
+            .stroke(Color.primary.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+            .frame(height: 3)
+            .accessibilityHidden(true)
     }
 
     /// 自动记账开关：打开时预选默认记账账户和按订阅分类建议的支出分类。

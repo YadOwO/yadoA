@@ -34274,6 +34274,30 @@
         }
       }
     },
+    "subscription.edit.name" : {
+      "comment" : "订阅编辑：名称输入框的无障碍名称",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名称"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名稱"
+          }
+        }
+      }
+    },
     "subscription.edit.name.placeholder" : {
       "comment" : "订阅名称输入框占位",
       "extractionState" : "manual",
@@ -34318,54 +34342,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "每期金額"
-          }
-        }
-      }
-    },
-    "subscription.edit.amount.placeholder" : {
-      "comment" : "订阅编辑：金额输入框占位",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "0.00"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "0.00"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "0.00"
-          }
-        }
-      }
-    },
-    "subscription.edit.amount.footer" : {
-      "comment" : "订阅编辑：金额按账本币种填写的说明",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter it in your ledger currency. For subscriptions in another currency, enter the amount actually charged."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "按账本币种填写；外币订阅填实际扣掉的金额。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "按帳本幣別填寫；外幣訂閱填實際扣掉的金額。"
           }
         }
       }
@@ -34586,6 +34562,30 @@
         }
       }
     },
+    "subscription.edit.more" : {
+      "comment" : "订阅编辑：展开状态、扣费渠道、提醒、自动记账和备注的入口",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More Options"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多选项"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多選項"
+          }
+        }
+      }
+    },
     "subscription.edit.reminder" : {
       "comment" : "订阅编辑：扣费提醒",
       "extractionState" : "manual",
@@ -34606,54 +34606,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "扣款提醒"
-          }
-        }
-      }
-    },
-    "subscription.edit.reminder.footer" : {
-      "comment" : "订阅编辑：扣费提醒的说明",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You'll get a reminder at 9 AM a few days before each charge."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在扣费日前几天的上午 9 点提醒你。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在扣款日前幾天的上午 9 點提醒你。"
-          }
-        }
-      }
-    },
-    "subscription.edit.reminder.trial_footer" : {
-      "comment" : "订阅编辑：试用中时扣费提醒的说明",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You'll get a reminder at 9 AM a few days before the trial ends, in time to decide whether to cancel."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在试用结束前几天的上午 9 点提醒你，来得及决定要不要退订。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在試用結束前幾天的上午 9 點提醒你，來得及決定要不要退訂。"
           }
         }
       }
