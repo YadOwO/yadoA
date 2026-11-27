@@ -29,7 +29,7 @@ enum BackupImportUITestFixture {
                     note: nil,
                     lastFourDigits: nil,
                     balance: "66",
-                    currencyCode: BookkeepingCurrency.code,
+                    currencyCode: BookkeepingCurrency.fallbackCode,
                     createdAt: savedAt,
                     updatedAt: savedAt,
                     deactivatedAt: nil
@@ -45,7 +45,7 @@ enum BackupImportUITestFixture {
                     balanceBefore: nil,
                     balanceAfter: nil,
                     balanceDelta: nil,
-                    currencyCode: BookkeepingCurrency.code,
+                    currencyCode: BookkeepingCurrency.fallbackCode,
                     transactionDay: 20260926,
                     note: "Restored expense",
                     savedAt: savedAt

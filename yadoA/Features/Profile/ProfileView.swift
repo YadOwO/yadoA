@@ -110,6 +110,13 @@ struct ProfileView: View {
 
                         ProfileSettingsRowDivider()
 
+                        TabRouteLink(value: ProfileRoute.subscriptions, selectionOutset: -4) {
+                            ProfileSettingsRow(titleKey: "subscription.title", symbol: "creditcard")
+                        }
+                        .accessibilityIdentifier("profile-subscriptions")
+
+                        ProfileSettingsRowDivider()
+
                         TabRouteLink(value: ProfileRoute.categories, selectionOutset: -4) {
                             ProfileSettingsRow(titleKey: "category.management.title", symbol: "square.grid.2x2")
                         }

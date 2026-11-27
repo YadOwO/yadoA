@@ -319,7 +319,7 @@ final class VoiceSession {
         }
         events.append(userEvent(text: text, selectedOption: selectedOption, images: images))
 
-        let executor = VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: now)
+        let executor = makeExecutor()
         do {
             for requestIndex in 1...Self.maxRequestsPerTurn {
                 let requestStartedAt = VoiceTimingClock.now
@@ -390,6 +390,14 @@ final class VoiceSession {
     /// - Returns: 是否全部调用都成功。
     private func executeToolCalls(_ calls: [VoiceToolCall], with executor: VoiceToolExecutor, turnID: UUID) -> Bool {
         var isAllSucceeded = true
+        var subscriptionChanges: [VoiceSubscriptionChange] = []
+        defer {
+            if !subscriptionChanges.isEmpty {
+                rescheduleSubscriptionReminders(
+                    requestsAuthorization: subscriptionChanges.contains(where: \.hasReminder)
+                )
+            }
+        }
         for call in calls {
             let execution = executor.execute(call)
             events.append(.toolCall(call))
@@ -401,6 +409,9 @@ final class VoiceSession {
             // 新建或修改周期记账时，规则后面跟着当场记入的流水，一并记入本轮
             for change in execution.changes {
                 updateTurn(turnID) { $0.changes.append(change) }
+                if let subscriptionChange = change.subscriptionChange {
+                    subscriptionChanges.append(subscriptionChange)
+                }
                 // 余额调整、转账、账户与周期记账的改动不在首页明细中展示，只有收支流水需要提示
                 if let entryHighlight = change.entryChange?.highlight {
                     highlight.mark(entryHighlight)
@@ -415,7 +426,7 @@ final class VoiceSession {
     /// 失败时数据保持撤销前的状态，`hasUndoFailure` 置为真。
     func undoLatestTurn() {
         guard let turn = undoableTurn else { return }
-        let executor = VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: now)
+        let executor = makeExecutor()
         do {
             let highlights = try executor.revert(turn.changes)
             for entryHighlight in highlights {
@@ -432,6 +443,26 @@ final class VoiceSession {
         }
         lastActivityAt = now()
         saveToHistory(turn.id)
+        if turn.changes.contains(where: { $0.subscriptionChange != nil }) {
+            rescheduleSubscriptionReminders(requestsAuthorization: false)
+        }
+    }
+
+    /// 订阅有改动后重排扣费提醒，与编辑页保存、删除后一致；这次设了提醒的，先确认通知权限。
+    ///
+    /// 还没问过权限时系统弹一次窗；之前拒绝过的不再弹，提醒照样存着，到系统设置里打开通知后就会按时提醒。
+    ///
+    /// - Parameter requestsAuthorization: 是否先请求通知权限。
+    private func rescheduleSubscriptionReminders(requestsAuthorization: Bool) {
+        let container = container
+        let locale = locale
+        let calendar = calendar
+        Task {
+            if requestsAuthorization {
+                _ = await BookkeepingReminderScheduler.requestAuthorization()
+            }
+            await UserSubscriptionReminderScheduler.reschedule(container: container, locale: locale, calendar: calendar)
+        }
     }
 
     /// 确认一笔新记流水的账户：在本机直接改，不请求模型、不扣点，也不新增一轮。
@@ -452,7 +483,7 @@ final class VoiceSession {
               entry.kind == .created,
               entry.inferredFields.contains(.account)
         else { return false }
-        let executor = VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: now)
+        let executor = makeExecutor()
         let execution = executor.execute(.updateTransaction(id: UUID().uuidString, input: VoiceUpdateTransactionInput(
             id: entry.transactionID.uuidString,
             patch: VoiceTransactionPatch(accountId: accountID.uuidString)
@@ -481,7 +512,7 @@ final class VoiceSession {
 
     /// 读取今天的收支概况，聊天页顶部显示。
     func todaySummary() -> VoiceTodaySummary {
-        VoiceToolExecutor(container: container, locale: locale, calendar: calendar, now: now).todaySummary()
+        makeExecutor().todaySummary()
     }
 
     /// 用户关闭卡片（点关闭、点卡片外或进入二级页面）：只收起卡片，对话段不结束；
@@ -642,7 +673,20 @@ final class VoiceSession {
             defaultAccountId: context.defaultAccountID,
             accounts: context.accounts,
             categories: context.categories,
-            events: events
+            events: events,
+            currency: context.currencyCode
+        )
+    }
+
+    /// 创建执行工具调用的执行器，币种取当前账本币种；读取失败时按 CNY 处理，与请求里带的币种一致。
+    private func makeExecutor() -> VoiceToolExecutor {
+        VoiceToolExecutor(
+            container: container,
+            locale: locale,
+            calendar: calendar,
+            currencyCode: (try? BookkeepingCurrency.current(in: container.makeManualSaveContext()))
+                ?? BookkeepingCurrency.fallbackCode,
+            now: now
         )
     }
 
@@ -792,9 +836,10 @@ struct VoiceImageUpload: Equatable {
 
 /// 在本地生成一轮的结果提示，例如「已记 2 笔：午饭 ¥28.00、打车 ¥35.00」。
 enum VoiceSessionSummary {
-    /// 生成结果提示：先逐句说明周期记账的改动，再按新增、修改、删除分段说明收支流水，最后逐句说明账户相关的改动。
+    /// 生成结果提示：先按执行顺序逐句说明周期记账和订阅的改动，再按新增、修改、删除分段说明收支流水，
+    /// 最后逐句说明账户相关的改动。
     ///
-    /// 周期记账放在最前面：当场记入的流水紧跟在规则后面，读起来是「已新建周期记账：房租…；已记 1 笔：房租…」。
+    /// 周期记账和订阅放在最前面：当场记入的流水紧跟在后面，读起来是「已新建周期记账：房租…；已记 1 笔：房租…」。
     ///
     /// - Parameters:
     ///   - changes: 本轮的改动，按执行顺序排列。
@@ -803,8 +848,11 @@ enum VoiceSessionSummary {
     static func text(for changes: [VoiceChange], locale: Locale) -> String {
         let entries = changes.compactMap(\.entryChange)
         let recurringSentences = changes.compactMap { change -> String? in
-            guard case let .recurring(recurringChange) = change else { return nil }
-            return recurringChange.summary
+            switch change {
+            case let .recurring(recurringChange): recurringChange.summary
+            case let .subscription(subscriptionChange): subscriptionChange.summary
+            case .entry, .account: nil
+            }
         }
         let accountSentences = changes.compactMap { change -> String? in
             guard case let .account(accountChange) = change else { return nil }
@@ -876,10 +924,10 @@ extension VoiceSessionSummary.Item {
 }
 
 extension VoiceToolCall {
-    /// 是否只读账本：查询流水、汇总或查询周期记账。
+    /// 是否只读账本：查询流水、汇总，或查询周期记账、订阅。
     fileprivate var isQuery: Bool {
         switch self {
-        case .searchTransactions, .summarizeTransactions, .searchRecurringRules: true
+        case .searchTransactions, .summarizeTransactions, .searchRecurringRules, .searchSubscriptions: true
         default: false
         }
     }

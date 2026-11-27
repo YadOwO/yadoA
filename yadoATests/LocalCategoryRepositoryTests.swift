@@ -317,7 +317,7 @@ struct LocalCategoryRepositoryTests {
     ) throws -> AccountTransaction {
         let transaction = try AccountTransaction.validatingExpense(
             id: UUID(), accountID: accountID, categoryKey: categoryKey,
-            amount: 10, transactionDay: 20261020
+            amount: 10, currencyCode: "CNY", transactionDay: 20261020
         )
         let context = ModelContext(container)
         context.insert(transaction)

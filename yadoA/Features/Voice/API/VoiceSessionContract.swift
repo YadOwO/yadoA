@@ -74,6 +74,18 @@ nonisolated enum VoiceToolName: String, Codable, Equatable, Sendable {
 
     /// 删除一条周期记账；已记入的流水保留。
     case deleteRecurringRule = "delete_recurring_rule"
+
+    /// 按条件查询订阅。
+    case searchSubscriptions = "search_subscriptions"
+
+    /// 新建一条订阅。
+    case createSubscription = "create_subscription"
+
+    /// 修改、取消或恢复一条订阅，打开或关闭自动记账。
+    case updateSubscription = "update_subscription"
+
+    /// 删除一条订阅；已记入的流水保留。
+    case deleteSubscription = "delete_subscription"
 }
 
 /// 周期记账的重复频率，与 `RecurringFrequency.rawValue` 一致。
@@ -119,6 +131,93 @@ nonisolated enum VoiceAccountInferredField: String, Codable, Equatable, Sendable
 
     /// 没说余额，按 0 处理。
     case balance
+}
+
+/// 订阅的分类，与 `UserSubscriptionCategory.rawValue` 一致。
+nonisolated enum VoiceSubscriptionCategory: String, Codable, Equatable, Sendable {
+    /// 影音。
+    case media
+
+    /// AI 服务。
+    case ai
+
+    /// 软件工具。
+    case software
+
+    /// 云存储。
+    case cloud
+
+    /// 生活会员。
+    case membership
+
+    /// 其他。
+    case other
+}
+
+/// 订阅的扣费渠道，与 `UserSubscriptionChannel.rawValue` 一致。
+nonisolated enum VoiceSubscriptionChannel: String, Codable, Equatable, Sendable {
+    /// App Store。
+    case appStore
+
+    /// Google Play。
+    case googlePlay
+
+    /// 官网信用卡。
+    case card
+
+    /// 支付宝。
+    case alipay
+
+    /// 微信支付。
+    case wechat
+
+    /// 其他。
+    case other
+}
+
+/// 写入订阅的状态，与 `UserSubscriptionStatus.rawValue` 一致。
+nonisolated enum VoiceSubscriptionStatus: String, Codable, Equatable, Sendable {
+    /// 订阅中。
+    case active
+
+    /// 试用中。
+    case trial
+
+    /// 已取消。
+    case cancelled
+}
+
+/// 订阅当前所处的阶段，与订阅列表显示的状态一致。
+nonisolated enum VoiceSubscriptionPhase: String, Codable, Equatable, Sendable {
+    /// 订阅中，包括试用已结束、开始扣费的。
+    case active
+
+    /// 试用中。
+    case trial
+
+    /// 已取消，还能用。
+    case cancelled
+
+    /// 已取消，过了能用的日子。
+    case expired
+
+    /// 状态或周期来自更新的版本，这一版不能修改。
+    case unknown
+}
+
+/// 新建订阅时由 AI 推断或取了默认值的字段，界面上标「待确认」。
+nonisolated enum VoiceSubscriptionInferredField: String, Codable, Equatable, Sendable {
+    /// 金额拿不准。
+    case amount
+
+    /// 没有合适的分类，归入「其他」。
+    case category
+
+    /// 没说扣费日，按今天。
+    case chargeDate
+
+    /// 自动记账没说账户，按默认记账账户或唯一启用账户。
+    case account
 }
 
 // MARK: - 工具入参（服务端 → App）
@@ -256,10 +355,10 @@ nonisolated struct VoiceCreateTransactionInput: Codable, Equatable, Sendable {
     }
 }
 
-/// 可清空的文本字段（备注、卡号后四位、周期记账的结束日期）的修改方式：`patch` 中不出现表示不改，`null` 表示清空。
-nonisolated enum VoiceTextPatch: Equatable, Sendable {
+/// 可清空字段的修改方式：`patch` 中不出现表示不改，`null` 表示清空。
+nonisolated enum VoiceNullablePatch<Value: Codable & Equatable & Sendable>: Equatable, Sendable {
     /// 改为新值。
-    case set(String)
+    case set(Value)
 
     /// 清空。
     case clear
@@ -270,9 +369,9 @@ nonisolated enum VoiceTextPatch: Equatable, Sendable {
     ///   - container: `patch` 的解码容器。
     ///   - key: 字段名。
     /// - Returns: 字段不出现时为 `nil`，为 `null` 时为清空。
-    static func decode<Key: CodingKey>(from container: KeyedDecodingContainer<Key>, forKey key: Key) throws -> VoiceTextPatch? {
+    static func decode<Key: CodingKey>(from container: KeyedDecodingContainer<Key>, forKey key: Key) throws -> Self? {
         guard container.contains(key) else { return nil }
-        return try container.decodeNil(forKey: key) ? .clear : .set(container.decode(String.self, forKey: key))
+        return try container.decodeNil(forKey: key) ? .clear : .set(container.decode(Value.self, forKey: key))
     }
 
     /// 把一个可清空的字段编码进 `patch`。
@@ -282,7 +381,7 @@ nonisolated enum VoiceTextPatch: Equatable, Sendable {
     ///   - container: `patch` 的编码容器。
     ///   - key: 字段名。
     static func encode<Key: CodingKey>(
-        _ patch: VoiceTextPatch?,
+        _ patch: Self?,
         to container: inout KeyedEncodingContainer<Key>,
         forKey key: Key
     ) throws {
@@ -293,6 +392,9 @@ nonisolated enum VoiceTextPatch: Equatable, Sendable {
         }
     }
 }
+
+/// 可清空的文本字段（备注、卡号后四位、周期记账的结束日期）的修改方式。
+typealias VoiceTextPatch = VoiceNullablePatch<String>
 
 /// `update_transaction` 中要修改的字段；`nil` 表示不改。
 nonisolated struct VoiceTransactionPatch: Codable, Equatable, Sendable {
@@ -781,6 +883,309 @@ nonisolated struct VoiceDeleteRecurringRuleInput: Codable, Equatable, Sendable {
     var ruleId: String
 }
 
+/// 订阅的查询条件；所有条件取交集，`nil` 表示不限制。
+nonisolated struct VoiceSubscriptionFilter: Codable, Equatable, Sendable {
+    /// 订阅分类列表。
+    var categories: [VoiceSubscriptionCategory]?
+
+    /// 订阅状态列表。
+    var statuses: [VoiceSubscriptionPhase]?
+
+    /// 名称或备注中包含的关键词。
+    var keyword: String?
+
+    /// 成员逐一初始化，全部默认不限制。
+    init(
+        categories: [VoiceSubscriptionCategory]? = nil,
+        statuses: [VoiceSubscriptionPhase]? = nil,
+        keyword: String? = nil
+    ) {
+        self.categories = categories
+        self.statuses = statuses
+        self.keyword = keyword
+    }
+}
+
+/// `search_subscriptions` 的入参。
+nonisolated struct VoiceSearchSubscriptionsInput: Codable, Equatable, Sendable {
+    /// 查询条件。
+    var filter: VoiceSubscriptionFilter
+
+    /// 最多返回的条数，1～20。
+    var limit: Int
+}
+
+/// 新建订阅时的自动记账设置。
+nonisolated struct VoiceSubscriptionBookkeeping: Codable, Equatable, Sendable {
+    /// 启用中的账户 UUID 字符串。
+    var accountId: String
+
+    /// 支出分类 key；为 `nil` 时按订阅分类选，编码为 `null`。
+    var categoryId: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case accountId, categoryId
+    }
+
+    /// 成员逐一初始化。
+    init(accountId: String, categoryId: String?) {
+        self.accountId = accountId
+        self.categoryId = categoryId
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        accountId = try container.decode(String.self, forKey: .accountId)
+        categoryId = try container.decodeIfPresent(String.self, forKey: .categoryId)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(accountId, forKey: .accountId)
+        // 契约要求可空字段必须出现，没有值时为 null
+        try container.encode(categoryId, forKey: .categoryId)
+    }
+}
+
+/// `create_subscription` 的入参；服务端已补齐默认值并核对账户、分类。
+nonisolated struct VoiceCreateSubscriptionInput: Codable, Equatable, Sendable {
+    /// 服务名称，最多 40 字。
+    var name: String
+
+    /// 每期金额，大于零的十进制字符串。
+    var amount: String
+
+    /// 扣费周期；服务端只会下发每周、每月、每季度、每年。
+    var frequency: VoiceRecurringFrequency
+
+    /// 订阅分类。
+    var category: VoiceSubscriptionCategory
+
+    /// 扣费渠道。
+    var channel: VoiceSubscriptionChannel
+
+    /// 订阅中或试用中；服务端不会下发已取消。
+    var status: VoiceSubscriptionStatus
+
+    /// 下次扣费日 `YYYY-MM-DD`，不早于今天；试用中是试用结束、开始扣费的那天。
+    var nextChargeDate: String
+
+    /// 扣费前几天提醒，0～30；不提醒时为 `nil`，编码为 `null`。
+    var reminderDaysBefore: Int?
+
+    /// 备注，最多 30 字；没有时为 `nil`，编码为 `null`。
+    var note: String?
+
+    /// 自动记账；不自动记账时为 `nil`，编码为 `null`。
+    var bookkeeping: VoiceSubscriptionBookkeeping?
+
+    /// 由 AI 推断或取了默认值的字段。
+    var inferredFields: [VoiceSubscriptionInferredField]
+
+    private enum CodingKeys: String, CodingKey {
+        case name, amount, frequency, category, channel, status, nextChargeDate, reminderDaysBefore, note
+        case bookkeeping, inferredFields
+    }
+
+    /// 成员逐一初始化。
+    init(
+        name: String,
+        amount: String,
+        frequency: VoiceRecurringFrequency,
+        category: VoiceSubscriptionCategory,
+        channel: VoiceSubscriptionChannel,
+        status: VoiceSubscriptionStatus,
+        nextChargeDate: String,
+        reminderDaysBefore: Int?,
+        note: String?,
+        bookkeeping: VoiceSubscriptionBookkeeping?,
+        inferredFields: [VoiceSubscriptionInferredField]
+    ) {
+        self.name = name
+        self.amount = amount
+        self.frequency = frequency
+        self.category = category
+        self.channel = channel
+        self.status = status
+        self.nextChargeDate = nextChargeDate
+        self.reminderDaysBefore = reminderDaysBefore
+        self.note = note
+        self.bookkeeping = bookkeeping
+        self.inferredFields = inferredFields
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        amount = try container.decode(String.self, forKey: .amount)
+        frequency = try container.decode(VoiceRecurringFrequency.self, forKey: .frequency)
+        category = try container.decode(VoiceSubscriptionCategory.self, forKey: .category)
+        channel = try container.decode(VoiceSubscriptionChannel.self, forKey: .channel)
+        status = try container.decode(VoiceSubscriptionStatus.self, forKey: .status)
+        nextChargeDate = try container.decode(String.self, forKey: .nextChargeDate)
+        reminderDaysBefore = try container.decodeIfPresent(Int.self, forKey: .reminderDaysBefore)
+        note = try container.decodeIfPresent(String.self, forKey: .note)
+        bookkeeping = try container.decodeIfPresent(VoiceSubscriptionBookkeeping.self, forKey: .bookkeeping)
+        inferredFields = try container.decodeIfPresent([VoiceSubscriptionInferredField].self, forKey: .inferredFields) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(amount, forKey: .amount)
+        try container.encode(frequency, forKey: .frequency)
+        try container.encode(category, forKey: .category)
+        try container.encode(channel, forKey: .channel)
+        try container.encode(status, forKey: .status)
+        try container.encode(nextChargeDate, forKey: .nextChargeDate)
+        // 契约要求可空字段必须出现，没有值时为 null
+        try container.encode(reminderDaysBefore, forKey: .reminderDaysBefore)
+        try container.encode(note, forKey: .note)
+        try container.encode(bookkeeping, forKey: .bookkeeping)
+        try container.encode(inferredFields, forKey: .inferredFields)
+    }
+}
+
+/// `update_subscription` 打开或修改自动记账时的设置；`nil` 表示沿用原来的。
+nonisolated struct VoiceSubscriptionBookkeepingPatch: Codable, Equatable, Sendable {
+    /// 新的账户 UUID 字符串；从关闭到打开时服务端保证给出。
+    var accountId: String?
+
+    /// 新的支出分类 key。
+    var categoryId: String?
+
+    /// 成员逐一初始化，全部默认沿用原来的。
+    init(accountId: String? = nil, categoryId: String? = nil) {
+        self.accountId = accountId
+        self.categoryId = categoryId
+    }
+}
+
+/// `update_subscription` 中要修改的字段；`nil` 表示不改。
+///
+/// App 在一次保存里完成，任一项不合法时什么都不改。
+nonisolated struct VoiceSubscriptionPatch: Codable, Equatable, Sendable {
+    /// 新名称。
+    var name: String?
+
+    /// 新的每期金额。
+    var amount: String?
+
+    /// 新的扣费周期。
+    var frequency: VoiceRecurringFrequency?
+
+    /// 新的订阅分类。
+    var category: VoiceSubscriptionCategory?
+
+    /// 新的扣费渠道。
+    var channel: VoiceSubscriptionChannel?
+
+    /// 新状态：恢复订阅、改成试用中或取消。
+    var status: VoiceSubscriptionStatus?
+
+    /// 新的下次扣费日 `YYYY-MM-DD`（试用中为试用结束日），不早于今天。
+    var nextChargeDate: String?
+
+    /// 取消后还能用到哪天 `YYYY-MM-DD`；只和取消一起出现。
+    var accessEndDate: String?
+
+    /// 扣费提醒的修改方式；清空表示不再提醒。
+    var reminderDaysBefore: VoiceNullablePatch<Int>?
+
+    /// 备注的修改方式。
+    var note: VoiceTextPatch?
+
+    /// 自动记账的修改方式：设为新值表示打开或修改，清空表示关闭。
+    var bookkeeping: VoiceNullablePatch<VoiceSubscriptionBookkeepingPatch>?
+
+    /// 关闭自动记账时是否把那条周期记账留下变成普通的周期记账。
+    var keepsRecurringRule: Bool?
+
+    private enum CodingKeys: String, CodingKey {
+        case name, amount, frequency, category, channel, status, nextChargeDate, accessEndDate
+        case reminderDaysBefore, note, bookkeeping, keepsRecurringRule
+    }
+
+    /// 成员逐一初始化，全部默认不改。
+    init(
+        name: String? = nil,
+        amount: String? = nil,
+        frequency: VoiceRecurringFrequency? = nil,
+        category: VoiceSubscriptionCategory? = nil,
+        channel: VoiceSubscriptionChannel? = nil,
+        status: VoiceSubscriptionStatus? = nil,
+        nextChargeDate: String? = nil,
+        accessEndDate: String? = nil,
+        reminderDaysBefore: VoiceNullablePatch<Int>? = nil,
+        note: VoiceTextPatch? = nil,
+        bookkeeping: VoiceNullablePatch<VoiceSubscriptionBookkeepingPatch>? = nil,
+        keepsRecurringRule: Bool? = nil
+    ) {
+        self.name = name
+        self.amount = amount
+        self.frequency = frequency
+        self.category = category
+        self.channel = channel
+        self.status = status
+        self.nextChargeDate = nextChargeDate
+        self.accessEndDate = accessEndDate
+        self.reminderDaysBefore = reminderDaysBefore
+        self.note = note
+        self.bookkeeping = bookkeeping
+        self.keepsRecurringRule = keepsRecurringRule
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        amount = try container.decodeIfPresent(String.self, forKey: .amount)
+        frequency = try container.decodeIfPresent(VoiceRecurringFrequency.self, forKey: .frequency)
+        category = try container.decodeIfPresent(VoiceSubscriptionCategory.self, forKey: .category)
+        channel = try container.decodeIfPresent(VoiceSubscriptionChannel.self, forKey: .channel)
+        status = try container.decodeIfPresent(VoiceSubscriptionStatus.self, forKey: .status)
+        nextChargeDate = try container.decodeIfPresent(String.self, forKey: .nextChargeDate)
+        accessEndDate = try container.decodeIfPresent(String.self, forKey: .accessEndDate)
+        reminderDaysBefore = try VoiceNullablePatch<Int>.decode(from: container, forKey: .reminderDaysBefore)
+        note = try VoiceTextPatch.decode(from: container, forKey: .note)
+        bookkeeping = try VoiceNullablePatch<VoiceSubscriptionBookkeepingPatch>.decode(from: container, forKey: .bookkeeping)
+        keepsRecurringRule = try container.decodeIfPresent(Bool.self, forKey: .keepsRecurringRule)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(name, forKey: .name)
+        try container.encodeIfPresent(amount, forKey: .amount)
+        try container.encodeIfPresent(frequency, forKey: .frequency)
+        try container.encodeIfPresent(category, forKey: .category)
+        try container.encodeIfPresent(channel, forKey: .channel)
+        try container.encodeIfPresent(status, forKey: .status)
+        try container.encodeIfPresent(nextChargeDate, forKey: .nextChargeDate)
+        try container.encodeIfPresent(accessEndDate, forKey: .accessEndDate)
+        try VoiceNullablePatch<Int>.encode(reminderDaysBefore, to: &container, forKey: .reminderDaysBefore)
+        try VoiceTextPatch.encode(note, to: &container, forKey: .note)
+        try VoiceNullablePatch<VoiceSubscriptionBookkeepingPatch>.encode(bookkeeping, to: &container, forKey: .bookkeeping)
+        try container.encodeIfPresent(keepsRecurringRule, forKey: .keepsRecurringRule)
+    }
+}
+
+/// `update_subscription` 的入参。
+nonisolated struct VoiceUpdateSubscriptionInput: Codable, Equatable, Sendable {
+    /// 要修改的订阅 UUID 字符串。
+    var subscriptionId: String
+
+    /// 要修改的字段。
+    var patch: VoiceSubscriptionPatch
+}
+
+/// `delete_subscription` 的入参。
+nonisolated struct VoiceDeleteSubscriptionInput: Codable, Equatable, Sendable {
+    /// 要删除的订阅 UUID 字符串。
+    var subscriptionId: String
+
+    /// 打开了自动记账时，是否把那条周期记账留下变成普通的周期记账；`false` 时一起删掉。
+    var keepsRecurringRule: Bool
+}
+
 /// 服务端下发的一次工具调用；App 执行后要把它原样放回事件中回传。
 nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
     /// 查询流水。
@@ -825,6 +1230,18 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
     /// 删除周期记账。
     case deleteRecurringRule(id: String, input: VoiceDeleteRecurringRuleInput)
 
+    /// 查询订阅。
+    case searchSubscriptions(id: String, input: VoiceSearchSubscriptionsInput)
+
+    /// 新建订阅。
+    case createSubscription(id: String, input: VoiceCreateSubscriptionInput)
+
+    /// 修改、取消或恢复订阅。
+    case updateSubscription(id: String, input: VoiceUpdateSubscriptionInput)
+
+    /// 删除订阅。
+    case deleteSubscription(id: String, input: VoiceDeleteSubscriptionInput)
+
     /// 调用 id，在整个会话内唯一。
     var id: String {
         switch self {
@@ -833,7 +1250,9 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
              let .adjustBalance(id, _), let .transfer(id, _),
              let .createAccount(id, _), let .updateAccount(id, _), let .deleteAccount(id, _),
              let .searchRecurringRules(id, _), let .createRecurringRule(id, _),
-             let .updateRecurringRule(id, _), let .deleteRecurringRule(id, _):
+             let .updateRecurringRule(id, _), let .deleteRecurringRule(id, _),
+             let .searchSubscriptions(id, _), let .createSubscription(id, _),
+             let .updateSubscription(id, _), let .deleteSubscription(id, _):
             id
         }
     }
@@ -855,6 +1274,10 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
         case .createRecurringRule: .createRecurringRule
         case .updateRecurringRule: .updateRecurringRule
         case .deleteRecurringRule: .deleteRecurringRule
+        case .searchSubscriptions: .searchSubscriptions
+        case .createSubscription: .createSubscription
+        case .updateSubscription: .updateSubscription
+        case .deleteSubscription: .deleteSubscription
         }
     }
 
@@ -894,6 +1317,14 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
             self = try .updateRecurringRule(id: id, input: container.decode(VoiceUpdateRecurringRuleInput.self, forKey: .input))
         case .deleteRecurringRule:
             self = try .deleteRecurringRule(id: id, input: container.decode(VoiceDeleteRecurringRuleInput.self, forKey: .input))
+        case .searchSubscriptions:
+            self = try .searchSubscriptions(id: id, input: container.decode(VoiceSearchSubscriptionsInput.self, forKey: .input))
+        case .createSubscription:
+            self = try .createSubscription(id: id, input: container.decode(VoiceCreateSubscriptionInput.self, forKey: .input))
+        case .updateSubscription:
+            self = try .updateSubscription(id: id, input: container.decode(VoiceUpdateSubscriptionInput.self, forKey: .input))
+        case .deleteSubscription:
+            self = try .deleteSubscription(id: id, input: container.decode(VoiceDeleteSubscriptionInput.self, forKey: .input))
         }
     }
 
@@ -916,6 +1347,10 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
         case let .createRecurringRule(_, input): try container.encode(input, forKey: .input)
         case let .updateRecurringRule(_, input): try container.encode(input, forKey: .input)
         case let .deleteRecurringRule(_, input): try container.encode(input, forKey: .input)
+        case let .searchSubscriptions(_, input): try container.encode(input, forKey: .input)
+        case let .createSubscription(_, input): try container.encode(input, forKey: .input)
+        case let .updateSubscription(_, input): try container.encode(input, forKey: .input)
+        case let .deleteSubscription(_, input): try container.encode(input, forKey: .input)
         }
     }
 }
@@ -924,10 +1359,11 @@ nonisolated enum VoiceToolCall: Codable, Equatable, Sendable {
 
 /// 工具执行失败的原因。
 nonisolated enum VoiceToolErrorCode: String, Codable, Equatable, Sendable {
-    /// 流水、账户或周期记账不存在。
+    /// 流水、账户、周期记账或订阅不存在。
     case notFound = "not_found"
 
-    /// 余额调整，或已停用账户下的流水，不能修改、删除；或要操作的账户已停用。
+    /// 余额调整，或已停用账户下的流水，不能修改、删除；或要操作的账户已停用；
+    /// 或周期记账归订阅管、要改订阅；或订阅的状态、周期来自更新的版本。
     case notEditable = "not_editable"
 
     /// 参数不合法，例如账户已停用、分类已删除、日期无效、调整后余额与当前相同，
@@ -1048,8 +1484,13 @@ nonisolated struct VoiceRecurringRuleItem: Encodable, Equatable, Sendable {
     /// 规则状态。
     var status: VoiceRecurringRuleStatus
 
+    /// 订阅打开自动记账时建的规则为订阅 UUID 字符串，否则为 `nil`，编码为 `null`。
+    ///
+    /// 这样的规则不能单独修改、暂停，模型据此改用 `update_subscription`。
+    var subscriptionId: String? = nil
+
     private enum CodingKeys: String, CodingKey {
-        case id, type, amount, categoryId, accountId, note, frequency, nextDueDate, endDate, status
+        case id, type, amount, categoryId, accountId, note, frequency, nextDueDate, endDate, status, subscriptionId
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1064,6 +1505,67 @@ nonisolated struct VoiceRecurringRuleItem: Encodable, Equatable, Sendable {
         try container.encode(nextDueDate, forKey: .nextDueDate)
         try container.encode(endDate, forKey: .endDate)
         try container.encode(status, forKey: .status)
+        try container.encode(subscriptionId, forKey: .subscriptionId)
+    }
+}
+
+/// 查询结果中的一条订阅。
+nonisolated struct VoiceSubscriptionItem: Encodable, Equatable, Sendable {
+    /// 订阅 UUID 字符串。
+    var id: String
+
+    /// 名称，最多 40 字。
+    var name: String
+
+    /// 每期金额，十进制字符串。
+    var amount: String
+
+    /// 扣费周期；这一版不认识时为 `nil`，编码为 `null`。
+    var frequency: VoiceRecurringFrequency?
+
+    /// 订阅分类。
+    var category: VoiceSubscriptionCategory
+
+    /// 扣费渠道。
+    var channel: VoiceSubscriptionChannel
+
+    /// 当前状态。
+    var status: VoiceSubscriptionPhase
+
+    /// 订阅中为下次扣费日，试用中为试用结束日，其余为 `nil`，编码为 `null`。
+    var nextChargeDate: String?
+
+    /// 已取消、已到期的还能用到哪天；没记时编码为 `null`。
+    var accessEndDate: String?
+
+    /// 扣费前几天提醒；不提醒时编码为 `null`。
+    var reminderDaysBefore: Int?
+
+    /// 备注，最多 200 字；没有时编码为 `null`。
+    var note: String?
+
+    /// 打开了自动记账时为它管的规则 UUID 字符串；没打开时编码为 `null`。
+    var recurringRuleId: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, amount, frequency, category, channel, status, nextChargeDate, accessEndDate
+        case reminderDaysBefore, note, recurringRuleId
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(amount, forKey: .amount)
+        try container.encode(frequency, forKey: .frequency)
+        try container.encode(category, forKey: .category)
+        try container.encode(channel, forKey: .channel)
+        try container.encode(status, forKey: .status)
+        try container.encode(nextChargeDate, forKey: .nextChargeDate)
+        try container.encode(accessEndDate, forKey: .accessEndDate)
+        try container.encode(reminderDaysBefore, forKey: .reminderDaysBefore)
+        try container.encode(note, forKey: .note)
+        try container.encode(recurringRuleId, forKey: .recurringRuleId)
     }
 }
 
@@ -1098,6 +1600,18 @@ nonisolated enum VoiceToolOutput: Encodable, Equatable, Sendable {
         recordedTransactionIds: [String]
     )
 
+    /// 订阅查询成功：符合条件的总条数、订阅中的每月与每年合计，以及按列表顺序排列的前若干条。
+    case subscriptionSearchResult(total: Int, monthlyTotal: String, yearlyTotal: String, items: [VoiceSubscriptionItem])
+
+    /// 订阅新建或修改成功：订阅 UUID、保存后的状态与下次扣费日、它管的规则，以及自动记账当场记入的流水 UUID。
+    case subscriptionSaved(
+        id: String,
+        status: VoiceSubscriptionPhase,
+        nextChargeDate: String?,
+        recurringRuleId: String?,
+        recordedTransactionIds: [String]
+    )
+
     /// 是否执行成功。
     var isSuccess: Bool {
         if case .failure = self { return false }
@@ -1107,6 +1621,7 @@ nonisolated enum VoiceToolOutput: Encodable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case ok, code, total, items, count, expenseTotal, incomeTotal, id, balanceBefore, balanceAfter
         case status, nextDueDate, recordedTransactionIds
+        case monthlyTotal, yearlyTotal, nextChargeDate, recurringRuleId
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1136,6 +1651,17 @@ nonisolated enum VoiceToolOutput: Encodable, Equatable, Sendable {
             try container.encode(id, forKey: .id)
             try container.encode(status, forKey: .status)
             try container.encode(nextDueDate, forKey: .nextDueDate)
+            try container.encode(recordedTransactionIds, forKey: .recordedTransactionIds)
+        case let .subscriptionSearchResult(total, monthlyTotal, yearlyTotal, items):
+            try container.encode(total, forKey: .total)
+            try container.encode(monthlyTotal, forKey: .monthlyTotal)
+            try container.encode(yearlyTotal, forKey: .yearlyTotal)
+            try container.encode(items, forKey: .items)
+        case let .subscriptionSaved(id, status, nextChargeDate, recurringRuleId, recordedTransactionIds):
+            try container.encode(id, forKey: .id)
+            try container.encode(status, forKey: .status)
+            try container.encode(nextChargeDate, forKey: .nextChargeDate)
+            try container.encode(recurringRuleId, forKey: .recurringRuleId)
             try container.encode(recordedTransactionIds, forKey: .recordedTransactionIds)
         }
     }
@@ -1249,8 +1775,12 @@ nonisolated enum VoiceSessionCapability: String, Encodable, Equatable, Sendable 
     /// 周期记账工具：查询、新建、修改（含暂停、恢复）、删除周期记账。规则不放进上下文，由模型按需查询。
     case recurringTools = "recurring_tools"
 
+    /// 订阅工具：查询、新建、修改（含取消、恢复、开关自动记账）、删除订阅。订阅不放进上下文，由模型按需查询；
+    /// 声明后周期记账查询结果的每条规则都带 `subscriptionId`。
+    case subscriptionTools = "subscription_tools"
+
     /// 当前版本声明的能力；声明某项能力前，它对应的工具必须都能解码和执行。
-    static let declared: [VoiceSessionCapability] = [.accountTools, .recurringTools]
+    static let declared: [VoiceSessionCapability] = [.accountTools, .recurringTools, .subscriptionTools]
 }
 
 /// 一次请求：会话上下文与截至目前的全部事件。
@@ -1276,8 +1806,11 @@ nonisolated struct VoiceSessionTurnRequest: Encodable, Equatable, Sendable {
     /// 本次会话的全部事件，最多 80 条。
     var events: [VoiceSessionEvent]
 
+    /// 账本币种，ISO 4217 三位大写字母；模型按它记账，用户说的货币单位不换算。总是编码，服务端不带时按 `CNY` 处理。
+    var currency: String
+
     private enum CodingKeys: String, CodingKey {
-        case locale, capabilities, now, defaultAccountId, accounts, categories, events
+        case locale, capabilities, now, defaultAccountId, accounts, categories, events, currency
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1289,6 +1822,7 @@ nonisolated struct VoiceSessionTurnRequest: Encodable, Equatable, Sendable {
         try container.encode(accounts, forKey: .accounts)
         try container.encode(categories, forKey: .categories)
         try container.encode(events, forKey: .events)
+        try container.encode(currency, forKey: .currency)
     }
 }
 

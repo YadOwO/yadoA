@@ -280,17 +280,19 @@ struct HomeOverviewPresentation {
     /// - Parameters:
     ///   - transactions: 跨账户查询得到的原始流水。
     ///   - accounts: 当前账户快照。
+    ///   - ledgerCurrencyCode: 当前账本币种；币种和它不同的流水只能查看。
     /// - Returns: 可以修改或删除的流水 UUID。
     static func editableTransactionIDs(
         transactions: [AccountTransaction],
-        accounts: [Account]
+        accounts: [Account],
+        ledgerCurrencyCode: String
     ) -> Set<UUID> {
         let editableAccountIDs = Set(
-            accounts.filter { $0.acceptsBookkeepingEntries }.map(\.id)
+            accounts.filter { $0.acceptsBookkeepingEntries(ledgerCurrencyCode: ledgerCurrencyCode) }.map(\.id)
         )
         return Set(
             transactions
-                .filter { $0.currencyCode == BookkeepingCurrency.code && editableAccountIDs.contains($0.accountID) }
+                .filter { $0.currencyCode == ledgerCurrencyCode && editableAccountIDs.contains($0.accountID) }
                 .map(\.id)
         )
     }

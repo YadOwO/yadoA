@@ -7,6 +7,7 @@ import SwiftUI
 struct ChartView: View {
     @Environment(\.calendar) private var environmentCalendar
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Query private var transactions: [AccountTransaction]
     @Query private var categories: [BookkeepingCategory]
 
@@ -47,6 +48,7 @@ struct ChartView: View {
             transactions: transactions,
             calendar: environmentCalendar,
             locale: locale,
+            currencyCode: currencyCode,
             catalog: BookkeepingCategoryCatalog(categories: categories)
         )
 
@@ -103,7 +105,8 @@ struct ChartView: View {
                                         : "category.ranking.income.title",
                                     locale: locale
                                 ),
-                                items: chart.categoryRanking
+                                items: chart.categoryRanking,
+                                currencyCode: currencyCode
                             )
                         }
                     }
@@ -358,6 +361,7 @@ struct ChartTimeSelector: View {
 /// 标题换成那天的完整日期，金额和笔数换成那天的，与余额走势选中某天时换掉上方金额一致。
 private struct ChartSummaryHeader: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
 
     /// 当前周期的完整展示投影。
     let chart: ChartOverviewPresentation
@@ -412,7 +416,7 @@ private struct ChartSummaryHeader: View {
 
     /// 当前周期收支总额的本地化货币金额。
     private var formattedTotal: String {
-        chart.totalAmount.formattedCurrency(locale: locale)
+        chart.totalAmount.formattedCurrency(locale: locale, currencyCode: currencyCode)
     }
 }
 

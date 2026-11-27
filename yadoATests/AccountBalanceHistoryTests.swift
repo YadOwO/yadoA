@@ -39,7 +39,7 @@ struct AccountBalanceHistoryTests {
                 try expense(credit.id, amount: 300, day: 20260812),
                 try AccountTransaction.validatingTransfer(
                     id: UUID(), fromAccountID: cash.id, toAccountID: credit.id,
-                    amount: 150, transactionDay: 20260815
+                    amount: 150, currencyCode: "CNY", transactionDay: 20260815
                 )
             ],
             today: try day(20260815),
@@ -82,7 +82,7 @@ struct AccountBalanceHistoryTests {
         #expect(liabilities.points.first?.amount == 0)
         #expect(liabilities.points.last?.amount == 300)
         #expect(liabilities.direction == .debt)
-        #expect(net.points.last?.amount == AccountSummaryPresentation.summary(for: accounts).netAssets)
+        #expect(net.points.last?.amount == AccountSummaryPresentation.summary(for: accounts, currencyCode: "CNY").netAssets)
     }
 
     @Test("日期晚于今天的流水让走势画到那一天，终点仍等于当前余额")
@@ -180,7 +180,7 @@ struct AccountBalanceHistoryTests {
         let creditID = UUID()
         let transfer = try AccountTransaction.validatingTransfer(
             id: UUID(), fromAccountID: cashID, toAccountID: creditID,
-            amount: 150, transactionDay: 20260815
+            amount: 150, currencyCode: "CNY", transactionDay: 20260815
         )
 
         let changes = try AccountBalanceRebuilder.balanceChanges(
@@ -406,7 +406,7 @@ struct AccountBalanceHistoryTests {
             note: nil,
             lastFourDigits: nil,
             balance: balance,
-            currencyCode: BookkeepingCurrency.code,
+            currencyCode: BookkeepingCurrency.fallbackCode,
             createdAt: createdAt,
             updatedAt: createdAt
         )
@@ -416,7 +416,7 @@ struct AccountBalanceHistoryTests {
     private func expense(_ accountID: UUID, amount: Decimal, day: Int) throws -> AccountTransaction {
         try AccountTransaction.validatingExpense(
             id: UUID(), accountID: accountID, category: .dining,
-            amount: amount, transactionDay: day
+            amount: amount, currencyCode: "CNY", transactionDay: day
         )
     }
 
@@ -424,7 +424,7 @@ struct AccountBalanceHistoryTests {
     private func income(_ accountID: UUID, amount: Decimal, day: Int) throws -> AccountTransaction {
         try AccountTransaction.validatingIncome(
             id: UUID(), accountID: accountID, category: .salary,
-            amount: amount, transactionDay: day
+            amount: amount, currencyCode: "CNY", transactionDay: day
         )
     }
 }

@@ -83,7 +83,7 @@ struct SyncLifecycleAccountDeletionTests {
 
     /// 保存一个现金账户。
     private func saveAccount(in container: ModelContainer) throws {
-        try LocalAccountRepository(container: container).save(
+        try LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny).save(
             AccountDraft(id: UUID(), accountType: .cash, template: nil, name: "现金", amountText: "100"),
             locale: Locale(identifier: "en_US")
         )

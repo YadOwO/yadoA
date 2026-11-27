@@ -70,9 +70,10 @@ struct VoiceBookkeepingDock: View {
                     onOpenChat: { voice.openChat(isSignedIn: authStore.isAuthenticated) },
                     onCreateAccount: { voice.accountCreationTurn = $0 },
                     onOpenRecurringRules: { voice.isRecurringRulesPresented = true },
+                    onOpenSubscriptions: { voice.isSubscriptionsPresented = true },
                     onTouchingChange: { voice.isTouchingCard = $0 },
                     isShowingDetail: voice.presentedTransaction != nil || voice.presentedAccount != nil
-                        || voice.isRecurringRulesPresented
+                        || voice.isRecurringRulesPresented || voice.isSubscriptionsPresented
                 )
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
@@ -395,6 +396,17 @@ private struct VoiceBookkeepingHost: ViewModifier {
                             // 列表右侧已有新建按钮，关闭放在左侧
                             ToolbarItem(placement: .cancellationAction) {
                                 Button(text("common.close"), systemImage: "xmark") { voice.isRecurringRulesPresented = false }
+                            }
+                        }
+                }
+            }
+            .sheet(isPresented: $voice.isSubscriptionsPresented) {
+                NavigationStack {
+                    UserSubscriptionListView()
+                        .toolbar {
+                            // 列表右侧已有新建按钮，关闭放在左侧
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(text("common.close"), systemImage: "xmark") { voice.isSubscriptionsPresented = false }
                             }
                         }
                 }

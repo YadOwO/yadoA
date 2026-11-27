@@ -98,7 +98,7 @@ struct UnlinkedAccountTests {
     @Test("选择框点不关联账户时只建一次")
     func ensureUnlinkedAccountIsIdempotent() throws {
         let dataContainer = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
 
         #expect(try repository.ensureUnlinkedAccount(locale: Locale(identifier: "zh-Hans")) == Account.unlinkedID)
         #expect(try repository.ensureUnlinkedAccount() == Account.unlinkedID)
@@ -111,7 +111,7 @@ struct UnlinkedAccountTests {
     @Test("只有不关联账户时仍自动建现金账户，且不关联账户不能当默认")
     func starterCashIgnoresUnlinkedAccount() throws {
         let dataContainer = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         try repository.ensureUnlinkedAccount()
 
         let starterID = try #require(try repository.createStarterAccountIfNeeded())
@@ -125,7 +125,7 @@ struct UnlinkedAccountTests {
     @Test("不关联账户不能改名、停用或删除")
     func unlinkedAccountRejectsAccountOperations() throws {
         let dataContainer = try AccountDataContainer.inMemory()
-        let repository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let repository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         try repository.ensureUnlinkedAccount()
         let unlinked = try #require(try repository.account(id: Account.unlinkedID))
 
@@ -151,20 +151,20 @@ struct UnlinkedAccountTests {
             note: nil,
             lastFourDigits: nil,
             balance: 100,
-            currencyCode: BookkeepingCurrency.code,
+            currencyCode: BookkeepingCurrency.fallbackCode,
             createdAt: now,
             updatedAt: now
         )
-        let unlinked = Account.makeUnlinked(locale: Locale(identifier: "zh-Hans"), now: now)
+        let unlinked = Account.makeUnlinked(currencyCode: "CNY", locale: Locale(identifier: "zh-Hans"), now: now)
         // 即使数据异常、不关联账户有余额，也不能算进资产
         unlinked.balance = 999
         let accounts = [cash, unlinked]
 
         #expect(AccountListPresentation.sorted(accounts, order: .default).map(\.id) == [cash.id])
-        #expect(AccountSummaryPresentation.summary(for: accounts).netAssets == 100)
-        #expect(AssetAnalysisPresentation(accounts: accounts).assets == 100)
+        #expect(AccountSummaryPresentation.summary(for: accounts, currencyCode: "CNY").netAssets == 100)
+        #expect(AssetAnalysisPresentation(accounts: accounts, currencyCode: "CNY").assets == 100)
         #expect(TransferView.transferableAccounts(accounts, order: .default).map(\.id) == [cash.id])
-        #expect(unlinked.acceptsBookkeepingEntries)
+        #expect(unlinked.acceptsBookkeepingEntries(ledgerCurrencyCode: "CNY"))
         #expect(!unlinked.isEligibleForDefault)
         #expect(!unlinked.supportsBookkeeping)
     }
@@ -173,7 +173,7 @@ struct UnlinkedAccountTests {
     func unlinkedRowPresentation() {
         let locale = Locale(identifier: "zh-Hans")
         let row = AccountListPresentation.row(
-            for: Account.makeUnlinked(locale: Locale(identifier: "en_US")),
+            for: Account.makeUnlinked(currencyCode: "CNY", locale: Locale(identifier: "en_US")),
             locale: locale
         )
         #expect(row.id == Account.unlinkedID)
@@ -212,7 +212,7 @@ struct UnlinkedAccountTests {
     @Test("不关联账户的展示名称按当前语言取词，普通账户原样返回名称")
     func localizedNameFollowsCurrentLocale() {
         let chinese = Locale(identifier: "zh-Hans")
-        let unlinked = Account.makeUnlinked(locale: Locale(identifier: "en_US"))
+        let unlinked = Account.makeUnlinked(currencyCode: "CNY", locale: Locale(identifier: "en_US"))
         #expect(
             unlinked.localizedName(locale: chinese)
                 == AccountLocalization.string("account.unlinked.name", locale: chinese)
@@ -226,7 +226,7 @@ struct UnlinkedAccountTests {
             note: nil,
             lastFourDigits: nil,
             balance: 10,
-            currencyCode: BookkeepingCurrency.code,
+            currencyCode: BookkeepingCurrency.fallbackCode,
             createdAt: .now,
             updatedAt: .now,
             deactivatedAt: nil
@@ -239,7 +239,7 @@ struct UnlinkedAccountTests {
     /// 保存一个现金账户并返回它的 UUID。
     private func saveCash(amountText: String, in container: ModelContainer) throws -> UUID {
         let draft = AccountDraft(accountType: .cash, name: "现金", amountText: amountText)
-        try LocalAccountRepository(container: container).save(draft, locale: Locale(identifier: "en_US"))
+        try LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny).save(draft, locale: Locale(identifier: "en_US"))
         return draft.id
     }
 

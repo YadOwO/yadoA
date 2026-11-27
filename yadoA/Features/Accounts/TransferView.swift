@@ -6,6 +6,7 @@ import UIKit
 struct TransferView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.calendar) private var calendar
     @FocusState private var focusedField: FocusedField?
     @AccessibilityFocusState private var isSaveErrorFocused: Bool
@@ -59,11 +60,7 @@ struct TransferView: View {
                 action: submit
             )
             .disabled(!flow.canSubmit)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .frame(maxWidth: 620)
-            .frame(maxWidth: .infinity)
-            .background(Color(.paperBackground))
+            .ledgerBottomBar()
             .accessibilityIdentifier("transfer-save")
         }
         .toolbar {
@@ -221,7 +218,11 @@ struct TransferView: View {
                     get: { flow.draft.amountText },
                     set: {
                         isSaveErrorFocused = false
-                        flow.updateAmountText($0, decimalSeparator: locale.decimalSeparator ?? ".")
+                        flow.updateAmountText(
+                            $0,
+                            decimalSeparator: locale.decimalSeparator ?? ".",
+                            fractionDigits: BookkeepingCurrency.inputFractionDigits(for: currencyCode)
+                        )
                     }
                 ),
                 prompt: Text(verbatim: "0")

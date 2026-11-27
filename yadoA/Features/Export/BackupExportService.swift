@@ -158,6 +158,11 @@ final class BackupExportService {
             return lhs.id.uuidString < rhs.id.uuidString
         }
 
+        let subscriptions = try context.fetch(FetchDescriptor<UserSubscription>()).sorted { lhs, rhs in
+            if lhs.createdAt != rhs.createdAt { return lhs.createdAt < rhs.createdAt }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
+
         let preference = try context.canonicalBookkeepingPreference()
         return BackupFile(
             exportedAt: exportedAt,
@@ -169,7 +174,8 @@ final class BackupExportService {
             transactions: transactions.map(BackupTransaction.init),
             bookkeepingPreference: preference.map(BackupBookkeepingPreference.init),
             categories: categories.map(BackupCategory.init),
-            recurringRules: recurringRules.map(BackupRecurringRule.init)
+            recurringRules: recurringRules.map(BackupRecurringRule.init),
+            subscriptions: subscriptions.map(BackupSubscription.init)
         )
     }
 

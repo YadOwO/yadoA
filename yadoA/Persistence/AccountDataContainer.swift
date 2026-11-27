@@ -17,11 +17,11 @@ struct AccountDataContainer {
     /// 创建容器时明确选择的存储介质。
     let storage: Storage
 
-    /// 当前本地财务 schema，取迁移计划里的最新版本 `FinanceSchemaV1`（9.0.0）。
+    /// 当前本地财务 schema，取迁移计划里的最新版本 `FinanceSchemaV2`（10.0.0）。
     ///
-    /// 包含账户、类型化流水、默认账户偏好、收支分类设置、周期记账规则、同步台账和 AI 对话记录。
+    /// 包含账户、类型化流水、默认账户偏好、收支分类设置、周期记账规则、同步台账、AI 对话记录和订阅。
     /// 出新版本时，改指向最新的 `FinanceSchemaV<n>`。
-    static let schema = FinanceSchemaV1.schema
+    static let schema = FinanceSchemaV2.schema
 
     /// 创建生产环境文件存储，不会在失败时删除、替换或降级现有文件。
     ///

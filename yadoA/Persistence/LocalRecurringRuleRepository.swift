@@ -137,7 +137,9 @@ final class LocalRecurringRuleRepository {
     }
 
     /// 校验提交内容：金额、日期、分类 key 合法，结束日期不早于下一期，账户可以记账，分类可用。
-    private static func validate(_ input: RecurringRuleInput, in context: ModelContext) throws {
+    ///
+    /// 订阅打开自动记账时，也用它在同一个 context 里校验要建或要改的规则。
+    static func validate(_ input: RecurringRuleInput, in context: ModelContext) throws {
         guard input.amount > 0,
               AccountAmountParser.hasCNYPrecision(input.amount),
               TransactionDay.isValid(input.nextDueDay),
@@ -188,6 +190,8 @@ final class LocalRecurringRuleRepository {
 
     /// 删除一条规则；已经生成的流水保留。
     ///
+    /// 规则是订阅自动记账建的话，同一次保存里关掉那条订阅的自动记账，订阅本身保留。
+    ///
     /// - Parameter id: 规则 UUID。
     /// - Throws: 规则不存在或保存失败时抛出错误。
     func delete(id: UUID) throws {
@@ -196,6 +200,7 @@ final class LocalRecurringRuleRepository {
             throw RecurringRuleRepositoryError.ruleNotFound(id)
         }
         context.delete(rule)
+        try context.detachSubscriptions(fromRuleID: id)
         try context.saveOrRollback(beforeSave: beforeSave)
     }
 

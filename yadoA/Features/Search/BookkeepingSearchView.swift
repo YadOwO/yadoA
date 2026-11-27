@@ -6,6 +6,7 @@ import SwiftUI
 /// 页面从上到下是：系统搜索栏、常驻的筛选条、内容区。内容区在没有任何条件时展示最近搜索和
 /// 常用分类，有条件时展示与首页同一写法的按日流水；筛选条在输入关键词时也始终点得到。
 struct BookkeepingSearchView: View {
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.calendar) private var environmentCalendar
     @Environment(\.locale) private var locale
     @Query private var transactions: [AccountTransaction]
@@ -224,14 +225,14 @@ struct BookkeepingSearchView: View {
             parts.append(String(
                 format: text("bookkeeping.search.summary.expense"),
                 locale: locale,
-                summary.expenseTotal.formattedCurrency(locale: locale)
+                summary.expenseTotal.formattedCurrency(locale: locale, currencyCode: currencyCode)
             ))
         }
         if summary.incomeTotal > 0 {
             parts.append(String(
                 format: text("bookkeeping.search.summary.income"),
                 locale: locale,
-                summary.incomeTotal.formattedCurrency(locale: locale)
+                summary.incomeTotal.formattedCurrency(locale: locale, currencyCode: currencyCode)
             ))
         }
         return parts.joined(separator: " · ")

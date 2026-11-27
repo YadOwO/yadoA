@@ -218,13 +218,18 @@ final class LocalAccountRepository {
     /// 测试可注入的保存前故障点；生产环境默认为空操作。
     private let beforeSave: () throws -> Void
 
+    /// 账本里还没有账户时，读取本机存的币种选择；测试时可注入隔离实例。
+    private let defaults: UserDefaults
+
     /// 使用应用级容器创建账户仓库。
     init(
         container: ModelContainer,
-        beforeSave: @escaping () throws -> Void = {}
+        beforeSave: @escaping () throws -> Void = {},
+        defaults: UserDefaults = .standard
     ) {
         self.container = container
         self.beforeSave = beforeSave
+        self.defaults = defaults
     }
 
     /// 为兼容既有测试和诊断提供一个关闭自动保存的新鲜 context。
@@ -243,6 +248,7 @@ final class LocalAccountRepository {
 
     /// 一次保存多个账户：全部校验通过才写入，要么都成功，要么都不生效。
     ///
+    /// 新账户的币种取保存时账本的币种（`BookkeepingCurrency.current(in:)`），期初余额的小数位也按它限制。
     /// 还没有默认记账账户时，按传入顺序把第一个符合资格的账户设为默认。首次引导最后一页点按钮时用它一次写入用户选的账户。
     /// - Parameters:
     ///   - drafts: 按用户选择顺序排列的账户草稿。
@@ -255,8 +261,11 @@ final class LocalAccountRepository {
         now: Date = .now
     ) throws {
         guard !drafts.isEmpty else { return }
-        let accounts = try drafts.map { try Account.validating(draft: $0, locale: locale, now: now) }
         let context = makeContext()
+        let currencyCode = try BookkeepingCurrency.current(in: context, defaults: defaults)
+        let accounts = try drafts.map {
+            try Account.validating(draft: $0, currencyCode: currencyCode, locale: locale, now: now)
+        }
         var seenIDs: Set<UUID> = []
         for draft in drafts {
             guard seenIDs.insert(draft.id).inserted, try context.account(id: draft.id) == nil else {

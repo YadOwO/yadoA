@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import yadoA
 
@@ -191,10 +192,12 @@ struct VoiceSessionContractTests {
                 .toolResult(VoiceToolResult(toolCallId: "c1", name: .deleteTransaction, output: .failure(.notFound))),
                 .toolResult(VoiceToolResult(toolCallId: "c2", name: .createTransaction, output: .created(id: "T2"))),
                 .assistant(text: "已记 1 笔"),
-            ]
+            ],
+            currency: "CNY"
         )
         let object = try jsonObject(request)
         #expect(object["defaultAccountId"] is NSNull)
+        #expect(object["currency"] as? String == "CNY")
         #expect(object["capabilities"] as? [String] == ["account_tools"])
         let accounts = try #require(object["accounts"] as? [[String: Any]])
         #expect(accounts.map { $0["type"] as? String } == ["virtualAccount", "creditCard"])
@@ -210,6 +213,44 @@ struct VoiceSessionContractTests {
         #expect(created["id"] as? String == "T2")
     }
 
+    @Test("请求总是带账本币种，值就是传入的币种")
+    func requestAlwaysEncodesLedgerCurrency() throws {
+        for code in ["CNY", "USD", "JPY"] {
+            let request = VoiceSessionTurnRequest(
+                locale: "en",
+                capabilities: [],
+                now: "2026-10-20T12:30:00-07:00",
+                defaultAccountId: nil,
+                accounts: [],
+                categories: [],
+                events: [.user(text: "lunch 35 dollars", selectedOptionId: nil)],
+                currency: code
+            )
+            let object = try jsonObject(request)
+            #expect(object["currency"] as? String == code)
+        }
+    }
+
+    @Test("会话上下文带账本币种，币种不同的账户不能记账")
+    func sessionContextCarriesLedgerCurrency() throws {
+        let container = try AccountDataContainer.inMemory().modelContainer
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        let earliest = makeAccount(name: "美元账户", currency: "USD", createdAt: 1_000)
+        let later = makeAccount(name: "人民币账户", currency: "CNY", createdAt: 2_000)
+        context.insert(earliest)
+        context.insert(later)
+        try context.save()
+
+        let sessionContext = VoiceSessionContext.make(container: container, locale: Locale(identifier: "zh-Hans"))
+
+        // 账本币种取最早建的账户：USD；人民币账户和账本币种不一致，不能记账
+        #expect(sessionContext.currencyCode == "USD")
+        let options = Dictionary(uniqueKeysWithValues: sessionContext.accounts.map { ($0.id, $0.isActive) })
+        #expect(options[earliest.id.uuidString] == true)
+        #expect(options[later.id.uuidString] == false)
+    }
+
     @Test("带图片的一句话编码为 user 事件和 images")
     func encodesUserEventWithImages() throws {
         let request = VoiceSessionTurnRequest(
@@ -219,7 +260,8 @@ struct VoiceSessionContractTests {
             defaultAccountId: nil,
             accounts: [],
             categories: [],
-            events: [.userWithImages(text: "记一下", images: [VoiceSessionImage(data: "AAEC", mediaType: "image/jpeg")])]
+            events: [.userWithImages(text: "记一下", images: [VoiceSessionImage(data: "AAEC", mediaType: "image/jpeg")])],
+            currency: "CNY"
         )
         let object = try jsonObject(request)
         let event = try #require((object["events"] as? [[String: Any]])?.first)
@@ -336,13 +378,58 @@ struct VoiceSessionContractTests {
         #expect(item["status"] as? String == "unavailable")
     }
 
-    @Test("当前版本声明账户工具和周期记账工具")
+    @Test("订阅工具调用解码：修改里不出现表示不改、null 表示清空或关闭，原样回传时保持一致")
+    func decodesAndEncodesSubscriptionToolCalls() throws {
+        let json = """
+        {"status":"tool_calls","canFinishLocally":true,"toolCalls":[
+          {"id":"c1","name":"create_subscription","input":{"name":"Netflix","amount":"68","frequency":"monthly",
+            "category":"media","channel":"appStore","status":"active","nextChargeDate":"2026-10-28",
+            "reminderDaysBefore":null,"note":null,"bookkeeping":{"accountId":"A1","categoryId":null},
+            "inferredFields":["chargeDate"]}},
+          {"id":"c2","name":"update_subscription","input":{"subscriptionId":"S1","patch":{
+            "status":"cancelled","reminderDaysBefore":null,"bookkeeping":null,"keepsRecurringRule":true}}},
+          {"id":"c3","name":"delete_subscription","input":{"subscriptionId":"S2","keepsRecurringRule":false}}
+        ]}
+        """
+        let response = try JSONDecoder().decode(VoiceSessionTurnResponse.self, from: Data(json.utf8))
+        guard case let .toolCalls(calls, _, _) = response, calls.count == 3 else {
+            Issue.record("应为三个工具调用")
+            return
+        }
+        guard case let .createSubscription(_, create) = calls[0] else {
+            Issue.record("第一个应为新建订阅")
+            return
+        }
+        #expect(create.bookkeeping == VoiceSubscriptionBookkeeping(accountId: "A1", categoryId: nil))
+        #expect(create.inferredFields == [.chargeDate])
+        guard case let .updateSubscription(_, update) = calls[1] else {
+            Issue.record("第二个应为修改订阅")
+            return
+        }
+        #expect(update.patch.status == .cancelled)
+        #expect(update.patch.reminderDaysBefore == .clear)
+        #expect(update.patch.bookkeeping == .clear)
+        #expect(update.patch.note == nil)
+        #expect(update.patch.keepsRecurringRule == true)
+
+        let createObject = try #require(try jsonObject(calls[0])["input"] as? [String: Any])
+        #expect(createObject["reminderDaysBefore"] is NSNull)
+        #expect((createObject["bookkeeping"] as? [String: Any])?["categoryId"] is NSNull)
+        let patchObject = try #require((try jsonObject(calls[1])["input"] as? [String: Any])?["patch"] as? [String: Any])
+        #expect(patchObject["bookkeeping"] is NSNull)
+        #expect(!patchObject.keys.contains("note"))
+        for call in calls {
+            #expect(try JSONDecoder().decode(VoiceToolCall.self, from: JSONEncoder().encode(call)) == call)
+        }
+    }
+
+    @Test("当前版本声明账户工具、周期记账工具和订阅工具")
     func declaresCapabilities() throws {
         let request = VoiceSessionTurnRequest(
             locale: "zh-Hans", capabilities: VoiceSessionCapability.declared, now: "2026-10-20T12:30:00+08:00",
-            defaultAccountId: nil, accounts: [], categories: [], events: []
+            defaultAccountId: nil, accounts: [], categories: [], events: [], currency: "CNY"
         )
-        #expect(try jsonObject(request)["capabilities"] as? [String] == ["account_tools", "recurring_tools"])
+        #expect(try jsonObject(request)["capabilities"] as? [String] == ["account_tools", "recurring_tools", "subscription_tools"])
     }
 
     @Test("获取凭证失败时也记下凭证耗时，且没有发出请求")
@@ -355,7 +442,7 @@ struct VoiceSessionContractTests {
         let endpoint = try #require(URL(string: "https://example.invalid"))
         let request = VoiceSessionTurnRequest(
             locale: "zh-Hans", capabilities: [], now: "2026-10-20T12:30:00-07:00", defaultAccountId: nil,
-            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)]
+            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)], currency: "CNY"
         )
         for (authError, expected) in cases {
             // 模拟凭证过期后刷新很慢、最终失败
@@ -378,7 +465,7 @@ struct VoiceSessionContractTests {
         let endpoint = try #require(URL(string: "https://example.invalid"))
         let request = VoiceSessionTurnRequest(
             locale: "zh-Hans", capabilities: [], now: "2026-10-20T12:30:00-07:00", defaultAccountId: nil,
-            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)]
+            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)], currency: "CNY"
         )
         let trace = VoiceRequestTrace(sessionID: "S", turn: 1, request: 1)
         func consentHeader(of api: VoiceSessionAPI) throws -> String? {
@@ -403,7 +490,7 @@ struct VoiceSessionContractTests {
         let endpoint = try #require(URL(string: "https://example.invalid"))
         let request = VoiceSessionTurnRequest(
             locale: "zh-Hans", capabilities: [], now: "2026-10-20T12:30:00-07:00", defaultAccountId: nil,
-            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)]
+            accounts: [], categories: [], events: [.user(text: "午饭 28", selectedOptionId: nil)], currency: "CNY"
         )
         let trace = VoiceRequestTrace(sessionID: "S", turn: 1, request: 1)
         let api = VoiceSessionAPI(endpoint: endpoint) { "token" }
@@ -466,6 +553,22 @@ struct VoiceSessionContractTests {
         #expect(!AuthStore.isRevokedTokenResponse(statusCode: 400, body: Data(#"{"error":"invalid_request"}"#.utf8)))
         #expect(!AuthStore.isRevokedTokenResponse(statusCode: 500, body: Data(#"{"error":"invalid_grant"}"#.utf8)))
         #expect(!AuthStore.isRevokedTokenResponse(statusCode: 400, body: nil))
+    }
+
+    /// 只带币种和创建时间的现金账户。
+    private func makeAccount(name: String, currency: String, createdAt: TimeInterval) -> Account {
+        Account(
+            id: UUID(),
+            typeRawValue: AccountType.cash.rawValue,
+            templateID: nil,
+            name: name,
+            note: nil,
+            lastFourDigits: nil,
+            balance: 0,
+            currencyCode: currency,
+            createdAt: Date(timeIntervalSince1970: createdAt),
+            updatedAt: Date(timeIntervalSince1970: createdAt)
+        )
     }
 
     /// 编码为 JSON 对象，便于检查字段是否出现、是否为 null。

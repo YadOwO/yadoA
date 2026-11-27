@@ -47,7 +47,7 @@ struct CustomCategoryPresentationTests {
         #expect(result.dayGroups.first?.rows.first?.symbolName == "cup.and.saucer")
 
         let detail = try #require(BookkeepingSearchPresentation.detail(
-            for: transaction, account: nil, locale: chinese, catalog: catalog
+            for: transaction, account: nil, ledgerCurrencyCode: "CNY", locale: chinese, catalog: catalog
         ))
         #expect(detail.categoryTitle == "咖啡")
         #expect(detail.categorySymbolName == "cup.and.saucer")
@@ -67,6 +67,7 @@ struct CustomCategoryPresentationTests {
             ],
             calendar: calendar,
             locale: chinese,
+            currencyCode: "CNY",
             catalog: catalog
         )
 
@@ -84,7 +85,7 @@ struct CustomCategoryPresentationTests {
         ))
         #expect(row.title == "咖啡")
 
-        let draft = try #require(DiningExpenseEditDraft(transaction: transaction, catalog: catalog))
+        let draft = try #require(DiningExpenseEditDraft(transaction: transaction, ledgerCurrencyCode: "CNY", catalog: catalog))
         #expect(draft.expenseCategoryKey == coffeeKey)
         #expect(draft.incomeCategoryKey == "salary")
     }
@@ -93,7 +94,7 @@ struct CustomCategoryPresentationTests {
     private func expense(key: String, amount: Decimal) throws -> AccountTransaction {
         try AccountTransaction.validatingExpense(
             id: UUID(), accountID: UUID(), categoryKey: key,
-            amount: amount, transactionDay: 20261020
+            amount: amount, currencyCode: "CNY", transactionDay: 20261020
         )
     }
 }

@@ -33,7 +33,7 @@ struct BalanceTrendChart: View {
 
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var environmentCalendar
-    @AppStorage(AmountColorConvention.storageKey) private var convention: AmountColorConvention = .positiveRed
+    @AppStorage(AmountColorConvention.storageKey) private var convention: AmountColorConvention = .regionDefault()
 
     /// 要画的走势。
     let series: BalanceTrendSeries
@@ -203,6 +203,7 @@ final class BalanceTrendSelection {
 
 /// 盖在完整走势上的一层：画选中那天的竖线和圆点，接点按、左右滑动和读屏的上下轻扫。
 private struct BalanceTrendSelectionLayer: View {
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     /// 点按已选中那天附近多远算「点在它上面」：手指宽度左右，点中就收起选中。
     private static let deselectTolerance: CGFloat = 22
 
@@ -327,7 +328,7 @@ private struct BalanceTrendSelectionLayer: View {
         guard let point else { return "" }
         return [
             BalanceTrendFormatting.date(point.date, locale: locale, calendar: calendar),
-            point.amount.formattedCurrency(locale: locale)
+            point.amount.formattedCurrency(locale: locale, currencyCode: currencyCode)
         ].joined(separator: ", ")
     }
 }
@@ -375,6 +376,7 @@ struct BalanceTrendPanel<Accessory: View>: View {
 /// 走势卡片左上的金额与变化说明，选中某天时换成那天的金额和日期。
 private struct BalanceTrendHeader: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.calendar) private var calendar
 
     /// 金额上方的小标题。
@@ -395,7 +397,7 @@ private struct BalanceTrendHeader: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            Text(amount.formattedCurrency(locale: locale))
+            Text(amount.formattedCurrency(locale: locale, currencyCode: currencyCode))
                 .font(.system(.title, design: .serif, weight: .medium).monospacedDigit())
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
@@ -430,6 +432,7 @@ extension BalanceTrendPanel where Accessory == EmptyView {
 /// 「较 2026/8/17 +¥1,234.00」：起点日期加带符号的变化，变化按对净资产的好坏上色。
 struct BalanceTrendChangeLine: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.calendar) private var calendar
 
     /// 走势；变化取它的第一点到最后一点。
@@ -443,7 +446,7 @@ struct BalanceTrendChangeLine: View {
             Text(Self.sinceText(since, locale: locale, calendar: calendar))
                 .foregroundStyle(.secondary)
 
-            Text(Self.changeText(series, locale: locale))
+            Text(Self.changeText(series, locale: locale, currencyCode: currencyCode))
                 .amountTone(series.changeTone)
         }
         .font(.system(.footnote, design: .serif).monospacedDigit())
@@ -470,10 +473,11 @@ struct BalanceTrendChangeLine: View {
     /// - Parameters:
     ///   - series: 走势；变化取第一点到最后一点。
     ///   - locale: 语言环境。
-    static func changeText(_ series: BalanceTrendSeries, locale: Locale) -> String {
+    ///   - currencyCode: 金额使用的账本币种。
+    static func changeText(_ series: BalanceTrendSeries, locale: Locale, currencyCode: String) -> String {
         AccountTransactionHistoryPresentation.formattedSignedCurrency(
             series.change,
-            code: BookkeepingCurrency.code,
+            code: currencyCode,
             locale: locale
         )
     }

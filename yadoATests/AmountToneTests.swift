@@ -24,6 +24,18 @@ struct AmountToneTests {
         }
     }
 
+    @Test("正负颜色默认值按地区：中国大陆正数红，其他地区正数绿")
+    func regionDefaultFollowsRegion() {
+        #expect(AmountColorConvention.regionDefault(locale: Locale(identifier: "zh_CN")) == .positiveRed)
+        #expect(AmountColorConvention.regionDefault(locale: Locale(identifier: "en_CN")) == .positiveRed)
+        #expect(AmountColorConvention.regionDefault(locale: Locale(identifier: "en_US")) == .positiveGreen)
+        #expect(AmountColorConvention.regionDefault(locale: Locale(identifier: "zh_Hant_HK")) == .positiveGreen)
+        #expect(AmountColorConvention.regionDefault(locale: Locale(identifier: "zh_TW")) == .positiveGreen)
+        #expect(AmountColorConvention.regionDefault(locale: Locale(identifier: "ja_JP")) == .positiveGreen)
+        // 没有地区信息时不算中国大陆
+        #expect(AmountColorConvention.regionDefault(locale: Locale(identifier: "en")) == .positiveGreen)
+    }
+
     @Test("选项文案两种语言都有")
     func conventionTitlesAreLocalized() {
         for convention in AmountColorConvention.allCases {

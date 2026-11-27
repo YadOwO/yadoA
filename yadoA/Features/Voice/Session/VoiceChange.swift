@@ -160,6 +160,42 @@ struct VoiceRecurringChange: Equatable, Identifiable {
     let inverse: RecurringRuleRevert
 }
 
+/// 一次工具执行成功写入的订阅改动：新建、修改、取消、恢复或删除订阅，包括它管的周期记账跟着的变化。
+///
+/// 订阅不在首页明细中展示，结果里点这一行打开订阅列表；自动记账当场记入的流水另作收支改动，排在它后面。
+/// 文字在执行时按当时的语言生成，之后改名也不影响已展示的结果。
+struct VoiceSubscriptionChange: Equatable, Identifiable {
+    /// 本次改动的唯一标识。
+    let id = UUID()
+
+    /// 改动后仍然存在的订阅 UUID；删除时为 `nil`，结果里不再打开列表。
+    let subscriptionID: UUID?
+
+    /// 行首的动作，例如「新建订阅」「已取消」「已删除」。
+    let actionText: String
+
+    /// 行标题：订阅名称。
+    let title: String
+
+    /// 行图标，取订阅分类的图标。
+    let symbolName: String
+
+    /// 行尾的每期金额，不带正负号。
+    let formattedAmount: String
+
+    /// 补充说明，例如「每月 · 12月8日扣费 · App Store · 自动记账」。
+    let detail: String?
+
+    /// 结果提示中的一句，例如「已新建订阅：Netflix，每月 ¥68.00」。
+    let summary: String
+
+    /// 保存后是否还要按时提醒扣费：设了提醒且订阅中或试用中。为真时 App 要确认通知权限并重排提醒。
+    let hasReminder: Bool
+
+    /// 撤销本次改动的反向变更。
+    let inverse: UserSubscriptionRevert
+}
+
 /// 一次工具执行成功写入的改动；一轮按执行顺序记录，撤销时倒序执行。
 enum VoiceChange: Equatable, Identifiable {
     /// 收支流水的新增、修改、删除，可以在首页定位。
@@ -171,18 +207,28 @@ enum VoiceChange: Equatable, Identifiable {
     /// 周期记账规则的改动。
     case recurring(VoiceRecurringChange)
 
+    /// 订阅的改动。
+    case subscription(VoiceSubscriptionChange)
+
     /// 改动的唯一标识。
     var id: UUID {
         switch self {
         case let .entry(change): change.id
         case let .account(change): change.id
         case let .recurring(change): change.id
+        case let .subscription(change): change.id
         }
     }
 
     /// 收支流水的改动；其他改动为 `nil`。
     var entryChange: VoiceEntryChange? {
         if case let .entry(change) = self { return change }
+        return nil
+    }
+
+    /// 订阅的改动；其他改动为 `nil`。
+    var subscriptionChange: VoiceSubscriptionChange? {
+        if case let .subscription(change) = self { return change }
         return nil
     }
 }
@@ -194,7 +240,8 @@ struct VoiceToolExecution: Equatable {
 
     /// 成功写入的改动，按执行顺序排列；查询、汇总和失败时为空。
     ///
-    /// 通常只有一项。新建或修改周期记账时，规则的改动后面紧跟当场记入的各期流水，撤销时一起倒序撤销。
+    /// 通常只有一项。新建或修改周期记账、打开了自动记账的订阅时，规则或订阅的改动后面紧跟当场记入的各期流水，
+    /// 撤销时一起倒序撤销。
     let changes: [VoiceChange]
 
     /// 汇总成功时展示用的结果；其他工具为 `nil`，不回传给服务端。

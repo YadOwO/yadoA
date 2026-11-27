@@ -103,8 +103,9 @@ enum OnboardingAccountOption: String, Codable, CaseIterable, Identifiable {
     /// - Parameters:
     ///   - amountText: 用户填的余额或欠款。
     ///   - locale: 解析金额使用的语言环境。
-    static func isValidAmount(_ amountText: String, locale: Locale) -> Bool {
-        AccountDraft.openingBalance(from: amountText, locale: locale) != nil
+    ///   - fractionDigits: 允许的小数位数，取 `BookkeepingCurrency.inputFractionDigits(for:)`；无小数的币种传 0，默认是存储精度两位。
+    static func isValidAmount(_ amountText: String, locale: Locale, fractionDigits: Int = 2) -> Bool {
+        AccountDraft.openingBalance(from: amountText, locale: locale, fractionDigits: fractionDigits) != nil
     }
 }
 
@@ -132,6 +133,11 @@ struct OnboardingDraft: Codable, Equatable {
 
     /// 建账户这一步是否答过；什么都不选直接继续也算答过。
     var hasAnsweredAccounts = false
+
+    /// 在建账户这一步选的记账币种（ISO 4217）；没改过时为 nil，沿用手机地区的默认币种。
+    ///
+    /// 可选字段：之前版本保存的进度里没有它，解码时为 nil。最后一页写入时才生效，账户按它建。
+    var currencyCode: String?
 }
 
 /// 保存在本机的引导进度，中途退出后下次从这一行继续。
@@ -344,6 +350,8 @@ enum OnboardingCommit {
     /// 写入账户与启动页面，并标记引导完成。
     ///
     /// 账户在同一个 context 里一次保存，全部成功后才写设置和完成标记；失败时什么都不变，可以再按一次。
+    /// 草稿里选了记账币种、并且本机还没有账户时，先把币种存进本机再建账户（账户按它建），保存失败时把存的值恢复原样；
+    /// 已经有账户（例如云端同步下来的）时账本币种以账户为准，不写。
     /// 账本存在哪里在账号那一步已经按用户的选择生效，这里不再改动。
     /// - Parameters:
     ///   - draft: 回答草稿。
@@ -360,7 +368,28 @@ enum OnboardingCommit {
         let accountDrafts = draft.hasCloudAccounts ? [] : draft.accounts.map { option in
             option.accountDraft(amountText: draft.balances[option.rawValue] ?? "", locale: locale)
         }
-        try LocalAccountRepository(container: container).save(accountDrafts, locale: locale)
+        let previousCurrency = defaults.string(forKey: BookkeepingCurrency.storageKey)
+        var didWriteCurrency = false
+        if !draft.hasCloudAccounts,
+           let currencyCode = draft.currencyCode,
+           BookkeepingCurrency.isSelectable(currencyCode),
+           try container.makeManualSaveContext().fetchCount(FetchDescriptor<Account>()) == 0 {
+            defaults.set(currencyCode, forKey: BookkeepingCurrency.storageKey)
+            didWriteCurrency = true
+        }
+        do {
+            try LocalAccountRepository(container: container, defaults: defaults).save(accountDrafts, locale: locale)
+        } catch {
+            // 保存失败：什么都不变，把本机存的币种恢复成原来的样子
+            if didWriteCurrency {
+                if let previousCurrency {
+                    defaults.set(previousCurrency, forKey: BookkeepingCurrency.storageKey)
+                } else {
+                    defaults.removeObject(forKey: BookkeepingCurrency.storageKey)
+                }
+            }
+            throw error
+        }
         defaults.set((draft.startPage ?? .home).rawValue, forKey: AppStartPage.storageKey)
         defaults.set(true, forKey: OnboardingStore.completedKey)
         defaults.removeObject(forKey: OnboardingStore.progressKey)

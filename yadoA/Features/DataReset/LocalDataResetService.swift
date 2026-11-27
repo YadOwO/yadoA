@@ -42,7 +42,7 @@ final class LocalDataResetService {
         self.defaults = defaults
     }
 
-    /// 账本里是否还有可清除的内容（账户或流水）。
+    /// 账本里是否还有可清除的内容（账户、流水、周期记账或订阅）。
     ///
     /// 只剩默认记账账户偏好时视为没有数据：偏好指向的账户已不存在，对用户不可见。
     ///
@@ -52,12 +52,14 @@ final class LocalDataResetService {
         do {
             return try context.fetchCount(FetchDescriptor<Account>()) > 0
                 || context.fetchCount(FetchDescriptor<AccountTransaction>()) > 0
+                || context.fetchCount(FetchDescriptor<UserSubscription>()) > 0
+                || context.fetchCount(FetchDescriptor<RecurringRule>()) > 0
         } catch {
             throw LocalDataResetError.resetFailed
         }
     }
 
-    /// 删除全部账户、流水、记账偏好、分类设置、周期记账规则和同步台账，并补回预置分类默认值。
+    /// 删除全部账户、流水、记账偏好、分类设置、周期记账规则、订阅和同步台账，并补回预置分类默认值。
     ///
     /// 台账一并清空、本次删除不登记墓碑：清空是本机行为，是否同时删除云端数据由调用方另行处理。
     /// 保存成功后同时清掉备份提醒的两个本机记录；保存失败时它们保持不动。
@@ -72,6 +74,7 @@ final class LocalDataResetService {
             try context.fetch(FetchDescriptor<BookkeepingPreference>()).forEach(context.delete)
             try context.fetch(FetchDescriptor<BookkeepingCategory>()).forEach(context.delete)
             try context.fetch(FetchDescriptor<RecurringRule>()).forEach(context.delete)
+            try context.fetch(FetchDescriptor<UserSubscription>()).forEach(context.delete)
             try context.fetch(FetchDescriptor<SyncLedgerEntry>()).forEach(context.delete)
             try context.fetch(FetchDescriptor<AIChatTurnRecord>()).forEach(context.delete)
             try context.saveOrRollback(tracksSyncChanges: false, beforeSave: beforeSave)

@@ -110,13 +110,22 @@ enum AppStartPage: String, CaseIterable, Identifiable {
 
 /// 全局正负颜色：账单结余、账户欠款、点数增减等带正负含义的金额都按它上色。
 enum AmountColorConvention: String, CaseIterable, Identifiable {
-    /// 正数红、负数绿，与国内行情的红涨绿跌一致；默认值。
+    /// 正数红、负数绿，与国内行情的红涨绿跌一致；中国大陆地区的默认值。
     case positiveRed
-    /// 正数绿、负数红。
+    /// 正数绿、负数红；其他地区的默认值。
     case positiveGreen
 
     /// 在本机保存的正负颜色偏好键。
     static let storageKey = "app.display.amountColors"
+
+    /// 用户没选过时按手机地区定的默认值：中国大陆（CN）为正数红，其他地区为正数绿。
+    ///
+    /// 全部 `@AppStorage(storageKey)` 的初始值都引用它，默认值只在这里计算；用户自己选过的值存在 `UserDefaults` 里，`@AppStorage` 优先读它，不受影响。
+    /// - Parameter locale: 取地区的语言环境。
+    /// - Returns: 该地区的默认正负颜色。
+    static func regionDefault(locale: Locale = .current) -> AmountColorConvention {
+        locale.region?.identifier == "CN" ? .positiveRed : .positiveGreen
+    }
 
     /// 选择项的稳定标识。
     var id: String { rawValue }

@@ -17,8 +17,16 @@ extension VoiceToolExecutor {
     func searchRecurringRules(_ input: VoiceSearchRecurringRulesInput) -> VoiceToolOutput {
         let context = container.makeManualSaveContext()
         guard let rules = try? context.fetch(FetchDescriptor<RecurringRule>()),
-              let accounts = try? context.fetch(FetchDescriptor<Account>())
+              let accounts = try? context.fetch(FetchDescriptor<Account>()),
+              let subscriptions = try? context.fetch(FetchDescriptor<UserSubscription>())
         else { return .failure(.failed) }
+        // 订阅自动记账建的规则标出订阅：模型据此改订阅，不单独改规则
+        var owners: [UUID: UUID] = [:]
+        for subscription in subscriptions {
+            if let ruleID = subscription.recurringRuleID {
+                owners[ruleID] = subscription.id
+            }
+        }
         let catalog = Self.catalog(in: context)
         let filter = input.filter
         let entryType = filter.type.map { BookkeepingEntryType($0) }
@@ -28,9 +36,12 @@ extension VoiceToolExecutor {
         let keyword = filter.keyword?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // 与周期记账列表同样的顺序：正常的按下一期从近到远，其次是暂停的，已结束的放最后
-        let sorted = RecurringRuleListPresentation.sorted(rules, accounts: accounts, catalog: catalog)
+        let sorted = RecurringRuleListPresentation.sorted(
+            rules, accounts: accounts, ledgerCurrencyCode: currencyCode, catalog: catalog
+        )
         let items = sorted.compactMap { rule -> VoiceRecurringRuleItem? in
-            guard let item = recurringItem(for: rule, accounts: accounts, catalog: catalog) else { return nil }
+            guard var item = recurringItem(for: rule, accounts: accounts, catalog: catalog) else { return nil }
+            item.subscriptionId = owners[rule.id]?.uuidString
             if let entryType, rule.entryType != entryType { return nil }
             if let categoryKeys, !categoryKeys.contains(rule.categoryKey) { return nil }
             if let accountIDs, !accountIDs.contains(rule.accountID) { return nil }
@@ -49,7 +60,7 @@ extension VoiceToolExecutor {
 
     func createRecurringRule(_ input: VoiceCreateRecurringRuleInput) -> (VoiceToolOutput, [VoiceChange]) {
         guard let accountID = UUID(uuidString: input.accountId),
-              let amount = Self.amount(from: input.amount),
+              let amount = Self.amount(from: input.amount, fractionDigits: amountFractionDigits),
               let nextDueDay = Self.transactionDay(from: input.nextDueDate),
               // 与编辑页一致，下一期只能是今天及以后；补记过去的账由 create_transaction 负责
               nextDueDay >= today,
@@ -99,7 +110,13 @@ extension VoiceToolExecutor {
         guard let id = UUID(uuidString: input.ruleId), let rule = try? context.recurringRule(id: id) else {
             return (.failure(.notFound), [])
         }
-        guard let change = Self.recurringRuleChange(from: input.patch, today: today), !change.isEmpty else {
+        // 订阅自动记账建的规则跟着订阅走：单独改了，下次保存订阅时又会被盖掉，与列表里不能单独暂停一致
+        if (try? context.userSubscription(owningRuleID: id)) != nil {
+            return (.failure(.notEditable), [])
+        }
+        guard let change = Self.recurringRuleChange(
+            from: input.patch, today: today, fractionDigits: amountFractionDigits
+        ), !change.isEmpty else {
             return (.failure(.invalidInput), [])
         }
         let snapshot = RecurringRuleSnapshot(rule: rule)
@@ -142,6 +159,10 @@ extension VoiceToolExecutor {
         let context = container.makeManualSaveContext()
         guard let id = UUID(uuidString: input.ruleId), let rule = try? context.recurringRule(id: id) else {
             return (.failure(.notFound), nil)
+        }
+        // 订阅自动记账建的规则要从订阅里关掉或连订阅一起删，撤销时才能把订阅的自动记账一并还原
+        if (try? context.userSubscription(owningRuleID: id)) != nil {
+            return (.failure(.notEditable), nil)
         }
         let snapshot = RecurringRuleSnapshot(rule: rule)
         let presentation = recurringPresentation(
@@ -207,7 +228,7 @@ extension VoiceToolExecutor {
         // 当场记入的各期是普通流水：结果里与手动记的一样可以定位，撤销时逐笔删除
         let entryChanges = recorded.compactMap { generated -> VoiceChange? in
             guard let transaction = try? context.transaction(id: generated.id),
-                  let snapshot = BookkeepingEntrySnapshot(transaction: transaction)
+                  let snapshot = BookkeepingEntrySnapshot(transaction: transaction, ledgerCurrencyCode: currencyCode)
             else { return nil }
             return .entry(makeChange(
                 kind: .created,
@@ -265,7 +286,9 @@ extension VoiceToolExecutor {
             symbolName: category?.symbolName ?? "repeat",
             formattedAmount: formattedAmount(rule.amount),
             frequencyText: rule.frequency.map { text($0.titleKey) },
-            status: RecurringRuleListPresentation.status(of: rule, accounts: accounts, catalog: catalog),
+            status: RecurringRuleListPresentation.status(
+                of: rule, accounts: accounts, ledgerCurrencyCode: currencyCode, catalog: catalog
+            ),
             nextDueDay: rule.nextDueDay,
             accountName: accounts.first { $0.id == rule.accountID }.map { displayName(of: $0) }
         )
@@ -312,7 +335,9 @@ extension VoiceToolExecutor {
             nextDueDate: Self.dateString(from: rule.nextDueDay),
             endDate: rule.endDay.map { Self.dateString(from: $0) },
             status: VoiceRecurringRuleStatus(
-                RecurringRuleListPresentation.status(of: rule, accounts: accounts, catalog: catalog)
+                RecurringRuleListPresentation.status(
+                    of: rule, accounts: accounts, ledgerCurrencyCode: currencyCode, catalog: catalog
+                )
             )
         )
     }
@@ -322,13 +347,18 @@ extension VoiceToolExecutor {
     /// - Parameters:
     ///   - patch: 契约的修改字段。
     ///   - today: 今天的 `YYYYMMDD`。
+    ///   - fractionDigits: 金额允许的小数位数，取账本币种的 `amountFractionDigits`。
     /// - Returns: 修改内容；金额、账户、日期格式不对，或下一期早于今天时为 `nil`。
-    private static func recurringRuleChange(from patch: VoiceRecurringRulePatch, today: Int) -> RecurringRuleChange? {
+    private static func recurringRuleChange(
+        from patch: VoiceRecurringRulePatch,
+        today: Int,
+        fractionDigits: Int
+    ) -> RecurringRuleChange? {
         var change = RecurringRuleChange()
         change.entryType = patch.type.map { BookkeepingEntryType($0) }
         change.categoryKey = patch.categoryId
         if let amountText = patch.amount {
-            guard let amount = Self.amount(from: amountText) else { return nil }
+            guard let amount = Self.amount(from: amountText, fractionDigits: fractionDigits) else { return nil }
             change.amount = amount
         }
         if let accountText = patch.accountId {

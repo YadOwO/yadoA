@@ -18,7 +18,7 @@ enum TransferRepositoryError: Error, Equatable {
     /// 未知账户类型无法判断余额方向。
     case unsupportedAccountType(String)
 
-    /// 当前版本仅允许 CNY 账户转账。
+    /// 账户币种和账本币种不一致，不能转账。
     case unsupportedCurrency(String)
 
     /// 要删除的流水不存在。
@@ -79,6 +79,7 @@ final class LocalTransferRepository {
             fromAccountID: fromAccountID,
             toAccountID: toAccountID,
             amount: amount,
+            currencyCode: fromAccount.currencyCode,
             transactionDay: draft.transactionDay,
             note: draft.note,
             savedAt: savedAt
@@ -152,7 +153,7 @@ final class LocalTransferRepository {
             throw TransferRepositoryError.accountNotFound(id)
         }
         guard account.isActive else { throw TransferRepositoryError.accountDeactivated(id) }
-        guard account.currencyCode == BookkeepingCurrency.code else {
+        guard try account.currencyCode == BookkeepingCurrency.current(in: context) else {
             throw TransferRepositoryError.unsupportedCurrency(account.currencyCode)
         }
         guard account.supportsBookkeeping, let type = account.accountType else {

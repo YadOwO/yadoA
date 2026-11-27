@@ -48,6 +48,7 @@ struct BillOverviewPresentationTests {
     func excludesNonBookkeepingTransactions() throws {
         let adjustment = try AccountTransaction.validatingBalanceAdjustment(
             id: UUID(), accountID: UUID(), balanceBefore: 0, balanceAfter: 999,
+            currencyCode: "CNY",
             transactionDay: 20240101
         )
         let invalidDate = try expense("5", day: 20250201)
@@ -99,7 +100,7 @@ struct BillOverviewPresentationTests {
     private func expense(_ amount: String, day: Int) throws -> AccountTransaction {
         try AccountTransaction.validatingExpense(
             id: UUID(), accountID: UUID(), category: .dining,
-            amount: Decimal(string: amount)!, transactionDay: day, savedAt: now
+            amount: Decimal(string: amount)!, currencyCode: "CNY", transactionDay: day, savedAt: now
         )
     }
 
@@ -107,7 +108,7 @@ struct BillOverviewPresentationTests {
     private func income(_ amount: String, day: Int) throws -> AccountTransaction {
         try AccountTransaction.validatingIncome(
             id: UUID(), accountID: UUID(), category: .salary,
-            amount: Decimal(string: amount)!, transactionDay: day, savedAt: now
+            amount: Decimal(string: amount)!, currencyCode: "CNY", transactionDay: day, savedAt: now
         )
     }
 }

@@ -81,6 +81,9 @@ final class DataUndoService {
     /// 文件系统操作边界。
     private let fileManager: FileManager
 
+    /// 撤销还原备份时写入账本币种的本机存储。
+    private let defaults: UserDefaults
+
     /// 创建撤销服务。
     ///
     /// - Parameters:
@@ -89,18 +92,21 @@ final class DataUndoService {
     ///   - now: 时间源，用于快照时间与保留期判断。
     ///   - beforeSave: 撤销还原保存前执行的故障注入点。
     ///   - fileManager: 文件系统操作边界。
+    ///   - defaults: 撤销还原备份时写入账本币种的本机存储；测试时可注入隔离实例。
     init(
         container: ModelContainer,
         directory: URL? = nil,
         now: @escaping () -> Date = { .now },
         beforeSave: @escaping () throws -> Void = {},
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        defaults: UserDefaults = .standard
     ) {
         self.container = container
         self.directory = directory ?? Self.defaultDirectory(for: container)
         self.now = now
         self.beforeSave = beforeSave
         self.fileManager = fileManager
+        self.defaults = defaults
     }
 
     /// 先保存当前数据的快照，再执行会整体改写数据的操作。
@@ -170,7 +176,7 @@ final class DataUndoService {
             throw DataUndoError.nothingToUndo
         }
         do {
-            try BackupImportService(container: container, beforeSave: beforeSave).restore(
+            try BackupImportService(container: container, beforeSave: beforeSave, defaults: defaults).restore(
                 BackupImportPlan(backup: snapshot.backup, replacesExistingData: true)
             )
         } catch {

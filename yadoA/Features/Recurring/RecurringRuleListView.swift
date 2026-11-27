@@ -35,6 +35,9 @@ struct RecurringRuleRowPresentation: Identifiable, Equatable {
 
     /// 规则状态。
     let status: RecurringRuleStatus
+
+    /// 管理这条规则的订阅；为空表示是用户自己建的规则。
+    var subscriptionID: UUID?
 }
 
 /// 把周期记账规则转换为列表展示数据。
@@ -44,19 +47,33 @@ enum RecurringRuleListPresentation {
     /// - Parameters:
     ///   - rules: 全部规则。
     ///   - accounts: 当前账户快照。
+    ///   - ledgerCurrencyCode: 当前账本币种；账户币种和它不同的规则不可用，金额也按它展示。
     ///   - catalog: 分类目录。
+    ///   - subscriptionOwners: 订阅自动记账建的规则，规则 UUID 对应订阅 UUID；这些行的副行以「来自订阅」开头。
     ///   - locale: 语言环境。
     ///   - calendar: 日历。
     /// - Returns: 排好序的列表行；方向未知的损坏规则跳过。
     static func rows(
         rules: [RecurringRule],
         accounts: [Account],
+        ledgerCurrencyCode: String,
         catalog: BookkeepingCategoryCatalog,
+        subscriptionOwners: [UUID: UUID] = [:],
         locale: Locale,
         calendar: Calendar
     ) -> [RecurringRuleRowPresentation] {
-        sorted(rules, accounts: accounts, catalog: catalog)
-            .compactMap { row(for: $0, accounts: accounts, catalog: catalog, locale: locale, calendar: calendar) }
+        sorted(rules, accounts: accounts, ledgerCurrencyCode: ledgerCurrencyCode, catalog: catalog)
+            .compactMap { rule in
+                row(
+                    for: rule,
+                    accounts: accounts,
+                    ledgerCurrencyCode: ledgerCurrencyCode,
+                    catalog: catalog,
+                    subscriptionID: subscriptionOwners[rule.id],
+                    locale: locale,
+                    calendar: calendar
+                )
+            }
     }
 
     /// 按列表顺序排列规则：正常和不可用的按下一期从近到远，其次是暂停的，已结束的放最后；语音查询也按这个顺序返回。
@@ -64,16 +81,18 @@ enum RecurringRuleListPresentation {
     /// - Parameters:
     ///   - rules: 要排序的规则。
     ///   - accounts: 当前账户快照。
+    ///   - ledgerCurrencyCode: 当前账本币种。
     ///   - catalog: 分类目录。
     /// - Returns: 排好序的规则。
     static func sorted(
         _ rules: [RecurringRule],
         accounts: [Account],
+        ledgerCurrencyCode: String,
         catalog: BookkeepingCategoryCatalog
     ) -> [RecurringRule] {
         rules.sorted { lhs, rhs in
-            let lhsRank = rank(status(of: lhs, accounts: accounts, catalog: catalog))
-            let rhsRank = rank(status(of: rhs, accounts: accounts, catalog: catalog))
+            let lhsRank = rank(status(of: lhs, accounts: accounts, ledgerCurrencyCode: ledgerCurrencyCode, catalog: catalog))
+            let rhsRank = rank(status(of: rhs, accounts: accounts, ledgerCurrencyCode: ledgerCurrencyCode, catalog: catalog))
             if lhsRank != rhsRank { return lhsRank < rhsRank }
             if lhs.nextDueDay != rhs.nextDueDay { return lhs.nextDueDay < rhs.nextDueDay }
             return lhs.id.uuidString < rhs.id.uuidString
@@ -84,12 +103,13 @@ enum RecurringRuleListPresentation {
     static func status(
         of rule: RecurringRule,
         accounts: [Account],
+        ledgerCurrencyCode: String,
         catalog: BookkeepingCategoryCatalog
     ) -> RecurringRuleStatus {
         if rule.isFinished { return .finished }
         if rule.pausedAt != nil { return .paused }
         let hasAccount = accounts.contains {
-            $0.id == rule.accountID && $0.acceptsBookkeepingEntries
+            $0.id == rule.accountID && $0.acceptsBookkeepingEntries(ledgerCurrencyCode: ledgerCurrencyCode)
         }
         let hasCategory = rule.entryType.map { direction in
             catalog.items(for: direction).contains { $0.key == rule.categoryKey }
@@ -110,27 +130,31 @@ enum RecurringRuleListPresentation {
     private static func row(
         for rule: RecurringRule,
         accounts: [Account],
+        ledgerCurrencyCode: String,
         catalog: BookkeepingCategoryCatalog,
+        subscriptionID: UUID?,
         locale: Locale,
         calendar: Calendar
     ) -> RecurringRuleRowPresentation? {
         guard let entryType = rule.entryType else { return nil }
         let item = catalog.resolvedItem(direction: entryType, key: rule.categoryKey)
-        let ruleStatus = status(of: rule, accounts: accounts, catalog: catalog)
+        let ruleStatus = status(of: rule, accounts: accounts, ledgerCurrencyCode: ledgerCurrencyCode, catalog: catalog)
         let signedAmount = entryType == .expense ? -rule.amount : rule.amount
         return RecurringRuleRowPresentation(
             id: rule.id,
             title: rule.note ?? item.title(locale: locale),
             symbolName: item.symbolName,
-            formattedAmount: signedAmount.formattedCurrency(locale: locale),
+            formattedAmount: signedAmount.formattedCurrency(locale: locale, currencyCode: ledgerCurrencyCode),
             subtitle: subtitle(
                 for: rule,
                 status: ruleStatus,
                 accountName: accounts.first { $0.id == rule.accountID }?.localizedName(locale: locale),
+                isFromSubscription: subscriptionID != nil,
                 locale: locale,
                 calendar: calendar
             ),
-            status: ruleStatus
+            status: ruleStatus,
+            subscriptionID: subscriptionID
         )
     }
 
@@ -139,6 +163,7 @@ enum RecurringRuleListPresentation {
         for rule: RecurringRule,
         status: RecurringRuleStatus,
         accountName: String?,
+        isFromSubscription: Bool,
         locale: Locale,
         calendar: Calendar
     ) -> String {
@@ -165,6 +190,9 @@ enum RecurringRuleListPresentation {
             }
             if let accountName { parts.append(accountName) }
         }
+        if isFromSubscription {
+            parts.insert(text("recurring.row.from_subscription"), at: 0)
+        }
         return parts.joined(separator: " · ")
     }
 }
@@ -173,13 +201,18 @@ enum RecurringRuleListPresentation {
 struct RecurringRuleListView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.calendar) private var calendar
     @Query private var rules: [RecurringRule]
     @Query private var accounts: [Account]
     @Query private var categories: [BookkeepingCategory]
+    @Query private var subscriptions: [UserSubscription]
 
     /// 正在打开的新建或编辑页。
     @State private var editSeed: RecurringRuleEditSeed?
+
+    /// 正在打开的订阅编辑页：订阅建的规则点开后改的是订阅。
+    @State private var subscriptionSeed: UserSubscriptionEditSeed?
 
     /// 等待确认删除的规则。
     @State private var deletionCandidate: RecurringRuleRowPresentation?
@@ -199,7 +232,9 @@ struct RecurringRuleListView: View {
         let rows = RecurringRuleListPresentation.rows(
             rules: rules,
             accounts: accounts,
+            ledgerCurrencyCode: currencyCode,
             catalog: catalog,
+            subscriptionOwners: subscriptionOwners,
             locale: locale,
             calendar: calendar
         )
@@ -228,6 +263,11 @@ struct RecurringRuleListView: View {
                 RecurringRuleEditView(seed: seed, container: modelContext.container, calendar: calendar)
             }
         }
+        .sheet(item: $subscriptionSeed) { seed in
+            NavigationStack {
+                UserSubscriptionEditView(seed: seed, calendar: calendar)
+            }
+        }
         .alert(
             text("recurring.delete.title"),
             isPresented: $isDeleteConfirmationPresented,
@@ -237,8 +277,8 @@ struct RecurringRuleListView: View {
                 perform { try $0.delete(id: row.id) }
             }
             Button(text("common.cancel"), role: .cancel) {}
-        } message: { _ in
-            Text(text("recurring.delete.message"))
+        } message: { row in
+            Text(text(row.subscriptionID == nil ? "recurring.delete.message" : "recurring.delete.message.subscription"))
         }
         .alert(text("recurring.operation_failed"), isPresented: $isOperationFailed) {
             Button(text("common.close"), role: .cancel) {}
@@ -260,9 +300,27 @@ struct RecurringRuleListView: View {
         .contentMargins(.top, 4, for: .scrollContent)
     }
 
-    /// 一条规则：点开编辑，左滑暂停或删除，长按有同样的操作。
+    /// 订阅自动记账建的规则：规则 UUID 对应订阅 UUID。
+    private var subscriptionOwners: [UUID: UUID] {
+        Dictionary(
+            subscriptions.compactMap { subscription in subscription.recurringRuleID.map { ($0, subscription.id) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
+    /// 一条规则：点开编辑，左滑暂停或删除，长按有同样的操作；订阅建的规则点开的是那条订阅。
     private func rowView(_ row: RecurringRuleRowPresentation) -> some View {
         Button {
+            if let subscriptionID = row.subscriptionID,
+               let subscription = subscriptions.first(where: { $0.id == subscriptionID }) {
+                do {
+                    subscriptionSeed = try .edit(subscription, context: modelContext)
+                } catch {
+                    AppHaptics.play(.error)
+                    isOperationFailed = true
+                }
+                return
+            }
             guard let rule = rules.first(where: { $0.id == row.id }) else { return }
             editSeed = RecurringRuleEditSeed.edit(rule, catalog: catalog)
         } label: {
@@ -282,10 +340,10 @@ struct RecurringRuleListView: View {
         .accessibilityIdentifier("recurring-row-\(row.id.uuidString)")
     }
 
-    /// 暂停或恢复按钮；已结束的规则不需要。
+    /// 暂停或恢复按钮；已结束的规则不需要，订阅建的规则跟着订阅的状态走，也不单独暂停。
     @ViewBuilder
     private func pauseButton(_ row: RecurringRuleRowPresentation) -> some View {
-        if row.status != .finished {
+        if row.status != .finished, row.subscriptionID == nil {
             let isPaused = row.status == .paused
             Button {
                 let today = TransactionDay.encode(.now, calendar: calendar)

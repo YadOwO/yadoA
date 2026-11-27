@@ -57,6 +57,80 @@ struct AIPointsShopTests {
         #expect(empty.valueAnchorProductID == nil)
     }
 
+    @Test("活动字段解码：新人包带资格到期时间，限时多送带多送点数和结束时间，普通商品三个字段为 nil / 0 / nil")
+    func decodesPromotionFields() throws {
+        let json = """
+        {"enabled":true,"appAccountToken":"7f1c2a8e-5b6d-4c3f-9a2b-1e4d5c6b7a89","items":[
+          {"productId":"top.yado1225.yadoA.points_starter","kind":"consumable","points":100,"badge":null,
+           "promotion":"starter","bonusPoints":0,"promotionEndsAt":"2026-12-15T00:00:00.000Z"},
+          {"productId":"top.yado1225.yadoA.points_s","kind":"consumable","points":60,"badge":null,
+           "promotion":null,"bonusPoints":0,"promotionEndsAt":null},
+          {"productId":"top.yado1225.yadoA.points_m","kind":"consumable","points":180,"badge":"popular",
+           "promotion":"bonus","bonusPoints":40,"promotionEndsAt":"2026-11-30T15:59:59.000Z"}
+        ],"valueAnchorProductId":"top.yado1225.yadoA.points_s"}
+        """
+        let items = try JSONDecoder().decode(AIStoreCatalog.self, from: Data(json.utf8)).items
+        #expect(items.map(\.promotion) == [.starter, nil, .bonus])
+        #expect(items.map(\.bonusPoints) == [0, 0, 40])
+        #expect(items.map(\.promotionEndsAt) == [Date(timeIntervalSince1970: 1_797_292_800), nil, Date(timeIntervalSince1970: 1_796_054_399)])
+        #expect(items.map(\.isStarter) == [true, false, false])
+        #expect(items.map(\.activeBonusPoints) == [nil, nil, 40])
+        // points 仍是基础点数，角标不受活动字段影响
+        #expect(items.map(\.points) == [100, 60, 180])
+        #expect(items.map(\.badge) == [nil, nil, .popular])
+    }
+
+    @Test("活动字段缺失（旧服务端）：promotion 为 nil，多送点数为 0，没有结束时间，和没有活动时一样")
+    func decodesMissingPromotionFieldsAsPlainItem() throws {
+        let item = try JSONDecoder().decode(
+            AIStoreItem.self,
+            from: Data(#"{"productId":"top.yado1225.yadoA.points_m","kind":"consumable","points":180,"badge":"popular"}"#.utf8)
+        )
+        #expect(item.promotion == nil)
+        #expect(item.bonusPoints == 0)
+        #expect(item.promotionEndsAt == nil)
+        #expect(!item.isStarter)
+        #expect(item.activeBonusPoints == nil)
+        #expect(item == AIStoreItem(productID: "top.yado1225.yadoA.points_m", points: 180, badge: .popular))
+    }
+
+    @Test("不认识的活动类型按普通商品处理，整个列表仍然能解码")
+    func decodesUnknownPromotionAsPlainItem() throws {
+        let json = """
+        {"enabled":true,"appAccountToken":null,"items":[
+          {"productId":"a","kind":"consumable","points":60,"promotion":"flash","bonusPoints":25,"promotionEndsAt":"2026-12-15T00:00:00.000Z"},
+          {"productId":"b","kind":"consumable","points":180,"promotion":"bonus","bonusPoints":40,"promotionEndsAt":"2026-12-15T00:00:00.000Z"}
+        ]}
+        """
+        let catalog = try JSONDecoder().decode(AIStoreCatalog.self, from: Data(json.utf8))
+        #expect(catalog.items.map(\.points) == [60, 180])
+        #expect(catalog.items[0].promotion == nil)
+        #expect(!catalog.items[0].isStarter)
+        // 不认识的类型即使带着多送点数，也不当作限时多送
+        #expect(catalog.items[0].activeBonusPoints == nil)
+        #expect(catalog.items[1].activeBonusPoints == 40)
+    }
+
+    @Test("多送点数为负数或类型不对时为 0；类型不对、时间格式不对的字段不让解码失败")
+    func decodesMalformedPromotionFieldsLeniently() throws {
+        let json = """
+        {"enabled":true,"appAccountToken":null,"items":[
+          {"productId":"negative","kind":"consumable","points":60,"promotion":"bonus","bonusPoints":-5},
+          {"productId":"string","kind":"consumable","points":60,"promotion":"bonus","bonusPoints":"40"},
+          {"productId":"fraction","kind":"consumable","points":60,"promotion":"bonus","bonusPoints":1.5},
+          {"productId":"nulls","kind":"consumable","points":60,"promotion":null,"bonusPoints":null,"promotionEndsAt":null},
+          {"productId":"wrongTypes","kind":"consumable","points":60,"promotion":7,"bonusPoints":[],"promotionEndsAt":12345},
+          {"productId":"badDate","kind":"consumable","points":60,"promotion":"starter","bonusPoints":0,"promotionEndsAt":"soon"}
+        ]}
+        """
+        let items = try JSONDecoder().decode(AIStoreCatalog.self, from: Data(json.utf8)).items
+        #expect(items.map(\.productID) == ["negative", "string", "fraction", "nulls", "wrongTypes", "badDate"])
+        #expect(items.map(\.bonusPoints) == [0, 0, 0, 0, 0, 0])
+        #expect(items.map(\.activeBonusPoints) == [nil, nil, nil, nil, nil, nil])
+        #expect(items.map(\.promotion) == [.bonus, .bonus, .bonus, nil, nil, .starter])
+        #expect(items.map(\.promotionEndsAt) == [nil, nil, nil, nil, nil, nil])
+    }
+
     @Test("上传结果映射：200 解码，409 区分别的账号与已注销账号，400 是拒绝入账，其余按状态码")
     func mapsPurchaseResponses() throws {
         let ok = try AIBillingAPI.purchaseResult(
@@ -115,6 +189,180 @@ struct AIPointsShopTests {
         #expect(storeKit.requestedProductIDs.count == 1)
     }
 
+    @Test("新人包排到第一个，其他商品保持服务端顺序；starterOffer 取出它；StoreKit 查不到新人包时不显示")
+    func putsStarterOfferFirst() async {
+        let api = FakeStoreAPI()
+        let storeKit = FakeStoreKit()
+        storeKit.products = ["p60", "p180", "starter", "p450"].map { Self.product($0) }
+        api.catalogResults = [
+            .success(
+                AIStoreCatalog(
+                    isEnabled: true,
+                    appAccountToken: Self.token,
+                    items: [
+                        AIStoreItem(productID: "p60", points: 60),
+                        AIStoreItem(productID: "p180", points: 180, badge: .popular),
+                        // starterOffer 按当前时间判断资格有没有到期，所以到期时间取相对现在的将来，不写死
+                        AIStoreItem(productID: "starter", points: 100, promotion: .starter, promotionEndsAt: Self.futureStarterEndsAt),
+                        AIStoreItem(productID: "p450", points: 450, badge: .bestValue),
+                    ],
+                    valueAnchorProductID: "p60"
+                )
+            )
+        ]
+        let shop = AIPointsShop(api: api, storeKit: storeKit, currentUserID: { "user-1" })
+        #expect(shop.starterOffer == nil)
+
+        await shop.refresh()
+        #expect(shop.offers.map(\.id) == ["starter", "p60", "p180", "p450"])
+        #expect(shop.starterOffer?.id == "starter")
+        // 价值锚点仍按服务端指定的平价档折算，不受新人包影响
+        #expect(shop.pointValue?.anchorPoints == 60)
+
+        // 纯函数：没有新人包时顺序不变
+        let items = [AIStoreItem(productID: "p60", points: 60), AIStoreItem(productID: "p180", points: 180)]
+        #expect(AIPointsShop.offers(items: items, products: items.map { Self.product($0.productID) }).map(\.id) == ["p60", "p180"])
+
+        // StoreKit 里没有新人包商品时它不出现，其余照常
+        storeKit.products = ["p60", "p180"].map { Self.product($0) }
+        await shop.refresh()
+        #expect(shop.offers.map(\.id) == ["p60", "p180"])
+        #expect(shop.starterOffer == nil)
+    }
+
+    @Test("新人包资格剩余天数：不足一天按 1 天，刚好 14 天是 14，向上取整，已到期为 nil")
+    func countsStarterDaysLeft() {
+        let now = Date(timeIntervalSince1970: 1_796_000_000)
+        func daysLeft(after seconds: TimeInterval) -> Int? {
+            AIPointsShop.starterDaysLeft(endsAt: now.addingTimeInterval(seconds), now: now)
+        }
+        let day: TimeInterval = 86_400
+        #expect(daysLeft(after: 14 * day) == 14)
+        #expect(daysLeft(after: 14 * day - 1) == 14)
+        #expect(daysLeft(after: 13 * day + 1) == 14)
+        #expect(daysLeft(after: 13 * day) == 13)
+        #expect(daysLeft(after: 2 * day + 3_600) == 3)
+        #expect(daysLeft(after: day) == 1)
+        #expect(daysLeft(after: day - 1) == 1)
+        #expect(daysLeft(after: 1) == 1)
+        // 到期的那一刻和已经过了都没有剩余天数
+        #expect(daysLeft(after: 0) == nil)
+        #expect(daysLeft(after: -1) == nil)
+        #expect(daysLeft(after: -3 * day) == nil)
+    }
+
+    @Test("visibleOffers：新人包资格到期的那一刻起不显示，其他商品原样保留、顺序不变；没有到期时间的新人包始终显示")
+    func hidesExpiredStarterOffer() async {
+        let endsAt = Date(timeIntervalSince1970: 1_797_292_800)
+        let api = FakeStoreAPI()
+        let storeKit = FakeStoreKit()
+        storeKit.products = ["p60", "starter", "p180"].map { Self.product($0) }
+        // 限时多送也带结束时间：就算过了，也不归 visibleOffers 管
+        api.catalogResults = [
+            .success(
+                AIStoreCatalog(
+                    isEnabled: true,
+                    appAccountToken: Self.token,
+                    items: [
+                        AIStoreItem(productID: "p60", points: 60),
+                        AIStoreItem(productID: "starter", points: 100, promotion: .starter, promotionEndsAt: endsAt),
+                        AIStoreItem(productID: "p180", points: 180, promotion: .bonus, bonusPoints: 40, promotionEndsAt: endsAt),
+                    ]
+                )
+            )
+        ]
+        let shop = AIPointsShop(api: api, storeKit: storeKit, currentUserID: { "user-1" })
+        #expect(shop.visibleOffers(now: endsAt).isEmpty)
+
+        await shop.refresh()
+        #expect(shop.offers.map(\.id) == ["starter", "p60", "p180"])
+        #expect(shop.visibleOffers(now: endsAt.addingTimeInterval(-1)).map(\.id) == ["starter", "p60", "p180"])
+        // 到期的那一刻起就不再显示
+        #expect(shop.visibleOffers(now: endsAt).map(\.id) == ["p60", "p180"])
+        #expect(shop.visibleOffers(now: endsAt.addingTimeInterval(1)).map(\.id) == ["p60", "p180"])
+        // 只是不显示：offers 本身要等下次刷新才更新
+        #expect(shop.offers.map(\.id) == ["starter", "p60", "p180"])
+
+        // 新人包没有到期时间时始终显示
+        api.catalogResults = [
+            .success(
+                AIStoreCatalog(
+                    isEnabled: true,
+                    appAccountToken: Self.token,
+                    items: [
+                        AIStoreItem(productID: "p60", points: 60),
+                        AIStoreItem(productID: "starter", points: 100, promotion: .starter),
+                    ]
+                )
+            )
+        ]
+        await shop.refresh()
+        #expect(shop.visibleOffers(now: endsAt).map(\.id) == ["starter", "p60"])
+        #expect(shop.visibleOffers(now: .distantFuture).map(\.id) == ["starter", "p60"])
+    }
+
+    @Test("starterOffer 不含资格已到期的新人包，其他商品不受影响")
+    func starterOfferIgnoresExpiredStarter() async {
+        let api = FakeStoreAPI()
+        let storeKit = FakeStoreKit()
+        storeKit.products = ["starter", "p60"].map { Self.product($0) }
+        api.catalogResults = [.success(Self.starterCatalog(endsAt: Date(timeIntervalSinceNow: -60)))]
+        let shop = AIPointsShop(api: api, storeKit: storeKit, currentUserID: { "user-1" })
+
+        await shop.refresh()
+        #expect(shop.offers.map(\.id) == ["starter", "p60"])
+        #expect(shop.starterOffer == nil)
+        #expect(shop.visibleOffers(now: Date()).map(\.id) == ["p60"])
+    }
+
+    @Test("限时多送结束日期：结束时刻不含在活动内，显示日期取它前 1 秒；次日 00:00 结束显示前一天")
+    func showsBonusLastMomentDate() throws {
+        // 固定上海时区，不依赖运行机器的时区
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Asia/Shanghai"))
+        func date(_ month: Int, _ day: Int, hour: Int, minute: Int, second: Int) throws -> Date {
+            try #require(calendar.date(from: DateComponents(
+                year: 2026, month: month, day: day, hour: hour, minute: minute, second: second
+            )))
+        }
+        // 显示出来的 [月, 日]
+        func shownDay(endsAt: Date) -> [Int?] {
+            let components = calendar.dateComponents([.month, .day], from: AIPointsShop.bonusLastMoment(endsAt: endsAt))
+            return [components.month, components.day]
+        }
+
+        // 2026-12-01T00:00:00+08:00 结束：活动到 11 月 30 日为止
+        let midnight = try date(12, 1, hour: 0, minute: 0, second: 0)
+        #expect(AIPointsShop.bonusLastMoment(endsAt: midnight) == midnight.addingTimeInterval(-1))
+        #expect(shownDay(endsAt: midnight) == [11, 30])
+
+        // 2026-11-30T23:59:59+08:00 结束：同样是 11 月 30 日
+        #expect(shownDay(endsAt: try date(11, 30, hour: 23, minute: 59, second: 59)) == [11, 30])
+
+        // 过了零点 1 秒结束：最后一刻刚好是新一天的 00:00:00
+        #expect(shownDay(endsAt: try date(12, 1, hour: 0, minute: 0, second: 1)) == [12, 1])
+    }
+
+    @Test("拉商品列表时把 StoreKit 当前的商店地区交给服务端；取不到时传 nil")
+    func passesStorefrontToCatalogRequest() async {
+        let api = FakeStoreAPI()
+        let storeKit = FakeStoreKit()
+        api.catalogResults = [.success(Self.catalog(["p300"]))]
+        let shop = AIPointsShop(api: api, storeKit: storeKit, currentUserID: { "user-1" })
+
+        // 默认是 CHN
+        await shop.refresh()
+        #expect(api.requestedStorefronts == ["CHN"])
+
+        storeKit.storefront = "USA"
+        await shop.refresh()
+        #expect(api.requestedStorefronts == ["CHN", "USA"])
+
+        storeKit.storefront = nil
+        await shop.refresh()
+        #expect(api.requestedStorefronts == ["CHN", "USA", nil])
+    }
+
     @Test("未登录或不能联网时不查商品、不补传交易")
     func staysIdleWhenSignedOutOrOffline() async {
         let api = FakeStoreAPI()
@@ -170,6 +418,59 @@ struct AIPointsShopTests {
 
         shop.dismissNotice()
         #expect(shop.notice == nil)
+    }
+
+    @Test("买了别的商品入账后新人包马上下架：不再显示也不再有引导，其他商品还在，也不重新拉商品列表")
+    func removesStarterOfferAfterPurchase() async throws {
+        let api = FakeStoreAPI()
+        let storeKit = FakeStoreKit()
+        storeKit.products = ["starter", "p60"].map { Self.product($0) }
+        storeKit.purchaseOutcome = .success(Self.transaction(42, finishedIDs: storeKit))
+        api.catalogResults = [.success(Self.starterCatalog())]
+        let shop = AIPointsShop(api: api, storeKit: storeKit, currentUserID: { "user-1" })
+
+        await shop.refresh()
+        #expect(shop.offers.map(\.id) == ["starter", "p60"])
+        #expect(shop.starterOffer != nil)
+        #expect(api.catalogRequests == 1)
+
+        await shop.purchase(try #require(shop.offers.first { $0.id == "p60" }))
+        #expect(api.uploads == ["jws-42"])
+        #expect(storeKit.finishedIDs == [42])
+        #expect(shop.notice == .credited(points: 300))
+        #expect(shop.offers.map(\.id) == ["p60"])
+        #expect(shop.starterOffer == nil)
+        // 只在本地去掉，不重新拉列表（重新拉会再补传交易，和 deliver 互相调用）
+        #expect(api.catalogRequests == 1)
+    }
+
+    @Test("直接补传一笔交易：服务端处理完（入账、重复、已退款）新人包都下架；没传成或账号已注销时新人包还在")
+    func removesStarterOfferOnlyWhenDelivered() async {
+        let delivered: [AIStorePurchaseResult.Status] = [.credited, .duplicate, .revoked]
+        for status in delivered {
+            let result = AIStorePurchaseResult(status: status, points: status == .revoked ? 0 : 300, balance: 398)
+            let (shop, storeKit) = await Self.shopShowingStarter(uploadResult: .success(result))
+            #expect(shop.starterOffer != nil)
+
+            #expect(await shop.deliver(Self.transaction(1, finishedIDs: storeKit)) == .delivered(result))
+            #expect(storeKit.finishedIDs == [1], "\(status)")
+            #expect(shop.offers.map(\.id) == ["p60"], "\(status)")
+            #expect(shop.starterOffer == nil, "\(status)")
+        }
+
+        // 交易还留着（没传成、别的账号）或者不可能入账（账号已注销）：新人包不动
+        let notDelivered: [(error: AIStoreUploadError, result: AIPointsShop.DeliveryResult)] = [
+            (.billing(.network), .deferred(.billing(.network))),
+            (.otherAccount, .deferred(.otherAccount)),
+            (.unknownAccount, .abandoned),
+        ]
+        for (error, expected) in notDelivered {
+            let (shop, storeKit) = await Self.shopShowingStarter(uploadResult: .failure(error))
+
+            #expect(await shop.deliver(Self.transaction(2, finishedIDs: storeKit)) == expected, "\(error)")
+            #expect(shop.offers.map(\.id) == ["starter", "p60"], "\(error)")
+            #expect(shop.starterOffer != nil, "\(error)")
+        }
     }
 
     @Test("付了款但没传成：交易不结束，提示稍后到账；下次补传成功后结束")
@@ -459,6 +760,44 @@ struct AIPointsShopTests {
         )
     }
 
+    /// 新人包资格的到期时间：两周后。
+    ///
+    /// `starterOffer` 按当前时间判断资格有没有到期，所以测试里的到期时间取相对现在的将来，不写死日期。
+    static var futureStarterEndsAt: Date {
+        Date(timeIntervalSinceNow: 14 * 86_400)
+    }
+
+    /// 有新人包的在售商品列表：普通商品 `p60`（60 点）和新人包 `starter`（100 点）；界面上新人包会排在最前。
+    ///
+    /// - Parameter endsAt: 新人包资格的到期时间；不传表示两周后。默认值用 nil，不在默认参数里取值，避开 MainActor 隔离问题。
+    static func starterCatalog(endsAt: Date? = nil) -> AIStoreCatalog {
+        AIStoreCatalog(
+            isEnabled: true,
+            appAccountToken: token,
+            items: [
+                AIStoreItem(productID: "p60", points: 60),
+                AIStoreItem(productID: "starter", points: 100, promotion: .starter, promotionEndsAt: endsAt ?? futureStarterEndsAt),
+            ]
+        )
+    }
+
+    /// 已经加载好商品的充值状态：列表里有新人包和 `p60`，上传交易时返回 `uploadResult`。
+    ///
+    /// - Parameter uploadResult: 上传交易的结果。
+    /// - Returns: 充值状态，和它用的假 StoreKit（用来看交易有没有结束）。
+    static func shopShowingStarter(
+        uploadResult: Result<AIStorePurchaseResult, AIStoreUploadError>
+    ) async -> (shop: AIPointsShop, storeKit: FakeStoreKit) {
+        let api = FakeStoreAPI()
+        let storeKit = FakeStoreKit()
+        storeKit.products = ["starter", "p60"].map { Self.product($0) }
+        api.catalogResults = [.success(starterCatalog())]
+        api.uploadResults = [uploadResult]
+        let shop = AIPointsShop(api: api, storeKit: storeKit, currentUserID: { "user-1" })
+        await shop.refresh()
+        return (shop, storeKit)
+    }
+
     /// StoreKit 商品，默认是 ¥6.00（中国大陆）。
     static func product(
         _ id: String,
@@ -504,11 +843,15 @@ final class FakeStoreAPI: AIStorePurchasing {
     /// 查询商品列表的次数。
     private(set) var catalogRequests = 0
 
+    /// 依次查询商品列表时带的商店地区。
+    private(set) var requestedStorefronts: [String?] = []
+
     /// 依次上传过的签名交易。
     private(set) var uploads: [String] = []
 
-    func fetchStoreCatalog() async throws -> AIStoreCatalog {
+    func fetchStoreCatalog(storefront: String?) async throws -> AIStoreCatalog {
         catalogRequests += 1
+        requestedStorefronts.append(storefront)
         let result = catalogResults.count > 1 ? catalogResults.removeFirst() : catalogResults[0]
         return try result.get()
     }
@@ -536,6 +879,9 @@ final class FakeStoreKit: AIStoreKitProviding {
     /// 没结束的交易。
     var unfinished: [AIStoreTransaction] = []
 
+    /// 当前 Storefront 的国家代码；nil 表示取不到。
+    var storefront: String? = "CHN"
+
     /// 依次查询过的商品 ID。
     private(set) var requestedProductIDs: [[String]] = []
 
@@ -562,5 +908,9 @@ final class FakeStoreKit: AIStoreKitProviding {
 
     func observeTransactionUpdates(_ handler: @escaping @MainActor (AIStoreTransaction) async -> Void) -> Task<Void, Never> {
         Task {}
+    }
+
+    func storefrontCountryCode() async -> String? {
+        storefront
     }
 }

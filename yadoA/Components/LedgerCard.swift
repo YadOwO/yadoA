@@ -167,6 +167,21 @@ extension View {
         }
     }
 
+    /// 页面底部固定的提交栏：按钮四周留白、宽屏时限制宽度，纸色底一直铺到屏幕最下沿。
+    ///
+    /// 放在 `safeAreaInset(edge: .bottom)` 里用。底色要盖住 Home 指示条那一截，
+    /// 否则滚动内容会从按钮下面露出来。
+    func ledgerBottomBar() -> some View {
+        padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .frame(maxWidth: 620)
+            .frame(maxWidth: .infinity)
+            .background {
+                Color(.paperBackground)
+                    .ignoresSafeArea(edges: .bottom)
+            }
+    }
+
     /// 卡片里一行的内边距、最小高度和整行点击区域。
     func ledgerCardRow() -> some View {
         padding(.horizontal, 20)

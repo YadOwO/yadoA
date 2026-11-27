@@ -34,6 +34,9 @@ final class VoiceBookkeepingState {
     /// 是否从卡片打开了周期记账列表；由根导航以弹层展示，不离开当前页面，会话卡片保留在下面。
     var isRecurringRulesPresented = false
 
+    /// 是否从卡片打开了订阅列表；由根导航以弹层展示，不离开当前页面，会话卡片保留在下面。
+    var isSubscriptionsPresented = false
+
     /// 带着这句话去手动记账时预填的备注；由根导航以弹层展示。
     var manualEntryNote: VoiceManualEntryNote?
 
@@ -79,10 +82,11 @@ final class VoiceBookkeepingState {
         isTouchingCard || input.isPressing || input.isRecording || input.isFinishing || isPresentingOverCard
     }
 
-    /// 卡片上点开的弹层或提示是否还开着：详情、周期记账、手动记账、新建账户、模型选择、聊天页、AI 记账说明，
+    /// 卡片上点开的弹层或提示是否还开着：详情、周期记账、订阅、手动记账、新建账户、模型选择、聊天页、AI 记账说明，
     /// 以及按住说话和撤销失败的提示。
     private var isPresentingOverCard: Bool {
-        presentedTransaction != nil || presentedAccount != nil || isRecurringRulesPresented || manualEntryNote != nil
+        presentedTransaction != nil || presentedAccount != nil || isRecurringRulesPresented || isSubscriptionsPresented
+            || manualEntryNote != nil
             || accountCreationTurn != nil || isModelTierPresented || isChatPresented || isAIConsentPresented
             || input.alert != nil || session?.hasUndoFailure == true
     }

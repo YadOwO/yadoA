@@ -105,3 +105,4 @@
 - ~~中国区首次启动的隐私政策同意弹窗~~（已完成 2026-11-12：系统地区为中国大陆时首次启动先出同意卡，同意前不发任何请求，不同意进入离线模式；见 `Features/Legal/PrivacyAgreementStore.swift`）；
 - Logto 托管登录页填上用户协议和隐私政策链接；
 - ~~出口合规：在 Info.plist 声明 App 只用豁免类加密~~（已完成 2026-11-18：`yadoA-Info.plist` 声明 `ITSAppUsesNonExemptEncryption` 为 NO（`<false/>`），Debug、DebugProd、Release 都用这份 plist，上传构建后不用再在 App Store Connect 回答出口合规问题；依据：网络只走系统 HTTPS（URLSession / TLS），登录凭证由 Logto Swift SDK 存在系统 Keychain；CryptoKit 只用来算 SHA256 摘要和 HMAC 签名（`OSSRequestSigner` 的 OSS V4 签名、`SyncPayloadCoder` 的同步载荷摘要、周期规则和分类的固定 ID），不加密任何数据；现有 SPM 依赖 Logto Swift SDK（带 JOSESwift、KeychainAccess）只用来校验登录令牌签名和存取凭证，属于认证用途；没有自带或自己实现的加密算法，属于豁免。以后引入自定义加密（例如同步做端到端加密、用 CryptoKit 的 AES / ChaChaPoly 加密数据、新接入带加密算法的第三方库）时，要重新评估这个键，必要时改为 YES，并在 App Store Connect 提交出口合规文件）。
+- 上架页文字、App 信息、年龄分级和中国大陆合规的填写内容见 [listing.md](../appstore/listing.md)；文案里的承诺和隐私政策、用户协议的一致性也在那里核对。

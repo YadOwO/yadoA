@@ -580,7 +580,7 @@ struct TabSplitNavigationTests {
 
         let withBottomBar: Set<ProfileRoute> = [.feedback, .aiProcessingConsent]
         let allProfileRoutes: [ProfileRoute] = [
-            .bills, .categories, .recurringRules, .sync, .dataLinks, .aiPoints, .aiPointLots, .aiCreditEntries,
+            .bills, .categories, .recurringRules, .subscriptions, .sync, .dataLinks, .aiPoints, .aiPointLots, .aiCreditEntries,
             .aiModelTier, .aiTraceConsent, .aiProcessingConsent, .checkIn, .settings, .accountSecurity, .feedback,
             .moreProducts, .developer
         ]

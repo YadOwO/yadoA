@@ -251,7 +251,7 @@ private struct AccountEditFormView: View {
                 note: nil,
                 lastFourDigits: nil,
                 balance: 40,
-                currencyCode: BookkeepingCurrency.code,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 createdAt: .now,
                 updatedAt: .now
             ),

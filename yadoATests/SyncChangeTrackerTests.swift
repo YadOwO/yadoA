@@ -127,7 +127,7 @@ struct SyncChangeTrackerTests {
     func autoCreatedPreferenceUsesDistantPast() throws {
         try withSyncState(boundUserID: nil) {
             let container = try AccountDataContainer.inMemory().modelContainer
-            let repository = LocalAccountRepository(container: container)
+            let repository = LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny)
             let preferenceID = BookkeepingPreference.singletonID
             // 投资账户不能作为默认账户，保存时只会自动创建一个空的偏好单例。
             try repository.save(
@@ -158,7 +158,7 @@ struct SyncChangeTrackerTests {
     func accountTypeOrderOnAutoCreatedPreferenceUsesCurrentTime() throws {
         try withSyncState(boundUserID: nil) {
             let container = try AccountDataContainer.inMemory().modelContainer
-            try LocalAccountRepository(container: container).saveAccountTypeOrder(
+            try LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny).saveAccountTypeOrder(
                 AccountDisplayOrder(accountTypes: [.creditCard, .cash])
             )
 
@@ -182,7 +182,7 @@ struct SyncChangeTrackerTests {
                 bookkeepingPreference: BackupBookkeepingPreference(defaultAccountID: nil)
             )
 
-            try BackupImportService(container: container)
+            try BackupImportService(container: container, defaults: LedgerTestDefaults.cny)
                 .restore(BackupImportPlan(backup: backup, replacesExistingData: false))
 
             let entry = try #require(
@@ -205,7 +205,7 @@ struct SyncChangeTrackerTests {
                 bookkeepingPreference: nil
             )
 
-            try BackupImportService(container: container)
+            try BackupImportService(container: container, defaults: LedgerTestDefaults.cny)
                 .restore(BackupImportPlan(backup: backup, replacesExistingData: false))
 
             let travelID = BookkeepingCategoryKey.presetID(direction: .expense, key: ExpenseCategory.travel.rawValue)
@@ -310,7 +310,7 @@ struct SyncChangeTrackerTests {
 
     /// 通过账户仓库保存一个期初余额为 100 的现金账户。
     private func saveAccount(id: UUID, in container: ModelContainer) throws {
-        try LocalAccountRepository(container: container).save(
+        try LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny).save(
             AccountDraft(id: id, accountType: .cash, template: nil, name: "现金", amountText: "100"),
             locale: Locale(identifier: "en_US")
         )

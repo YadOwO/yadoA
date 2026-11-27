@@ -10,7 +10,7 @@ struct LocalDataResetServiceTests {
     private func makeSeededContainer() throws -> AccountDataContainer {
         let container = try AccountDataContainer.inMemory()
         let accountID = UUID()
-        try LocalAccountRepository(container: container.modelContainer).save(
+        try LocalAccountRepository(container: container.modelContainer, defaults: LedgerTestDefaults.cny).save(
             AccountDraft(id: accountID, accountType: .cash, name: "现金", amountText: "10"),
             locale: Locale(identifier: "en_US")
         )
@@ -51,6 +51,23 @@ struct LocalDataResetServiceTests {
 
         try service.eraseAll()
         #expect(try recordCounts(in: container) == [0, 0, 0])
+    }
+
+    @Test("只有订阅、没有账户和流水时，也算有数据可清除")
+    func subscriptionsCountAsData() throws {
+        let container = try AccountDataContainer.inMemory()
+        let service = LocalDataResetService(container: container.modelContainer)
+        #expect(try service.hasData() == false)
+
+        let context = ModelContext(container.modelContainer)
+        context.insert(UserSubscription(
+            id: UUID(), name: "Netflix", amount: 68, frequencyRawValue: RecurringFrequency.monthly.rawValue,
+            anchorDay: 20261028, categoryRawValue: "media", channelRawValue: "appStore", statusRawValue: "active",
+            accessEndDay: nil, reminderDaysBefore: nil, note: nil, recurringRuleID: nil, createdAt: .now, updatedAt: .now
+        ))
+        try context.save()
+
+        #expect(try service.hasData())
     }
 
     @Test("保存失败时回滚，现有数据保持原样")

@@ -155,8 +155,9 @@ extension VoiceToolExecutor {
     ) -> Result<[BookkeepingEntrySnapshot], VoiceToolErrorCode> {
         let dayFrom = filter.dateFrom.map(Self.transactionDay(from:))
         let dayTo = filter.dateTo.map(Self.transactionDay(from:))
-        let amountMin = filter.amountMin.map(Self.nonNegativeAmount(from:))
-        let amountMax = filter.amountMax.map(Self.nonNegativeAmount(from:))
+        let fractionDigits = amountFractionDigits
+        let amountMin = filter.amountMin.map { Self.nonNegativeAmount(from: $0, fractionDigits: fractionDigits) }
+        let amountMax = filter.amountMax.map { Self.nonNegativeAmount(from: $0, fractionDigits: fractionDigits) }
         // 外层 Optional 表示是否给了条件，内层为 nil 表示条件格式不合法
         if dayFrom == .some(nil) || dayTo == .some(nil) || amountMin == .some(nil) || amountMax == .some(nil) {
             return .failure(.invalidInput)
@@ -177,7 +178,10 @@ extension VoiceToolExecutor {
         guard let transactions = try? context.fetch(descriptor) else { return .failure(.failed) }
         let catalog = Self.catalog(in: context)
 
-        return .success(transactions.compactMap(BookkeepingEntrySnapshot.init(transaction:)).filter { entry in
+        let ledgerCurrencyCode = currencyCode
+        return .success(transactions.compactMap {
+            BookkeepingEntrySnapshot(transaction: $0, ledgerCurrencyCode: ledgerCurrencyCode)
+        }.filter { entry in
             if let entryType, entry.entryType != entryType { return false }
             if let categoryKeys, !categoryKeys.contains(entry.categoryKey) { return false }
             if let accountIDs, !accountIDs.contains(entry.accountID) { return false }

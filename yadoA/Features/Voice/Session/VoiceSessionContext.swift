@@ -14,6 +14,9 @@ struct VoiceSessionContext: Equatable {
     /// 当前有效的默认记账账户。
     let defaultAccountID: String?
 
+    /// 当前账本币种（ISO 4217），随每一步请求发给服务端，模型按它记账、不换算。
+    let currencyCode: String
+
     /// 读取当前上下文。
     ///
     /// - Parameters:
@@ -22,6 +25,8 @@ struct VoiceSessionContext: Equatable {
     /// - Returns: 读取失败的部分按空处理，交由服务端追问或提示。
     static func make(container: ModelContainer, locale: Locale) -> VoiceSessionContext {
         let context = container.makeManualSaveContext()
+        // 读取失败时按 CNY 处理，与服务端不带币种时的行为一致
+        let currencyCode = (try? BookkeepingCurrency.current(in: context)) ?? BookkeepingCurrency.fallbackCode
         let preference = try? context.canonicalBookkeepingPreference()
         // 与账户页同一顺序，AI 对话里的账户菜单也直接沿用
         let accounts = AccountDisplayOrder(preference: preference)
@@ -32,8 +37,12 @@ struct VoiceSessionContext: Equatable {
         // 「不关联账户」单独放在启用账户之后，本机还没建时也发送，用户说「不关联账户」「别动余额」时 AI 才能选它；
         // 启用账户先截断一次，给它留一个名额，启用账户满额时它也不会被总上限截掉
         let ownAccounts = accounts.filter { !$0.isUnlinked }
-        let activeOptions = ownAccounts.filter(\.isActive).compactMap { option(for: $0) }
-        let inactiveOptions = ownAccounts.filter { !$0.isActive }.compactMap { option(for: $0) }
+        let activeOptions = ownAccounts.filter(\.isActive).compactMap {
+            option(for: $0, ledgerCurrencyCode: currencyCode)
+        }
+        let inactiveOptions = ownAccounts.filter { !$0.isActive }.compactMap {
+            option(for: $0, ledgerCurrencyCode: currencyCode)
+        }
         let accountOptions = (
             Array(activeOptions.prefix(VoiceSessionLimits.maxAccounts - 1))
                 + [unlinkedOption(locale: locale)]
@@ -56,7 +65,8 @@ struct VoiceSessionContext: Equatable {
         return VoiceSessionContext(
             accounts: Array(accountOptions),
             categories: Array(categoryOptions),
-            defaultAccountID: defaultAccountID?.uuidString
+            defaultAccountID: defaultAccountID?.uuidString,
+            currencyCode: currencyCode
         )
     }
 
@@ -77,17 +87,19 @@ struct VoiceSessionContext: Equatable {
 
     /// 把一个账户转成契约里的账户选项。
     ///
-    /// - Parameter account: 本机账户。
+    /// - Parameters:
+    ///   - account: 本机账户。
+    ///   - ledgerCurrencyCode: 当前账本币种；账户币种和它不同时不能记账。
     /// - Returns: 账户选项；名称或类型为空的是损坏数据，不符合契约，返回 `nil` 不发送。
-    private static func option(for account: Account) -> VoiceAccountOption? {
+    private static func option(for account: Account, ledgerCurrencyCode: String) -> VoiceAccountOption? {
         let name = String(account.name.prefix(VoiceSessionLimits.maxOptionNameLength))
         let type = String(account.typeRawValue.prefix(VoiceSessionLimits.maxAccountTypeLength))
         guard !name.isEmpty, !type.isEmpty else { return nil }
         return VoiceAccountOption(
             id: account.id.uuidString,
             name: name,
-            // 只有可记账的 CNY 账户才能新增或改入流水
-            isActive: account.acceptsBookkeepingEntries,
+            // 只有币种和账本币种一致、可记账的账户才能新增或改入流水
+            isActive: account.acceptsBookkeepingEntries(ledgerCurrencyCode: ledgerCurrencyCode),
             type: type,
             balance: balanceString(account.balance)
         )

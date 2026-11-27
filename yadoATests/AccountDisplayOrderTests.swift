@@ -73,7 +73,7 @@ struct AccountDisplayOrderTests {
     @Test("仓库保存分类顺序后，账户列表与停用接替候选都跟随新顺序")
     func repositoryOrderFeedsAccountsAndReplacementCandidates() throws {
         let container = try AccountDataContainer.inMemory().modelContainer
-        let repository = LocalAccountRepository(container: container)
+        let repository = LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny)
         let locale = Locale(identifier: "en_US")
         let cash = AccountDraft(accountType: .cash, name: "现金", amountText: "0", locale: locale)
         let virtual = AccountDraft(

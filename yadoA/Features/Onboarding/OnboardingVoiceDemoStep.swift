@@ -6,6 +6,7 @@ import SwiftUI
 /// 新增标红写对勾、删除划掉后收起，结果提示用语音记账同一套文案，和真正用起来一模一样。
 struct OnboardingVoiceDemoStep: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// 触感。
@@ -107,7 +108,7 @@ struct OnboardingVoiceDemoStep: View {
         }
         .onAppear {
             if rows.isEmpty {
-                rows = [OnboardingSamples.coffeeRow(locale: locale)]
+                rows = [OnboardingSamples.coffeeRow(locale: locale, currencyCode: currencyCode)]
             }
         }
     }
@@ -240,7 +241,11 @@ struct OnboardingVoiceDemoStep: View {
         }
 
         // 一笔新增：行从上方长出来，等首页行自己的落笔延迟和对勾写完时震一下
-        for (index, row) in [OnboardingSamples.lunchRow(locale: locale), OnboardingSamples.taxiRow(locale: locale)].enumerated() {
+        let sampleRows = [
+            OnboardingSamples.lunchRow(locale: locale, currencyCode: currencyCode),
+            OnboardingSamples.taxiRow(locale: locale, currencyCode: currencyCode)
+        ]
+        for (index, row) in sampleRows.enumerated() {
             activeSegment = index
             withAnimation(.spring(duration: 0.45, bounce: 0.2)) {
                 rows.insert(row, at: 0)
@@ -253,7 +258,7 @@ struct OnboardingVoiceDemoStep: View {
 
         // 删掉早上那杯咖啡：划线开始时一下，停一会儿后收起
         activeSegment = 2
-        let coffee = OnboardingSamples.coffeeRow(locale: locale)
+        let coffee = OnboardingSamples.coffeeRow(locale: locale, currencyCode: currencyCode)
         marks[coffee.id] = HomeRowMark(transactionID: coffee.id, kind: .deleted)
         try? await Task.sleep(for: OnboardingSamples.strikeStart)
         haptics.strike(duration: 0.45)
@@ -266,7 +271,10 @@ struct OnboardingVoiceDemoStep: View {
         try? await Task.sleep(for: .milliseconds(300))
         withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
             activeSegment = nil
-            summary = VoiceSessionSummary.text(forItems: OnboardingSamples.summaryItems(locale: locale), locale: locale)
+            summary = VoiceSessionSummary.text(
+                forItems: OnboardingSamples.summaryItems(locale: locale, currencyCode: currencyCode),
+                locale: locale
+            )
             phase = .done
         }
         haptics.success()
@@ -292,32 +300,50 @@ enum OnboardingSamples {
     }
 
     /// 早上那杯咖啡，演示开始前就在账本里。
-    static func coffeeRow(locale: Locale) -> HomeOverviewRowPresentation {
-        row(id: coffeeID, category: .dining, noteKey: "onboarding.sample.coffee", amount: 18, locale: locale)
+    static func coffeeRow(locale: Locale, currencyCode: String) -> HomeOverviewRowPresentation {
+        row(
+            id: coffeeID, category: .dining, noteKey: "onboarding.sample.coffee", amount: 18,
+            locale: locale, currencyCode: currencyCode
+        )
     }
 
     /// 新记的午饭，微信付。
-    static func lunchRow(locale: Locale) -> HomeOverviewRowPresentation {
-        row(id: lunchID, category: .dining, noteKey: "onboarding.sample.lunch", amount: 32, locale: locale)
+    static func lunchRow(locale: Locale, currencyCode: String) -> HomeOverviewRowPresentation {
+        row(
+            id: lunchID, category: .dining, noteKey: "onboarding.sample.lunch", amount: 32,
+            locale: locale, currencyCode: currencyCode
+        )
     }
 
     /// 新记的打车。
-    static func taxiRow(locale: Locale) -> HomeOverviewRowPresentation {
-        row(id: taxiID, category: .transportation, noteKey: "onboarding.sample.taxi", amount: 28, locale: locale)
+    static func taxiRow(locale: Locale, currencyCode: String) -> HomeOverviewRowPresentation {
+        row(
+            id: taxiID, category: .transportation, noteKey: "onboarding.sample.taxi", amount: 28,
+            locale: locale, currencyCode: currencyCode
+        )
     }
 
     /// 结果提示里的三笔变更，按执行顺序排列。
-    static func summaryItems(locale: Locale) -> [VoiceSessionSummary.Item] {
+    static func summaryItems(locale: Locale, currencyCode: String) -> [VoiceSessionSummary.Item] {
         [
-            .init(kind: .created, label: text("onboarding.sample.lunch", locale), formattedAmount: currency(32, locale: locale)),
-            .init(kind: .created, label: text("onboarding.sample.taxi", locale), formattedAmount: currency(28, locale: locale)),
-            .init(kind: .deleted, label: text("onboarding.sample.coffee", locale), formattedAmount: currency(18, locale: locale)),
+            .init(
+                kind: .created, label: text("onboarding.sample.lunch", locale),
+                formattedAmount: currency(32, locale: locale, currencyCode: currencyCode)
+            ),
+            .init(
+                kind: .created, label: text("onboarding.sample.taxi", locale),
+                formattedAmount: currency(28, locale: locale, currencyCode: currencyCode)
+            ),
+            .init(
+                kind: .deleted, label: text("onboarding.sample.coffee", locale),
+                formattedAmount: currency(18, locale: locale, currencyCode: currencyCode)
+            ),
         ]
     }
 
-    /// 人民币金额。
-    static func currency(_ amount: Decimal, locale: Locale) -> String {
-        amount.formattedCurrency(locale: locale)
+    /// 按账本币种格式化的示例金额。
+    static func currency(_ amount: Decimal, locale: Locale, currencyCode: String) -> String {
+        amount.formattedCurrency(locale: locale, currencyCode: currencyCode)
     }
 
     /// 生成一行首页流水：与真实首页一致，主行是备注、副行是分类，支出金额带负号。
@@ -326,11 +352,12 @@ enum OnboardingSamples {
         category: ExpenseCategory,
         noteKey: String,
         amount: Decimal,
-        locale: Locale
+        locale: Locale,
+        currencyCode: String
     ) -> HomeOverviewRowPresentation {
         let item = BookkeepingCategoryCatalog.presets.resolvedItem(direction: .expense, key: category.rawValue)
         let lines = BookkeepingEntryLines(note: text(noteKey, locale), categoryTitle: item.title(locale: locale))
-        let formattedAmount = currency(-amount, locale: locale)
+        let formattedAmount = currency(-amount, locale: locale, currencyCode: currencyCode)
         return HomeOverviewRowPresentation(
             id: id,
             title: lines.title,

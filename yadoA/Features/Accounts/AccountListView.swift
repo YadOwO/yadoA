@@ -5,6 +5,7 @@ import SwiftUI
 /// 应用根账户列表，根据 SwiftData 查询结果切换空状态与列表状态。
 struct AccountListView: View {
     @Environment(\.locale) private var locale
+    @Environment(\.ledgerCurrencyCode) private var currencyCode
     @Environment(\.calendar) private var calendar
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -248,7 +249,8 @@ struct AccountListView: View {
         let summary = AccountSummaryPresentation.summary(
             for: accounts,
             additionalAssets: netWorthValuation ?? 0,
-            locale: locale
+            locale: locale,
+            currencyCode: currencyCode
         )
         let defaultAccountID = BookkeepingPreference.resolvedAccountID(
             preference: BookkeepingPreference.canonical(in: preferences),
@@ -339,7 +341,8 @@ struct AccountListView: View {
                                 presentation: ItemValuationPresentation.row(
                                     summary: itemSummary,
                                     settings: store.settings,
-                                    locale: locale
+                                    locale: locale,
+                                    currencyCode: currencyCode
                                 )
                             )
                             // 列表里的按钮会把标签染成强调色，原来的 NavigationLink 是主文字色

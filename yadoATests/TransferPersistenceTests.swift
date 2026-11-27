@@ -81,7 +81,7 @@ struct TransferPersistenceTests {
         }
 
         // 余额为零的现金账户可以停用，停用后不能再转入。
-        let accountRepository = LocalAccountRepository(container: dataContainer.modelContainer)
+        let accountRepository = LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny)
         let plan = try accountRepository.disposalPlan(for: cashID)
         try accountRepository.dispose(
             AccountDisposalExpectation(
@@ -114,7 +114,7 @@ struct TransferPersistenceTests {
             TransferDraft(fromAccountID: sourceID, toAccountID: targetID, amountText: "30", transactionDay: 20261022)
         )
 
-        let plan = try LocalAccountRepository(container: dataContainer.modelContainer).disposalPlan(for: targetID)
+        let plan = try LocalAccountRepository(container: dataContainer.modelContainer, defaults: LedgerTestDefaults.cny).disposalPlan(for: targetID)
 
         #expect(plan.transactionCount == 1)
         #expect(!plan.canPermanentlyDelete)
@@ -151,7 +151,7 @@ struct TransferPersistenceTests {
         amountText: String,
         in container: ModelContainer
     ) throws {
-        try LocalAccountRepository(container: container).save(
+        try LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny).save(
             AccountDraft(
                 id: id,
                 accountType: accountType,

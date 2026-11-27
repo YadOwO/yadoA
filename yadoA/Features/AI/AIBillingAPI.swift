@@ -130,8 +130,8 @@ final class AIBillingAPI: AIBillingFetching {
         /// `POST /v1/billing/check-in/dev-reset`：开发测试用的重置签到，只有 dev 环境开放。
         case devResetCheckIn(AICheckInResetOptions)
 
-        /// `GET /v1/store/catalog`：在售商品和本账号的 appAccountToken。
-        case storeCatalog
+        /// `GET /v1/store/catalog`：在售商品和本账号的 appAccountToken；`storefront` 为 StoreKit 当前 Storefront 的国家代码，服务端据此给对应地区的限时活动，取不到时为 nil。
+        case storeCatalog(storefront: String?)
 
         /// `POST /v1/store/purchases`：上传 Apple 签名的交易入账。
         case submitPurchase(signedTransaction: String)
@@ -179,11 +179,17 @@ final class AIBillingAPI: AIBillingFetching {
             }
         }
 
-        /// 查询参数；余额和流水都要带本产品代号，服务端缺这个参数时返回 400。
+        /// 查询参数；余额和流水都要带本产品代号，服务端缺这个参数时返回 400；商品列表在拿得到商店地区时再带上 `storefront`。
         var queryItems: [URLQueryItem] {
             switch self {
-            case .wallet, .checkInStatus, .storeCatalog:
+            case .wallet, .checkInStatus:
                 return [URLQueryItem(name: "product", value: AIBillingAPI.product)]
+            case let .storeCatalog(storefront):
+                var items = [URLQueryItem(name: "product", value: AIBillingAPI.product)]
+                if let storefront, !storefront.isEmpty {
+                    items.append(URLQueryItem(name: "storefront", value: storefront))
+                }
+                return items
             case let .checkInHistory(month):
                 return [
                     URLQueryItem(name: "product", value: AIBillingAPI.product),
@@ -427,9 +433,10 @@ final class AIBillingAPI: AIBillingFetching {
 protocol AIStorePurchasing {
     /// 查询在售商品和本账号购买时要用的 appAccountToken。
     ///
+    /// - Parameter storefront: StoreKit 当前 Storefront 的国家代码（ISO 3166-1 三位字母码）；服务端据此给对应地区的限时活动，取不到时为 nil，视为不限地区。
     /// - Returns: 商品列表；本产品没开放购买时 `isEnabled` 为 false。
     /// - Throws: `AIBillingAPIError`。
-    func fetchStoreCatalog() async throws -> AIStoreCatalog
+    func fetchStoreCatalog(storefront: String?) async throws -> AIStoreCatalog
 
     /// 上传一笔 Apple 签名的交易，服务端校验后入账；同一笔交易重传不会重复入账。
     ///
@@ -455,8 +462,8 @@ extension AIBillingAPI: AIStorePurchasing {
         let details: Details?
     }
 
-    func fetchStoreCatalog() async throws -> AIStoreCatalog {
-        try await send(.storeCatalog)
+    func fetchStoreCatalog(storefront: String?) async throws -> AIStoreCatalog {
+        try await send(.storeCatalog(storefront: storefront))
     }
 
     func submitPurchase(signedTransaction: String) async throws -> AIStorePurchaseResult {

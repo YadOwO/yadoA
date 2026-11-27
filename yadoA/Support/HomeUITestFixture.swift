@@ -28,7 +28,7 @@ enum HomeUITestFixture {
                 note: nil,
                 lastFourDigits: nil,
                 balance: 0,
-                currencyCode: BookkeepingCurrency.code,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 createdAt: now,
                 updatedAt: now
             )
@@ -49,6 +49,7 @@ enum HomeUITestFixture {
                 id: UUID(),
                 accountID: accountID,
                 amount: Decimal(string: item.1) ?? 0,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 transactionDay: transactionDay(for: month, day: index.isMultiple(of: 2) ? 8 : 13),
                 note: index == 2 ? "Home fixture" : ""
             )
@@ -62,6 +63,7 @@ enum HomeUITestFixture {
                     accountID: accountID,
                     balanceBefore: 100,
                     balanceAfter: 120,
+                    currencyCode: BookkeepingCurrency.fallbackCode,
                     transactionDay: transactionDay(for: adjustmentMonth, day: 6)
                 )
             )
@@ -90,7 +92,7 @@ enum HomeUITestFixture {
                 note: nil,
                 lastFourDigits: nil,
                 balance: 20,
-                currencyCode: BookkeepingCurrency.code,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 createdAt: now,
                 updatedAt: now
             )
@@ -104,7 +106,7 @@ enum HomeUITestFixture {
                 note: "Historical export fixture",
                 lastFourDigits: "1234",
                 balance: 0,
-                currencyCode: BookkeepingCurrency.code,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 createdAt: now,
                 updatedAt: now,
                 deactivatedAt: now
@@ -115,6 +117,7 @@ enum HomeUITestFixture {
                 id: UUID(),
                 accountID: activeAccountID,
                 amount: 12.50,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 transactionDay: transactionDay(for: now),
                 note: "Export fixture expense",
                 savedAt: now.addingTimeInterval(-2)
@@ -126,6 +129,7 @@ enum HomeUITestFixture {
                 accountID: activeAccountID,
                 category: .salary,
                 amount: 100,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 transactionDay: transactionDay(for: now),
                 note: "Export fixture income",
                 savedAt: now.addingTimeInterval(-1)
@@ -162,7 +166,7 @@ enum HomeUITestFixture {
                 note: nil,
                 lastFourDigits: nil,
                 balance: 100,
-                currencyCode: BookkeepingCurrency.code,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 createdAt: now,
                 updatedAt: now
             )
@@ -176,7 +180,7 @@ enum HomeUITestFixture {
                 note: nil,
                 lastFourDigits: nil,
                 balance: 100,
-                currencyCode: BookkeepingCurrency.code,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 createdAt: now,
                 updatedAt: now,
                 deactivatedAt: now
@@ -191,6 +195,7 @@ enum HomeUITestFixture {
                 id: UUID(),
                 accountID: activeAccountID,
                 amount: 30,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 transactionDay: day(8),
                 note: "和朋友吃火锅",
                 savedAt: now.addingTimeInterval(-3)
@@ -201,6 +206,7 @@ enum HomeUITestFixture {
                 id: UUID(),
                 accountID: inactiveAccountID,
                 amount: 30.50,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 transactionDay: day(10),
                 note: "Archived meal",
                 savedAt: now.addingTimeInterval(-2)
@@ -211,6 +217,7 @@ enum HomeUITestFixture {
                 id: UUID(),
                 accountID: orphanAccountID,
                 amount: 40,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 transactionDay: day(12),
                 note: "Orphan meal",
                 savedAt: now.addingTimeInterval(-1)
@@ -222,6 +229,7 @@ enum HomeUITestFixture {
                 accountID: activeAccountID,
                 balanceBefore: 100,
                 balanceAfter: 120,
+                currencyCode: BookkeepingCurrency.fallbackCode,
                 transactionDay: day(13),
                 note: "和朋友吃火锅",
                 savedAt: now

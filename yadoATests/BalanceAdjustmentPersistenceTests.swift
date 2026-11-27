@@ -206,11 +206,18 @@ struct BalanceAdjustmentPersistenceTests {
         #expect(try transactionCount(in: dataContainer.modelContainer) == 1)
     }
 
-    @Test("非 CNY 账户被拒绝且余额和流水不变")
+    @Test("币种和账本币种不一致的账户被拒绝且余额和流水不变")
     func unsupportedCurrencyCreatesNoChanges() throws {
         let dataContainer = try AccountDataContainer.inMemory()
         let accountID = UUID()
         let timestamp = Date(timeIntervalSince1970: 1_786_608_000)
+        // 账本币种取最早建的账户的币种：先放一个更早的 CNY 账户，USD 账户才是币种不一致的那个
+        try saveAccount(
+            id: UUID(),
+            amountText: "0",
+            timestamp: Date(timeIntervalSince1970: 1_786_000_000),
+            in: dataContainer.modelContainer
+        )
         let context = ModelContext(dataContainer.modelContainer)
         context.autosaveEnabled = false
         context.insert(
@@ -287,7 +294,7 @@ struct BalanceAdjustmentPersistenceTests {
         timestamp: Date = Date(timeIntervalSince1970: 1_786_608_000),
         in container: ModelContainer
     ) throws {
-        try LocalAccountRepository(container: container).save(
+        try LocalAccountRepository(container: container, defaults: LedgerTestDefaults.cny).save(
             AccountDraft(
                 id: id,
                 accountType: accountType,
