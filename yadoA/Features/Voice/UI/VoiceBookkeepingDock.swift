@@ -379,36 +379,21 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 }
             }
             .sheet(item: $voice.presentedAccount) { item in
-                NavigationStack {
+                // 账户详情右侧已有编辑和更多菜单，关闭放在左侧
+                closableSheet(close: { voice.presentedAccount = nil }) {
                     AccountDetailView(accountID: item.id)
-                        .toolbar {
-                            // 账户详情右侧已有编辑和更多菜单，关闭放在左侧
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button(text("common.close"), systemImage: "xmark") { voice.presentedAccount = nil }
-                            }
-                        }
                 }
             }
             .sheet(isPresented: $voice.isRecurringRulesPresented) {
-                NavigationStack {
+                // 列表右侧已有新建按钮，关闭放在左侧
+                closableSheet(close: { voice.isRecurringRulesPresented = false }) {
                     RecurringRuleListView()
-                        .toolbar {
-                            // 列表右侧已有新建按钮，关闭放在左侧
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button(text("common.close"), systemImage: "xmark") { voice.isRecurringRulesPresented = false }
-                            }
-                        }
                 }
             }
             .sheet(isPresented: $voice.isSubscriptionsPresented) {
-                NavigationStack {
+                // 列表右侧已有新建按钮，关闭放在左侧
+                closableSheet(close: { voice.isSubscriptionsPresented = false }) {
                     UserSubscriptionListView()
-                        .toolbar {
-                            // 列表右侧已有新建按钮，关闭放在左侧
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button(text("common.close"), systemImage: "xmark") { voice.isSubscriptionsPresented = false }
-                            }
-                        }
                 }
             }
             .sheet(item: $voice.manualEntryNote) { item in
@@ -424,13 +409,8 @@ private struct VoiceBookkeepingHost: ViewModifier {
                 AIChatView()
             }
             .sheet(isPresented: $voice.isModelTierPresented) {
-                NavigationStack {
+                closableSheet(close: { voice.isModelTierPresented = false }) {
                     AIModelTierView(scope: .quickVoice)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button(text("common.close"), systemImage: "xmark") { voice.isModelTierPresented = false }
-                            }
-                        }
                 }
             }
             // 聊天页盖在上面时，这些提示由聊天页自己弹，这里弹不出来
@@ -488,6 +468,22 @@ private struct VoiceBookkeepingHost: ViewModifier {
 
     private func text(_ key: String) -> String {
         AccountLocalization.string(key, locale: locale)
+    }
+
+    /// 以弹层打开的二级页面：包一层导航栈，左上角放关闭按钮（`.cancellationAction`、`xmark`），点了调用 `close`。
+    ///
+    /// - Parameters:
+    ///   - close: 关闭弹层的动作。
+    ///   - content: 弹层里的页面。
+    private func closableSheet<Page: View>(close: @escaping () -> Void, @ViewBuilder content: () -> Page) -> some View {
+        NavigationStack {
+            content()
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(text("common.close"), systemImage: "xmark", action: close)
+                    }
+                }
+        }
     }
 }
 

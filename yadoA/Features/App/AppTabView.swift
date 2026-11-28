@@ -15,9 +15,6 @@ enum AppTab: String, CaseIterable, Hashable {
     /// “我的”入口：承载账户、显示、备份等本机设置。
     case profile
 
-    /// 用户未选择启动页面时默认展示记账页。
-    static let initial: AppTab = .home
-
     /// Tab 标题对应的稳定本地化键。
     var titleLocalizationKey: String {
         switch self {

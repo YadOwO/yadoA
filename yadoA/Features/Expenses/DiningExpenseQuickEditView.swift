@@ -13,6 +13,11 @@ struct DiningExpenseQuickEditView: View {
     /// 打开时的草稿，仅用于判断是否存在未保存修改。
     private let originalDraft: DiningExpenseEditDraft
 
+    /// 是否有需要确认才能丢弃的修改：草稿和打开时不同，且所编辑的流水还在（流水已被删除时草稿没有保留价值）。
+    private var hasUnsavedChanges: Bool {
+        flow.draft != originalDraft && !flow.isTransactionRemoved
+    }
+
     /// 创建独立的编辑草稿和可测试保存动作。
     init(draft: DiningExpenseEditDraft, save: @escaping DiningExpenseEditSaveAction) {
         originalDraft = draft
@@ -30,7 +35,7 @@ struct DiningExpenseQuickEditView: View {
             ToolbarItem(placement: .cancellationAction) {
                 Button(text("common.cancel"), systemImage: "xmark") {
                     // 流水已不存在时草稿没有保留价值，直接关闭。
-                    if flow.draft != originalDraft && !flow.isTransactionRemoved {
+                    if hasUnsavedChanges {
                         isDiscardConfirmationPresented = true
                     } else {
                         dismiss()
@@ -41,7 +46,7 @@ struct DiningExpenseQuickEditView: View {
             }
         }
         .interactiveDismissDisabled(
-            flow.isSaving || (flow.draft != originalDraft && !flow.isTransactionRemoved)
+            flow.isSaving || hasUnsavedChanges
         )
         .onChange(of: transactions.isEmpty) { _, isEmpty in
             // 分类管理里把原分类连同流水一起删除后，页面保留但禁止保存，并提示用户关闭。

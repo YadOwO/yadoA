@@ -4,10 +4,9 @@ import Testing
 
 @Suite("应用一级导航")
 struct AppTabViewTests {
-    @Test("当前提供记账、图表、账户和我的四个入口且默认进入记账页")
+    @Test("当前提供记账、图表、账户和我的四个入口")
     func exposesFourTabsAndStartsOnHome() {
         #expect(AppTab.allCases == [.home, .charts, .accounts, .profile])
-        #expect(AppTab.initial == .home)
         #expect(AppTab.home.symbolName == "book")
         #expect(AppTab.charts.symbolName == "chart.bar.xaxis")
         #expect(AppTab.accounts.symbolName == "creditcard")
